@@ -1,6 +1,7 @@
 import numpy as np
 import hashlib
 from . import mpi
+from . import wordhash
 
 def message(*args):
     for arg in args:
@@ -73,3 +74,6 @@ def hashstamp(inputObj):
     global_inputStr = ''.join(all_inputStrs)
     stamp = hashlib.md5(global_inputStr.encode()).hexdigest()
     return stamp
+
+def wordhashstamp(inputObj):
+    return wordhash.get_random_phrase(hashstamp(inputObj))
