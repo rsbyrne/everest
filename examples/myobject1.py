@@ -12,7 +12,8 @@ class MyObject1(everest.Built):
     def __init__(
             self,
             a = 1,
-            b = 2.
+            b = 2.,
+            initial_time = 0.
             ):
         inputs = locals().copy()
         self.var = everest.value.Value(0.)
@@ -22,17 +23,20 @@ class MyObject1(everest.Built):
         super().__init__(
             inputs,
             self.script,
+            update = self.update,
             iterate = self.iterate,
             initialise = self.initialise,
             out = self.out
             )
 
-    def iterate(self):
+    def update(self):
         self.var.value = math.sin(self.time() ** self.a)
+
+    def iterate(self):
         self.time.value += self.b
 
-    def initialise(self, time = 0.):
-        self.time.value = time
+    def initialise(self):
+        self.time.value = self.outget('initial_time')
 
     def out(self):
         return self.var()

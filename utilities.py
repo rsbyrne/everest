@@ -28,7 +28,10 @@ def stringify(*args):
     else:
         inputObject = args[0]
         objType = type(inputObject)
-        if objType == str:
+        if objType == bytes:
+            outStr += inputObject.decode()
+            typeStr = 'str'
+        elif objType == str:
             outStr += inputObject
             typeStr = 'str'
         elif objType == bool:
