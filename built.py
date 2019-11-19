@@ -41,7 +41,7 @@ class Built:
 
         _clean_inputs(inputs)
         script = utilities.ToOpen(filepath)()
-        hashID = utilities.hashstamp((script, inputs))
+        hashID = utilities.wordhashstamp((script, inputs))
 
         if not iterate is None:
             count = value.Value(0)

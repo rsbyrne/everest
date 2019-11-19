@@ -20,11 +20,11 @@ def wordhash(hashID, nWords = 2):
     return wordhashstr
 
 def _make_syllables():
-    consonants = list("bcdfghjklmnpqrstvwxz")
+    consonants = list("bcdfghjklmnpqrstvwxyz")
     conclusters = ['bl', 'br', 'dr', 'dw', 'fl', 'fr', 'gl', 'gr', 'kl', 'kr', 'kw', 'pl', 'pr', 'sf', 'sk', 'sl', 'sm', 'sn', 'sp', 'st', 'sw', 'tr', 'tw']
     condigraphs = ['sh', 'ch', 'th', 'ph']
     allcons = [*consonants, *conclusters, *condigraphs]
-    vowels = [*list("aeiouy")]
+    vowels = [*list("aeiou")]
     syllables = [consonant + vowel for vowel in vowels for consonant in allcons]
     syllables.extend([vowel + syllable for vowel in vowels for syllable in syllables])
     syllables = list(sorted(syllables))
