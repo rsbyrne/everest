@@ -3,7 +3,7 @@ import math
 
 def build(*args, **kwargs):
     return MyObject1(*args, **kwargs)
-    
+
 class MyObject1(everest.Built):
 
     name = 'myobject1'
@@ -31,9 +31,8 @@ class MyObject1(everest.Built):
         self.var.value = math.sin(self.time() ** self.a)
         self.time.value += self.b
 
-    def initialise(self, var = 0.):
-        self.var.value = var
-        self.time.value = 0.
+    def initialise(self, time = 0.):
+        self.time.value = time
 
     def out(self):
         return self.var()
