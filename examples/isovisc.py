@@ -180,7 +180,7 @@ class Isovisc(everest.built.Iterative):
             modeltime.value = 0.
 
         def out():
-            return (temperatureField.data, modeltime())
+            return (temperatureField.data.copy(), modeltime())
 
         def load(loadDict):
             temperatureField.data[...] = loadDict['temperatureField']

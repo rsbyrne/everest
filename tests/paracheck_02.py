@@ -7,7 +7,7 @@ import planetengine
 IC = everest.examples.sinusoidal.build()
 system = everest.examples.isovisc.build(
     Ra = 1e5,
-    res = 32,
+    res = 4,
     temperatureFieldIC = IC
     )
 
@@ -21,17 +21,17 @@ if everest.mpi.rank == 0:
 
 system.anchor(path)
 
-for i in range(10):
-    system.go(10)
+for i in range(3):
+    system.go(3)
     system.store()
 system.save()
-for i in range(10):
-    system.go(10)
+for i in range(3):
+    system.go(3)
     system.store()
 system.save()
-system.load(20)
-for i in range(10):
-    system.go(10)
+system.load(9)
+for i in range(3):
+    system.go(3)
     system.store()
 system.save()
 
