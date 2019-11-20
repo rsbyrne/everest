@@ -51,6 +51,7 @@ def _clean_inputs(inputs):
             del inputs[key]
 
     subBuilts = {}
+    safeInputs = {}
     for key, val in sorted(inputs.items()):
         if type(val) == tuple:
             inputs[key] = list(val)
@@ -61,31 +62,27 @@ def _clean_inputs(inputs):
                     )
         if isinstance(val, Built):
             subBuilts[key] = val
-            inputs[key] = BUILT_FLAG + val.hashID
+            safeInputs[key] = BUILT_FLAG + val.hashID
 
-    return subBuilts
+    return inputs, safeInputs, subBuilts
 
 class Built:
 
     def __init__(
             self,
             inputs,
-            filepath,
-            out
+            filepath
             ):
 
-        subBuilts = _clean_inputs(inputs)
+        inputs, safeInputs, subBuilts = _clean_inputs(inputs)
 
         script = utilities.ToOpen(filepath)()
-        hashID = utilities.wordhashstamp((script, inputs))
-
-        self.out = lambda: self._out_wrap(
-            out
-            )
+        hashID = utilities.wordhashstamp((script, safeInputs))
 
         self.anchored = False
         self.script = script
         self.inputs = inputs
+        self.safeInputs = safeInputs
         self.subBuilts = subBuilts
         self.hashID = hashID
 
@@ -100,7 +97,7 @@ class Built:
                 else:
                     selfgroup = h5file.create_group(self.hashID)
                 selfgroup.attrs['script'] = self.script.encode()
-                selfgroup.attrs['inputs'] = str(self.inputs).encode()
+                selfgroup.attrs['inputs'] = str(self.safeInputs).encode()
         for key, subBuilt in sorted(self.subBuilts.items()):
             subBuilt.anchor(path)
         self.path = path
@@ -121,10 +118,9 @@ class NonIterative(Built):
     def __init__(
             self,
             inputs,
-            filepath,
-            out
+            filepath
             ):
-        super().__init__(inputs, filepath, out)
+        super().__init__(inputs, filepath)
 
 class Iterative(Built):
 
@@ -140,6 +136,9 @@ class Iterative(Built):
             load
             ):
 
+        self.out = lambda: self._out_wrap(
+            out
+            )
         self.outkeys = outkeys
         self.update = lambda: self._update_wrap(
             update
@@ -163,7 +162,7 @@ class Iterative(Built):
             count
             )
 
-        super().__init__(inputs, filepath, out)
+        super().__init__(inputs, filepath)
 
         self.initialise()
 

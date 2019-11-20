@@ -20,6 +20,7 @@ class MyObject1(everest.built.Iterative):
         self.time = everest.value.Value(0.)
         self.a = a
         self.b = b
+        self.initial_time = initial_time
         super().__init__(
             inputs,
             self.script,
@@ -38,7 +39,10 @@ class MyObject1(everest.built.Iterative):
         self.time.value += self.b
 
     def initialise(self):
-        self.time.value = self.outget('initial_time')
+        initialTime = self.initial_time
+        if isinstance(initialTime, everest.built.Built):
+            initialTime = initialTime.val
+        self.time.value = initialTime
 
     def out(self):
         return [self.time(), self.var()]

@@ -2,9 +2,14 @@ import h5py
 import os
 
 import everest
+import planetengine
 
-IC = everest.examples.myobject2.build(400.)
-system = everest.examples.myobject1.build(a = 1, b = 0.5, initial_time = IC)
+IC = everest.examples.sinusoidal.build()
+system = everest.examples.isovisc.build(
+    Ra = 1e5,
+    res = 32,
+    temperatureFieldIC = IC
+    )
 
 outputPath = '..'
 name = 'test'
@@ -30,6 +35,8 @@ for i in range(10):
     system.store()
 system.save()
 
+planetengine.quickShow(system.temperatureField)
+
 if everest.mpi.rank == 0:
     with h5py.File(path) as h5file:
-        print(h5file[system.hashID]['var']['data'][...])
+        print(h5file[system.hashID]['temperatureField']['data'][...])

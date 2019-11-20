@@ -21,7 +21,7 @@ class Isovisc(everest.built.Iterative):
         f = 0.54,
         aspect = 1.,
         Ra = 1e7,
-        initial_temperatureField = None
+        temperatureFieldIC = None
         ):
 
         ### HOUSEKEEPING: IMPORTANT! ###
@@ -173,23 +173,31 @@ class Isovisc(everest.built.Iterative):
         def integrate():
             dt = advDiff.get_max_dt()
             advDiff.integrate(dt)
-            return dt
+            modeltime.value += dt
 
         def initialise():
-            temperatureField.data = self.outget('initial_temperatureField')
+            temperatureFieldIC.apply(temperatureField)
+            modeltime.value = 0.
 
         def out():
             return (temperatureField.data, modeltime())
 
+        def load(loadDict):
+            temperatureField.data[...] = loadDict['temperatureField']
+            modeltime.value = loadDict['modeltime']
+
+        # temporary!
+        self.temperatureField = temperatureField
+
         super().__init__(
             inputs,
             self.script,
-            out = self.out,
+            out = out,
             outkeys = ['temperatureField', 'modeltime'],
             update = solve,
             iterate = integrate,
             initialise = initialise,
-            load = self.load
+            load = load
             )
 
         # super().__init__(

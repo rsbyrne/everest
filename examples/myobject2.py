@@ -10,13 +10,11 @@ class MyObject2(everest.built.NonIterative):
 
     def __init__(
             self,
-            val = 0
+            val = 0.
             ):
         inputs = locals().copy()
-        def out():
-            return val
+        self.val = val
         super().__init__(
             inputs,
-            self.script,
-            out = out
+            self.script
             )
