@@ -158,10 +158,45 @@ class Iterative(Built):
             self.count
             )
         self.reset = self.initialise
+        self.load = lambda count: self._load_wrap(
+            load,
+            count
+            )
 
         super().__init__(inputs, filepath, out)
 
         self.initialise()
+
+    def _check_anchored(self):
+        if not self.anchored:
+            raise Exception(
+                "Must be anchored first."
+                )
+
+    def _load_wrap(self, load, count):
+        loadDict = self._load_dataDict(count)
+        load(loadDict)
+
+    def _load_dataDict(self, count):
+        self._check_anchored()
+        with h5py.File(
+                    self.path,
+                    driver = 'mpio',
+                    comm = mpi.comm
+                    ) \
+                as h5file:
+            selfgroup = h5file[self.hashID]
+            counts = selfgroup[COUNTS_FLAG]['data']
+            iterNo = 0
+            while True:
+                if counts[iterNo] == count:
+                    break
+                iterNo += 1
+            loadDict = {}
+            for key in self.outkeys:
+                loadData = selfgroup[key]['data'][iterNo]
+                loadDict[key] = loadData
+        return loadDict
 
     def _update_wrap(self, update):
         update()
@@ -196,8 +231,7 @@ class Iterative(Built):
         return dataDict
 
     def _save(self):
-        if not self.anchored:
-            raise Exception("Cannot save: not anchored yet.")
+        self._check_anchored()
         dataDict = self._make_dataDict()
         with h5py.File(
                     self.path,
@@ -206,11 +240,7 @@ class Iterative(Built):
                     ) \
                 as h5file:
             selfgroup = h5file[self.hashID]
-            keyorder = [
-                COUNTS_FLAG,
-                *[key for key in dataDict.keys() if not key == COUNTS_FLAG]
-                ]
-            for key in keyorder:
+            for key in [COUNTS_FLAG, *self.outkeys]:
                 data = dataDict[key]
                 if key in selfgroup:
                     outgroup = selfgroup[key]
