@@ -11,7 +11,7 @@ system = everest.examples.isovisc.build(
     temperatureFieldIC = IC
     )
 
-outputPath = '..'
+outputPath = ''
 name = 'test'
 extension = 'h5'
 path = os.path.join(outputPath, name + '.' + extension)

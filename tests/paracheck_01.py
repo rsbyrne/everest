@@ -6,7 +6,7 @@ import everest
 IC = everest.examples.myobject2.build(400.)
 system = everest.examples.myobject1.build(a = 1, b = 0.5, initial_time = IC)
 
-outputPath = '..'
+outputPath = ''
 name = 'test'
 extension = 'h5'
 path = os.path.join(outputPath, name + '.' + extension)
