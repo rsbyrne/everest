@@ -176,9 +176,11 @@ class Iterative(Built):
     def _load_wrap(self, load, count):
         loadDict = self._load_dataDict(count)
         load(loadDict)
+        self.count.value = count
 
     def _load_dataDict(self, count):
         self._check_anchored()
+        self.save()
         with h5py.File(
                     self.path,
                     driver = 'mpio',
@@ -189,6 +191,8 @@ class Iterative(Built):
             counts = selfgroup[COUNTS_FLAG]['data']
             iterNo = 0
             while True:
+                if iterNo >= len(counts):
+                    raise Exception("Count not found!")
                 if counts[iterNo] == count:
                     break
                 iterNo += 1
@@ -213,26 +217,34 @@ class Iterative(Built):
     def _store(self):
         val = self.out()
         count = self.count()
-        past_counts = [index for index, data in self.stored]
-        if not count in past_counts:
+        stored_counts = [index for index, data in self.stored]
+        if not count in stored_counts:
             entry = (count, val)
             self.stored.append(entry)
-        self.stored.sort()
+            self.stored.sort()
 
     def _clear(self):
         self.stored = []
 
-    def _make_dataDict(self):
-        stored = self.stored
-        outkeys = self.outkeys
+    def _make_dataDict(self, stored, outkeys):
         counts, outs = zip(*stored)
-        dataDict = {key: np.array(val) for key, val in zip(outkeys, zip(*outs))}
-        dataDict[COUNTS_FLAG] = np.array(counts)
+        dataDict = {
+            key: np.array(val, dtype = self._obtain_dtype(val[0])) \
+                for key, val in zip(outkeys, zip(*outs))
+            }
+        dataDict[COUNTS_FLAG] = np.array(counts, dtype = 'i8')
         return dataDict
+
+    @staticmethod
+    def _obtain_dtype(object):
+        if type(object) == np.ndarray:
+            dtype = object.dtype
+        else:
+            dtype = type(object)
+        return dtype
 
     def _save(self):
         self._check_anchored()
-        dataDict = self._make_dataDict()
         with h5py.File(
                     self.path,
                     driver = 'mpio',
@@ -240,30 +252,42 @@ class Iterative(Built):
                     ) \
                 as h5file:
             selfgroup = h5file[self.hashID]
-            for key in [COUNTS_FLAG, *self.outkeys]:
-                data = dataDict[key]
-                if key in selfgroup:
-                    outgroup = selfgroup[key]
-                    dataset = outgroup['data']
-                else:
-                    outgroup = selfgroup.create_group(key)
-                    maxshape = [None, *data.shape[1:]]
-                    dataset = outgroup.create_dataset(
-                        name = 'data',
-                        shape = [0, *data.shape[1:]],
-                        maxshape = maxshape
-                        # compression = 'gzip'
-                        )
-                    if not key == COUNTS_FLAG:
-                        outgroup[COUNTS_FLAG] = selfgroup[COUNTS_FLAG]['data']
-                priorlen = dataset.shape[0]
-                dataset.resize(priorlen + len(data), axis = 0)
-                dataset[priorlen:] = data
-            counts_dataset = selfgroup[COUNTS_FLAG]
-            for key in [key for key in dataDict if key != COUNTS_FLAG]:
-                outgroup = selfgroup[key]
-                if not COUNTS_FLAG in outgroup:
-                    dataset.attrs[COUNTS_FLAG] = counts_dataset
+            if COUNTS_FLAG in selfgroup:
+                saved_counts = list(selfgroup[COUNTS_FLAG]['data'][...])
+                purge_indices = []
+                for index, (count, values) in enumerate(self.stored):
+                    if count in saved_counts:
+                        purge_indices.append(index)
+                self.stored = [
+                    self.stored[index] \
+                        for index in range(len(self.stored)) \
+                            if not index in purge_indices
+                    ]
+            if len(self.stored) > 0:
+                dataDict = self._make_dataDict(
+                    self.stored,
+                    self.outkeys
+                    )
+                for key in [COUNTS_FLAG, *self.outkeys]:
+                    data = dataDict[key]
+                    if key in selfgroup:
+                        outgroup = selfgroup[key]
+                        dataset = outgroup['data']
+                    else:
+                        outgroup = selfgroup.create_group(key)
+                        maxshape = [None, *data.shape[1:]]
+                        dataset = outgroup.create_dataset(
+                            name = 'data',
+                            shape = [0, *data.shape[1:]],
+                            maxshape = maxshape,
+                            dtype = data.dtype
+                            # compression = 'gzip'
+                            )
+                        if not key == COUNTS_FLAG:
+                            outgroup[COUNTS_FLAG] = selfgroup[COUNTS_FLAG]['data']
+                    priorlen = dataset.shape[0]
+                    dataset.resize(priorlen + len(data), axis = 0)
+                    dataset[priorlen:] = data
         self.clear()
 
     def _initialise_wrap(self, initialise, count):
