@@ -8,6 +8,7 @@ IC = everest.examples.sinusoidal.build()
 system = everest.examples.isovisc.build(
     Ra = 1e5,
     res = 4,
+    f = 1.,
     temperatureFieldIC = IC
     )
 
@@ -29,7 +30,7 @@ for i in range(3):
     system.go(3)
     system.store()
 system.save()
-# system.load(9)
+system.load(9)
 for i in range(3):
     system.go(3)
     system.store()
@@ -37,6 +38,6 @@ system.save()
 
 planetengine.quickShow(system.temperatureField)
 
-if everest.mpi.rank == 0:
-    with h5py.File(path) as h5file:
-        print(h5file[system.hashID]['temperatureField']['data'][...])
+# if everest.mpi.rank == 0:
+#     with h5py.File(path) as h5file:
+#         print(h5file[system.hashID]['temperatureField']['data'][...])
