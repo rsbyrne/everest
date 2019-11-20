@@ -29,7 +29,7 @@ for i in range(3):
     system.go(3)
     system.store()
 system.save()
-system.load(9)
+# system.load(9)
 for i in range(3):
     system.go(3)
     system.store()
