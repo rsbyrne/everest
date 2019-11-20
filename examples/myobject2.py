@@ -2,8 +2,8 @@ import everest
 
 def build(*args, **kwargs):
     return MyObject2(*args, **kwargs)
-    
-class MyObject2(everest.Built):
+
+class MyObject2(everest.built.NonIterative):
 
     name = 'myobject2'
     script = __file__

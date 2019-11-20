@@ -6,7 +6,8 @@ from . import value
 from . import disk
 from . import mpi
 
-BUILT_FLAG = 'BUILT:'
+BUILT_FLAG = '_built:'
+COUNTS_FLAG = '_counts'
 
 def load_built_from_h5(path, hashID):
     script = ''
@@ -16,7 +17,7 @@ def load_built_from_h5(path, hashID):
     inputs = eval(attrs['inputs'])
     for key, val in sorted(inputs.items()):
         if type(val) is str:
-            if val[:6] == BUILT_FLAG:
+            if val[:len(BUILT_FLAG)] == BUILT_FLAG:
                 loadHashID = val[6:]
                 loadedBuilt = load_built_from_h5(path, loadHashID)
                 inputs[key] = loadedBuilt
@@ -70,11 +71,7 @@ class Built:
             self,
             inputs,
             filepath,
-            update = None,
-            iterate = None,
-            out = None,
-            outkeys = None,
-            initialise = None
+            out
             ):
 
         subBuilts = _clean_inputs(inputs)
@@ -82,45 +79,9 @@ class Built:
         script = utilities.ToOpen(filepath)()
         hashID = utilities.wordhashstamp((script, inputs))
 
-        if not update is None:
-            self.update = lambda: self._update_wrap(
-                update
-                )
-        if not iterate is None:
-            count = value.Value(0)
-            self.iterate = lambda: self._iterate_wrap(
-                iterate,
-                count
-                )
-            def go(n):
-                for i in range(n):
-                    self.iterate()
-            self.go = go
-            self.count = count
-        if not out is None:
-            self.out = lambda: self._out_wrap(
-                out
-                )
-            if not iterate is None:
-                if outkeys is None:
-                    raise Exception(
-                        "Must provide outkeys when providing out and iterate."
-                        )
-                if not len(outkeys) == len(self.out()):
-                    raise Exception(
-                        "Must provide outkey for each out."
-                        )
-                self.outkeys = outkeys
-                self.store = self._store
-                self.stored = []
-                self.clear = self._clear
-                self.save = self._save
-        if not initialise is None:
-            self.initialise = lambda: self._initialise_wrap(
-                initialise,
-                count
-                )
-            self.reset = self.initialise
+        self.out = lambda: self._out_wrap(
+            out
+            )
 
         self.anchored = False
         self.script = script
@@ -128,71 +89,8 @@ class Built:
         self.subBuilts = subBuilts
         self.hashID = hashID
 
-        if not initialise is None:
-            self.initialise()
-
     def _out_wrap(self, out):
         return out()
-
-    def _update_wrap(self, update):
-        update()
-
-    def _iterate_wrap(self, iterate, count):
-        count.value += 1
-        iterate()
-        self.update()
-
-    def _store(self):
-        val = self.out()
-        count = self.count()
-        past_counts = [index for index, data in self.stored]
-        if not count in past_counts:
-            entry = (count, val)
-            self.stored.append(entry)
-        self.stored.sort()
-
-    def _clear(self):
-        self.stored = []
-
-    def _make_dataDict(self):
-        stored = self.stored
-        outkeys = self.outkeys
-        counts, outs = zip(*stored)
-        dataDict = {key: np.array(val) for key, val in zip(outkeys, zip(*outs))}
-        dataDict['counts'] = np.array(counts)
-        return dataDict
-
-    def _save(self):
-        if not self.anchored:
-            raise Exception("Cannot save: not anchored yet.")
-        dataDict = self._make_dataDict()
-        with h5py.File(
-                    self.path,
-                    driver = 'mpio',
-                    comm = mpi.comm
-                    ) \
-                as h5file:
-            selfgroup = h5file[self.hashID]
-            for key, data in sorted(dataDict.items()):
-                if key in selfgroup:
-                    dataset = selfgroup[key]
-                else:
-                    maxshape = [None, *data.shape[1:]]
-                    dataset = selfgroup.create_dataset(
-                        name = key,
-                        shape = [0, *data.shape[1:]],
-                        maxshape = maxshape
-                        # compression = 'gzip'
-                        )
-                priorlen = dataset.shape[0]
-                dataset.resize(priorlen + len(data), axis = 0)
-                dataset[priorlen:] = data
-        self.clear()
-
-    def _initialise_wrap(self, initialise, count):
-        count.value = 0
-        initialise()
-        self.update()
 
     def anchor(self, path):
         if mpi.rank == 0:
@@ -218,19 +116,127 @@ class Built:
                 "Key not found in either subBuilts or inputs"
                 )
 
-    # def _initialise_wrap(self, initialise, count, inBuiltDict):
-    #     count.value = 0
-    #     self.initials.update(inBuiltDict)
-    #     inHashDict = {
-    #         key: inBuilt.hashID \
-    #             for key, inBuilt in sorted(self.initials.items())
-    #             }
-    #     self.initials_hashIDs.update(inHashDict)
-    #     self.initials_allHash = utilities.wordhashstamp(
-    #         self.initials_hashIDs
-    #         )
-    #     inDataDict = {
-    #         key: inBuilt.out() \
-    #             for key, inBuilt in sorted(self.initials.items())
-    #             }
-    #     initialise(**inDataDict)
+class NonIterative(Built):
+
+    def __init__(
+            self,
+            inputs,
+            filepath,
+            out
+            ):
+        super().__init__(inputs, filepath, out)
+
+class Iterative(Built):
+
+    def __init__(
+            self,
+            inputs,
+            filepath,
+            out,
+            outkeys,
+            update,
+            iterate,
+            initialise,
+            load
+            ):
+
+        self.outkeys = outkeys
+        self.update = lambda: self._update_wrap(
+            update
+            )
+        self.count = value.Value(0)
+        self.iterate = lambda: self._iterate_wrap(
+            iterate,
+            self.count
+            )
+        self.store = self._store
+        self.stored = []
+        self.clear = self._clear
+        self.save = self._save
+        self.initialise = lambda: self._initialise_wrap(
+            initialise,
+            self.count
+            )
+        self.reset = self.initialise
+
+        super().__init__(inputs, filepath, out)
+
+        self.initialise()
+
+    def _update_wrap(self, update):
+        update()
+
+    def _iterate_wrap(self, iterate, count):
+        count.value += 1
+        iterate()
+        self.update()
+
+    def go(self, n):
+        for i in range(n):
+            self.iterate()
+
+    def _store(self):
+        val = self.out()
+        count = self.count()
+        past_counts = [index for index, data in self.stored]
+        if not count in past_counts:
+            entry = (count, val)
+            self.stored.append(entry)
+        self.stored.sort()
+
+    def _clear(self):
+        self.stored = []
+
+    def _make_dataDict(self):
+        stored = self.stored
+        outkeys = self.outkeys
+        counts, outs = zip(*stored)
+        dataDict = {key: np.array(val) for key, val in zip(outkeys, zip(*outs))}
+        dataDict[COUNTS_FLAG] = np.array(counts)
+        return dataDict
+
+    def _save(self):
+        if not self.anchored:
+            raise Exception("Cannot save: not anchored yet.")
+        dataDict = self._make_dataDict()
+        with h5py.File(
+                    self.path,
+                    driver = 'mpio',
+                    comm = mpi.comm
+                    ) \
+                as h5file:
+            selfgroup = h5file[self.hashID]
+            keyorder = [
+                COUNTS_FLAG,
+                *[key for key in dataDict.keys() if not key == COUNTS_FLAG]
+                ]
+            for key in keyorder:
+                data = dataDict[key]
+                if key in selfgroup:
+                    outgroup = selfgroup[key]
+                    dataset = outgroup['data']
+                else:
+                    outgroup = selfgroup.create_group(key)
+                    maxshape = [None, *data.shape[1:]]
+                    dataset = outgroup.create_dataset(
+                        name = 'data',
+                        shape = [0, *data.shape[1:]],
+                        maxshape = maxshape
+                        # compression = 'gzip'
+                        )
+                    if not key == COUNTS_FLAG:
+                        outgroup[COUNTS_FLAG] = selfgroup[COUNTS_FLAG]['data']
+                priorlen = dataset.shape[0]
+                dataset.resize(priorlen + len(data), axis = 0)
+                dataset[priorlen:] = data
+            counts_dataset = selfgroup[COUNTS_FLAG]
+            for key in [key for key in dataDict if key != COUNTS_FLAG]:
+                outgroup = selfgroup[key]
+                if not COUNTS_FLAG in outgroup:
+                    dataset.attrs[COUNTS_FLAG] = counts_dataset
+        self.clear()
+
+    def _initialise_wrap(self, initialise, count):
+        count.value = 0
+        initialise()
+        self.update()

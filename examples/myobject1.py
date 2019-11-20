@@ -4,7 +4,7 @@ import math
 def build(*args, **kwargs):
     return MyObject1(*args, **kwargs)
 
-class MyObject1(everest.Built):
+class MyObject1(everest.built.Iterative):
 
     name = 'myobject1'
     script = __file__
@@ -23,11 +23,12 @@ class MyObject1(everest.Built):
         super().__init__(
             inputs,
             self.script,
+            out = self.out,
+            outkeys = ['time', 'var'],
             update = self.update,
             iterate = self.iterate,
             initialise = self.initialise,
-            out = self.out,
-            outkeys = ['time', 'var']
+            load = self.load
             )
 
     def update(self):
@@ -41,3 +42,7 @@ class MyObject1(everest.Built):
 
     def out(self):
         return [self.time(), self.var()]
+
+    def load(self, loadDict):
+        self.var.value = loadDict['var']
+        self.time.value = loadDict['time']
