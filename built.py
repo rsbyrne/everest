@@ -4,11 +4,22 @@ import h5py
 from . import utilities
 from . import value
 from . import disk
+from . import mpi
 
-def load_built_from_h5(h5file, hashID):
-    built_group = h5file[hashID]
-    script = built_group.attrs['script'].decode()
-    inputs = eval(built_group.attrs['inputs'].decode())
+BUILT_FLAG = 'BUILT:'
+
+def load_built_from_h5(path, hashID):
+    script = ''
+    inputs = ''
+    attrs = disk.h5_read_attrs(path, subkeys = [hashID,])
+    script = attrs['script']
+    inputs = eval(attrs['inputs'])
+    for key, val in sorted(inputs.items()):
+        if type(val) is str:
+            if val[:6] == BUILT_FLAG:
+                loadHashID = val[6:]
+                loadedBuilt = load_built_from_h5(path, loadHashID)
+                inputs[key] = loadedBuilt
     with disk.TempFile(
                 script,
                 extension = 'py'
@@ -16,6 +27,7 @@ def load_built_from_h5(h5file, hashID):
             as tempfile:
         imported = disk.local_import(tempfile)
         loaded_built = imported.build(**inputs)
+    loaded_built.anchor(path)
     return loaded_built
 
 def _clean_inputs(inputs):
@@ -38,7 +50,7 @@ def _clean_inputs(inputs):
             del inputs[key]
 
     subBuilts = {}
-    for key, val in inputs.items():
+    for key, val in sorted(inputs.items()):
         if type(val) == tuple:
             inputs[key] = list(val)
         if not isinstance(val, Built):
@@ -48,7 +60,7 @@ def _clean_inputs(inputs):
                     )
         if isinstance(val, Built):
             subBuilts[key] = val
-            inputs[key] = val.hashID
+            inputs[key] = BUILT_FLAG + val.hashID
 
     return subBuilts
 
@@ -61,6 +73,7 @@ class Built:
             update = None,
             iterate = None,
             out = None,
+            outkeys = None,
             initialise = None
             ):
 
@@ -88,9 +101,20 @@ class Built:
             self.out = lambda: self._out_wrap(
                 out
                 )
-            self.store = self._store
-            self.stored = []
-            self.clear = self._clear
+            if not iterate is None:
+                if outkeys is None:
+                    raise Exception(
+                        "Must provide outkeys when providing out and iterate."
+                        )
+                if not len(outkeys) == len(self.out()):
+                    raise Exception(
+                        "Must provide outkey for each out."
+                        )
+                self.outkeys = outkeys
+                self.store = self._store
+                self.stored = []
+                self.clear = self._clear
+                self.save = self._save
         if not initialise is None:
             self.initialise = lambda: self._initialise_wrap(
                 initialise,
@@ -98,6 +122,7 @@ class Built:
                 )
             self.reset = self.initialise
 
+        self.anchored = False
         self.script = script
         self.inputs = inputs
         self.subBuilts = subBuilts
@@ -118,20 +143,51 @@ class Built:
         self.update()
 
     def _store(self):
-        self.stored.append(
-            (self.count(), self.out())
-            )
+        val = self.out()
+        count = self.count()
+        past_counts = [index for index, data in self.stored]
+        if not count in past_counts:
+            entry = (count, val)
+            self.stored.append(entry)
+        self.stored.sort()
 
     def _clear(self):
         self.stored = []
 
-    # def _save(self):
-    #     if not hasattr(self, path):
-    #         raise Exception("Cannot save: not anchored yet.")
-    #     if mpi.rank == 0:
-    #         with h5py.File(path) as h5file:
-    #             selfgroup = h5file[self.hashID]
-    #
+    def _make_dataDict(self):
+        stored = self.stored
+        outkeys = self.outkeys
+        counts, outs = zip(*stored)
+        dataDict = {key: np.array(val) for key, val in zip(outkeys, zip(*outs))}
+        dataDict['counts'] = np.array(counts)
+        return dataDict
+
+    def _save(self):
+        if not self.anchored:
+            raise Exception("Cannot save: not anchored yet.")
+        dataDict = self._make_dataDict()
+        with h5py.File(
+                    self.path,
+                    driver = 'mpio',
+                    comm = mpi.comm
+                    ) \
+                as h5file:
+            selfgroup = h5file[self.hashID]
+            for key, data in sorted(dataDict.items()):
+                if key in selfgroup:
+                    dataset = selfgroup[key]
+                else:
+                    maxshape = [None, *data.shape[1:]]
+                    dataset = selfgroup.create_dataset(
+                        name = key,
+                        shape = [0, *data.shape[1:]],
+                        maxshape = maxshape
+                        # compression = 'gzip'
+                        )
+                priorlen = dataset.shape[0]
+                dataset.resize(priorlen + len(data), axis = 0)
+                dataset[priorlen:] = data
+        self.clear()
 
     def _initialise_wrap(self, initialise, count):
         count.value = 0
@@ -139,14 +195,18 @@ class Built:
         self.update()
 
     def anchor(self, path):
-        self.path = path
         if mpi.rank == 0:
             with h5py.File(path) as h5file:
-                selfgroup = h5file[self.hashID]
+                if self.hashID in h5file:
+                    selfgroup = h5file[self.hashID]
+                else:
+                    selfgroup = h5file.create_group(self.hashID)
                 selfgroup.attrs['script'] = self.script.encode()
                 selfgroup.attrs['inputs'] = str(self.inputs).encode()
-        for subBuilt in self.subBuilts:
+        for key, subBuilt in sorted(self.subBuilts.items()):
             subBuilt.anchor(path)
+        self.path = path
+        self.anchored = True
 
     def outget(self, key):
         if key in self.subBuilts:

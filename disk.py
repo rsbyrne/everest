@@ -6,6 +6,7 @@ import importlib
 import traceback
 import random
 import subprocess
+import h5py
 
 from . import utilities
 message = utilities.message
@@ -25,6 +26,19 @@ def remove_file(filename):
     if mpi.rank == 0:
         if os.path.exists(filename):
             os.remove(filename)
+
+def h5_read_attrs(path, subkeys = []):
+    attrs = {}
+    if mpi.rank == 0:
+        with h5py.File(path) as h5file:
+            target = h5file
+            for subkey in subkeys:
+                target = target[subkey]
+            target = target.attrs
+            for key in target.keys():
+                attrs[key] = target[key].decode()
+    attrs = mpi.comm.bcast(attrs, root = 0)
+    return attrs
 
 class TempFile:
 

@@ -12,6 +12,8 @@ class Value:
                 raise Exception("Forbidden to manually set 'type'.")
             elif item == 'value':
                 if not type(value) == self.type:
+                    print(self)
+                    print(type(value), self.type)
                     raise Exception("New val is of different type to old val.")
                 else:
                     dict.__setattr__(self, item, value)

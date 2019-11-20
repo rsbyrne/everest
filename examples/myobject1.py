@@ -26,7 +26,8 @@ class MyObject1(everest.Built):
             update = self.update,
             iterate = self.iterate,
             initialise = self.initialise,
-            out = self.out
+            out = self.out,
+            outkeys = ['time', 'var']
             )
 
     def update(self):
@@ -39,4 +40,4 @@ class MyObject1(everest.Built):
         self.time.value = self.outget('initial_time')
 
     def out(self):
-        return self.var()
+        return [self.time(), self.var()]
