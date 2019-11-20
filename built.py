@@ -251,7 +251,6 @@ class Iterative(Built):
                     ) \
                 as h5file:
             selfgroup = h5file[self.hashID]
-            print("Stored: ", self.stored)
             if COUNTS_FLAG in selfgroup:
                 saved_counts = list(selfgroup[COUNTS_FLAG]['data'][...])
                 purged_stored = []
@@ -283,12 +282,7 @@ class Iterative(Built):
                             outgroup[COUNTS_FLAG] = selfgroup[COUNTS_FLAG]['data']
                     priorlen = dataset.shape[0]
                     dataset.resize(priorlen + len(data), axis = 0)
-                    print("Key: ", key)
-                    print("Count: ", self.count())
-                    print("Prior data: ", dataset[:priorlen])
-                    print("Data: ", data)
                     dataset[priorlen:] = data
-                    print("Final: ", dataset[...])
         self.clear()
 
     def _initialise_wrap(self, initialise, count):
