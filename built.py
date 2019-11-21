@@ -87,7 +87,6 @@ class Built:
             self.out = lambda: self._out_wrap(
                 out
                 )
-            self.outkeys = outkeys
         if hasattr(self, 'update'):
             update = self.update
             self.update = lambda: self._update_wrap(
@@ -105,6 +104,7 @@ class Built:
             self.stored_counts = []
             self.clear = self._clear
             self.save = self._save
+            load = self.load
             self.load = lambda count: self._load_wrap(
                 load,
                 count
@@ -115,6 +115,7 @@ class Built:
                 self.count
                 )
             self.reset = self.initialise
+            self.initialise()
 
         inputs, safeInputs, subBuilts = _clean_inputs(inputs)
 
@@ -127,8 +128,6 @@ class Built:
         self.safeInputs = safeInputs
         self.subBuilts = subBuilts
         self.hashID = hashID
-
-        self.initialise()
 
     def _check_anchored(self):
         if not self.anchored:
