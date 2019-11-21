@@ -3,10 +3,9 @@ import everest
 def build(*args, **kwargs):
     return MyObject2(*args, **kwargs)
 
-class MyObject2(everest.built.NonIterative):
+class MyObject2(everest.built.Built):
 
     name = 'myobject2'
-    script = __file__
 
     def __init__(
             self,
@@ -16,5 +15,5 @@ class MyObject2(everest.built.NonIterative):
         self.val = val
         super().__init__(
             inputs,
-            self.script
+            __file__
             )

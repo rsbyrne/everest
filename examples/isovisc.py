@@ -11,10 +11,9 @@ def build(*args, name = None, **kwargs):
         built.name = name
     return built
 
-class Isovisc(everest.built.Iterative):
+class Isovisc(everest.built.Built):
 
     name = "isovisc"
-    script = __file__
 
     def __init__(
         self,
@@ -223,28 +222,14 @@ class Isovisc(everest.built.Iterative):
         # temporary!
         self.temperatureField = temperatureField
 
+        self.out = out
+        self.outkeys = ['temperatureField', 'modeltime']
+        self.update = solve
+        self.iterate = integrate
+        self.initialise = initialise
+        self.load = load
+
         super().__init__(
             inputs,
-            self.script,
-            out = out,
-            outkeys = ['temperatureField', 'modeltime'],
-            update = solve,
-            iterate = integrate,
-            initialise = initialise,
-            load = load
+            __file__
             )
-
-        # super().__init__(
-        #     varsOfState = {'temperatureField': temperatureField},
-        #     obsVars = {
-        #         'temperature': temperatureField,
-        #         'velocity': velocityField
-        #         },
-        #     _update = update,
-        #     _integrate = integrate,
-        #     _locals = locals(),
-        #     args = args,
-        #     kwargs = kwargs,
-        #     inputs = inputs,
-        #     script = self.script
-        #     )

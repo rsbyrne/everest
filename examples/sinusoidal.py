@@ -10,9 +10,7 @@ def build(*args, name = None, **kwargs):
         built.name = name
     return built
 
-class Sinusoidal(everest.built.NonIterative):
-
-    script = __file__
+class Sinusoidal(everest.built.Built):
 
     def __init__(
             self,
@@ -31,7 +29,7 @@ class Sinusoidal(everest.built.NonIterative):
 
         super().__init__(
             inputs,
-            self.script
+            __file__
             )
 
     def evaluate(self, coordArray):

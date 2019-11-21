@@ -71,8 +71,50 @@ class Built:
     def __init__(
             self,
             inputs,
-            filepath
+            filepath,
+            # out,
+            # outkeys,
+            # update,
+            # iterate,
+            # initialise,
+            # load
             ):
+
+        if hasattr(self, 'out'):
+            if not hasattr(self, 'outkeys'):
+                raise Exception
+            out = self.out
+            self.out = lambda: self._out_wrap(
+                out
+                )
+            self.outkeys = outkeys
+        if hasattr(self, 'update'):
+            update = self.update
+            self.update = lambda: self._update_wrap(
+                update
+                )
+        if hasattr(self, 'iterate'):
+            self.count = value.Value(0)
+            iterate = self.iterate
+            self.iterate = lambda: self._iterate_wrap(
+                iterate,
+                self.count
+                )
+            self.store = self._store
+            self.stored = []
+            self.stored_counts = []
+            self.clear = self._clear
+            self.save = self._save
+            self.load = lambda count: self._load_wrap(
+                load,
+                count
+                )
+            initialise = self.initialise
+            self.initialise = lambda: self._initialise_wrap(
+                initialise,
+                self.count
+                )
+            self.reset = self.initialise
 
         inputs, safeInputs, subBuilts = _clean_inputs(inputs)
 
@@ -85,85 +127,6 @@ class Built:
         self.safeInputs = safeInputs
         self.subBuilts = subBuilts
         self.hashID = hashID
-
-    def _out_wrap(self, out):
-        return out()
-
-    def anchor(self, path):
-        if mpi.rank == 0:
-            with h5py.File(path) as h5file:
-                if self.hashID in h5file:
-                    selfgroup = h5file[self.hashID]
-                else:
-                    selfgroup = h5file.create_group(self.hashID)
-                selfgroup.attrs['script'] = self.script.encode()
-                selfgroup.attrs['inputs'] = str(self.safeInputs).encode()
-        for key, subBuilt in sorted(self.subBuilts.items()):
-            subBuilt.anchor(path)
-        self.path = path
-        self.anchored = True
-
-    def outget(self, key):
-        if key in self.subBuilts:
-            return self.subBuilts[key].out()
-        elif key in self.inputs:
-            return self.inputs[key]
-        else:
-            raise Exception(
-                "Key not found in either subBuilts or inputs"
-                )
-
-class NonIterative(Built):
-
-    def __init__(
-            self,
-            inputs,
-            filepath
-            ):
-        super().__init__(inputs, filepath)
-
-class Iterative(Built):
-
-    def __init__(
-            self,
-            inputs,
-            filepath,
-            out,
-            outkeys,
-            update,
-            iterate,
-            initialise,
-            load
-            ):
-
-        self.out = lambda: self._out_wrap(
-            out
-            )
-        self.outkeys = outkeys
-        self.update = lambda: self._update_wrap(
-            update
-            )
-        self.count = value.Value(0)
-        self.iterate = lambda: self._iterate_wrap(
-            iterate,
-            self.count
-            )
-        self.store = self._store
-        self.stored = []
-        self.stored_counts = []
-        self.clear = self._clear
-        self.save = self._save
-        self.initialise = lambda: self._initialise_wrap(
-            initialise,
-            self.count
-            )
-        self.reset = self.initialise
-        self.load = lambda count: self._load_wrap(
-            load,
-            count
-            )
-
-        super().__init__(inputs, filepath)
 
         self.initialise()
 
@@ -313,3 +276,30 @@ class Iterative(Built):
         count.value = 0
         initialise()
         self.update()
+
+    def _out_wrap(self, out):
+        return out()
+
+    def anchor(self, path):
+        if mpi.rank == 0:
+            with h5py.File(path) as h5file:
+                if self.hashID in h5file:
+                    selfgroup = h5file[self.hashID]
+                else:
+                    selfgroup = h5file.create_group(self.hashID)
+                selfgroup.attrs['script'] = self.script.encode()
+                selfgroup.attrs['inputs'] = str(self.safeInputs).encode()
+        for key, subBuilt in sorted(self.subBuilts.items()):
+            subBuilt.anchor(path)
+        self.path = path
+        self.anchored = True
+
+    def outget(self, key):
+        if key in self.subBuilts:
+            return self.subBuilts[key].out()
+        elif key in self.inputs:
+            return self.inputs[key]
+        else:
+            raise Exception(
+                "Key not found in either subBuilts or inputs"
+                )
