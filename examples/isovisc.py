@@ -4,6 +4,8 @@ import math
 import numpy as np
 
 import everest
+mpi = everest.mpi
+import planetengine
 
 def build(*args, name = None, **kwargs):
     built = Isovisc(*args, **kwargs)
@@ -182,39 +184,15 @@ class Isovisc(everest.built.Built):
             modeltime.value = 0.
 
         def out():
-            local_node_data = [
-                (node, val) \
-                    for node, val in zip(
-                        mesh.data_nodegId,
-                        temperatureField.data
-                        )
-                ]
-            gathered = everest.mpi.comm.allgather(local_node_data)
-            global_node_data = np.vstack(gathered)
-            cleaned_global_nodes = []
-            global_nodes, global_data = global_node_data.T[0]
-            cleaned_global_data = []
-            for node, val in zip(global_nodes, global_data):
-                if not node in cleaned_global_nodes:
-                    cleaned_global_data.append(val)
-                    cleaned_global_nodes.append(node)
-            cleaned_global_data = np.array(cleaned_global_data)
-            nodes_keys = {
-                node: val \
-                    for node, val in zip(
-                        cleaned_global_nodes,
-                        cleaned_global_data
-                        )
-                    }
-            sorted_global_data = []
-            for key in sorted(nodes_keys):
-                sorted_global_data.append(nodes_keys[key])
-            sorted_global_data = np.array(sorted_global_data)
-            return (sorted_global_data, modeltime())
+            return (
+                planetengine.fieldops.get_global_sorted_array(temperatureField),
+                modeltime()
+                )
 
         def load(loadDict):
             rawData = loadDict['temperatureField']
             # raise Exception(str(rawData))
+            print(rawData)
             for index, gId in enumerate(mesh.data_nodegId):
                 temperatureField.data[index] = rawData[gId]
             modeltime.value = loadDict['modeltime']
