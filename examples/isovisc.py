@@ -85,7 +85,9 @@ class Isovisc(everest.built.Iterative):
 
         inner = mesh.specialSets["inner"]
         outer = mesh.specialSets["outer"]
-        sides = mesh.specialSets["MaxJ_VertexSet"] + mesh.specialSets["MinJ_VertexSet"]
+        sides = \
+            mesh.specialSets["MaxJ_VertexSet"] \
+            + mesh.specialSets["MinJ_VertexSet"]
 
         if periodic:
             velBC = uw.conditions.RotatedDirichletCondition(
@@ -183,7 +185,10 @@ class Isovisc(everest.built.Iterative):
         def out():
             local_node_data = [
                 (node, val) \
-                    for node, val in zip(mesh.data_nodegId, temperatureField.data)
+                    for node, val in zip(
+                        mesh.data_nodegId,
+                        temperatureField.data
+                        )
                 ]
             gathered = everest.mpi.comm.allgather(local_node_data)
             global_node_data = np.vstack(gathered)

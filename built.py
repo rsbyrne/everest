@@ -150,6 +150,7 @@ class Iterative(Built):
             )
         self.store = self._store
         self.stored = []
+        self.stored_counts = []
         self.clear = self._clear
         self.save = self._save
         self.initialise = lambda: self._initialise_wrap(
@@ -178,6 +179,26 @@ class Iterative(Built):
         self.count.value = count
 
     def _load_dataDict(self, count):
+        if count in self.stored_counts:
+            return self._load_dataDict_stored(count)
+        else:
+            return self._load_dataDict_saved(count)
+
+    def _load_dataDict_stored(self, count):
+        storedDict = {
+            count: data for count, data in self.stored
+            }
+        loadData = storedDict[count]
+        loadDict = {
+            outkey: data \
+                for outkey, data in zip(
+                    self.outkeys,
+                    loadData
+                    )
+            }
+        return loadDict
+
+    def _load_dataDict_saved(self, count):
         self._check_anchored()
         self.save()
         with h5py.File(
@@ -216,11 +237,13 @@ class Iterative(Built):
     def _store(self):
         val = self.out()
         count = self.count()
-        stored_counts = [index for index, data in self.stored]
-        if not count in stored_counts:
+        self.stored_counts = [index for index, data in self.stored]
+        if not count in self.stored_counts:
             entry = (count, val)
             self.stored.append(entry)
             self.stored.sort()
+            self.stored_counts.append(count)
+            self.stored_counts.sort()
 
     def _clear(self):
         self.stored = []
@@ -279,7 +302,8 @@ class Iterative(Built):
                             # compression = 'gzip'
                             )
                         if not key == COUNTS_FLAG:
-                            outgroup[COUNTS_FLAG] = selfgroup[COUNTS_FLAG]['data']
+                            outgroup[COUNTS_FLAG] = \
+                                selfgroup[COUNTS_FLAG]['data']
                     priorlen = dataset.shape[0]
                     dataset.resize(priorlen + len(data), axis = 0)
                     dataset[priorlen:] = data
