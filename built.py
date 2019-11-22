@@ -71,13 +71,7 @@ class Built:
     def __init__(
             self,
             inputs,
-            filepath,
-            # out,
-            # outkeys,
-            # update,
-            # iterate,
-            # initialise,
-            # load
+            script,
             ):
 
         if hasattr(self, 'out'):
@@ -87,12 +81,11 @@ class Built:
             self.out = lambda: self._out_wrap(
                 out
                 )
-        if hasattr(self, 'update'):
-            update = self.update
-            self.update = lambda: self._update_wrap(
-                update
-                )
         if hasattr(self, 'iterate'):
+            if not hasattr(self, 'load'):
+                raise Exception
+            if not hasattr(self, 'initialise'):
+                raise Exception
             self.count = value.Value(0)
             iterate = self.iterate
             self.iterate = lambda: self._iterate_wrap(
@@ -119,7 +112,7 @@ class Built:
 
         inputs, safeInputs, subBuilts = _clean_inputs(inputs)
 
-        script = utilities.ToOpen(filepath)()
+        script = utilities.ToOpen(script)()
         hashID = utilities.wordhashstamp((script, safeInputs))
 
         self.anchored = False
@@ -184,13 +177,9 @@ class Built:
                 loadDict[key] = loadData
         return loadDict
 
-    def _update_wrap(self, update):
-        update()
-
     def _iterate_wrap(self, iterate, count):
         count.value += 1
         iterate()
-        self.update()
 
     def go(self, n):
         for i in range(n):
@@ -274,7 +263,6 @@ class Built:
     def _initialise_wrap(self, initialise, count):
         count.value = 0
         initialise()
-        self.update()
 
     def _out_wrap(self, out):
         return out()
