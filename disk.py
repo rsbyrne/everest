@@ -7,6 +7,7 @@ import traceback
 import random
 import subprocess
 import h5py
+import string
 
 from functools import partial
 
@@ -21,11 +22,12 @@ h5FileMPI = partial(
     comm = mpi.comm
     )
 
-def tempname():
+def tempname(length = 16):
     random.seed()
     name = ''
     if mpi.rank == 0:
-        name = str(random.randint(1e18, 1e19 - 1))
+        letters = string.ascii_lowercase
+        name = ''.join(random.choice(letters) for i in range(length))
     name = mpi.comm.bcast(name, root = 0)
     return name
 
@@ -57,6 +59,7 @@ class TempFile:
     def __init__(self, content = '', path = '', extension = 'txt'):
         tempfilename = tempname() + '.' + extension
         self.path = os.path.join(path, tempfilename)
+        self.path = os.path.abspath(self.path)
         self.content = content
 
     def __enter__(self):
@@ -79,10 +82,12 @@ def local_import(filepath):
 
     return module
 
-def local_import_bytes(script_bytes):
-    with TempFile(script_bytes.decode(), extension = 'py') as tempfile:
-        imported = local_import(tempfile)
-    return imported
+# def local_import(script_bytes):
+#     with TempFile(script_bytes, extension = 'py') as tempfile:
+#         modname = os.path.splitext(os.path.basename(tempfile))[0]
+#         exec('import ' + modname + ' as imported')
+#         # imported = local_import(tempfile)
+#     return imported
 
 #
 # def expose(name, outputPath = '.', archive = None, recursive = True):

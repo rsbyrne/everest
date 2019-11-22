@@ -1,4 +1,6 @@
 import numpy as np
+import os
+import importlib
 
 from . import frame
 from . import utilities
@@ -8,14 +10,6 @@ from . import mpi
 
 BUILT_FLAG = '_built:'
 COUNTS_FLAG = '_counts'
-
-# def get_hashID(script, inputs, _safeInputs = False):
-#     if not _safeInputs:
-#         inputs, safeInputs, subBuilts = _clean_inputs(inputs)
-#     else:
-#         safeInputs = inputs
-#     hashID = utilities.wordhashstamp((script, safeInputs))
-#     return hashID
 
 def load(name, hashID, path = ''):
     framepath = frame.get_framepath(name, path)
