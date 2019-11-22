@@ -22,7 +22,6 @@ def load(name, hashID, path = ''):
     attrs = disk.h5_read_attrs(framepath, subkeys = [hashID,])
     script = attrs['script']
     inputs = eval(attrs['inputs'])
-    print(inputs)
     for key, val in sorted(inputs.items()):
         if type(val) is str:
             if val[:len(BUILT_FLAG)] == BUILT_FLAG:
@@ -71,6 +70,8 @@ def _clean_inputs(inputs):
         if isinstance(val, Built):
             subBuilts[key] = val
             safeInputs[key] = BUILT_FLAG + val.hashID
+        else:
+            safeInputs[key] = inputs[key]
 
     return inputs, safeInputs, subBuilts
 
