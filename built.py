@@ -1,6 +1,6 @@
 import numpy as np
-import h5py
 
+from . import frame
 from . import utilities
 from . import value
 from . import disk
@@ -9,17 +9,26 @@ from . import mpi
 BUILT_FLAG = '_built:'
 COUNTS_FLAG = '_counts'
 
-def load_built_from_h5(path, hashID):
+def get_hashID(script, inputs, _safeInputs = False):
+    if not _safeInputs:
+        inputs, safeInputs, subBuilts = _clean_inputs(inputs)
+    else:
+        safeInputs = inputs
+    hashID = utilities.wordhashstamp((script, safeInputs))
+    return hashID
+
+def load(name, hashID, path = ''):
+    framepath = frame.get_framepath(name, path)
     script = ''
     inputs = ''
-    attrs = disk.h5_read_attrs(path, subkeys = [hashID,])
+    attrs = disk.h5_read_attrs(framepath, subkeys = [hashID,])
     script = attrs['script']
     inputs = eval(attrs['inputs'])
     for key, val in sorted(inputs.items()):
         if type(val) is str:
             if val[:len(BUILT_FLAG)] == BUILT_FLAG:
-                loadHashID = val[6:]
-                loadedBuilt = load_built_from_h5(path, loadHashID)
+                loadHashID = val[len(BUILT_FLAG):]
+                loadedBuilt = load(name, loadHashID, path)
                 inputs[key] = loadedBuilt
     with disk.TempFile(
                 script,
@@ -28,7 +37,7 @@ def load_built_from_h5(path, hashID):
             as tempfile:
         imported = disk.local_import(tempfile)
         loaded_built = imported.build(**inputs)
-    loaded_built.anchor(path)
+    loaded_built.anchor(name, path)
     return loaded_built
 
 def _clean_inputs(inputs):
@@ -94,7 +103,10 @@ class Built:
                 )
             self.store = self._store
             self.stored = []
-            self.stored_counts = []
+            self.counts = []
+            self.counts_stored = []
+            self.counts_disk = []
+
             self.clear = self._clear
             self.save = self._save
             load = self.load
@@ -113,7 +125,7 @@ class Built:
         inputs, safeInputs, subBuilts = _clean_inputs(inputs)
 
         script = utilities.ToOpen(script)()
-        hashID = utilities.wordhashstamp((script, safeInputs))
+        hashID = get_hashID(script, safeInputs, _safeInputs = True)
 
         self.anchored = False
         self.script = script
@@ -134,7 +146,7 @@ class Built:
         self.count.value = count
 
     def _load_dataDict(self, count):
-        if count in self.stored_counts:
+        if count in self.counts_stored:
             return self._load_dataDict_stored(count)
         else:
             return self._load_dataDict_saved(count)
@@ -156,12 +168,7 @@ class Built:
     def _load_dataDict_saved(self, count):
         self._check_anchored()
         self.save()
-        with h5py.File(
-                    self.path,
-                    driver = 'mpio',
-                    comm = mpi.comm
-                    ) \
-                as h5file:
+        with disk.h5FileMPI(self.path) as h5file:
             selfgroup = h5file[self.hashID]
             counts = selfgroup[COUNTS_FLAG]['data']
             iterNo = 0
@@ -188,16 +195,15 @@ class Built:
     def _store(self):
         val = self.out()
         count = self.count()
-        self.stored_counts = [index for index, data in self.stored]
-        if not count in self.stored_counts:
+        if not count in self.counts_stored:
             entry = (count, val)
             self.stored.append(entry)
             self.stored.sort()
-            self.stored_counts.append(count)
-            self.stored_counts.sort()
+        self._update_counts()
 
     def _clear(self):
         self.stored = []
+        self.counts_stored = []
 
     def _make_dataDict(self, stored, outkeys):
         counts, outs = zip(*stored)
@@ -218,12 +224,7 @@ class Built:
 
     def _save(self):
         self._check_anchored()
-        with h5py.File(
-                    self.path,
-                    driver = 'mpio',
-                    comm = mpi.comm
-                    ) \
-                as h5file:
+        with disk.h5FileMPI(self.path) as h5file:
             selfgroup = h5file[self.hashID]
             if COUNTS_FLAG in selfgroup:
                 saved_counts = list(selfgroup[COUNTS_FLAG]['data'][...])
@@ -267,9 +268,10 @@ class Built:
     def _out_wrap(self, out):
         return out()
 
-    def anchor(self, path):
+    def anchor(self, name, path = ''):
+        framepath = frame.get_framepath(name, path)
         if mpi.rank == 0:
-            with h5py.File(path) as h5file:
+            with disk.h5File(framepath) as h5file:
                 if self.hashID in h5file:
                     selfgroup = h5file[self.hashID]
                 else:
@@ -277,16 +279,24 @@ class Built:
                 selfgroup.attrs['script'] = self.script.encode()
                 selfgroup.attrs['inputs'] = str(self.safeInputs).encode()
         for key, subBuilt in sorted(self.subBuilts.items()):
-            subBuilt.anchor(path)
-        self.path = path
+            subBuilt.anchor(name, path)
+        self.path = framepath
         self.anchored = True
+        if hasattr(self, 'counts'):
+            self._update_counts()
 
-    def outget(self, key):
-        if key in self.subBuilts:
-            return self.subBuilts[key].out()
-        elif key in self.inputs:
-            return self.inputs[key]
-        else:
-            raise Exception(
-                "Key not found in either subBuilts or inputs"
-                )
+    def _update_counts(self):
+        if self.anchored:
+            if mpi.rank == 0:
+                with disk.h5File(self.path) as h5file:
+                    selfgroup = h5file[self.hashID]
+                    if COUNTS_FLAG in selfgroup:
+                        self.counts_disk = list(
+                            selfgroup[COUNTS_FLAG]['data'][...]
+                            )
+                        self.counts_disk.sort()
+            self.counts_disk = mpi.comm.bcast(self.counts_disk, root = 0)
+        self.counts_stored = [index for index, data in self.stored]
+        self.counts_stored.sort()
+        self.counts = [*self.counts_stored, *self.counts_disk]
+        self.counts.sort()

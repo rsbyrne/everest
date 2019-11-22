@@ -8,9 +8,18 @@ import random
 import subprocess
 import h5py
 
+from functools import partial
+
 from . import utilities
 message = utilities.message
 from . import mpi
+
+h5File = h5py.File
+h5FileMPI = partial(
+    h5py.File,
+    driver = 'mpio',
+    comm = mpi.comm
+    )
 
 def tempname():
     random.seed()
