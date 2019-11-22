@@ -19,6 +19,9 @@ class ToOpen:
         filedata = mpi.comm.bcast(filedata, root = 0)
         return filedata
 
+def unique_list(inList):
+    return list(sorted(set(inList)))
+
 def stringify(*args):
     outStr = '{'
     if len(args) > 1:

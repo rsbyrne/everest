@@ -103,9 +103,9 @@ class Built:
                 )
             self.store = self._store
             self.stored = []
-            self.counts = []
             self.counts_stored = []
             self.counts_disk = []
+            self.counts_captured = []
 
             self.clear = self._clear
             self.save = self._save
@@ -168,7 +168,8 @@ class Built:
     def _load_dataDict_saved(self, count):
         self._check_anchored()
         self.save()
-        with disk.h5FileMPI(self.path) as h5file:
+        loadDict = {}
+        with disk.h5File(self.path) as h5file:
             selfgroup = h5file[self.hashID]
             counts = selfgroup[COUNTS_FLAG]['data']
             iterNo = 0
@@ -182,6 +183,7 @@ class Built:
             for key in self.outkeys:
                 loadData = selfgroup[key]['data'][iterNo]
                 loadDict[key] = loadData
+        loadDict = mpi.comm.bcast(loadDict, root = 0)
         return loadDict
 
     def _iterate_wrap(self, iterate, count):
@@ -195,7 +197,7 @@ class Built:
     def _store(self):
         val = self.out()
         count = self.count()
-        if not count in self.counts_stored:
+        if not count in self.counts_captured:
             entry = (count, val)
             self.stored.append(entry)
             self.stored.sort()
@@ -224,41 +226,35 @@ class Built:
 
     def _save(self):
         self._check_anchored()
-        with disk.h5FileMPI(self.path) as h5file:
+        if len(self.stored) == 0:
+            return None
+        dataDict = self._make_dataDict(
+            self.stored,
+            self.outkeys
+            )
+        with disk.h5File(self.path) as h5file:
             selfgroup = h5file[self.hashID]
-            if COUNTS_FLAG in selfgroup:
-                saved_counts = list(selfgroup[COUNTS_FLAG]['data'][...])
-                purged_stored = []
-                for index, (count, values) in enumerate(self.stored):
-                    if not count in saved_counts:
-                        purged_stored.append(self.stored[index])
-                self.stored = purged_stored
-            if len(self.stored) > 0:
-                dataDict = self._make_dataDict(
-                    self.stored,
-                    self.outkeys
-                    )
-                for key in [COUNTS_FLAG, *self.outkeys]:
-                    data = dataDict[key]
-                    if key in selfgroup:
-                        outgroup = selfgroup[key]
-                        dataset = outgroup['data']
-                    else:
-                        outgroup = selfgroup.create_group(key)
-                        maxshape = [None, *data.shape[1:]]
-                        dataset = outgroup.create_dataset(
-                            name = 'data',
-                            shape = [0, *data.shape[1:]],
-                            maxshape = maxshape,
-                            dtype = data.dtype
-                            # compression = 'gzip'
-                            )
-                        if not key == COUNTS_FLAG:
-                            outgroup[COUNTS_FLAG] = \
-                                selfgroup[COUNTS_FLAG]['data']
-                    priorlen = dataset.shape[0]
-                    dataset.resize(priorlen + len(data), axis = 0)
-                    dataset[priorlen:] = data
+            for key in [COUNTS_FLAG, *self.outkeys]:
+                data = dataDict[key]
+                if key in selfgroup:
+                    outgroup = selfgroup[key]
+                    dataset = outgroup['data']
+                else:
+                    outgroup = selfgroup.create_group(key)
+                    maxshape = [None, *data.shape[1:]]
+                    dataset = outgroup.create_dataset(
+                        name = 'data',
+                        shape = [0, *data.shape[1:]],
+                        maxshape = maxshape,
+                        dtype = data.dtype
+                        # compression = 'gzip'
+                        )
+                    if not key == COUNTS_FLAG:
+                        outgroup[COUNTS_FLAG] = \
+                            selfgroup[COUNTS_FLAG]['data']
+                priorlen = dataset.shape[0]
+                dataset.resize(priorlen + len(data), axis = 0)
+                dataset[priorlen:] = data
         self.clear()
 
     def _initialise_wrap(self, initialise, count):
@@ -291,12 +287,15 @@ class Built:
                 with disk.h5File(self.path) as h5file:
                     selfgroup = h5file[self.hashID]
                     if COUNTS_FLAG in selfgroup:
-                        self.counts_disk = list(
-                            selfgroup[COUNTS_FLAG]['data'][...]
+                        self.counts_disk = utilities.unique_list(
+                            list(
+                                selfgroup[COUNTS_FLAG]['data'][...]
+                                )
                             )
-                        self.counts_disk.sort()
             self.counts_disk = mpi.comm.bcast(self.counts_disk, root = 0)
-        self.counts_stored = [index for index, data in self.stored]
-        self.counts_stored.sort()
-        self.counts = [*self.counts_stored, *self.counts_disk]
-        self.counts.sort()
+        self.counts_stored = utilities.unique_list(
+            [index for index, data in self.stored]
+            )
+        self.counts_captured = utilities.unique_list(
+            [*self.counts_stored, *self.counts_disk]
+            )

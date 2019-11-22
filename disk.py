@@ -23,7 +23,10 @@ h5FileMPI = partial(
 
 def tempname():
     random.seed()
-    name = str(random.randint(1e18, 1e19 - 1))
+    name = ''
+    if mpi.rank == 0:
+        name = str(random.randint(1e18, 1e19 - 1))
+    name = mpi.comm.bcast(name, root = 0)
     return name
 
 def write_file(filename, content, mode = 'w'):

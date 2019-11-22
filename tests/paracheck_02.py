@@ -1,40 +1,46 @@
 import os
 from timeit import timeit
+import random
 
 import planetengine
+import everest
 
-outputPath = '../out'
-name = 'test'
-extension = 'frm'
-path = os.path.join(outputPath, name + '.' + extension)
-if planetengine.mpi.rank == 0:
-    if os.path.exists(path):
-        os.remove(path)
+with planetengine.paths.TestDir() as outputPath:
 
-system = planetengine.systems.isovisc.build(res = 16)
-system.anchor(name, outputPath)
-def testfn():
-    for i in range(3):
+    # outputPath = 'out/test'
+    name = everest.disk.tempname()
+    extension = 'frm'
+
+    system = planetengine.systems.isovisc.build(res = 16)
+    system.anchor(name, outputPath)
+
+    def testfn():
         for i in range(3):
-            system.go(3)
-            system.store()
+            for i in range(3):
+                system.go(3)
+                system.store()
         system.save()
-    system.load(3)
-    system.iterate()
-    system.store()
-    system.save()
-    system_loaded = everest.built.load(
-        name,
-        system.hashID,
-        outputPath
-        )
-    system_loaded.load(4)
-    system_loaded.iterate()
-    system_loaded.store()
-    system.iterate()
-    system.store()
+        system.load(9)
+        system.iterate()
+        system.store()
+        system.save()
+        system_loaded = everest.built.load(
+            name,
+            system.hashID,
+            outputPath
+            )
+        system_loaded.load(15)
+        system_loaded.iterate()
+        system_loaded.store()
+        system_loaded.save()
+        system.load(27)
+        system.iterate()
+        system.store()
+        system.save()
 
-timing = timeit(testfn, number = 3) / 3.
+    timing = timeit(testfn, number = 1)
+    planetengine.message(timing)
 
-planetengine.message(timing)
-system.show()
+    planetengine.message(system.counts_captured)
+
+    system.show()
