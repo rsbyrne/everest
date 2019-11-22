@@ -9,21 +9,20 @@ from . import mpi
 BUILT_FLAG = '_built:'
 COUNTS_FLAG = '_counts'
 
-def get_hashID(script, inputs, _safeInputs = False):
-    if not _safeInputs:
-        inputs, safeInputs, subBuilts = _clean_inputs(inputs)
-    else:
-        safeInputs = inputs
-    hashID = utilities.wordhashstamp((script, safeInputs))
-    return hashID
+# def get_hashID(script, inputs, _safeInputs = False):
+#     if not _safeInputs:
+#         inputs, safeInputs, subBuilts = _clean_inputs(inputs)
+#     else:
+#         safeInputs = inputs
+#     hashID = utilities.wordhashstamp((script, safeInputs))
+#     return hashID
 
 def load(name, hashID, path = ''):
     framepath = frame.get_framepath(name, path)
-    script = ''
-    inputs = ''
     attrs = disk.h5_read_attrs(framepath, subkeys = [hashID,])
     script = attrs['script']
     inputs = eval(attrs['inputs'])
+    print(inputs)
     for key, val in sorted(inputs.items()):
         if type(val) is str:
             if val[:len(BUILT_FLAG)] == BUILT_FLAG:
@@ -125,7 +124,7 @@ class Built:
         inputs, safeInputs, subBuilts = _clean_inputs(inputs)
 
         script = utilities.ToOpen(script)()
-        hashID = get_hashID(script, safeInputs, _safeInputs = True)
+        hashID = utilities.wordhashstamp((script, safeInputs))
 
         self.anchored = False
         self.script = script
