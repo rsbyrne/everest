@@ -50,20 +50,21 @@ def h5_read_attrs(path, subkeys = []):
                 target = target[subkey]
             target = target.attrs
             for key in target.keys():
-                attrs[key] = target[key].decode()
+                attrs[key] = target[key]
     attrs = mpi.comm.bcast(attrs, root = 0)
     return attrs
 
 class TempFile:
 
-    def __init__(self, content = '', path = '', extension = 'txt'):
+    def __init__(self, content = '', path = '', extension = 'txt', mode = 'w'):
         tempfilename = tempname() + '.' + extension
         self.path = os.path.join(path, tempfilename)
         self.path = os.path.abspath(self.path)
         self.content = content
+        self.mode = mode
 
     def __enter__(self):
-        write_file(self.path, self.content)
+        write_file(self.path, self.content, self.mode)
         return self.path
 
     def __exit__(self, *args):

@@ -14,23 +14,23 @@ COUNTS_FLAG = '_counts'
 def load(name, hashID, path = ''):
     framepath = frame.get_framepath(name, path)
     attrs = disk.h5_read_attrs(framepath, subkeys = [hashID,])
-    script = attrs['script']
+    scriptBytes = attrs['script']
     inputs = eval(attrs['inputs'])
     for key, val in sorted(inputs.items()):
         if type(val) is str:
             if val[:len(BUILT_FLAG)] == BUILT_FLAG:
                 loadHashID = val[len(BUILT_FLAG):]
-                loadedBuilt = load(name, loadHashID, path)
-                inputs[key] = loadedBuilt
+                inputs[key] = load(name, loadHashID, path)
     with disk.TempFile(
-                script,
-                extension = 'py'
+                scriptBytes,
+                extension = 'py',
+                mode = 'wb'
                 ) \
             as tempfile:
         imported = disk.local_import(tempfile)
-        loaded_built = imported.build(**inputs)
-    loaded_built.anchor(name, path)
-    return loaded_built
+        loadedBuilt = imported.build(**inputs)
+    loadedBuilt.anchor(name, path)
+    return loadedBuilt
 
 def _clean_inputs(inputs):
 
@@ -266,8 +266,8 @@ class Built:
                     selfgroup = h5file[self.hashID]
                 else:
                     selfgroup = h5file.create_group(self.hashID)
-                selfgroup.attrs['script'] = self.script.encode()
-                selfgroup.attrs['inputs'] = str(self.safeInputs).encode()
+                selfgroup.attrs['script'] = bytes(self.script.encode())
+                selfgroup.attrs['inputs'] = bytes(str(self.safeInputs).encode())
         for key, subBuilt in sorted(self.subBuilts.items()):
             subBuilt.anchor(name, path)
         self.path = framepath
