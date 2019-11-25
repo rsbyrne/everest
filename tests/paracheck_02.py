@@ -7,11 +7,8 @@ import everest
 
 with planetengine.paths.TestDir() as outputPath:
 
-    name = everest.disk.tempname()
-    extension = 'frm'
-
     system = planetengine.systems.isovisc.build(res = 32)
-    system.anchor(name, outputPath)
+    system.anchor(path = outputPath)
 
     def testfn():
         for i in range(3):
@@ -24,7 +21,7 @@ with planetengine.paths.TestDir() as outputPath:
         system.store()
         system.save()
         system_loaded = everest.built.load(
-            name,
+            system.hashID,
             system.hashID,
             outputPath
             )

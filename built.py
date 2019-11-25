@@ -11,12 +11,14 @@ from . import mpi
 
 BUILT_FLAG = '_built_:'
 COUNTS_FLAG = '_counts_'
+SCRIPT_FLAG = '_script_'
+INPUTS_FLAG = '_inputs_'
 
 def load(name, hashID, path = ''):
     framepath = frame.get_framepath(name, path)
     attrs = disk.h5_read_attrs(framepath, subkeys = [hashID,])
-    scriptBytes = attrs['script']
-    inputs = eval(attrs['inputs'])
+    scriptBytes = attrs[SCRIPT_FLAG]
+    inputs = eval(attrs[INPUTS_FLAG])
     for key, val in sorted(inputs.items()):
         if type(val) is str:
             if val[:len(BUILT_FLAG)] == BUILT_FLAG:
@@ -79,6 +81,9 @@ class Built:
             meta = {}
             ):
 
+        if hasattr(self, 'update'):
+            update = self.update
+            self.update = lambda: self._update_wrap(update)
         if hasattr(self, 'out') or hasattr(self, 'iterate'):
             self.count = value.Value(0)
         if hasattr(self, 'out'):
@@ -188,11 +193,15 @@ class Built:
         count.value += 1
         iterate()
 
+    def _update_wrap(self, update):
+        update()
+
     def go(self, n):
         for i in range(n):
             self.iterate()
 
     def _store(self):
+        self.update()
         val = self.out()
         count = self.count()
         if not count in self.counts_captured:
@@ -255,7 +264,9 @@ class Built:
     def _out_wrap(self, out):
         return out()
 
-    def anchor(self, frameID, path = ''):
+    def anchor(self, frameID = None, path = ''):
+        if frameID is None:
+            frameID = self.hashID
         fullpath = frame.get_framepath(frameID, path)
         if mpi.rank == 0:
             with disk.h5File(fullpath) as h5file:
@@ -263,8 +274,8 @@ class Built:
                     selfgroup = h5file[self.hashID]
                 else:
                     selfgroup = h5file.create_group(self.hashID)
-                selfgroup.attrs['script'] = bytes(self.script.encode())
-                selfgroup.attrs['inputs'] = bytes(str(self.safeInputs).encode())
+                selfgroup.attrs[SCRIPT_FLAG] = bytes(self.script.encode())
+                selfgroup.attrs[INPUTS_FLAG] = bytes(str(self.safeInputs).encode())
                 for key, val in sorted(self.meta.items()):
                     selfgroup.attrs[key] = bytes(str(val))
         for key, subBuilt in sorted(self.subBuilts.items()):
@@ -275,6 +286,13 @@ class Built:
         self.anchored = True
         if hasattr(self, 'counts'):
             self._update_counts()
+        self._post_anchor_hook()
+
+    def co_anchor(self, coBuilt):
+        coBuilt.anchor(self.frameID, self.path)
+
+    def _post_anchor_hook(self):
+        pass
 
     def _update_counts(self):
         if self.anchored:
