@@ -10,7 +10,7 @@ with planetengine.paths.TestDir() as outputPath:
     name = everest.disk.tempname()
     extension = 'frm'
 
-    system = planetengine.systems.isovisc.build()
+    system = planetengine.systems.isovisc.build(res = 32)
     system.anchor(name, outputPath)
 
     def testfn():
@@ -39,7 +39,4 @@ with planetengine.paths.TestDir() as outputPath:
 
     timing = timeit(testfn, number = 1)
     planetengine.message(timing)
-
     planetengine.message(system.counts_captured)
-
-    system.show()
