@@ -76,6 +76,7 @@ class Built:
             self,
             inputs,
             script,
+            meta = {}
             ):
 
         if hasattr(self, 'out') or hasattr(self, 'iterate'):
@@ -129,6 +130,7 @@ class Built:
         self.safeInputs = safeInputs
         self.subBuilts = subBuilts
         self.hashID = hashID
+        self.meta = meta
 
     def _check_anchored(self):
         if not self.anchored:
@@ -263,6 +265,8 @@ class Built:
                     selfgroup = h5file.create_group(self.hashID)
                 selfgroup.attrs['script'] = bytes(self.script.encode())
                 selfgroup.attrs['inputs'] = bytes(str(self.safeInputs).encode())
+                for key, val in sorted(self.meta.items()):
+                    selfgroup.attrs[key] = bytes(str(val))
         for key, subBuilt in sorted(self.subBuilts.items()):
             subBuilt.anchor(frameID, path)
         self.frameID = frameID
