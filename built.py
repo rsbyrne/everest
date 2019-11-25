@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import importlib
+import h5py
 
 from . import frame
 from . import utilities
@@ -233,16 +234,6 @@ class Built:
             selfgroup = h5file[self.hashID]
             if key in selfgroup:
                 dataset = selfgroup[key]
-                if not key == COUNTS_FLAG:
-                    counts_dset = selfgroup[COUNTS_FLAG]
-                    dataset.dims.create_scale(
-                        counts_dset,
-                        name = COUNTS_FLAG
-                        )
-                    dataset.dims[0].attach_scale(
-                        counts_dset
-                        )
-                    dataset.dims[0].label = COUNTS_FLAG
             else:
                 maxshape = [None, *data.shape[1:]]
                 dataset = selfgroup.create_dataset(
@@ -250,7 +241,6 @@ class Built:
                     shape = [0, *data.shape[1:]],
                     maxshape = maxshape,
                     dtype = data.dtype
-                    # compression = 'gzip'
                     )
             priorlen = dataset.shape[0]
             dataset.resize(priorlen + len(data), axis = 0)
@@ -300,3 +290,6 @@ class Built:
         self.counts_captured = utilities.unique_list(
             [*self.counts_stored, *self.counts_disk]
             )
+
+    def file(self):
+        return h5py.File(self.fullpath)
