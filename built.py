@@ -9,8 +9,8 @@ from . import value
 from . import disk
 from . import mpi
 
-BUILT_FLAG = '_built:'
-COUNTS_FLAG = '_counts'
+BUILT_FLAG = '_built_:'
+COUNTS_FLAG = '_counts_'
 
 def load(name, hashID, path = ''):
     framepath = frame.get_framepath(name, path)
@@ -78,6 +78,8 @@ class Built:
             script,
             ):
 
+        if hasattr(self, 'out') or hasattr(self, 'iterate'):
+            self.count = value.Value(0)
         if hasattr(self, 'out'):
             if not hasattr(self, 'outkeys'):
                 raise Exception
@@ -85,26 +87,24 @@ class Built:
             self.out = lambda: self._out_wrap(
                 out
                 )
-        if hasattr(self, 'iterate'):
-            if not hasattr(self, 'load'):
-                raise Exception
-            if not hasattr(self, 'initialise'):
-                raise Exception
-            self.count = value.Value(0)
-            iterate = self.iterate
-            self.iterate = lambda: self._iterate_wrap(
-                iterate,
-                self.count
-                )
             self.store = self._store
             self.stored = []
             self.dataDict = {}
             self.counts_stored = []
             self.counts_disk = []
             self.counts_captured = []
-
             self.clear = self._clear
             self.save = self._save
+        if hasattr(self, 'iterate'):
+            if not hasattr(self, 'load'):
+                raise Exception
+            if not hasattr(self, 'initialise'):
+                raise Exception
+            iterate = self.iterate
+            self.iterate = lambda: self._iterate_wrap(
+                iterate,
+                self.count
+                )
             load = self.load
             self.load = lambda count: self._load_wrap(
                 load,
