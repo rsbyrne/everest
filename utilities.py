@@ -8,6 +8,15 @@ def message(*args):
         if mpi.rank == 0:
             print(arg)
 
+# class SoftModule:
+#
+#     def __init__(
+#             self,
+#             _scriptBytes
+#             ):
+#         exec(_scriptBytes) in locals()
+#         self.__dict__.update(locals())
+
 class ToOpen:
     def __init__(self, filepath):
         self.filepath = filepath

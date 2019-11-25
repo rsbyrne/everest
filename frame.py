@@ -13,7 +13,7 @@ def get_framepath(name, path):
         )
     return framepath
 
-def load(name, path = ''):
+def make_frameDict(name, path = ''):
     builtsDict = {}
     framepath = get_framepath(name, path)
     builtKeys = []

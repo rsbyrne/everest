@@ -7,17 +7,8 @@ import everest
 
 with planetengine.paths.TestDir() as outputPath:
 
-    # outputPath = 'out/test'
-    name = everest.disk.tempname()
-    extension = 'frm'
-
-    system = planetengine.systems.isovisc.build(res = 16)
-    system.anchor(name, outputPath)
-    # system_loaded = everest.built.load(
-    #     name,
-    #     system.hashID,
-    #     outputPath
-    #     )
+    system = planetengine.systems.isovisc.build(res = 32)
+    system.anchor(path = outputPath)
 
     def testfn():
         for i in range(3):
@@ -29,15 +20,15 @@ with planetengine.paths.TestDir() as outputPath:
         system.iterate()
         system.store()
         system.save()
-        # system_loaded = everest.built.load(
-        #     name,
-        #     system.hashID,
-        #     outputPath
-        #     )
-        # system_loaded.load(15)
-        # system_loaded.iterate()
-        # system_loaded.store()
-        # system_loaded.save()
+        system_loaded = everest.built.load(
+            system.hashID,
+            system.hashID,
+            outputPath
+            )
+        system_loaded.load(15)
+        system_loaded.iterate()
+        system_loaded.store()
+        system_loaded.save()
         system.load(27)
         system.iterate()
         system.store()
@@ -45,7 +36,4 @@ with planetengine.paths.TestDir() as outputPath:
 
     timing = timeit(testfn, number = 1)
     planetengine.message(timing)
-
     planetengine.message(system.counts_captured)
-
-    system.show()

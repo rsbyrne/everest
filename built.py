@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import importlib
+import h5py
 
 from . import frame
 from . import utilities
@@ -8,29 +9,31 @@ from . import value
 from . import disk
 from . import mpi
 
-BUILT_FLAG = '_built:'
-COUNTS_FLAG = '_counts'
+BUILT_FLAG = '_built_:'
+COUNTS_FLAG = '_counts_'
+SCRIPT_FLAG = '_script_'
+INPUTS_FLAG = '_inputs_'
 
 def load(name, hashID, path = ''):
     framepath = frame.get_framepath(name, path)
     attrs = disk.h5_read_attrs(framepath, subkeys = [hashID,])
-    script = attrs['script']
-    inputs = eval(attrs['inputs'])
+    scriptBytes = attrs[SCRIPT_FLAG]
+    inputs = eval(attrs[INPUTS_FLAG])
     for key, val in sorted(inputs.items()):
         if type(val) is str:
             if val[:len(BUILT_FLAG)] == BUILT_FLAG:
                 loadHashID = val[len(BUILT_FLAG):]
-                loadedBuilt = load(name, loadHashID, path)
-                inputs[key] = loadedBuilt
+                inputs[key] = load(name, loadHashID, path)
     with disk.TempFile(
-                script,
-                extension = 'py'
+                scriptBytes,
+                extension = 'py',
+                mode = 'wb'
                 ) \
             as tempfile:
         imported = disk.local_import(tempfile)
-        loaded_built = imported.build(**inputs)
-    loaded_built.anchor(name, path)
-    return loaded_built
+        loadedBuilt = imported.build(**inputs)
+    loadedBuilt.anchor(name, path)
+    return loadedBuilt
 
 def _clean_inputs(inputs):
 
@@ -75,8 +78,14 @@ class Built:
             self,
             inputs,
             script,
+            meta = {}
             ):
 
+        if hasattr(self, 'update'):
+            update = self.update
+            self.update = lambda: self._update_wrap(update)
+        if hasattr(self, 'out') or hasattr(self, 'iterate'):
+            self.count = value.Value(0)
         if hasattr(self, 'out'):
             if not hasattr(self, 'outkeys'):
                 raise Exception
@@ -84,25 +93,24 @@ class Built:
             self.out = lambda: self._out_wrap(
                 out
                 )
+            self.store = self._store
+            self.stored = []
+            self.dataDict = {}
+            self.counts_stored = []
+            self.counts_disk = []
+            self.counts_captured = []
+            self.clear = self._clear
+            self.save = self._save
         if hasattr(self, 'iterate'):
             if not hasattr(self, 'load'):
                 raise Exception
             if not hasattr(self, 'initialise'):
                 raise Exception
-            self.count = value.Value(0)
             iterate = self.iterate
             self.iterate = lambda: self._iterate_wrap(
                 iterate,
                 self.count
                 )
-            self.store = self._store
-            self.stored = []
-            self.counts_stored = []
-            self.counts_disk = []
-            self.counts_captured = []
-
-            self.clear = self._clear
-            self.save = self._save
             load = self.load
             self.load = lambda count: self._load_wrap(
                 load,
@@ -127,6 +135,7 @@ class Built:
         self.safeInputs = safeInputs
         self.subBuilts = subBuilts
         self.hashID = hashID
+        self.meta = meta
 
     def _check_anchored(self):
         if not self.anchored:
@@ -163,9 +172,9 @@ class Built:
         self._check_anchored()
         self.save()
         loadDict = {}
-        with disk.h5File(self.path) as h5file:
+        with disk.h5File(self.fullpath) as h5file:
             selfgroup = h5file[self.hashID]
-            counts = selfgroup[COUNTS_FLAG]['data']
+            counts = selfgroup[COUNTS_FLAG]
             iterNo = 0
             while True:
                 if iterNo >= len(counts):
@@ -175,7 +184,7 @@ class Built:
                 iterNo += 1
             loadDict = {}
             for key in self.outkeys:
-                loadData = selfgroup[key]['data'][iterNo]
+                loadData = selfgroup[key][iterNo]
                 loadDict[key] = loadData
         loadDict = mpi.comm.bcast(loadDict, root = 0)
         return loadDict
@@ -184,11 +193,15 @@ class Built:
         count.value += 1
         iterate()
 
+    def _update_wrap(self, update):
+        update()
+
     def go(self, n):
         for i in range(n):
             self.iterate()
 
     def _store(self):
+        self.update()
         val = self.out()
         count = self.count()
         if not count in self.counts_captured:
@@ -201,14 +214,13 @@ class Built:
         self.stored = []
         self.counts_stored = []
 
-    def _make_dataDict(self, stored, outkeys):
-        counts, outs = zip(*stored)
-        dataDict = {
+    def _update_dataDict(self):
+        counts, outs = zip(*self.stored)
+        self.dataDict.update({
             key: np.array(val, dtype = self._obtain_dtype(val[0])) \
-                for key, val in zip(outkeys, zip(*outs))
-            }
-        dataDict[COUNTS_FLAG] = np.array(counts, dtype = 'i8')
-        return dataDict
+                for key, val in zip(self.outkeys, zip(*outs))
+            })
+        self.dataDict[COUNTS_FLAG] = np.array(counts, dtype = 'i8')
 
     @staticmethod
     def _obtain_dtype(object):
@@ -222,34 +234,28 @@ class Built:
         self._check_anchored()
         if len(self.stored) == 0:
             return None
-        dataDict = self._make_dataDict(
-            self.stored,
-            self.outkeys
-            )
-        with disk.h5File(self.path) as h5file:
-            selfgroup = h5file[self.hashID]
-            for key in [COUNTS_FLAG, *self.outkeys]:
-                data = dataDict[key]
-                if key in selfgroup:
-                    outgroup = selfgroup[key]
-                    dataset = outgroup['data']
-                else:
-                    outgroup = selfgroup.create_group(key)
-                    maxshape = [None, *data.shape[1:]]
-                    dataset = outgroup.create_dataset(
-                        name = 'data',
-                        shape = [0, *data.shape[1:]],
-                        maxshape = maxshape,
-                        dtype = data.dtype
-                        # compression = 'gzip'
-                        )
-                    if not key == COUNTS_FLAG:
-                        outgroup[COUNTS_FLAG] = \
-                            selfgroup[COUNTS_FLAG]['data']
-                priorlen = dataset.shape[0]
-                dataset.resize(priorlen + len(data), axis = 0)
-                dataset[priorlen:] = data
+        self._update_dataDict()
+        for key in [COUNTS_FLAG, *self.outkeys]:
+            self._extend_dataSet(key)
         self.clear()
+
+    def _extend_dataSet(self, key):
+        data = self.dataDict[key]
+        with disk.h5File(self.fullpath) as h5file:
+            selfgroup = h5file[self.hashID]
+            if key in selfgroup:
+                dataset = selfgroup[key]
+            else:
+                maxshape = [None, *data.shape[1:]]
+                dataset = selfgroup.create_dataset(
+                    name = key,
+                    shape = [0, *data.shape[1:]],
+                    maxshape = maxshape,
+                    dtype = data.dtype
+                    )
+            priorlen = dataset.shape[0]
+            dataset.resize(priorlen + len(data), axis = 0)
+            dataset[priorlen:] = data
 
     def _initialise_wrap(self, initialise, count):
         count.value = 0
@@ -258,32 +264,45 @@ class Built:
     def _out_wrap(self, out):
         return out()
 
-    def anchor(self, name, path = ''):
-        framepath = frame.get_framepath(name, path)
+    def anchor(self, frameID = None, path = ''):
+        if frameID is None:
+            frameID = self.hashID
+        fullpath = frame.get_framepath(frameID, path)
         if mpi.rank == 0:
-            with disk.h5File(framepath) as h5file:
+            with disk.h5File(fullpath) as h5file:
                 if self.hashID in h5file:
                     selfgroup = h5file[self.hashID]
                 else:
                     selfgroup = h5file.create_group(self.hashID)
-                selfgroup.attrs['script'] = self.script.encode()
-                selfgroup.attrs['inputs'] = str(self.safeInputs).encode()
+                selfgroup.attrs[SCRIPT_FLAG] = bytes(self.script.encode())
+                selfgroup.attrs[INPUTS_FLAG] = bytes(str(self.safeInputs).encode())
+                for key, val in sorted(self.meta.items()):
+                    selfgroup.attrs[key] = bytes(str(val))
         for key, subBuilt in sorted(self.subBuilts.items()):
-            subBuilt.anchor(name, path)
-        self.path = framepath
+            subBuilt.anchor(frameID, path)
+        self.frameID = frameID
+        self.path = path
+        self.fullpath = fullpath
         self.anchored = True
         if hasattr(self, 'counts'):
             self._update_counts()
+        self._post_anchor_hook()
+
+    def co_anchor(self, coBuilt):
+        coBuilt.anchor(self.frameID, self.path)
+
+    def _post_anchor_hook(self):
+        pass
 
     def _update_counts(self):
         if self.anchored:
             if mpi.rank == 0:
-                with disk.h5File(self.path) as h5file:
+                with disk.h5File(self.fullpath) as h5file:
                     selfgroup = h5file[self.hashID]
                     if COUNTS_FLAG in selfgroup:
                         self.counts_disk = utilities.unique_list(
                             list(
-                                selfgroup[COUNTS_FLAG]['data'][...]
+                                selfgroup[COUNTS_FLAG][...]
                                 )
                             )
             self.counts_disk = mpi.comm.bcast(self.counts_disk, root = 0)
@@ -293,3 +312,6 @@ class Built:
         self.counts_captured = utilities.unique_list(
             [*self.counts_stored, *self.counts_disk]
             )
+
+    def file(self):
+        return h5py.File(self.fullpath)
