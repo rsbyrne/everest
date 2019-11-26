@@ -204,10 +204,10 @@ class Built:
 
     def _store(self):
         self.update()
-        val = self.out()
+        vals = self.out()
         count = self.count()
         if not count in self.counts_captured:
-            entry = (count, val)
+            entry = [count, vals]
             self.stored.append(entry)
             self.stored.sort()
         self._update_counts()
