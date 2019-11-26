@@ -8,6 +8,7 @@ import random
 import subprocess
 import h5py
 import string
+import time
 
 from functools import partial
 
@@ -16,25 +17,40 @@ message = utilities.message
 from . import mpi
 
 h5File = h5py.File
-h5FileMPI = partial(
-    h5py.File,
-    driver = 'mpio',
-    comm = mpi.comm
-    )
 
-def tempname(length = 16):
-    random.seed()
+# h5File = partial(
+#     h5py.File,
+#     driver = 'mpio',
+#     comm = mpi.comm
+#     )
+
+def check_file(filename, checks = 10):
+    check = 0
+    if mpi.rank == 0:
+        while True:
+            if os.path.isfile(filename):
+                break
+            elif check < checks:
+                check += 1
+                time.sleep(0.1)
+            else:
+                raise Exception("File check failed!")
+
+def tempname(length = 16, extension = None):
     name = ''
     if mpi.rank == 0:
         letters = string.ascii_lowercase
         name = ''.join(random.choice(letters) for i in range(length))
     name = mpi.comm.bcast(name, root = 0)
+    if not extension is None:
+        name += '.' + extension
     return name
 
 def write_file(filename, content, mode = 'w'):
     if mpi.rank == 0:
         with open(filename, mode) as file:
             file.write(content)
+    check_file(filename)
 
 def remove_file(filename):
     if mpi.rank == 0:
@@ -65,9 +81,11 @@ class TempFile:
 
     def __enter__(self):
         write_file(self.path, self.content, self.mode)
+        time.sleep(0.1) # needed to make Windows work!!!
         return self.path
 
     def __exit__(self, *args):
+        mpi.comm.barrier()
         remove_file(self.path)
 
 def local_import(filepath):

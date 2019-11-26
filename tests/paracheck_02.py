@@ -7,7 +7,7 @@ import everest
 
 with planetengine.paths.TestDir() as outputPath:
 
-    system = planetengine.systems.isovisc.build(res = 32)
+    system = planetengine.systems.isovisc.build(res = 16)
     system.anchor(path = outputPath)
 
     def testfn():

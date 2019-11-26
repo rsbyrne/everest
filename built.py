@@ -2,6 +2,7 @@ import numpy as np
 import os
 import importlib
 import h5py
+import time
 
 from . import frame
 from . import utilities
@@ -172,20 +173,21 @@ class Built:
         self._check_anchored()
         self.save()
         loadDict = {}
-        with disk.h5File(self.fullpath) as h5file:
-            selfgroup = h5file[self.hashID]
-            counts = selfgroup[COUNTS_FLAG]
-            iterNo = 0
-            while True:
-                if iterNo >= len(counts):
-                    raise Exception("Count not found!")
-                if counts[iterNo] == count:
-                    break
-                iterNo += 1
-            loadDict = {}
-            for key in self.outkeys:
-                loadData = selfgroup[key][iterNo]
-                loadDict[key] = loadData
+        if mpi.rank == 0:
+            with disk.h5File(self.fullpath) as h5file:
+                selfgroup = h5file[self.hashID]
+                counts = selfgroup[COUNTS_FLAG]
+                iterNo = 0
+                while True:
+                    if iterNo >= len(counts):
+                        raise Exception("Count not found!")
+                    if counts[iterNo] == count:
+                        break
+                    iterNo += 1
+                loadDict = {}
+                for key in self.outkeys:
+                    loadData = selfgroup[key][iterNo]
+                    loadDict[key] = loadData
         loadDict = mpi.comm.bcast(loadDict, root = 0)
         return loadDict
 
@@ -241,21 +243,22 @@ class Built:
 
     def _extend_dataSet(self, key):
         data = self.dataDict[key]
-        with disk.h5File(self.fullpath) as h5file:
-            selfgroup = h5file[self.hashID]
-            if key in selfgroup:
-                dataset = selfgroup[key]
-            else:
-                maxshape = [None, *data.shape[1:]]
-                dataset = selfgroup.create_dataset(
-                    name = key,
-                    shape = [0, *data.shape[1:]],
-                    maxshape = maxshape,
-                    dtype = data.dtype
-                    )
-            priorlen = dataset.shape[0]
-            dataset.resize(priorlen + len(data), axis = 0)
-            dataset[priorlen:] = data
+        if mpi.rank == 0:
+            with disk.h5File(self.fullpath) as h5file:
+                selfgroup = h5file[self.hashID]
+                if key in selfgroup:
+                    dataset = selfgroup[key]
+                else:
+                    maxshape = [None, *data.shape[1:]]
+                    dataset = selfgroup.create_dataset(
+                        name = key,
+                        shape = [0, *data.shape[1:]],
+                        maxshape = maxshape,
+                        dtype = data.dtype
+                        )
+                priorlen = dataset.shape[0]
+                dataset.resize(priorlen + len(data), axis = 0)
+                dataset[priorlen:] = data
 
     def _initialise_wrap(self, initialise, count):
         count.value = 0
