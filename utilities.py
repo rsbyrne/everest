@@ -74,20 +74,18 @@ def stringify(*args):
         elif objType == np.ndarray:
             outStr += str(inputObject)
             typeStr = 'arr'
+        elif hasattr(inputObject, '__hash__'):
+            outStr += str(inputObject.__hash__())
         else:
             errormsg = "Type: " + str(type(inputObject)) + " not accepted."
             raise Exception(errormsg)
     outStr += '}'
-    # print(args)
-    # print(outStr)
     outStr = typeStr + outStr
     return outStr
 
 def hashstamp(inputObj):
-    local_inputStr = stringify(inputObj)
-    all_inputStrs = mpi.comm.allgather(local_inputStr)
-    global_inputStr = ''.join(all_inputStrs)
-    stamp = hashlib.md5(global_inputStr.encode()).hexdigest()
+    inputStr = stringify(inputObj)
+    stamp = hashlib.md5(inputStr.encode()).hexdigest()
     return stamp
 
 def wordhashstamp(inputObj):
