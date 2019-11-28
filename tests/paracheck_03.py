@@ -5,12 +5,16 @@ import random
 import planetengine
 import everest
 
-with planetengine.paths.TestDir() as outputPath:
+with everest.paths.TestDir() as outputPath:
 
     system = planetengine.systems.isovisc.build(res = 16)
     system.anchor(path = outputPath)
     observer = planetengine.observers.standard.build(system)
     system.co_anchor(observer)
+
+    # print('!' * 100)
+    # print(system.hashID)
+    # print('!' * 100)
 
     def testfn():
         system.store()
@@ -58,6 +62,8 @@ with planetengine.paths.TestDir() as outputPath:
                 observer.store()
             system_loaded.save()
             observer.save()
+
+    system.show()
 
     timing = timeit(testfn, number = 1)
     planetengine.message(timing)

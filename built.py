@@ -287,7 +287,7 @@ class Built:
         self.path = path
         self.fullpath = fullpath
         self.anchored = True
-        if hasattr(self, 'counts'):
+        if hasattr(self, 'count'):
             self._update_counts()
         self._post_anchor_hook()
 

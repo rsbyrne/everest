@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import shutil
 import tarfile
@@ -17,6 +18,12 @@ message = utilities.message
 from . import mpi
 
 h5File = h5py.File
+
+PYTEMP = '/home/jovyan/pytemp'
+if mpi.rank == 0:
+    os.makedirs(PYTEMP, exist_ok = True)
+    if not PYTEMP in sys.path:
+        sys.path.append(PYTEMP)
 
 # h5File = partial(
 #     h5py.File,
@@ -44,13 +51,14 @@ def tempname(length = 16, extension = None):
     name = mpi.comm.bcast(name, root = 0)
     if not extension is None:
         name += '.' + extension
+    name = os.path.join(PYTEMP, name)
     return name
 
 def write_file(filename, content, mode = 'w'):
     if mpi.rank == 0:
         with open(filename, mode) as file:
             file.write(content)
-    check_file(filename)
+    # check_file(filename)
 
 def remove_file(filename):
     if mpi.rank == 0:
@@ -81,7 +89,7 @@ class TempFile:
 
     def __enter__(self):
         write_file(self.path, self.content, self.mode)
-        time.sleep(0.1) # needed to make Windows work!!!
+        # time.sleep(0.1) # needed to make Windows work!!!
         return self.path
 
     def __exit__(self, *args):
@@ -100,6 +108,9 @@ def local_import(filepath):
     spec.loader.exec_module(module)
 
     return module
+
+def __hash__(self):
+    return hash(self.hashID)
 
 # def local_import(script_bytes):
 #     with TempFile(script_bytes, extension = 'py') as tempfile:
