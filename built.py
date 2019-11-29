@@ -291,7 +291,7 @@ class Built:
             self._update_counts()
         self._post_anchor_hook()
 
-    def co_anchor(self, coBuilt):
+    def coanchor(self, coBuilt):
         coBuilt.anchor(self.frameID, self.path)
 
     def _post_anchor_hook(self):
