@@ -272,6 +272,7 @@ class Built:
             frameID = self.hashID
         fullpath = frame.get_framepath(frameID, path)
         if mpi.rank == 0:
+            os.makedirs(path, exist_ok = True)
             with disk.h5File(fullpath) as h5file:
                 if self.hashID in h5file:
                     selfgroup = h5file[self.hashID]
