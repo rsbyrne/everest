@@ -145,9 +145,10 @@ class Built:
                 )
 
     def _load_wrap(self, load, count):
-        loadDict = self._load_dataDict(count)
-        load(loadDict)
-        self.count.value = count
+        if not self.count() == count:
+            loadDict = self._load_dataDict(count)
+            load(loadDict)
+            self.count.value = count
 
     def _load_dataDict(self, count):
         if count in self.counts_stored:
