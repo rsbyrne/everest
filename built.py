@@ -145,9 +145,10 @@ class Built:
                 )
 
     def _load_wrap(self, load, count):
-        loadDict = self._load_dataDict(count)
-        load(loadDict)
-        self.count.value = count
+        if not self.count() == count:
+            loadDict = self._load_dataDict(count)
+            load(loadDict)
+            self.count.value = count
 
     def _load_dataDict(self, count):
         if count in self.counts_stored:
@@ -272,6 +273,7 @@ class Built:
             frameID = self.hashID
         fullpath = frame.get_framepath(frameID, path)
         if mpi.rank == 0:
+            os.makedirs(path, exist_ok = True)
             with disk.h5File(fullpath) as h5file:
                 if self.hashID in h5file:
                     selfgroup = h5file[self.hashID]
