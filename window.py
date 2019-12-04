@@ -7,7 +7,6 @@ from collections.abc import Set
 from collections.abc import Hashable
 
 from . import _specialnames
-ALL_COUNTS_FLAG = _specialnames.ALL_COUNTS_FLAG
 
 def _process_scope_inputs(iterable):
     cleaned_iterable = []
@@ -46,7 +45,7 @@ class Scope(Set, Hashable):
             allData = tuple(
                 np.array(subDict[key]) \
                     for subDict in allDicts \
-                        if not subDict[key] == ALL_COUNTS_FLAG
+                        if not subDict[key] == _specialnames.ALL_COUNTS_FLAG
                 )
             if len(allData) > 0:
                 outDict[key] = tuple(
@@ -59,6 +58,9 @@ class Scope(Set, Hashable):
                 outDict[key] = '...'
         outScope = Scope(outDict.items())
         return outScope
+
+    def keys(self):
+        return set([key for key, val in self._set])
 
     def __add__(self, arg):
         return self.union(arg)
@@ -73,7 +75,7 @@ class Scope(Set, Hashable):
             allData = tuple(
                 np.array(subDict[key]) \
                     for subDict in allDicts \
-                        if not subDict[key] == ALL_COUNTS_FLAG
+                        if not subDict[key] == _specialnames.ALL_COUNTS_FLAG
                 )
             if len(allData) > 0:
                 intTuple = tuple(
@@ -162,6 +164,27 @@ class Reader:
             ):
         self.h5file = None
         self.h5filename = h5filename
+        self.file = partial(h5py.File, h5filename, 'r')
+
+    @_readwrap
+    def pull(self, scope, key):
+        arrList = []
+        for superkey, scopeCounts in sorted(scope):
+            localGroup = self.h5file[superkey]
+            localCounts = localGroup[_specialnames.COUNTS_FLAG]
+            targetDataset = localGroup[key]
+            if scopeCounts == '...':
+                arr = targetDataset[...]
+            else:
+                mask = np.array([
+                    count in scopeCounts for count in localCounts
+                    ])
+                arr = targetDataset[mask]
+            arrList.append(arr)
+        allArr = np.concatenate(arrList)
+        return allArr
+
+    # def pull_attrs(self, scope, keys = )
 
     def __getitem__(self, inp):
         if type(inp) is tuple:
