@@ -167,7 +167,22 @@ class Reader:
         self.file = partial(h5py.File, h5filename, 'r')
 
     @_readwrap
-    def pull(self, scope, key):
+    def full_scope(self):
+        scopelets = set()
+        for superkey in self.h5file:
+            scopelets.add((superkey, '...'))
+        return Scope(scopelets)
+
+    @_readwrap
+    def pull(self, scope, keys):
+        if type(keys) is str:
+            keys = (key,)
+        outs = []
+        for key in keys:
+            outs.append(self._pull(scope, key))
+        return tuple(outs)
+
+    def _pull(self, scope, key):
         arrList = []
         for superkey, scopeCounts in sorted(scope):
             localGroup = self.h5file[superkey]
@@ -183,6 +198,54 @@ class Reader:
             arrList.append(arr)
         allArr = np.concatenate(arrList)
         return allArr
+
+    def view_attrs(self, scope = None):
+        if scope is None:
+            scope = self.full_scope()
+        return self._view_attrs(scope)
+
+    @_readwrap
+    def _view_attrs(self, scope):
+        outDict = dict()
+        for superkey, scopeCounts in scope:
+            builtGroup = self.h5file[superkey]
+            for key in builtGroup.attrs:
+                if not key in outDict:
+                    outDict[key] = dict()
+                keyval = builtGroup.attrs[key]
+                if not keyval in outDict[key]:
+                    outDict[key][keyval] = set()
+                outDict[key][keyval].add((superkey, scopeCounts))
+        for key in outDict:
+            for subKey in outDict[key]:
+                outDict[key][subKey] = Scope(outDict[key][subKey])
+        return outDict
+
+    @staticmethod
+    def summary_of_dict(allDict):
+        for key in sorted(allDict):
+            print(key)
+            for subKey in sorted(allDict[key]):
+                print(subKey)
+
+    @_readwrap
+    def sort_by_attr(self, key, scope = None):
+        if scope is None:
+            superkeys = self.h5file.keys()
+        else:
+            superkeys = [key for key, val in scope]
+        outDict = dict()
+        for superkey in superkeys:
+            builtGroup = self.h5file[superkey]
+            if key in builtGroup.attrs:
+                keyval = builtGroup.attrs[key]
+                if not keyval in outDict:
+                    outDict[keyval] = set()
+                newEntry = (superkey, '...')
+                outDict[keyval].add(newEntry)
+        for key in outDict:
+            outDict[key] = Scope(outDict[key])
+        return sorted(outDict.items())
 
     # def pull_attrs(self, scope, keys = )
 
