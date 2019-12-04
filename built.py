@@ -10,23 +10,30 @@ from . import value
 from . import disk
 from . import mpi
 
-BUILT_FLAG = '_built_:'
-COUNTS_FLAG = '_counts_'
-SCRIPT_FLAG = '_script_'
-INPUTS_FLAG = '_inputs_'
+from . import _specialnames
+_specialnames.BUILT_FLAG = '_built_:'
+_specialnames.COUNTS_FLAG = '_counts_'
+_specialnames.SCRIPT_FLAG = '_script_'
+
+# INPUTS_FLAG = '_inputs_'
 
 def load(name, hashID, path = ''):
     framepath = frame.get_framepath(name, path)
     attrs = disk.h5_read_attrs(framepath, subkeys = [hashID,])
-    scriptBytes = attrs[SCRIPT_FLAG]
-    inputs = eval(attrs[INPUTS_FLAG])
-    for key, val in sorted(inputs.items()):
-        if type(val) is str:
-            if val[:len(BUILT_FLAG)] == BUILT_FLAG:
-                loadHashID = val[len(BUILT_FLAG):]
-                inputs[key] = load(name, loadHashID, path)
+    def _load_process_input(val):
+        if not type(val) is str:
+            val = eval(str(val))
+        elif val[:len(_specialnames.BUILT_FLAG)] == _specialnames.BUILT_FLAG:
+            loadHashID = val[len(_specialnames.BUILT_FLAG):]
+            val = load(name, loadHashID, path)
+        return val
+    inputs = {
+        key: _load_process_input(val) \
+            for key, val in sorted(attrs.items())
+        }
+    script = inputs.pop(_specialnames.SCRIPT_FLAG)
     with disk.TempFile(
-                scriptBytes,
+                script,
                 extension = 'py',
                 mode = 'wb'
                 ) \
@@ -38,12 +45,12 @@ def load(name, hashID, path = ''):
 
 def _clean_inputs(inputs):
 
-    _accepted_inputTypes = {
-        type([]),
-        type(0),
-        type(0.),
-        type('0'),
-        }
+    # _accepted_inputTypes = {
+    #     type([]),
+    #     type(0),
+    #     type(0.),
+    #     type('0'),
+    #     }
 
     badKeys = {
         'args',
@@ -58,16 +65,19 @@ def _clean_inputs(inputs):
     subBuilts = {}
     safeInputs = {}
     for key, val in sorted(inputs.items()):
-        if type(val) == tuple:
-            inputs[key] = list(val)
         if not isinstance(val, Built):
-            if not type(val) in _accepted_inputTypes:
-                raise Exception(
-                    "Type " + str(type(val)) + " not accepted."
-                    )
+            if not type(val) is str:
+                val = eval(str(val))
+        # if type(val) == tuple:
+        #     inputs[key] = list(val)
+        # if not isinstance(val, Built):
+        #     if not type(val) in _accepted_inputTypes:
+        #         raise Exception(
+        #             "Type " + str(type(val)) + " not accepted."
+        #             )
         if isinstance(val, Built):
             subBuilts[key] = val
-            safeInputs[key] = BUILT_FLAG + val.hashID
+            safeInputs[key] = _specialnames.BUILT_FLAG + val.hashID
         else:
             safeInputs[key] = inputs[key]
 
@@ -128,7 +138,9 @@ class Built:
         inputs, safeInputs, subBuilts = _clean_inputs(inputs)
 
         script = utilities.ToOpen(script)()
-        hashID = utilities.wordhashstamp((script, safeInputs))
+        hashID = utilities.wordhashstamp(
+            (script, sorted(safeInputs.items()))
+            )
 
         self.anchored = False
         self.script = script
@@ -177,7 +189,7 @@ class Built:
         if mpi.rank == 0:
             with disk.h5File(self.fullpath) as h5file:
                 selfgroup = h5file[self.hashID]
-                counts = selfgroup[COUNTS_FLAG]
+                counts = selfgroup[_specialnames.COUNTS_FLAG]
                 iterNo = 0
                 while True:
                     if iterNo >= len(counts):
@@ -223,7 +235,7 @@ class Built:
             key: np.array(val, dtype = self._obtain_dtype(val[0])) \
                 for key, val in zip(self.outkeys, zip(*outs))
             })
-        self.dataDict[COUNTS_FLAG] = np.array(counts, dtype = 'i8')
+        self.dataDict[_specialnames.COUNTS_FLAG] = np.array(counts, dtype = 'i8')
 
     @staticmethod
     def _obtain_dtype(object):
@@ -238,7 +250,7 @@ class Built:
         if len(self.stored) == 0:
             return None
         self._update_dataDict()
-        for key in [COUNTS_FLAG, *self.outkeys]:
+        for key in [_specialnames.COUNTS_FLAG, *self.outkeys]:
             self._extend_dataSet(key)
         self.clear()
 
@@ -279,10 +291,13 @@ class Built:
                     selfgroup = h5file[self.hashID]
                 else:
                     selfgroup = h5file.create_group(self.hashID)
-                selfgroup.attrs[SCRIPT_FLAG] = bytes(self.script.encode())
-                selfgroup.attrs[INPUTS_FLAG] = bytes(str(self.safeInputs).encode())
-                for key, val in sorted(self.meta.items()):
-                    selfgroup.attrs[key] = bytes(str(val))
+                attrs = {
+                    _specialnames.SCRIPT_FLAG: bytes(self.script.encode()),
+                    **self.safeInputs,
+                    **self.meta
+                    }
+                for key, val in sorted(attrs.items()):
+                    selfgroup.attrs[key] = val
         for key, subBuilt in sorted(self.subBuilts.items()):
             subBuilt.anchor(frameID, path)
         self.frameID = frameID
@@ -304,10 +319,10 @@ class Built:
             if mpi.rank == 0:
                 with disk.h5File(self.fullpath) as h5file:
                     selfgroup = h5file[self.hashID]
-                    if COUNTS_FLAG in selfgroup:
+                    if _specialnames.COUNTS_FLAG in selfgroup:
                         self.counts_disk = utilities.unique_list(
                             list(
-                                selfgroup[COUNTS_FLAG][...]
+                                selfgroup[_specialnames.COUNTS_FLAG][...]
                                 )
                             )
             self.counts_disk = mpi.comm.bcast(self.counts_disk, root = 0)

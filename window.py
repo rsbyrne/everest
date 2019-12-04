@@ -1,6 +1,114 @@
 import h5py
 import operator
+import numpy as np
 from functools import partial
+from functools import reduce
+from collections.abc import Set
+from collections.abc import Hashable
+
+from . import _specialnames
+ALL_COUNTS_FLAG = _specialnames.ALL_COUNTS_FLAG
+
+def _process_scope_inputs(iterable):
+    cleaned_iterable = []
+    for key, val in iterable:
+        if val == '...' or type(val) is tuple:
+            pass
+#         elif type(val) is np.ndarray:
+#             val = tuple(val)
+        else:
+            raise TypeError
+        cleaned_iterable.append((key, val))
+    return cleaned_iterable
+
+class Scope(Set, Hashable):
+
+    __hash__ = Set._hash
+
+    def _process_args(self, *args):
+        if not all([type(arg) is Scope for arg in args]):
+            raise TypeError
+        args = list(args)
+        args.append(self)
+        allSets = [arg._set for arg in args]
+        allDicts = [dict(subSet) for subSet in allSets]
+        commonkeys = set.intersection(
+            *[set(subDict) for subDict in allDicts]
+            )
+        return allDicts, commonkeys
+
+    def union(self, *args):
+        allDicts, commonkeys = self._process_args(*args)
+        outDict = dict()
+        for subDict in allDicts:
+            outDict.update(subDict)
+        for key in commonkeys:
+            allData = tuple(
+                np.array(subDict[key]) \
+                    for subDict in allDicts \
+                        if not subDict[key] == ALL_COUNTS_FLAG
+                )
+            if len(allData) > 0:
+                outDict[key] = tuple(
+                    reduce(
+                        np.union1d,
+                        allData
+                        )
+                    )
+            else:
+                outDict[key] = '...'
+        outScope = Scope(outDict.items())
+        return outScope
+
+    def __add__(self, arg):
+        return self.union(arg)
+
+    def __mul__(self, arg):
+        return self.intersection(arg)
+
+    def intersection(self, *args):
+        allDicts, commonkeys = self._process_args(*args)
+        outDict = dict()
+        for key in commonkeys:
+            allData = tuple(
+                np.array(subDict[key]) \
+                    for subDict in allDicts \
+                        if not subDict[key] == ALL_COUNTS_FLAG
+                )
+            if len(allData) > 0:
+                intTuple = tuple(
+                    reduce(
+                        np.intersect1d,
+                        allData
+                        )
+                    )
+                if len(intTuple) > 0:
+                    outDict[key] = intTuple
+            else:
+                outDict[key] = '...'
+        outScope = Scope(outDict.items())
+        return outScope
+
+    def __repr__(self):
+        return "Scope({0})".format(list(self._set))
+
+    def __new__(cls, iterable):
+        selfobj = super(Scope, cls).__new__(Scope)
+        cleaned_iterable = _process_scope_inputs(iterable)
+        selfobj._set = frozenset(cleaned_iterable)
+        return selfobj
+
+    def __getattr__(self, attr):
+        return getattr(self._set, attr)
+
+    def __contains__(self, item):
+        return item in self._set
+
+    def __len__(self):
+        return len(self._set)
+
+    def __iter__(self):
+        return iter(self._set)
 
 class Fetch:
 
@@ -58,16 +166,26 @@ class Reader:
     def __getitem__(self, inp):
         if type(inp) is tuple:
             allouts = [self.__getitem__(subInp) for subInp in inp]
-            return set.intersection(*allouts)
-        if isinstance(inp, Fetch):
+            return allouts[0].intersection(*allouts[1:])
+        if type(inp) is Fetch:
             return self._get_fetch(inp)
+        if type(inp) is Scope:
+            raise Exception("That behaviour not supported yet")
         raise TypeError
+
+    def _process_out(self, out):
+        if type(out) is str:
+            return out
+        if type(out) is h5py.Dataset:
+            return out[...]
+        return eval(str(out))
 
     def _context(self, superkey, *args):
         args = list(args)
         key = args.pop(0)
         try: out = self.h5file[superkey].attrs[key]
         except: out = self.h5file[superkey][key]
+        out = self._process_out(out)
         return (out, *args)
 
     @_readwrap
@@ -78,6 +196,22 @@ class Reader:
                 self._context,
                 superkey
                 )
-            if fetch(context):
-                outs.add(superkey)
+            result = fetch(context)
+            indices = None
+            if type(result) is bool:
+                if fetch(context):
+                    indices = '...'
+            elif type(result) is np.ndarray:
+                if np.all(result):
+                    indices = '...'
+                elif np.any(result):
+                    indices = tuple(
+                        self.h5file\
+                            [superkey] \
+                            [_specialnames.COUNTS_FLAG] \
+                            [result]
+                        )
+            if not indices is None:
+                outs.add((superkey, indices))
+        outs = Scope(outs)
         return outs

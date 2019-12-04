@@ -31,60 +31,61 @@ class ToOpen:
 def unique_list(inList):
     return list(sorted(set(inList)))
 
-def stringify(*args):
-    outStr = '{'
-    if len(args) > 1:
-        for inputObject in args:
-            outStr += stringify(inputObject)
-        typeStr = 'tup'
-    else:
-        inputObject = args[0]
-        objType = type(inputObject)
-        if objType == bytes:
-            outStr += inputObject.decode()
-            typeStr = 'str'
-        elif objType == str:
-            outStr += inputObject
-            typeStr = 'str'
-        elif objType == bool:
-            outStr += str(inputObject)
-            typeStr = 'boo'
-        elif objType == int:
-            outStr += str(inputObject)
-            typeStr = 'int'
-        elif objType == float:
-            outStr += str(inputObject)
-            typeStr = 'flt'
-        elif objType in [list, tuple]:
-            for item in inputObject:
-                outStr += stringify(item)
-            typeStr = 'tup'
-        elif objType == set:
-            for item in sorted(inputObject):
-                outStr += stringify(item)
-            typeStr = 'set'
-        elif objType == dict:
-            for key, val in sorted(inputObject.items()):
-                outStr += (stringify(key))
-                outStr += (stringify(val))
-            typeStr = 'dct'
-        elif objType == ToOpen:
-            outStr += inputObject()
-            typeStr = 'str'
-        elif objType == np.ndarray:
-            outStr += str(inputObject)
-            typeStr = 'arr'
-        elif hasattr(inputObject, '__hash__'):
-            outStr += str(inputObject.__hash__())
-        else:
-            errormsg = "Type: " + str(type(inputObject)) + " not accepted."
-            raise Exception(errormsg)
-    outStr += '}'
-    outStr = typeStr + outStr
-    return outStr
+# def stringify(*args):
+#     outStr = '{'
+#     if len(args) > 1:
+#         for inputObject in args:
+#             outStr += stringify(inputObject)
+#         typeStr = 'tup'
+#     else:
+#         inputObject = args[0]
+#         objType = type(inputObject)
+#         if objType == bytes:
+#             outStr += inputObject.decode()
+#             typeStr = 'str'
+#         elif objType == str:
+#             outStr += inputObject
+#             typeStr = 'str'
+#         elif objType == bool:
+#             outStr += str(inputObject)
+#             typeStr = 'boo'
+#         elif objType == int:
+#             outStr += str(inputObject)
+#             typeStr = 'int'
+#         elif objType == float:
+#             outStr += str(inputObject)
+#             typeStr = 'flt'
+#         elif objType in [list, tuple]:
+#             for item in inputObject:
+#                 outStr += stringify(item)
+#             typeStr = 'tup'
+#         elif objType == set:
+#             for item in sorted(inputObject):
+#                 outStr += stringify(item)
+#             typeStr = 'set'
+#         elif objType == dict:
+#             for key, val in sorted(inputObject.items()):
+#                 outStr += (stringify(key))
+#                 outStr += (stringify(val))
+#             typeStr = 'dct'
+#         elif objType == ToOpen:
+#             outStr += inputObject()
+#             typeStr = 'str'
+#         elif objType == np.ndarray:
+#             outStr += str(inputObject)
+#             typeStr = 'arr'
+#         elif hasattr(inputObject, '__hash__'):
+#             outStr += str(inputObject.__hash__())
+#             typeStr = 'ano'
+#         else:
+#             errormsg = "Type: " + str(type(inputObject)) + " not accepted."
+#             raise Exception(errormsg)
+#     outStr += '}'
+#     outStr = typeStr + outStr
+#     return outStr
 
 def hashstamp(inputObj):
-    inputStr = stringify(inputObj)
+    inputStr = str(inputObj)
     stamp = hashlib.md5(inputStr.encode()).hexdigest()
     return stamp
 
