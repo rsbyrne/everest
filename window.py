@@ -176,25 +176,32 @@ class Reader:
     @_readwrap
     def pull(self, scope, keys):
         if type(keys) is str:
-            keys = (key,)
+            keys = (keys,)
         outs = []
         for key in keys:
             outs.append(self._pull(scope, key))
-        return tuple(outs)
+        if len(outs) == 1:
+            return outs[0]
+        else:
+            return tuple(outs)
 
     def _pull(self, scope, key):
         arrList = []
         for superkey, scopeCounts in sorted(scope):
-            localGroup = self.h5file[superkey]
-            localCounts = localGroup[_specialnames.COUNTS_FLAG]
-            targetDataset = localGroup[key]
+            thisGroup = self.h5file[superkey]
+            thisTargetDataset = thisGroup[key]
             if scopeCounts == '...':
-                arr = targetDataset[...]
+                arr = thisTargetDataset[...]
             else:
-                mask = np.array([
-                    count in scopeCounts for count in localCounts
-                    ])
-                arr = targetDataset[mask]
+                # import time
+                # prevtime = time.clock()
+                thisCountsDataset = thisGroup[_specialnames.COUNTS_FLAG]
+                maskFn = lambda val: val in scopeCounts
+                mask = np.vectorize(maskFn)(thisCountsDataset[...])
+                # print("To make the mask array: ", time.clock() - prevtime)
+                # prevtime = time.clock()
+                arr = thisTargetDataset[mask]
+                # print("To apply the mask to the array: ", time.clock() - prevtime)
             arrList.append(arr)
         allArr = np.concatenate(arrList)
         return allArr
