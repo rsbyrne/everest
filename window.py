@@ -6,6 +6,8 @@ from functools import reduce
 from collections.abc import Set
 from collections.abc import Hashable
 
+import time
+
 from . import _specialnames
 
 def _process_scope_inputs(iterable):
@@ -23,6 +25,15 @@ def _process_scope_inputs(iterable):
 class Scope(Set, Hashable):
 
     __hash__ = Set._hash
+
+    def keys(self):
+        return set([key for key, val in self._set])
+
+    def __add__(self, arg):
+        return self.union(arg)
+
+    def __mul__(self, arg):
+        return self.intersection(arg)
 
     def _process_args(self, *args):
         if not all([type(arg) is Scope for arg in args]):
@@ -58,15 +69,6 @@ class Scope(Set, Hashable):
                 outDict[key] = '...'
         outScope = Scope(outDict.items())
         return outScope
-
-    def keys(self):
-        return set([key for key, val in self._set])
-
-    def __add__(self, arg):
-        return self.union(arg)
-
-    def __mul__(self, arg):
-        return self.intersection(arg)
 
     def intersection(self, *args):
         allDicts, commonkeys = self._process_args(*args)
@@ -130,7 +132,9 @@ class Fetch:
             context = lambda *inp: inp
         try:
             args = context(*self.args)
-            return self.operations[self.operation](*args)
+            args = [np.array(arg) for arg in args]
+            outVal = self.operations[self.operation](*args)
+            return outVal
         except KeyError:
             return False
 
@@ -193,15 +197,13 @@ class Reader:
             if scopeCounts == '...':
                 arr = thisTargetDataset[...]
             else:
-                # import time
-                # prevtime = time.clock()
                 thisCountsDataset = thisGroup[_specialnames.COUNTS_FLAG]
-                maskFn = lambda val: val in scopeCounts
-                mask = np.vectorize(maskFn)(thisCountsDataset[...])
-                # print("To make the mask array: ", time.clock() - prevtime)
-                # prevtime = time.clock()
-                arr = thisTargetDataset[mask]
-                # print("To apply the mask to the array: ", time.clock() - prevtime)
+                maskArr = np.isin(
+                    thisCountsDataset,
+                    scopeCounts,
+                    assume_unique = True
+                    )
+                arr = thisTargetDataset[maskArr]
             arrList.append(arr)
         allArr = np.concatenate(arrList)
         return allArr
@@ -266,19 +268,11 @@ class Reader:
             raise Exception("That behaviour not supported yet")
         raise TypeError
 
-    def _process_out(self, out):
-        if type(out) is str:
-            return out
-        if type(out) is h5py.Dataset:
-            return out[...]
-        return eval(str(out))
-
     def _context(self, superkey, *args):
         args = list(args)
         key = args.pop(0)
         try: out = self.h5file[superkey].attrs[key]
         except: out = self.h5file[superkey][key]
-        out = self._process_out(out)
         return (out, *args)
 
     @_readwrap
@@ -289,10 +283,10 @@ class Reader:
                 self._context,
                 superkey
                 )
-            result = fetch(context)
+            result = fetch(context) # THIS IS THE SLOWEST BIT
             indices = None
             if type(result) is bool:
-                if fetch(context):
+                if result:
                     indices = '...'
             elif type(result) is np.ndarray:
                 if np.all(result):
