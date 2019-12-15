@@ -118,8 +118,9 @@ class Built:
             if not hasattr(self, 'initialise'):
                 raise Exception
             iterate = self.iterate
-            self.iterate = lambda: self._iterate_wrap(
+            self.iterate = lambda n = 1: self._iterate_wrap(
                 iterate,
+                n,
                 self.count
                 )
             load = self.load
@@ -204,9 +205,10 @@ class Built:
         loadDict = mpi.comm.bcast(loadDict, root = 0)
         return loadDict
 
-    def _iterate_wrap(self, iterate, count):
-        count.value += 1
-        iterate()
+    def _iterate_wrap(self, iterate, n, count):
+        for i in range(n):
+            count.value += 1
+            iterate()
 
     def _update_wrap(self, update):
         update()
