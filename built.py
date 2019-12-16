@@ -311,7 +311,7 @@ class Built:
         self._post_anchor_hook()
 
     def coanchor(self, coBuilt):
-        coBuilt.anchor(self.frameID, self.path)
+        self.anchor(coBuilt.frameID, coBuilt.path)
 
     def _post_anchor_hook(self):
         pass
