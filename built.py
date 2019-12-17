@@ -12,25 +12,32 @@ from . import mpi
 
 from . import _specialnames
 
-def load(name, hashID, path = ''):
+def filter_numpytype(val):
+    if isinstance(val, np.generic):
+        return np.asscalar(val)
+
+def load(hashID, name, path = ''):
     framepath = frame.get_framepath(name, path)
-    attrs = disk.h5_read_attrs(framepath, subkeys = [hashID,])
-    def _load_process_input(val):
-        if not type(val) is str:
-            val = eval(str(val))
-        elif val[:len(_specialnames.BUILT_FLAG)] == _specialnames.BUILT_FLAG:
-            loadHashID = val[len(_specialnames.BUILT_FLAG):]
-            val = load(name, loadHashID, path)
-        return val
-    inputs = {
-        key: _load_process_input(val) \
-            for key, val in sorted(attrs.items())
-        }
-    script = inputs.pop(_specialnames.SCRIPT_FLAG)
+    script = None
+    inputs = {}
+    subBuiltIDs = {}
+    if mpi.rank == 0:
+        h5file = h5py.File(framepath, mode = 'r')
+        h5group = h5file[hashID]
+        script = h5group.attrs['script']
+        inputsGroup = h5group['inputs']
+        for key, val in inputsGroup.attrs.items():
+            inputs[key] = filter_numpytype(val)
+        for key in inputsGroup:
+            subBuiltIDs[key] = inputsGroup[key].attrs['ID']
+    inputs = mpi.comm.bcast(inputs, root = 0)
+    subBuiltIDs = mpi.comm.bcast(subBuiltIDs, root = 0)
+    for key, val in sorted(subBuiltIDs.items()):
+        inputs[key] = load(subBuiltIDs[key], name, path)
     with disk.TempFile(
                 script,
                 extension = 'py',
-                mode = 'wb'
+                mode = 'w'
                 ) \
             as tempfile:
         imported = disk.local_import(tempfile)
@@ -103,6 +110,31 @@ def h5writewrap(func):
         return outputs
     return wrapper
 
+def _process_hash_val(val):
+    if isinstance(val, Built):
+        pass
+    elif type(val) is str:
+        pass
+    elif type(val) is list:
+        val = tuple([
+            _process_hash_val(subval) \
+                for subval in val
+            ])
+    elif type(val) is dict:
+        val = tuple(sorted(val.items()))
+    else:
+        val = eval(str(val))
+    return val
+
+def make_hash(script, inputs):
+    hashList = [script]
+    for key, val in sorted(inputs.items()):
+        val = _process_hash_val(val)
+        hashList.append((key, val))
+    hashTuple = tuple(hashList)
+    hashVal = hash(hashTuple)
+    return hashVal
+
 class Built:
 
     h5file = None
@@ -162,13 +194,13 @@ class Built:
             self.initialise()
 
         script = utilities.ToOpen(script)()
-        hashID = utilities.wordhashstamp(
-            (script, utilities.flatten_dicts(inputs))
-            )
+        hashVal = make_hash(script, inputs)
+        hashID = utilities.wordhashstamp(hashVal)
 
         self.anchored = False
         self.script = script
         self.inputs = inputs
+        self.hashVal = hashVal
         self.hashID = hashID
         self.meta = meta
 
@@ -180,6 +212,9 @@ class Built:
             'outs': {},
             'temp': {}
             }
+
+    def __hash__(self):
+        return self.hashVal
 
     def _check_anchored(self):
         if not self.anchored:
