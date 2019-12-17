@@ -92,12 +92,14 @@ def process_inputs(inputs):
 def h5writewrap(func):
     def wrapper(*args, **kwargs):
         self = args[0]
-        h5filename = self.h5filename
-        with h5py.File(h5filename) as h5file:
-            self.h5file = h5file
-            if self.hashID in self.h5file:
-                self.h5group = self.h5file[self.hashID]
-            outputs = func(*args, **kwargs)
+        outputs = None
+        if mpi.rank == 0:
+            with h5py.File(self.h5filename) as h5file:
+                self.h5file = h5file
+                if self.hashID in self.h5file:
+                    self.h5group = self.h5file[self.hashID]
+                outputs = func(*args, **kwargs)
+        outputs = mpi.comm.bcast(outputs, root = 0)
         return outputs
     return wrapper
 
