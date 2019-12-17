@@ -9,6 +9,8 @@ from collections.abc import Hashable
 import time
 import os
 
+from . import utilities
+
 # from . import frame
 #
 # def frame_name(frameID, outputPath):
@@ -155,16 +157,6 @@ class Fetch:
     def __gt__(self, *args):
         return Fetch(*self.args, *args, operation = 'gt')
 
-def _readwrap(func):
-    def wrapper(*args, **kwargs):
-        self = args[0]
-        h5filename = self.h5filename
-        with h5py.File(h5filename, 'r') as h5file:
-            self.h5file = h5file
-            outputs = func(*args, **kwargs)
-        return outputs
-    return wrapper
-
 class Reader:
     def __init__(
             self,
@@ -174,14 +166,14 @@ class Reader:
         self.h5filename = h5filename
         self.file = partial(h5py.File, h5filename, 'r')
 
-    @_readwrap
+    @utilities.h5readwrap
     def full_scope(self):
         scopelets = set()
         for superkey in self.h5file:
             scopelets.add((superkey, '...'))
         return Scope(scopelets)
 
-    @_readwrap
+    @utilities.h5readwrap
     def pull(self, scope, keys):
         if type(keys) is str:
             keys = (keys,)
@@ -217,7 +209,7 @@ class Reader:
             scope = self.full_scope()
         return self._view_attrs(scope)
 
-    @_readwrap
+    @utilities.h5readwrap
     def _view_attrs(self, scope):
         outDict = dict()
         for superkey, scopeCounts in scope:
@@ -241,7 +233,7 @@ class Reader:
             for subKey in sorted(allDict[key]):
                 print(subKey)
 
-    @_readwrap
+    @utilities.h5readwrap
     def sort_by_attr(self, key, scope = None):
         if scope is None:
             superkeys = self.h5file.keys()
@@ -279,7 +271,7 @@ class Reader:
         except: out = self.h5file[superkey][key]
         return (out, *args)
 
-    @_readwrap
+    @utilities.h5readwrap
     def _get_fetch(self, fetch):
         outs = set()
         for superkey in self.h5file:

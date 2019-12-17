@@ -17,6 +17,16 @@ def message(*args):
 #         exec(_scriptBytes) in locals()
 #         self.__dict__.update(locals())
 
+def h5readwrap(func):
+    def wrapper(*args, **kwargs):
+        self = args[0]
+        h5filename = self.h5filename
+        with h5py.File(h5filename, 'r') as h5file:
+            self.h5file = h5file
+            outputs = func(*args, **kwargs)
+        return outputs
+    return wrapper
+
 class ToOpen:
     def __init__(self, filepath):
         self.filepath = filepath
@@ -84,9 +94,22 @@ def unique_list(inList):
 #     outStr = typeStr + outStr
 #     return outStr
 
+    # inputStr = str(inputObj)
+    # stamp = hashlib.md5(inputStr.encode()).hexdigest()
+
+def flatten_dicts(inDict):
+    outDict = {}
+    for key, item in sorted(inDict.items()):
+        if type(item) is dict:
+            outDict[key] = flatten_dicts(item)
+        elif type(item) is list:
+            outDict[key] = tuple(item)
+        else:
+            outDict[key] = item
+    return tuple(sorted(outDict.items()))
+
 def hashstamp(inputObj):
-    inputStr = str(inputObj)
-    stamp = hashlib.md5(inputStr.encode()).hexdigest()
+    stamp = hash(inputObj)
     return stamp
 
 def wordhashstamp(inputObj):
