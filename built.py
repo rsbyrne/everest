@@ -11,11 +11,6 @@ from . import disk
 from . import mpi
 
 from . import _specialnames
-_specialnames.BUILT_FLAG = '_built_:'
-_specialnames.COUNTS_FLAG = '_counts_'
-_specialnames.SCRIPT_FLAG = '_script_'
-
-# INPUTS_FLAG = '_inputs_'
 
 def load(name, hashID, path = ''):
     framepath = frame.get_framepath(name, path)
