@@ -3,13 +3,12 @@ import os
 from . import disk
 from . import mpi
 from . import built
-
-EXTENSION = 'frm'
+from . import _specialnames
 
 def get_framepath(name, path):
     framepath = os.path.join(
         path,
-        name + '.' + EXTENSION
+        name + '.' + _specialnames.FRAME_EXT
         )
     return framepath
 

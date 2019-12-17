@@ -7,8 +7,12 @@ from collections.abc import Set
 from collections.abc import Hashable
 
 import time
+import os
 
-from . import _specialnames
+# from . import frame
+#
+# def frame_name(frameID, outputPath):
+#     return os.path.join(outputPath, frameID) + '.' + _specialnames.FRAME_EXT
 
 def _process_scope_inputs(iterable):
     cleaned_iterable = []
@@ -285,10 +289,10 @@ class Reader:
                 )
             result = fetch(context) # THIS IS THE SLOWEST BIT
             indices = None
-            if type(result) is bool:
+            try:
                 if result:
                     indices = '...'
-            elif type(result) is np.ndarray:
+            except ValueError:
                 if np.all(result):
                     indices = '...'
                 elif np.any(result):
@@ -298,6 +302,8 @@ class Reader:
                             [_specialnames.COUNTS_FLAG] \
                             [result]
                         )
+            except:
+                raise TypeError
             if not indices is None:
                 outs.add((superkey, indices))
         outs = Scope(outs)
