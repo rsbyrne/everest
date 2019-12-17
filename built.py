@@ -172,9 +172,11 @@ class Built:
 
         self.organisation = {
             'inputs': inputs,
-            # 'script': script,
-            # 'meta': meta,
-            # 'ID': hashID
+            'script': script,
+            'meta': meta,
+            'ID': hashID,
+            'outs': {},
+            'temp': {}
             }
 
     def _check_anchored(self):
@@ -214,7 +216,7 @@ class Built:
         self._check_anchored()
         # self.save()
         loadDict = {}
-        counts = self.h5group[_specialnames.COUNTS_FLAG]
+        counts = self.h5group['outs'][_specialnames.COUNTS_FLAG]
         iterNo = 0
         while True:
             if iterNo >= len(counts):
@@ -276,12 +278,13 @@ class Built:
             return None
         self._update_dataDict()
         for key in [_specialnames.COUNTS_FLAG, *self.outkeys]:
-            self._add_dataSet(
+            self._add_dataset(
                 self.dataDict[key],
                 key,
-                self._add_subgroup('outs')
+                ['outs',]
                 )
         self.clear()
+        self._update_counts()
 
     def _initialise_wrap(self, initialise, count):
         count.value = 0
@@ -327,7 +330,7 @@ class Built:
 
     @h5writewrap
     def _add_dataset(self, data, key, groupNames = []):
-        group = self._get_h5obj(groupNames)
+        group = self.h5group['/'.join(groupNames)]
         if key in group:
             dataset = group[key]
         else:
@@ -384,11 +387,11 @@ class Built:
     @h5writewrap
     def _get_disk_counts(self):
         counts_disk = []
-        if _specialnames.COUNTS_FLAG in self.h5group:
+        if _specialnames.COUNTS_FLAG in self.h5group['outs']:
             counts_disk.extend(
                 utilities.unique_list(
                     list(
-                        self.h5group[_specialnames.COUNTS_FLAG][...]
+                        self.h5group['outs'][_specialnames.COUNTS_FLAG][...]
                         )
                     )
                 )
