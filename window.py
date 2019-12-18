@@ -34,8 +34,8 @@ class Scope(Set, Hashable):
 
     @staticmethod
     def _unrepr(strInp):
+        iterable = eval(strInp[5:][2:-2])
         return Scope(iterable)
-        pass
 
     def keys(self):
         return set([key for key, val in self._set])
