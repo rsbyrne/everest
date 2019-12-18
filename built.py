@@ -3,18 +3,16 @@ import os
 import importlib
 import h5py
 import time
+import hashlib
 
 from . import frame
 from . import utilities
 from . import value
 from . import disk
 from . import mpi
+from . import wordhash
 
 from . import _specialnames
-
-def filter_numpytype(val):
-    if isinstance(val, np.generic):
-        return np.asscalar(val)
 
 def load(hashID, name, path = ''):
     framepath = frame.get_framepath(name, path)
@@ -27,9 +25,9 @@ def load(hashID, name, path = ''):
         script = h5group.attrs['script']
         inputsGroup = h5group['inputs']
         for key, val in inputsGroup.attrs.items():
-            inputs[key] = filter_numpytype(val)
+            inputs[key] = np.asscalar(val)
         for key in inputsGroup:
-            subBuiltIDs[key] = inputsGroup[key].attrs['ID']
+            subBuiltIDs[key] = inputsGroup[key].attrs['hashID']
     inputs = mpi.comm.bcast(inputs, root = 0)
     subBuiltIDs = mpi.comm.bcast(subBuiltIDs, root = 0)
     for key, val in sorted(subBuiltIDs.items()):
@@ -45,46 +43,6 @@ def load(hashID, name, path = ''):
     loadedBuilt.anchor(name, path)
     return loadedBuilt
 
-# def _clean_inputs(inputs):
-#
-#     # _accepted_inputTypes = {
-#     #     type([]),
-#     #     type(0),
-#     #     type(0.),
-#     #     type('0'),
-#     #     }
-#
-#     badKeys = {
-#         'args',
-#         'kwargs',
-#         'self',
-#         '__class__'
-#         }
-#     for key in badKeys:
-#         if key in inputs:
-#             del inputs[key]
-#
-#     subBuilts = {}
-#     safeInputs = {}
-#     for key, val in sorted(inputs.items()):
-#         if not isinstance(val, Built):
-#             if not type(val) is str:
-#                 val = eval(str(val))
-#         # if type(val) == tuple:
-#         #     inputs[key] = list(val)
-#         # if not isinstance(val, Built):
-#         #     if not type(val) in _accepted_inputTypes:
-#         #         raise Exception(
-#         #             "Type " + str(type(val)) + " not accepted."
-#         #             )
-#         if isinstance(val, Built):
-#             subBuilts[key] = val
-#             safeInputs[key] = _specialnames.BUILT_FLAG + val.hashID
-#         else:
-#             safeInputs[key] = inputs[key]
-#
-#     return inputs, safeInputs, subBuilts
-
 def process_inputs(inputs):
     badKeys = {
         'args',
@@ -96,49 +54,38 @@ def process_inputs(inputs):
         if key in inputs:
             del inputs[key]
 
-def h5writewrap(func):
-    def wrapper(*args, **kwargs):
-        self = args[0]
-        outputs = None
-        if mpi.rank == 0:
-            with h5py.File(self.h5filename) as h5file:
-                self.h5file = h5file
-                if self.hashID in self.h5file:
-                    self.h5group = self.h5file[self.hashID]
-                outputs = func(*args, **kwargs)
-        outputs = mpi.comm.bcast(outputs, root = 0)
-        return outputs
-    return wrapper
-
-def _process_hash_val(val):
-    if isinstance(val, Built):
-        pass
-    elif type(val) is str:
-        pass
-    elif type(val) is list:
-        val = tuple([
-            _process_hash_val(subval) \
-                for subval in val
-            ])
-    elif type(val) is dict:
-        val = tuple(sorted(val.items()))
+def make_hash(obj):
+    if isinstance(obj, Built):
+        hashVal = hash(obj)
+    elif type(obj) is str:
+        hashVal = hash(int(
+            hashlib.md5(obj.encode()).hexdigest(),
+            16
+            ))
+    elif type(obj) is list or type(obj) is tuple:
+        hashVal = hash(
+            tuple([
+                make_hash(subobj) \
+                    for subobj in obj
+                ])
+            )
+    elif type(obj) is dict:
+        hashVal = hash(
+            tuple([
+                (make_hash(key), make_hash(val)) \
+                    for key, val in sorted(obj.items())
+                ])
+            )
+    elif isinstance(obj, np.generic):
+        hashVal = make_hash(np.asscalar(obj))
     else:
-        val = eval(str(val))
-    return val
-
-def make_hash(script, inputs):
-    hashList = [script]
-    for key, val in sorted(inputs.items()):
-        val = _process_hash_val(val)
-        hashList.append((key, val))
-    hashTuple = tuple(hashList)
-    hashVal = hash(hashTuple)
+        hashVal = make_hash(str(obj))
     return hashVal
 
 class Built:
 
     h5file = None
-    h5group = None
+    h5filename = None
 
     def __init__(
             self,
@@ -193,9 +140,15 @@ class Built:
             self.reset = self.initialise
             self.initialise()
 
-        script = utilities.ToOpen(script)()
-        hashVal = make_hash(script, inputs)
-        hashID = utilities.wordhashstamp(hashVal)
+        script = disk.ToOpen(script)()
+        hashVal = make_hash((script, inputs))
+        hashID = wordhash.get_random_phrase(hashVal)
+
+        stamps = {
+            'script': wordhash.get_random_phrase(make_hash(script)),
+            'inputs': wordhash.get_random_phrase(make_hash(inputs)),
+            'self': hashID
+            }
 
         self.anchored = False
         self.script = script
@@ -203,12 +156,14 @@ class Built:
         self.hashVal = hashVal
         self.hashID = hashID
         self.meta = meta
+        self.stamps = stamps
 
         self.organisation = {
             'inputs': inputs,
             'script': script,
             'meta': meta,
-            'ID': hashID,
+            'stamps': stamps,
+            'hashID': hashID,
             'outs': {},
             'temp': {}
             }
@@ -248,12 +203,12 @@ class Built:
             }
         return loadDict
 
-    @h5writewrap
+    @disk.h5filewrap
     def _load_dataDict_saved(self, count):
         self._check_anchored()
         # self.save()
         loadDict = {}
-        counts = self.h5group['outs'][_specialnames.COUNTS_FLAG]
+        counts = self.h5file[self.hashID]['outs'][_specialnames.COUNTS_FLAG]
         iterNo = 0
         while True:
             if iterNo >= len(counts):
@@ -263,7 +218,7 @@ class Built:
             iterNo += 1
         loadDict = {}
         for key in self.outkeys:
-            loadData = self.h5group['outs'][key][iterNo]
+            loadData = self.h5file[self.hashID]['outs'][key][iterNo]
             loadDict[key] = loadData
         return loadDict
 
@@ -349,7 +304,7 @@ class Built:
             myobj = myobj[name]
         return myobj
 
-    @h5writewrap
+    @disk.h5filewrap
     def _add_subgroup(self, name, groupNames = []):
         group = self._get_h5obj(groupNames)
         if group is None:
@@ -360,14 +315,14 @@ class Built:
             subgroup = group.create_group(name)
         return [*groupNames, name]
 
-    @h5writewrap
+    @disk.h5filewrap
     def _add_attr(self, item, name, groupNames = []):
         group = self._get_h5obj(groupNames)
         group.attrs[name] = item
 
-    @h5writewrap
+    @disk.h5filewrap
     def _add_dataset(self, data, key, groupNames = []):
-        group = self.h5group['/'.join(groupNames)]
+        group = self.h5file[self.hashID]['/'.join(groupNames)]
         if key in group:
             dataset = group[key]
         else:
@@ -382,12 +337,12 @@ class Built:
         dataset.resize(priorlen + len(data), axis = 0)
         dataset[priorlen:] = data
 
-    @h5writewrap
+    @disk.h5filewrap
     def _add_link(self, item, name, groupNames = []):
         group = self._get_h5obj(groupNames)
         group[name] = self.h5file[item]
 
-    @h5writewrap
+    @disk.h5filewrap
     def _check_item(self, name, groupNames = []):
         group = self._get_h5obj(groupNames)
         return name in group
@@ -421,14 +376,14 @@ class Built:
             [*self.counts_stored, *self.counts_disk]
             )
 
-    @h5writewrap
+    @disk.h5filewrap
     def _get_disk_counts(self):
         counts_disk = []
-        if _specialnames.COUNTS_FLAG in self.h5group['outs']:
+        if _specialnames.COUNTS_FLAG in self.h5file[self.hashID]['outs']:
             counts_disk.extend(
                 utilities.unique_list(
                     list(
-                        self.h5group['outs'][_specialnames.COUNTS_FLAG][...]
+                        self.h5file[self.hashID]['outs'][_specialnames.COUNTS_FLAG][...]
                         )
                     )
                 )

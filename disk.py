@@ -65,18 +65,28 @@ def remove_file(filename):
         if os.path.exists(filename):
             os.remove(filename)
 
-def h5_read_attrs(path, subkeys = []):
-    attrs = {}
-    if mpi.rank == 0:
-        with h5py.File(path) as h5file:
-            target = h5file
-            for subkey in subkeys:
-                target = target[subkey]
-            target = target.attrs
-            for key in target.keys():
-                attrs[key] = target[key]
-    attrs = mpi.comm.bcast(attrs, root = 0)
-    return attrs
+def h5filewrap(func):
+    def wrapper(*args, **kwargs):
+        self = args[0]
+        outputs = None
+        if mpi.rank == 0:
+            with h5py.File(self.h5filename) as h5file:
+                self.h5file = h5file
+                outputs = func(*args, **kwargs)
+        outputs = mpi.comm.bcast(outputs, root = 0)
+        return outputs
+    return wrapper
+
+class ToOpen:
+    def __init__(self, filepath):
+        self.filepath = filepath
+    def __call__(self):
+        filedata = ''
+        if mpi.rank == 0:
+            with open(self.filepath) as file:
+                filedata = file.read()
+        filedata = mpi.comm.bcast(filedata, root = 0)
+        return filedata
 
 class TempFile:
 
@@ -108,9 +118,6 @@ def local_import(filepath):
     spec.loader.exec_module(module)
 
     return module
-
-def __hash__(self):
-    return hash(self.hashID)
 
 # def local_import(script_bytes):
 #     with TempFile(script_bytes, extension = 'py') as tempfile:

@@ -9,7 +9,7 @@ from collections.abc import Hashable
 import time
 import os
 
-from . import utilities
+from . import disk
 
 # from . import frame
 #
@@ -166,14 +166,14 @@ class Reader:
         self.h5filename = h5filename
         self.file = partial(h5py.File, h5filename, 'r')
 
-    @utilities.h5readwrap
+    @disk.h5filewrap
     def full_scope(self):
         scopelets = set()
         for superkey in self.h5file:
             scopelets.add((superkey, '...'))
         return Scope(scopelets)
 
-    @utilities.h5readwrap
+    @disk.h5filewrap
     def pull(self, scope, keys):
         if type(keys) is str:
             keys = (keys,)
@@ -209,7 +209,7 @@ class Reader:
             scope = self.full_scope()
         return self._view_attrs(scope)
 
-    @utilities.h5readwrap
+    @disk.h5filewrap
     def _view_attrs(self, scope):
         outDict = dict()
         for superkey, scopeCounts in scope:
@@ -233,7 +233,7 @@ class Reader:
             for subKey in sorted(allDict[key]):
                 print(subKey)
 
-    @utilities.h5readwrap
+    @disk.h5filewrap
     def sort_by_attr(self, key, scope = None):
         if scope is None:
             superkeys = self.h5file.keys()
@@ -271,7 +271,7 @@ class Reader:
         except: out = self.h5file[superkey][key]
         return (out, *args)
 
-    @utilities.h5readwrap
+    @disk.h5filewrap
     def _get_fetch(self, fetch):
         outs = set()
         for superkey in self.h5file:

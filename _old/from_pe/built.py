@@ -188,7 +188,7 @@ def make_stamps(built):
         toHash = {}
         toHash['inputs'] = built.inputs
         toHash['scripts'] = [
-            utilities.stringify(utilities.ToOpen(script)) \
+            utilities.stringify(disk.ToOpen(script)) \
                 for script in built.scripts
             ]
 
