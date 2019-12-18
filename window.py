@@ -32,6 +32,11 @@ class Scope(Set, Hashable):
 
     __hash__ = Set._hash
 
+    @staticmethod
+    def _unrepr(strInp):
+        return Scope(iterable)
+        pass
+
     def keys(self):
         return set([key for key, val in self._set])
 
@@ -158,11 +163,13 @@ class Fetch:
         return Fetch(*self.args, *args, operation = 'gt')
 
 class Reader:
+
+    h5file = None
+
     def __init__(
             self,
             h5filename
             ):
-        self.h5file = None
         self.h5filename = h5filename
         self.file = partial(h5py.File, h5filename, 'r')
 
@@ -267,8 +274,11 @@ class Reader:
     def _context(self, superkey, *args):
         args = list(args)
         key = args.pop(0)
-        try: out = self.h5file[superkey].attrs[key]
-        except: out = self.h5file[superkey][key]
+        splitkey = key.split('/')
+        try: out = self.h5file[superkey] \
+            [key]
+        except: out = self.h5file[superkey] \
+            ['/'.join(splitkey[:-1])].attrs[splitkey[-1]]
         return (out, *args)
 
     @disk.h5filewrap
