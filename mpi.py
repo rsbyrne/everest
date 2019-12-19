@@ -29,13 +29,16 @@ def share_outputs(outputs):
         outputsClass = share_class(outputs)
         isIter = False
         if rank == 0:
-            try:
-                ignoreMe = iter(outputs)
+            if type(outputs) in {list, tuple, set}:
                 isIter = True
-            except TypeError:
-                pass
         isIter = comm.bcast(isIter, root = 0)
         if isIter:
+            outsLen = None
+            if rank == 0:
+                outsLen = len(outputs)
+            outsLen = mpi.comm.bcast(outsLen)
+            if not rank == 0:
+                outputs = [None for i in range(outsLen)]
             subOutputs = [share_outputs(output) for output in outputs]
             outputs = outputsClass(subOutputs)
         else:
@@ -43,5 +46,4 @@ def share_outputs(outputs):
                 outputs = str(outputs)
             outputs = comm.bcast(outputs, root = 0)
             outputs = outputsClass._unrepr(outputs)
-
     return outputs
