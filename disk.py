@@ -73,11 +73,7 @@ def h5filewrap(func):
             with h5py.File(self.h5filename) as h5file:
                 self.h5file = h5file
                 outputs = func(*args, **kwargs)
-        # NOT GOOD!!!
-        try:
-            outputs = mpi.comm.bcast(outputs, root = 0)
-        except:
-            pass
+        outputs = mpi.share_outputs(outputs)
         return outputs
     return wrapper
 
