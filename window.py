@@ -83,8 +83,15 @@ class Pending:
         self.args = args
         self.function = function
     def __call__(self, getscopesFn):
-        scopes = [getscopesFn(arg) for arg in self.args]
-        return self.function(*scopes)
+        scopes = []
+        for arg in self.args:
+            if type(arg) is Scope:
+                scope = arg
+            else:
+                scope = getscopesFn(arg)
+            scopes.append(scope)
+        outScope = self.function(*scopes)
+        return outScope
     def __add__(self, arg):
         return Pending(self, arg, function = Scope.union)
     def __sub__(self, arg):
@@ -226,14 +233,21 @@ class Scope(Set, Hashable):
     def symmetric(cls, *args):
         raise Exception("Not supported yet!")
 
+    @classmethod
+    def _operation(cls, *args, opFn = None):
+        if all([type(arg) is Scope for arg in args]):
+            return opFn(*args)
+        else:
+            return Pending(*args, function = opFn)
+
     def __add__(self, arg):
-        return self.union(self, arg)
+        return self._operation(self, arg, opFn = self.union)
     def __sub__(self, arg):
-        return self.difference(self, arg)
+        return self._operation(self, arg, opFn = self.difference)
     def __mul__(self, arg):
-        return self.intersection(self, arg)
+        return self._operation(self, arg, opFn = self.intersection)
     def __div__(self, arg):
-        return self.symmetric(self, arg)
+        return self._operation(self, arg, opFn = self.symmetric)
     def __repr__(self):
         return "Scope({0})".format(set(self._set))
     def __reduce__(self):
@@ -281,17 +295,22 @@ class Reader:
         arrList = []
         for superkey, scopeCounts in sorted(scope):
             thisGroup = self.h5file[superkey]
-            thisTargetDataset = thisGroup[key]
+            thisTargetDataset = thisGroup['outs'][key]
             if scopeCounts == '...':
                 arr = thisTargetDataset[...]
             else:
-                thisCountsDataset = thisGroup[_specialnames.COUNTS_FLAG]
+                thisCountsDataset = thisGroup['outs'][_specialnames.COUNTS_FLAG]
                 maskArr = np.isin(
                     thisCountsDataset,
                     scopeCounts,
                     assume_unique = True
                     )
-                arr = thisTargetDataset[maskArr]
+                slicer = (
+                    maskArr,
+                    *[slice(1) for i in range(1, len(thisTargetDataset.shape))]
+                    )
+                print(slicer)
+                arr = thisTargetDataset[slicer]
             arrList.append(arr)
         allArr = np.concatenate(arrList)
         return allArr
@@ -347,16 +366,20 @@ class Reader:
     # def pull_attrs(self, scope, keys = )
 
     def __getitem__(self, inp):
-        if type(inp) is Fetch:
+        if type(inp) is tuple:
+            return [self.__getitem__(subInp) for subInp in inp]
+        elif type(inp) is slice:
+            return self.pull(inp.start, inp.stop)
+        elif type(inp) is Fetch:
             return self._get_fetch(inp)
         elif type(inp) is Pending:
             return inp(self.__getitem__)
         elif inp is Ellipsis:
             return self._get_fetch(Fetch())
         elif type(inp) is Scope:
-            raise Exception("That behaviour not supported yet")
+            raise Exception("Must provide a key to pull data.")
         else:
-            raise TypeError
+            raise TypeError("Input not recognised: ", inp)
 
     def _context(self, superkey, *args):
         if len(args) == 0:
