@@ -10,56 +10,135 @@ import time
 import os
 
 from . import disk
+from . import _specialnames
 
 # from . import frame
 #
 # def frame_name(frameID, outputPath):
 #     return os.path.join(outputPath, frameID) + '.' + _specialnames.FRAME_EXT
 
-def _process_scope_inputs(iterable):
-    cleaned_iterable = []
-    for key, val in iterable:
-        if val == '...' or type(val) is tuple:
-            pass
-#         elif type(val) is np.ndarray:
-#             val = tuple(val)
+class Fetch:
+
+    operations = operator.__dict__
+    operations[None] = lambda *args: True
+
+    def __init__(
+            self,
+            *args,
+            operation = None,
+            options = []
+            ):
+        self.args = args
+        self.operation = operation
+        self.options = options
+
+    def __call__(self, context = None):
+        if context is None:
+            context = lambda *inp: inp
+        try:
+            args = context(*self.args)
+            if len(args) == 0:
+                output = np.array(True)
+            else:
+                args = [np.array(arg) for arg in args]
+                output = np.array(
+                    self.operations[self.operation](*args)
+                    ).flatten()
+        except KeyError:
+            output = np.array(False)
+        if 'invert' in self.options:
+            return ~output
         else:
-            raise TypeError
-        cleaned_iterable.append((key, val))
-    return cleaned_iterable
+            return output
+
+    def __lt__(self, *args):
+        return Fetch(*self.args, *args, operation = 'lt')
+    def __le__(self, *args):
+        return Fetch(*self.args, *args, operation = 'le')
+    def __eq__(self, *args):
+        return Fetch(*self.args, *args, operation = 'eq')
+    def __ne__(self, *args):
+        return Fetch(*self.args, *args, operation = 'ne')
+    def __ge__(self, *args):
+        return Fetch(*self.args, *args, operation = 'ge')
+    def __gt__(self, *args):
+        return Fetch(*self.args, *args, operation = 'gt')
+    def __invert__(self):
+        return Fetch(
+            *self.args,
+            operation = self.operation,
+            options = ['invert']
+            )
+    def __add__(self, arg):
+        return Pending(self, arg, function = Scope.union)
+    def __sub__(self, arg):
+        return Pending(self, arg, function = Scope.difference)
+    def __mul__(self, arg):
+        return Pending(self, arg, function = Scope.intersection)
+    def __div__(self, arg):
+        return Pending(self, arg, function = Scope.symmetric)
+
+class Pending:
+    def __init__(self, *args, function = None):
+        self.args = args
+        self.function = function
+    def __call__(self, getscopesFn):
+        scopes = [getscopesFn(arg) for arg in self.args]
+        return self.function(*scopes)
+    def __add__(self, arg):
+        return Pending(self, arg, function = Scope.union)
+    def __sub__(self, arg):
+        return Pending(self, arg, function = Scope.difference)
+    def __mul__(self, arg):
+        return Pending(self, arg, function = Scope.intersection)
+    def __div__(self, arg):
+        return Pending(self, arg, function = Scope.symmetric)
 
 class Scope(Set, Hashable):
 
     __hash__ = Set._hash
 
-    @staticmethod
-    def _unrepr(strInp):
-        iterable = eval(strInp[5:][2:-2])
-        return Scope(iterable)
+    def __new__(cls, iterable):
+        selfobj = super(Scope, cls).__new__(Scope)
+        cleaned_iterable = cls._process_scope_inputs(iterable)
+        selfobj._set = frozenset(cleaned_iterable)
+        return selfobj
 
     def keys(self):
         return set([key for key, val in self._set])
 
-    def __add__(self, arg):
-        return self.union(arg)
+    @staticmethod
+    def _process_scope_inputs(iterable):
+        cleaned_iterable = []
+        for key, val in iterable:
+            if val == '...' or type(val) is tuple:
+                pass
+    #         elif type(val) is np.ndarray:
+    #             val = tuple(val)
+            else:
+                raise TypeError
+            cleaned_iterable.append((key, val))
+        return cleaned_iterable
 
-    def __mul__(self, arg):
-        return self.intersection(arg)
-
-    def _process_args(self, *args):
-        if not all([type(arg) is Scope for arg in args]):
+    @classmethod
+    def _process_args(cls, *args):
+        if not all([type(arg) is cls for arg in args]):
             raise TypeError
-        args = list(args)
-        args.append(self)
         allSets = [arg._set for arg in args]
         allDicts = [dict(subSet) for subSet in allSets]
         commonkeys = set.intersection(
             *[set(subDict) for subDict in allDicts]
             )
-        return allDicts, commonkeys
+        uncommonkeys = [
+            key \
+                for subDict in allDicts \
+                    for key in subDict.keys()
+            ]
+        return allDicts, commonkeys, uncommonkeys
 
-    def union(self, *args):
-        allDicts, commonkeys = self._process_args(*args)
+    @classmethod
+    def union(cls, *args):
+        allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
         outDict = dict()
         for subDict in allDicts:
             outDict.update(subDict)
@@ -81,8 +160,47 @@ class Scope(Set, Hashable):
         outScope = Scope(outDict.items())
         return outScope
 
-    def intersection(self, *args):
-        allDicts, commonkeys = self._process_args(*args)
+    @classmethod
+    def difference(cls, *args):
+        allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
+        if not len(allDicts) == 2:
+            raise ValueError
+        primeDict, opDict = allDicts
+        prime_uncommonkeys = {
+            key \
+                for key in primeDict \
+                    if not key in commonkeys
+            }
+        outDict = dict()
+        for key in prime_uncommonkeys:
+            outDict[key] = primeDict[key]
+        for key in commonkeys:
+            primeData, opData = primeDict[key], opDict[key]
+            primeAll = primeData == _specialnames.ALL_COUNTS_FLAG
+            opAll = opData == _specialnames.ALL_COUNTS_FLAG
+            if opAll and primeAll:
+                pass
+            elif opAll:
+                outDict[key] = primeDict[key]
+            elif primeAll:
+                outDict[key] = opDict[key]
+            else:
+                # solution by Divakar @ stackoverflow
+                dims = np.maximum(opData.max(0), primeData.max(0)) + 1
+                out = primeData[ \
+                    ~np.in1d(
+                        np.ravel_multi_index(primeData.T, dims),
+                        np.ravel_multi_index(opData.T, dims)
+                        )
+                    ]
+                if len(out) > 0:
+                    outDict[key] = tuple(out)
+        outScope = Scope(outDict.items())
+        return outScope
+
+    @classmethod
+    def intersection(cls, *args):
+        allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
         outDict = dict()
         for key in commonkeys:
             allData = tuple(
@@ -104,63 +222,30 @@ class Scope(Set, Hashable):
         outScope = Scope(outDict.items())
         return outScope
 
+    @classmethod
+    def symmetric(cls, *args):
+        raise Exception("Not supported yet!")
+
+    def __add__(self, arg):
+        return self.union(self, arg)
+    def __sub__(self, arg):
+        return self.difference(self, arg)
+    def __mul__(self, arg):
+        return self.intersection(self, arg)
+    def __div__(self, arg):
+        return self.symmetric(self, arg)
     def __repr__(self):
-        return "Scope({0})".format(list(self._set))
-
-    def __new__(cls, iterable):
-        selfobj = super(Scope, cls).__new__(Scope)
-        cleaned_iterable = _process_scope_inputs(iterable)
-        selfobj._set = frozenset(cleaned_iterable)
-        return selfobj
-
+        return "Scope({0})".format(set(self._set))
+    def __reduce__(self):
+        return (Scope, (self._set,))
     def __getattr__(self, attr):
         return getattr(self._set, attr)
-
     def __contains__(self, item):
         return item in self._set
-
     def __len__(self):
         return len(self._set)
-
     def __iter__(self):
         return iter(self._set)
-
-class Fetch:
-
-    operations = operator.__dict__
-    operations[None] = lambda *args: True
-
-    def __init__(
-            self,
-            *args,
-            operation = None
-            ):
-        self.args = args
-        self.operation = operation
-
-    def __call__(self, context = None):
-        if context is None:
-            context = lambda *inp: inp
-        try:
-            args = context(*self.args)
-            args = [np.array(arg) for arg in args]
-            outVal = self.operations[self.operation](*args)
-            return outVal
-        except KeyError:
-            return False
-
-    def __lt__(self, *args):
-        return Fetch(*self.args, *args, operation = 'lt')
-    def __le__(self, *args):
-        return Fetch(*self.args, *args, operation = 'le')
-    def __eq__(self, *args):
-        return Fetch(*self.args, *args, operation = 'eq')
-    def __ne__(self, *args):
-        return Fetch(*self.args, *args, operation = 'ne')
-    def __ge__(self, *args):
-        return Fetch(*self.args, *args, operation = 'ge')
-    def __gt__(self, *args):
-        return Fetch(*self.args, *args, operation = 'gt')
 
 class Reader:
 
@@ -262,24 +347,29 @@ class Reader:
     # def pull_attrs(self, scope, keys = )
 
     def __getitem__(self, inp):
-        if type(inp) is tuple:
-            allouts = [self.__getitem__(subInp) for subInp in inp]
-            return allouts[0].intersection(*allouts[1:])
         if type(inp) is Fetch:
             return self._get_fetch(inp)
-        if type(inp) is Scope:
+        elif type(inp) is Pending:
+            return inp(self.__getitem__)
+        elif inp is Ellipsis:
+            return self._get_fetch(Fetch())
+        elif type(inp) is Scope:
             raise Exception("That behaviour not supported yet")
-        raise TypeError
+        else:
+            raise TypeError
 
     def _context(self, superkey, *args):
-        args = list(args)
-        key = args.pop(0)
-        splitkey = key.split('/')
-        try: out = self.h5file[superkey] \
-            [key]
-        except: out = self.h5file[superkey] \
-            ['/'.join(splitkey[:-1])].attrs[splitkey[-1]]
-        return (out, *args)
+        if len(args) == 0:
+            return tuple()
+        else:
+            args = list(args)
+            key = args.pop(0)
+            splitkey = key.split('/')
+            try: out = self.h5file[superkey] \
+                [key]
+            except: out = self.h5file[superkey] \
+                ['/'.join(splitkey[:-1])].attrs[splitkey[-1]]
+            return (out, *args)
 
     @disk.h5filewrap
     def _get_fetch(self, fetch):
@@ -301,6 +391,7 @@ class Reader:
                     indices = tuple(
                         self.h5file\
                             [superkey] \
+                            ['outs'] \
                             [_specialnames.COUNTS_FLAG] \
                             [result]
                         )
