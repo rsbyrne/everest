@@ -363,77 +363,75 @@ class Reader:
             outDict[key] = Scope(outDict[key])
         return sorted(outDict.items())
 
+    def _gettuple(self, inp):
+        return [self.__getitem__(subInp) for subInp in inp]
+
+    @disk.h5filewrap
+    def _getstr(self, key):
+        searchArea = self._seek(key, self.h5file)
+        resolved = self._seekresolve(searchArea)
+        if type(resolved) is dict:
+            out = utilities.flatten(resolved, sep = '/')
+        else:
+            out = resolved
+        return out
+
     @classmethod
     def _seek(cls, key, searchArea):
         # expects h5filewrap
         splitkey = key.split('/')
-        pathkey = '/'.join(splitkey[:-1])
-        attrkey = splitkey[-1]
-        if hasattr(searchArea, 'keys'):
-            try:
-                if key in searchArea:
-                    out = searchArea[key]
-                elif key in searchArea.attrs:
-                    out = searchArea.attrs[key]
-                else:
-                    out = searchArea[pathkey].attrs[attrkey]
-            except KeyError:
+        if splitkey[0] == '*':
+            if hasattr(searchArea, 'keys'):
+                remKey = '/'.join(splitkey[1:])
                 outDict = dict()
                 for subKey, subItem in searchArea.items():
-                    sought = cls._seek(key, subItem)
+                    sought = cls._seek(remKey, subItem)
                     if not sought is None:
                         outDict[subKey] = sought
                 if len(outDict) > 0:
                     out = outDict
                 else:
                     out = None
-        else:
-            try:
-                if key in searchArea.attrs:
-                    out = searchArea.attrs[key]
-                else:
-                    out = searchArea[pathkey].attrs[attrkey]
-            except:
+            else:
                 out = None
+        else:
+            pathkey = '/'.join(splitkey[:-1])
+            attrkey = splitkey[-1]
+            if hasattr(searchArea, 'keys'):
+                try:
+                    if key in searchArea:
+                        out = searchArea[key]
+                    elif key in searchArea.attrs:
+                        out = searchArea.attrs[key]
+                    else:
+                        out = searchArea[pathkey].attrs[attrkey]
+                except (KeyError, ValueError):
+                    out = None
+            else:
+                try:
+                    if key in searchArea.attrs:
+                        out = searchArea.attrs[key]
+                    else:
+                        out = searchArea[pathkey].attrs[attrkey]
+                except (KeyError, ValueError):
+                    out = None
         return out
 
     @classmethod
-    def _seektree(cls, key, searchArea):
-        if type(searchArea) is dict:
-            for searchKey, searchVal in searchArea.items():
-                sought = cls._seektree(key, searchVal)
-                if not sought is None:
-                    searchArea[searchKey] = sought
-        else:
-            splitkey = key.split('/*/')
-            for index, key in enumerate(splitkey):
-                remainingKey = '/'.join(splitkey[index + 1:])
-                searchArea = cls._seek(key, searchArea)
-                if type(searchArea) is dict:
-                    break
-            if len(remainingKey) > 0:
-                searchArea = cls._seektree(remainingKey, searchArea)
-        return searchArea
-
-    @classmethod
-    def _seekresolve(cls, searchArea):
-        if type(searchArea) is dict:
+    def _seekresolve(cls, toResolve):
+        if type(toResolve) is dict:
             out = dict()
-            for key, val in searchArea.items():
+            for key, val in toResolve.items():
                 out[key] = cls._seekresolve(val)
+        elif type(toResolve) == h5py._hl.group.Group:
+            out = toResolve.name
+        elif type(toResolve) == h5py._hl.dataset.Dataset:
+            out = np.array(toResolve)
+        elif isinstance(toResolve, np.generic):
+            out = np.asscalar(toResolve)
         else:
-            out = np.array(searchArea)
+            out = toResolve
         return out
-
-    def _gettuple(self, inp):
-        pass
-
-    @disk.h5filewrap
-    def _getstr(self, key):
-        searchArea = self._seektree(key, self.h5file)
-        resolved = self._seekresolve(searchArea)
-        flattened = utilities.flatten(resolved, sep = '/')
-        return flattened
 
     def _getfetch(self, inp):
         pass
