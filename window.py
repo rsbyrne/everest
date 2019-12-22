@@ -368,8 +368,8 @@ class Reader:
 
     @disk.h5filewrap
     def _getstr(self, key):
-        searchArea = self._seek(key, self.h5file)
-        resolved = self._seekresolve(searchArea)
+        sought = self._seek(key, self.h5file)
+        resolved = self._seekresolve(sought)
         if type(resolved) is dict:
             out = utilities.flatten(resolved, sep = '/')
         else:
@@ -380,6 +380,8 @@ class Reader:
     def _seek(cls, key, searchArea):
         # expects h5filewrap
         splitkey = key.split('/')
+        if splitkey[-1] == '*':
+            key = '/'.join(splitkey[:-1])
         if splitkey[0] == '*':
             if hasattr(searchArea, 'keys'):
                 remKey = '/'.join(splitkey[1:])
@@ -394,7 +396,7 @@ class Reader:
                     out = None
             else:
                 out = None
-        else:
+        elif len(key) > 0:
             pathkey = '/'.join(splitkey[:-1])
             attrkey = splitkey[-1]
             if hasattr(searchArea, 'keys'):
@@ -415,6 +417,18 @@ class Reader:
                         out = searchArea[pathkey].attrs[attrkey]
                 except (KeyError, ValueError):
                     out = None
+        else:
+            out = searchArea
+            # out = None
+        if splitkey[-1] == '*':
+            if not out is None and not type(out) is dict:
+                newOut = list()
+                if hasattr(out, 'keys'):
+                    newOut.extend(out.keys())
+                if hasattr(out, 'attrs'):
+                    newOut.extend(out.attrs.keys())
+                if len(newOut) > 0:
+                    out = newOut
         return out
 
     @classmethod
