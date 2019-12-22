@@ -68,6 +68,7 @@ def remove_file(filename):
 def h5filewrap(func):
     def wrapper(*args, **kwargs):
         self = args[0]
+        print(self)
         outputs = None
         if mpi.rank == 0:
             with h5py.File(self.h5filename) as h5file:
