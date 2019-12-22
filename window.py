@@ -20,87 +20,170 @@ from . import utilities
 
 class Fetch:
 
-    operations = operator.__dict__
-    operations[None] = lambda *args: True
+    _unaryOps = {
+        None,
+        '__inv__',
+        '__neg__'
+        }
 
     def __init__(
             self,
             *args,
-            operation = None,
-            options = []
+            operation = None
             ):
+        unary = len(args) == 1
+        assert unary == (operation in self._unaryOps)
+        if unary:
+            self.arg = args[0]
         self.args = args
         self.operation = operation
-        self.options = options
+        self.unary = unary
+
+    @classmethod
+    def _operate(cls, *args, operation = None, context = None):
+        operands = []
+        for arg in args:
+            if type(arg) is Fetch:
+                opVals = context(arg)
+            else:
+                opVals = np.array(arg)
+            operands.append(opVals)
+        operation = operator.__dict__[operation]
+        dictOperands = [
+            operand for operand in operands if type(operand) is dict
+            ]
+        allkeys = list()
+        for dictOperand in dictOperands:
+            allkeys.extend(list(dictOperand.keys()))
+        allkeys = set(allkeys)
+        filteredOperands = []
+        for operand in operands:
+            if type(operand) is dict:
+                missingKeys = [
+                    key \
+                        for key in allkeys \
+                            if not key in operand
+                    ]
+                for key in missingKeys:
+                    operand[key] = np.nan
+            else:
+                operand = {key: operand for key in allkeys}
+            filteredOperands.append(operand)
+        operands = filteredOperands
+        outDict = dict()
+        for key in allkeys:
+            keyops = [operand[key] for operand in operands]
+            try:
+                evalVal = operation(*keyops)
+            except TypeError:
+                evalVal = None
+            outDict[key] = evalVal
+        return outDict
 
     def __call__(self, context):
-        if context is None:
-            context = lambda *inp: inp
-        try:
-            args = context(*self.args)
-            if len(args) == 0:
-                output = np.array(True)
-            else:
-                args = [np.array(arg) for arg in args]
-                output = np.array(
-                    self.operations[self.operation](*args)
-                    ).flatten()
-        except KeyError:
-            output = np.array(False)
-        if 'invert' in self.options:
-            return ~output
+        if self.operation is None:
+            out = context(self.arg)
         else:
-            return output
+            out = self._operate(
+                *self.args,
+                operation = self.operation,
+                context = context
+                )
+        return out
 
-    def __lt__(self, *args):
-        return Fetch(*self.args, *args, operation = 'lt')
-    def __le__(self, *args):
-        return Fetch(*self.args, *args, operation = 'le')
-    def __eq__(self, *args):
-        return Fetch(*self.args, *args, operation = 'eq')
-    def __ne__(self, *args):
-        return Fetch(*self.args, *args, operation = 'ne')
-    def __ge__(self, *args):
-        return Fetch(*self.args, *args, operation = 'ge')
-    def __gt__(self, *args):
-        return Fetch(*self.args, *args, operation = 'gt')
-    def __invert__(self):
-        return Fetch(
-            *self.args,
-            operation = self.operation,
-            options = ['invert']
-            )
-    def __add__(self, arg):
-        return Pending(self, arg, function = Scope.union)
-    def __sub__(self, arg):
-        return Pending(self, arg, function = Scope.difference)
-    def __mul__(self, arg):
-        return Pending(self, arg, function = Scope.intersection)
-    def __div__(self, arg):
-        return Pending(self, arg, function = Scope.symmetric)
+    def __lt__(*args):
+        return Fetch(*args, operation = '__lt__')
+    def __le__(*args):
+        return Fetch(*args, operation = '__le__')
+    def __eq__(*args):
+        return Fetch(*args, operation = '__eq__')
+    def __ne__(*args):
+        return Fetch(*args, operation = '__ne__')
+    def __ge__(*args):
+        return Fetch(*args, operation = '__ge__')
+    def __gt__(*args):
+        return Fetch(*args, operation = '__gt__')
+    def __inv__(*args):
+        return Fetch(*args, operation = '__inv__')
+    def __neg__(*args):
+        return Fetch(*args, operation = '__neg__')
+    def __abs__(*args):
+        return Fetch(*args, operation = '__abs__')
+    def __add__(*args):
+        return Fetch(*args, operation = '__add__')
+    def __sub__(*args):
+        return Fetch(*args, operation = '__sub__')
+    def __mul__(*args):
+        return Fetch(*args, operation = '__mul__')
+    def __div__(*args):
+        return Fetch(*args, operation = '__div__')
 
-class Pending:
-    def __init__(self, *args, function = None):
-        self.args = args
-        self.function = function
-    def __call__(self, getscopesFn):
-        scopes = []
-        for arg in self.args:
-            if type(arg) is Scope:
-                scope = arg
-            else:
-                scope = getscopesFn(arg)
-            scopes.append(scope)
-        outScope = self.function(*scopes)
-        return outScope
-    def __add__(self, arg):
-        return Pending(self, arg, function = Scope.union)
-    def __sub__(self, arg):
-        return Pending(self, arg, function = Scope.difference)
-    def __mul__(self, arg):
-        return Pending(self, arg, function = Scope.intersection)
-    def __div__(self, arg):
-        return Pending(self, arg, function = Scope.symmetric)
+    # def __call__(self, context):
+    #     if context is None:
+    #         context = lambda *inp: inp
+    #     try:
+    #         args = context(*self.args)
+    #         if len(args) == 0:
+    #             output = np.array(True)
+    #         else:
+    #             args = [np.array(arg) for arg in args]
+    #             output = np.array(
+    #                 self.operations[self.operation](*args)
+    #                 ).flatten()
+    #     except KeyError:
+    #         output = np.array(False)
+    #     if 'invert' in self.options:
+    #         return ~output
+    #     else:
+    #         return output
+
+    # def __lt__(self, *args):
+    #     return Fetch(self, *args, operation = 'lt')
+    # def __le__(self, *args):
+    #     return Fetch(self *args, operation = 'le')
+    # def __eq__(self, *args):
+    #     return Fetch(*self.args, *args, operation = 'eq')
+    # def __ne__(self, *args):
+    #     return Fetch(*self.args, *args, operation = 'ne')
+    # def __ge__(self, *args):
+    #     return Fetch(*self.args, *args, operation = 'ge')
+    # def __gt__(self, *args):
+    #     return Fetch(*self.args, *args, operation = 'gt')
+    # def __invert__(self):
+    #     return Fetch(*self.args, operation = self.operation,
+    #         options = ['invert']
+    #         )
+    # def __add__(self, arg):
+    #     return Pending(self, arg, function = Scope.union)
+    # def __sub__(self, arg):
+    #     return Pending(self, arg, function = Scope.difference)
+    # def __mul__(self, arg):
+    #     return Pending(self, arg, function = Scope.intersection)
+    # def __div__(self, arg):
+    #     return Pending(self, arg, function = Scope.symmetric)
+#
+# class Pending:
+#     def __init__(self, *args, function = None):
+#         self.args = args
+#         self.function = function
+#     def __call__(self, getscopesFn):
+#         scopes = []
+#         for arg in self.args:
+#             if type(arg) is Scope:
+#                 scope = arg
+#             else:
+#                 scope = getscopesFn(arg)
+#             scopes.append(scope)
+#         outScope = self.function(*scopes)
+#         return outScope
+#     def __add__(self, arg):
+#         return Pending(self, arg, function = Scope.union)
+#     def __sub__(self, arg):
+#         return Pending(self, arg, function = Scope.difference)
+#     def __mul__(self, arg):
+#         return Pending(self, arg, function = Scope.intersection)
+#     def __div__(self, arg):
+#         return Pending(self, arg, function = Scope.symmetric)
 
 class Scope(Set, Hashable):
 
@@ -447,8 +530,8 @@ class Reader:
             out = toResolve
         return out
 
-    def _getfetch(self, inp):
-        pass
+    def _getfetch(self, fetch):
+        return fetch(self.__getitem__)
 
     def _getslice(self, inp):
         pass
