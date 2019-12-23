@@ -22,7 +22,7 @@ class Fetch:
 
     _unaryOps = {
         None,
-        '__inv__',
+        '__invert__',
         '__neg__'
         }
 
@@ -91,32 +91,53 @@ class Fetch:
                 )
         return out
 
-    def __lt__(*args):
+    def __lt__(*args): # <
         return Fetch(*args, operation = '__lt__')
-    def __le__(*args):
+    def __le__(*args): # <=
         return Fetch(*args, operation = '__le__')
-    def __eq__(*args):
+    def __eq__(*args): # ==
         return Fetch(*args, operation = '__eq__')
-    def __ne__(*args):
+    def __ne__(*args): # !=
         return Fetch(*args, operation = '__ne__')
-    def __ge__(*args):
+    def __ge__(*args): # >=
         return Fetch(*args, operation = '__ge__')
-    def __gt__(*args):
+    def __gt__(*args): # >
         return Fetch(*args, operation = '__gt__')
-    def __inv__(*args):
-        return Fetch(*args, operation = '__inv__')
-    def __neg__(*args):
+    def __neg__(*args): # -
         return Fetch(*args, operation = '__neg__')
-    def __abs__(*args):
+    def __abs__(*args): # abs
         return Fetch(*args, operation = '__abs__')
-    def __add__(*args):
+    def __add__(*args): # +
         return Fetch(*args, operation = '__add__')
-    def __sub__(*args):
+    def __sub__(*args): # -
         return Fetch(*args, operation = '__sub__')
-    def __mul__(*args):
+    def __mul__(*args): # *
         return Fetch(*args, operation = '__mul__')
-    def __div__(*args):
+    def __div__(*args): # /
         return Fetch(*args, operation = '__div__')
+    def __pow__(*args): # **
+        return Fetch(*args, operation = '__pow__')
+    def __floordiv__(*args): # //
+        return Fetch(*args, operation = '__floordiv__')
+    def __mod__(*args): # %
+        return Fetch(*args, operation = '__mod__')
+    def __contains__(*args): # in
+        return Fetch(*args, operation = '__contains__')
+    def __invert__(*args): # ~
+        return Fetch(*args, operation = '__invert__')
+
+    def __or__(*args): # |
+        raise NotImplmentedError
+        return Fetch(*args, operation = 'union')
+    def __lshift__(*args): # |
+        raise NotImplmentedError
+        return Fetch(*args, operation = 'difference')
+    def __and__(*args): # &
+        raise NotImplmentedError
+        return Fetch(*args, operation = 'intersection')
+    def __xor__(*args): # ^
+        raise NotImplmentedError
+        return Fetch(*args, operation = 'symmetric')
 
     # def __call__(self, context):
     #     if context is None:
@@ -332,6 +353,16 @@ class Scope(Set, Hashable):
         return self._operation(self, arg, opFn = self.intersection)
     def __div__(self, arg):
         return self._operation(self, arg, opFn = self.symmetric)
+
+    def __or__(self, arg):
+        return self._operation(self, arg, opFn = self.union)
+    def __lshift__(self, arg):
+        return self._operation(self, arg, opFn = self.difference)
+    def __and__(self, arg):
+        return self._operation(self, arg, opFn = self.intersection)
+    def __xor__(self, arg):
+        return self._operation(self, arg, opFn = self.symmetric)
+
     def __repr__(self):
         return "Scope({0})".format(set(self._set))
     def __reduce__(self):
