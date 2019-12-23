@@ -33,6 +33,7 @@ class Fetch:
             ):
         unary = len(args) == 1
         assert unary == (operation in self._unaryOps)
+        assert (not unary) == (not operation in self._unaryOps)
         if unary:
             self.arg = args[0]
         self.args = args
