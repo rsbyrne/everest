@@ -20,25 +20,22 @@ from . import utilities
 
 class Fetch:
 
-    _unaryOps = {
-        None,
-        '__invert__',
-        '__neg__'
-        }
+    _fnDict = {}
+    _fnDict.update(operator.__dict__)
 
     def __init__(
             self,
             *args,
             operation = None
             ):
-        unary = len(args) == 1
-        assert unary == (operation in self._unaryOps)
-        assert (not unary) == (not operation in self._unaryOps)
-        if unary:
-            self.arg = args[0]
+        if type(operation) is str:
+            opTag = operation
+            operation = _fnDict[operation]
+        else:
+            opTag = 'anon'
         self.args = args
         self.operation = operation
-        self.unary = unary
+        self.opTag = opTag
 
     @classmethod
     def _operate(cls, *args, operation = None, context = None):
@@ -49,7 +46,6 @@ class Fetch:
             else:
                 opVals = np.array(arg)
             operands.append(opVals)
-        operation = operator.__dict__[operation]
         dictOperands = [
             operand for operand in operands if type(operand) is dict
             ]
@@ -83,7 +79,7 @@ class Fetch:
 
     def __call__(self, context):
         if self.operation is None:
-            out = context(self.arg)
+            out = context(self.args[0])
         else:
             out = self._operate(
                 *self.args,
@@ -91,6 +87,9 @@ class Fetch:
                 context = context
                 )
         return out
+
+    def fn(self, args):
+        return Fetch()
 
     def __lt__(*args): # <
         return Fetch(*args, operation = '__lt__')
@@ -243,7 +242,7 @@ class Scope(Set, Hashable):
                         ))
                     counts = context(countsPath)
                     indices = counts[result.flatten()]
-                    indices = tuple(indices_)
+                    indices = tuple(indices)
             except:
                 raise TypeError
             if not indices is None:
