@@ -26,13 +26,15 @@ class Fetch:
     def __init__(
             self,
             *args,
-            operation = None
+            operation = None,
+            opTag = None
             ):
         if type(operation) is str:
             opTag = operation
-            operation = _fnDict[operation]
-        else:
+            operation = self._fnDict[operation]
+        elif opTag is None:
             opTag = 'anon'
+
         self.args = args
         self.operation = operation
         self.opTag = opTag
@@ -89,7 +91,11 @@ class Fetch:
         return out
 
     def fn(self, operation, args):
-        return Fetch(*(self, *args), operation = operation)
+        return Fetch(
+            *(self, *args),
+            operation = operation,
+            opTag = None
+            )
 
     def __lt__(*args): # <
         return Fetch(*args, operation = '__lt__')
@@ -127,17 +133,32 @@ class Fetch:
         return Fetch(*args, operation = '__invert__')
 
     def __or__(*args): # |
-        raise NotImplmentedError
-        return Fetch(*args, operation = 'union')
+        return Fetch(
+            *args,
+            operation = np.logical_or,
+            opTag = '__union__'
+            )
+    @staticmethod
+    def _diff_op(arg1, arg2):
+        return np.logical_and(arg1, ~arg2)
     def __lshift__(*args): # |
-        raise NotImplmentedError
-        return Fetch(*args, operation = 'difference')
+        return Fetch(
+            *args,
+            operation = args[0]._diff_op,
+            opTag = '__difference__'
+            )
     def __and__(*args): # &
-        raise NotImplmentedError
-        return Fetch(*args, operation = 'intersection')
+        return Fetch(
+            *args,
+            operation = np.logical_and,
+            opTag = '__intersection__'
+            )
     def __xor__(*args): # ^
-        raise NotImplmentedError
-        return Fetch(*args, operation = 'symmetric')
+        return Fetch(
+            *args,
+            operation = np.logical_xor,
+            opTag = '__symmetric__'
+            )
 
     # def __call__(self, context):
     #     if context is None:
