@@ -216,136 +216,136 @@ class Scope(Set, Hashable):
             cleaned_iterable.append((key, val))
         return cleaned_iterable
 
-    @classmethod
-    def _process_args(cls, *args):
-        if not all([type(arg) is cls for arg in args]):
-            raise TypeError
-        allSets = [arg._set for arg in args]
-        allDicts = [dict(subSet) for subSet in allSets]
-        commonkeys = set.intersection(
-            *[set(subDict) for subDict in allDicts]
-            )
-        uncommonkeys = [
-            key \
-                for subDict in allDicts \
-                    for key in subDict.keys()
-            ]
-        return allDicts, commonkeys, uncommonkeys
-
-    @classmethod
-    def union(cls, *args):
-        allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
-        outDict = dict()
-        for subDict in allDicts:
-            outDict.update(subDict)
-        for key in commonkeys:
-            allData = tuple(
-                np.array(subDict[key]) \
-                    for subDict in allDicts \
-                        if not subDict[key] == _specialnames.ALL_COUNTS_FLAG
-                )
-            if len(allData) > 0:
-                outDict[key] = tuple(
-                    reduce(
-                        np.union1d,
-                        allData
-                        )
-                    )
-            else:
-                outDict[key] = '...'
-        outScope = Scope(outDict.items())
-        return outScope
-
-    @classmethod
-    def difference(cls, *args):
-        allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
-        if not len(allDicts) == 2:
-            raise ValueError
-        primeDict, opDict = allDicts
-        prime_uncommonkeys = {
-            key \
-                for key in primeDict \
-                    if not key in commonkeys
-            }
-        outDict = dict()
-        for key in prime_uncommonkeys:
-            outDict[key] = primeDict[key]
-        for key in commonkeys:
-            primeData, opData = primeDict[key], opDict[key]
-            primeAll = primeData == _specialnames.ALL_COUNTS_FLAG
-            opAll = opData == _specialnames.ALL_COUNTS_FLAG
-            if opAll and primeAll:
-                pass
-            elif opAll:
-                outDict[key] = primeDict[key]
-            elif primeAll:
-                outDict[key] = opDict[key]
-            else:
-                # solution by Divakar @ stackoverflow
-                dims = np.maximum(opData.max(0), primeData.max(0)) + 1
-                out = primeData[ \
-                    ~np.in1d(
-                        np.ravel_multi_index(primeData.T, dims),
-                        np.ravel_multi_index(opData.T, dims)
-                        )
-                    ]
-                if len(out) > 0:
-                    outDict[key] = tuple(out)
-        outScope = Scope(outDict.items())
-        return outScope
-
-    @classmethod
-    def intersection(cls, *args):
-        allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
-        outDict = dict()
-        for key in commonkeys:
-            allData = tuple(
-                np.array(subDict[key]) \
-                    for subDict in allDicts \
-                        if not subDict[key] == _specialnames.ALL_COUNTS_FLAG
-                )
-            if len(allData) > 0:
-                intTuple = tuple(
-                    reduce(
-                        np.intersect1d,
-                        allData
-                        )
-                    )
-                if len(intTuple) > 0:
-                    outDict[key] = intTuple
-            else:
-                outDict[key] = '...'
-        outScope = Scope(outDict.items())
-        return outScope
-
-    @classmethod
-    def symmetric(cls, *args):
-        raise Exception("Not supported yet!")
-
-    @classmethod
-    def _operation(cls, *args, opFn = None):
-        if all([type(arg) is Scope for arg in args]):
-            return opFn(*args)
-        else:
-            return Pending(*args, function = opFn)
-
-    # def __add__(self, arg):
+    # @classmethod
+    # def _process_args(cls, *args):
+    #     if not all([type(arg) is cls for arg in args]):
+    #         raise TypeError
+    #     allSets = [arg._set for arg in args]
+    #     allDicts = [dict(subSet) for subSet in allSets]
+    #     commonkeys = set.intersection(
+    #         *[set(subDict) for subDict in allDicts]
+    #         )
+    #     uncommonkeys = [
+    #         key \
+    #             for subDict in allDicts \
+    #                 for key in subDict.keys()
+    #         ]
+    #     return allDicts, commonkeys, uncommonkeys
+    #
+    # @classmethod
+    # def union(cls, *args):
+    #     allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
+    #     outDict = dict()
+    #     for subDict in allDicts:
+    #         outDict.update(subDict)
+    #     for key in commonkeys:
+    #         allData = tuple(
+    #             np.array(subDict[key]) \
+    #                 for subDict in allDicts \
+    #                     if not subDict[key] == _specialnames.ALL_COUNTS_FLAG
+    #             )
+    #         if len(allData) > 0:
+    #             outDict[key] = tuple(
+    #                 reduce(
+    #                     np.union1d,
+    #                     allData
+    #                     )
+    #                 )
+    #         else:
+    #             outDict[key] = '...'
+    #     outScope = Scope(outDict.items())
+    #     return outScope
+    #
+    # @classmethod
+    # def difference(cls, *args):
+    #     allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
+    #     if not len(allDicts) == 2:
+    #         raise ValueError
+    #     primeDict, opDict = allDicts
+    #     prime_uncommonkeys = {
+    #         key \
+    #             for key in primeDict \
+    #                 if not key in commonkeys
+    #         }
+    #     outDict = dict()
+    #     for key in prime_uncommonkeys:
+    #         outDict[key] = primeDict[key]
+    #     for key in commonkeys:
+    #         primeData, opData = primeDict[key], opDict[key]
+    #         primeAll = primeData == _specialnames.ALL_COUNTS_FLAG
+    #         opAll = opData == _specialnames.ALL_COUNTS_FLAG
+    #         if opAll and primeAll:
+    #             pass
+    #         elif opAll:
+    #             outDict[key] = primeDict[key]
+    #         elif primeAll:
+    #             outDict[key] = opDict[key]
+    #         else:
+    #             # solution by Divakar @ stackoverflow
+    #             dims = np.maximum(opData.max(0), primeData.max(0)) + 1
+    #             out = primeData[ \
+    #                 ~np.in1d(
+    #                     np.ravel_multi_index(primeData.T, dims),
+    #                     np.ravel_multi_index(opData.T, dims)
+    #                     )
+    #                 ]
+    #             if len(out) > 0:
+    #                 outDict[key] = tuple(out)
+    #     outScope = Scope(outDict.items())
+    #     return outScope
+    #
+    # @classmethod
+    # def intersection(cls, *args):
+    #     allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
+    #     outDict = dict()
+    #     for key in commonkeys:
+    #         allData = tuple(
+    #             np.array(subDict[key]) \
+    #                 for subDict in allDicts \
+    #                     if not subDict[key] == _specialnames.ALL_COUNTS_FLAG
+    #             )
+    #         if len(allData) > 0:
+    #             intTuple = tuple(
+    #                 reduce(
+    #                     np.intersect1d,
+    #                     allData
+    #                     )
+    #                 )
+    #             if len(intTuple) > 0:
+    #                 outDict[key] = intTuple
+    #         else:
+    #             outDict[key] = '...'
+    #     outScope = Scope(outDict.items())
+    #     return outScope
+    #
+    # @classmethod
+    # def symmetric(cls, *args):
+    #     raise Exception("Not supported yet!")
+    #
+    # @classmethod
+    # def _operation(cls, *args, opFn = None):
+    #     if all([type(arg) is Scope for arg in args]):
+    #         return opFn(*args)
+    #     else:
+    #         return Pending(*args, function = opFn)
+    #
+    # # def __add__(self, arg):
+    # #     return self._operation(self, arg, opFn = self.union)
+    # # def __sub__(self, arg):
+    # #     return self._operation(self, arg, opFn = self.difference)
+    # # def __mul__(self, arg):
+    # #     return self._operation(self, arg, opFn = self.intersection)
+    # # def __div__(self, arg):
+    # #     return self._operation(self, arg, opFn = self.symmetric)
+    #
+    # def __or__(self, arg):
     #     return self._operation(self, arg, opFn = self.union)
-    # def __sub__(self, arg):
+    # def __lshift__(self, arg):
     #     return self._operation(self, arg, opFn = self.difference)
-    # def __mul__(self, arg):
+    # def __and__(self, arg):
     #     return self._operation(self, arg, opFn = self.intersection)
-    # def __div__(self, arg):
+    # def __xor__(self, arg):
     #     return self._operation(self, arg, opFn = self.symmetric)
-
-    def __or__(self, arg):
-        return self._operation(self, arg, opFn = self.union)
-    def __lshift__(self, arg):
-        return self._operation(self, arg, opFn = self.difference)
-    def __and__(self, arg):
-        return self._operation(self, arg, opFn = self.intersection)
-    def __xor__(self, arg):
-        return self._operation(self, arg, opFn = self.symmetric)
 
     def __repr__(self):
         return "Scope({0})".format(set(self._set))
