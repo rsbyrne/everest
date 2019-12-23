@@ -160,73 +160,6 @@ class Fetch:
             opTag = '__symmetric__'
             )
 
-    # def __call__(self, context):
-    #     if context is None:
-    #         context = lambda *inp: inp
-    #     try:
-    #         args = context(*self.args)
-    #         if len(args) == 0:
-    #             output = np.array(True)
-    #         else:
-    #             args = [np.array(arg) for arg in args]
-    #             output = np.array(
-    #                 self.operations[self.operation](*args)
-    #                 ).flatten()
-    #     except KeyError:
-    #         output = np.array(False)
-    #     if 'invert' in self.options:
-    #         return ~output
-    #     else:
-    #         return output
-
-    # def __lt__(self, *args):
-    #     return Fetch(self, *args, operation = 'lt')
-    # def __le__(self, *args):
-    #     return Fetch(self *args, operation = 'le')
-    # def __eq__(self, *args):
-    #     return Fetch(*self.args, *args, operation = 'eq')
-    # def __ne__(self, *args):
-    #     return Fetch(*self.args, *args, operation = 'ne')
-    # def __ge__(self, *args):
-    #     return Fetch(*self.args, *args, operation = 'ge')
-    # def __gt__(self, *args):
-    #     return Fetch(*self.args, *args, operation = 'gt')
-    # def __invert__(self):
-    #     return Fetch(*self.args, operation = self.operation,
-    #         options = ['invert']
-    #         )
-    # def __add__(self, arg):
-    #     return Pending(self, arg, function = Scope.union)
-    # def __sub__(self, arg):
-    #     return Pending(self, arg, function = Scope.difference)
-    # def __mul__(self, arg):
-    #     return Pending(self, arg, function = Scope.intersection)
-    # def __div__(self, arg):
-    #     return Pending(self, arg, function = Scope.symmetric)
-#
-# class Pending:
-#     def __init__(self, *args, function = None):
-#         self.args = args
-#         self.function = function
-#     def __call__(self, getscopesFn):
-#         scopes = []
-#         for arg in self.args:
-#             if type(arg) is Scope:
-#                 scope = arg
-#             else:
-#                 scope = getscopesFn(arg)
-#             scopes.append(scope)
-#         outScope = self.function(*scopes)
-#         return outScope
-#     def __add__(self, arg):
-#         return Pending(self, arg, function = Scope.union)
-#     def __sub__(self, arg):
-#         return Pending(self, arg, function = Scope.difference)
-#     def __mul__(self, arg):
-#         return Pending(self, arg, function = Scope.intersection)
-#     def __div__(self, arg):
-#         return Pending(self, arg, function = Scope.symmetric)
-
 class Scope(Set, Hashable):
 
     __hash__ = Set._hash
@@ -396,14 +329,14 @@ class Scope(Set, Hashable):
         else:
             return Pending(*args, function = opFn)
 
-    def __add__(self, arg):
-        return self._operation(self, arg, opFn = self.union)
-    def __sub__(self, arg):
-        return self._operation(self, arg, opFn = self.difference)
-    def __mul__(self, arg):
-        return self._operation(self, arg, opFn = self.intersection)
-    def __div__(self, arg):
-        return self._operation(self, arg, opFn = self.symmetric)
+    # def __add__(self, arg):
+    #     return self._operation(self, arg, opFn = self.union)
+    # def __sub__(self, arg):
+    #     return self._operation(self, arg, opFn = self.difference)
+    # def __mul__(self, arg):
+    #     return self._operation(self, arg, opFn = self.intersection)
+    # def __div__(self, arg):
+    #     return self._operation(self, arg, opFn = self.symmetric)
 
     def __or__(self, arg):
         return self._operation(self, arg, opFn = self.union)
