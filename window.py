@@ -600,10 +600,15 @@ class Reader:
         return Scope(fetch, self.__getitem__)
 
     def _getslice(self, inp):
+        if not all({
+                type(inp.start) is Scope,
+                type(inp.stop) in {str, tuple}
+                }):
+            raise TypeError
         return self.pull(inp.start, inp.stop)
 
     def _getellipsis(self, inp):
-        pass
+        return self._getfetch(self, Fetch('*'))
 
     _getmethods = {
         tuple: _gettuple,
