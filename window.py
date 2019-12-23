@@ -88,8 +88,8 @@ class Fetch:
                 )
         return out
 
-    def fn(self, args):
-        return Fetch()
+    def fn(self, operation, args):
+        return Fetch(*(self, *args), operation = operation)
 
     def __lt__(*args): # <
         return Fetch(*args, operation = '__lt__')
