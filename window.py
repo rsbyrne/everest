@@ -45,7 +45,7 @@ class Fetch:
         operands = []
         for arg in args:
             if type(arg) is Fetch:
-                opVals = context(arg)
+                opVals = arg(context)
             else:
                 opVals = np.array(arg)
             operands.append(opVals)
@@ -211,23 +211,53 @@ class Scope(Set, Hashable):
 
     __hash__ = Set._hash
 
-    def __new__(cls, iterable):
+    def __new__(cls, inFetch, context):
         selfobj = super(Scope, cls).__new__(Scope)
-        cleaned_iterable = cls._process_scope_inputs(iterable)
+        unclean_iterable = cls._process_fetch(inFetch, context)
+        cleaned_iterable = cls._process_iterable(unclean_iterable)
         selfobj._set = frozenset(cleaned_iterable)
+        selfobj.fetch = inFetch
         return selfobj
 
     def keys(self):
         return set([key for key, val in self._set])
 
     @staticmethod
-    def _process_scope_inputs(iterable):
+    def _process_fetch(inFetch, context):
+        inDict = inFetch(context)
+        outs = set()
+        for key, result in inDict.items():
+            superkey = key.split('/')[0]
+            indices = None
+            try:
+                if result:
+                    indices = '...'
+            except ValueError:
+                if np.all(result):
+                    indices = '...'
+                elif np.any(result):
+                    countsPath = '/'.join((
+                        superkey,
+                        'outs',
+                        _specialnames.COUNTS_FLAG
+                        ))
+                    counts = context(countsPath)
+                    indices = counts[result.flatten()]
+                    indices = tuple(indices_)
+            except:
+                raise TypeError
+            if not indices is None:
+                outs.add((superkey, indices))
+        return outs
+
+    @staticmethod
+    def _process_iterable(iterable):
         cleaned_iterable = []
         for key, val in iterable:
             if val == '...' or type(val) is tuple:
                 pass
-    #         elif type(val) is np.ndarray:
-    #             val = tuple(val)
+            # elif type(val) is np.ndarray:
+            #     val = tuple(val)
             else:
                 raise TypeError
             cleaned_iterable.append((key, val))
@@ -563,10 +593,10 @@ class Reader:
         return out
 
     def _getfetch(self, fetch):
-        return fetch(self.__getitem__)
+        return Scope(fetch, self.__getitem__)
 
     def _getslice(self, inp):
-        pass
+        return self.pull(inp.start, inp.stop)
 
     def _getellipsis(self, inp):
         pass
@@ -580,7 +610,14 @@ class Reader:
         }
 
     def __getitem__(self, inp):
-        return self._getmethods[type(inp)](self, inp)
+        if type(inp) in self._getmethods:
+            return self._getmethods[type(inp)](self, inp)
+        else:
+            if type(inp) is Scope:
+                raise ValueError(
+                    "Must provide a key to pull data from a scope"
+                    )
+            raise TypeError("Input not recognised: ", inp)
 
     # def __getitem__(self, inp):
     #     if type(inp) is tuple:
