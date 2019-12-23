@@ -457,8 +457,12 @@ class Reader:
                     )
                 arr = thisTargetDataset[slicer]
             arrList.append(arr)
-        allArr = np.concatenate(arrList)
-        return allArr
+        try:
+            allArr = np.concatenate(arrList)
+            return allArr
+        except ValueError:
+            allTuple = tuple(arrList)
+            return allTuple
 
     def view_attrs(self, scope = None):
         if scope is None:
@@ -618,63 +622,3 @@ class Reader:
                     "Must provide a key to pull data from a scope"
                     )
             raise TypeError("Input not recognised: ", inp)
-
-    # def __getitem__(self, inp):
-    #     if type(inp) is tuple:
-    #         return [self.__getitem__(subInp) for subInp in inp]
-    #     elif type(inp) is slice:
-    #         return self.pull(inp.start, inp.stop)
-    #     elif type(inp) is Fetch:
-    #         return self._get_fetch(inp)
-    #     elif type(inp) is Pending:
-    #         return inp(self.__getitem__)
-    #     elif inp is Ellipsis:
-    #         return self._get_fetch(Fetch())
-    #     elif type(inp) is Scope:
-    #         raise Exception("Must provide a key to pull data.")
-    #     else:
-    #         raise TypeError("Input not recognised: ", inp)
-
-    # def _context(self, superkey, *args):
-    #     if len(args) == 0:
-    #         return tuple()
-    #     else:
-    #         args = list(args)
-    #         key = args.pop(0)
-    #         splitkey = key.split('/')
-    #         try: out = self.h5file[superkey] \
-    #             [key]
-    #         except: out = self.h5file[superkey] \
-    #             ['/'.join(splitkey[:-1])].attrs[splitkey[-1]]
-    #         return (out, *args)
-    #
-    # @disk.h5filewrap
-    # def _get_fetch(self, fetch):
-    #     outs = set()
-    #     for superkey in self.h5file:
-    #         context = partial(
-    #             self._context,
-    #             superkey
-    #             )
-    #         result = fetch(context) # THIS IS THE SLOWEST BIT
-    #         indices = None
-    #         try:
-    #             if result:
-    #                 indices = '...'
-    #         except ValueError:
-    #             if np.all(result):
-    #                 indices = '...'
-    #             elif np.any(result):
-    #                 indices = tuple(
-    #                     self.h5file\
-    #                         [superkey] \
-    #                         ['outs'] \
-    #                         [_specialnames.COUNTS_FLAG] \
-    #                         [result]
-    #                     )
-    #         except:
-    #             raise TypeError
-    #         if not indices is None:
-    #             outs.add((superkey, indices))
-    #     outs = Scope(outs)
-    #     return outs
