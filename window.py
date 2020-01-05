@@ -138,15 +138,15 @@ class Fetch:
             operation = np.logical_or,
             opTag = '__union__'
             )
-    @staticmethod
-    def _diff_op(arg1, arg2):
-        return np.logical_and(arg1, ~arg2)
-    def __lshift__(*args): # |
-        return Fetch(
-            *args,
-            operation = args[0]._diff_op,
-            opTag = '__difference__'
-            )
+    # @staticmethod
+    # def _diff_op(arg1, arg2):
+    #     return np.logical_and(arg1, ~arg2)
+    # def __lshift__(*args): # <<
+    #     return Fetch(
+    #         *args,
+    #         operation = args[0]._diff_op,
+    #         opTag = '__difference__'
+    #         )
     def __and__(*args): # &
         return Fetch(
             *args,
