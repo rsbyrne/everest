@@ -465,73 +465,36 @@ class Reader:
             outDict[key] = Scope(outDict[key])
         return sorted(outDict.items())
 
-    def _gettuple(self, inp):
-        return [self.__getitem__(subInp) for subInp in inp]
-
-    @disk.h5filewrap
-    def _getstr(self, key):
-        sought = self._seek(key, self.h5file)
-        resolved = self._seekresolve(sought)
-        if type(resolved) is dict:
-            out = utilities.flatten(resolved, sep = '/')
-        else:
-            out = resolved
-        return out
-
     @classmethod
     def _seek(cls, key, searchArea):
         # expects h5filewrap
         splitkey = key.split('/')
-        if splitkey[-1] == '*':
-            key = '/'.join(splitkey[:-1])
-        if splitkey[0] == '*':
-            if hasattr(searchArea, 'keys'):
-                remKey = '/'.join(splitkey[1:])
-                outDict = dict()
-                for subKey, subItem in searchArea.items():
-                    sought = cls._seek(remKey, subItem)
-                    if not sought is None:
-                        outDict[subKey] = sought
-                if len(outDict) > 0:
-                    out = outDict
-                else:
-                    out = None
-            else:
-                out = None
-        elif len(key) > 0:
-            pathkey = '/'.join(splitkey[:-1])
-            attrkey = splitkey[-1]
-            if hasattr(searchArea, 'keys'):
+        primekey = splitkey[0]
+        remkey = '/'.join(splitkey[1:])
+        if primekey == '**':
+            found = cls._seek('*/' + remkey, searchArea)
+            found[''] = cls._seek('*/' + key, searchArea)
+        elif primekey == '*':
+            localkeys = {*searchArea, *searchArea.attrs}
+            searchkeys = [
+                localkey + '/' + remkey \
+                    for localkey in localkeys
+                ]
+            found = dict()
+            for searchkey in searchkeys:
                 try:
-                    if key in searchArea:
-                        out = searchArea[key]
-                    elif key in searchArea.attrs:
-                        out = searchArea.attrs[key]
-                    else:
-                        out = searchArea[pathkey].attrs[attrkey]
-                except (KeyError, ValueError):
-                    out = None
-            else:
-                try:
-                    if key in searchArea.attrs:
-                        out = searchArea.attrs[key]
-                    else:
-                        out = searchArea[pathkey].attrs[attrkey]
-                except (KeyError, ValueError):
-                    out = None
+                    found[searchkey.split('/')[0]] = \
+                        cls._seek(searchkey, searchArea)
+                except:
+                    pass
         else:
-            out = searchArea
-            # out = None
-        if splitkey[-1] == '*':
-            if not out is None and not type(out) is dict:
-                newOut = list()
-                if hasattr(out, 'keys'):
-                    newOut.extend(out.keys())
-                if hasattr(out, 'attrs'):
-                    newOut.extend(out.attrs.keys())
-                if len(newOut) > 0:
-                    out = newOut
-        return out
+            try:
+                found = searchArea[primekey]
+            except:
+                found = searchArea.attrs[primekey]
+            if not remkey == '':
+                found = cls._seek(remkey, found)
+        return found
 
     @classmethod
     def _seekresolve(cls, toResolve):
@@ -539,14 +502,31 @@ class Reader:
             out = dict()
             for key, val in toResolve.items():
                 out[key] = cls._seekresolve(val)
-        elif type(toResolve) == h5py._hl.group.Group:
+        elif type(toResolve) == h5py.Group:
             out = toResolve.name
-        elif type(toResolve) == h5py._hl.dataset.Dataset:
+        elif type(toResolve) == h5py.Dataset:
             out = np.array(toResolve)
         elif isinstance(toResolve, np.generic):
             out = np.asscalar(toResolve)
         else:
             out = toResolve
+        return out
+
+    def _gettuple(self, inp):
+        return [self.__getitem__(subInp) for subInp in inp]
+
+    @disk.h5filewrap
+    def _getstr(self, key):
+        if key[0] == '/':
+            key = key[1:]
+        else:
+            key = '**/' + key
+        sought = self._seek(key, self.h5file)
+        resolved = self._seekresolve(sought)
+        if type(resolved) is dict:
+            out = utilities.flatten(resolved, sep = '/')
+        else:
+            out = resolved
         return out
 
     def _getfetch(self, fetch):

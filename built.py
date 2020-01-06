@@ -25,9 +25,10 @@ def load(hashID, name, path = ''):
         script = h5group.attrs['script']
         inputsGroup = h5group['inputs']
         for key, val in inputsGroup.attrs.items():
-            inputs[key] = np.asscalar(val)
-        for key in inputsGroup:
-            subBuiltIDs[key] = inputsGroup[key].attrs['hashID']
+            if type(val) == h5py.Reference:
+                subBuiltIDs[key] = h5file[val].attrs['hashID']
+            else:
+                inputs[key] = np.array(val).item()
     inputs = mpi.comm.bcast(inputs, root = 0)
     subBuiltIDs = mpi.comm.bcast(subBuiltIDs, root = 0)
     for key, val in sorted(subBuiltIDs.items()):
@@ -321,6 +322,12 @@ class Built:
         group.attrs[name] = item
 
     @disk.h5filewrap
+    def _add_ref(self, address, name, groupNames = []):
+        group = self._get_h5obj(groupNames)
+        ref = self.h5file[address].ref
+        group.attrs[name] = ref
+
+    @disk.h5filewrap
     def _add_dataset(self, data, key, groupNames = []):
         group = self.h5file[self.hashID]['/'.join(groupNames)]
         if key in group:
@@ -356,7 +363,8 @@ class Built:
             else:
                 if isinstance(item, Built):
                     item.coanchor(self)
-                    self._add_link(item.hashID, name, groupNames)
+                    # self._add_link(item.hashID, name, groupNames)
+                    self._add_ref(item.hashID, name, groupNames)
                 else:
                     self._add_attr(item, name, groupNames)
 
