@@ -25,7 +25,7 @@ def load(hashID, name, path = ''):
         script = h5group.attrs['script']
         inputsGroup = h5group['inputs']
         for key, val in inputsGroup.attrs.items():
-            if type(val) == h5py.Reference:
+            if type(val) is h5py.Reference:
                 subBuiltIDs[key] = h5file[val].attrs['hashID']
             else:
                 inputs[key] = np.array(val).item()

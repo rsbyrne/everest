@@ -496,16 +496,18 @@ class Reader:
                 found = cls._seek(remkey, found)
         return found
 
-    @classmethod
-    def _seekresolve(cls, toResolve):
+    def _seekresolve(self, toResolve):
+        # expects h5filewrap
         if type(toResolve) is dict:
             out = dict()
             for key, val in toResolve.items():
-                out[key] = cls._seekresolve(val)
-        elif type(toResolve) == h5py.Group:
+                out[key] = self._seekresolve(val)
+        elif type(toResolve) is h5py.Group:
             out = toResolve.name
-        elif type(toResolve) == h5py.Dataset:
+        elif type(toResolve) is h5py.Dataset:
             out = np.array(toResolve)
+        elif type(toResolve) is h5py.Reference:
+            out = self.h5file[toResolve].attrs['hashID']
         elif isinstance(toResolve, np.generic):
             out = np.asscalar(toResolve)
         else:
@@ -517,9 +519,11 @@ class Reader:
 
     @disk.h5filewrap
     def _getstr(self, key):
-        if key[0] == '/':
+        if key == '':
+            key = '**'
+        elif key[0] == '/':
             key = key[1:]
-        else:
+        elif not key[:2] == '**':
             key = '**/' + key
         sought = self._seek(key, self.h5file)
         resolved = self._seekresolve(sought)
@@ -533,22 +537,25 @@ class Reader:
         return Scope(fetch, self.__getitem__)
 
     def _getslice(self, inp):
-        if not all({
-                type(inp.start) is Scope,
-                type(inp.stop) in {str, tuple}
-                }):
+        if type(inp.start) is Scope:
+            inScope = inp.start
+        elif type(inp.start) is Fetch:
+            inScope = self.__getitem__(inp.start)
+        else:
             raise TypeError
-        return self.pull(inp.start, inp.stop)
+        if not type(inp.stop) in {str, tuple}:
+            raise TypeError
+        return self.pull(inScope, inp.stop)
 
     def _getellipsis(self, inp):
-        return self._getfetch(self, Fetch('*'))
+        return self._getfetch(Fetch('/*'))
 
     _getmethods = {
         tuple: _gettuple,
         str: _getstr,
         Fetch: _getfetch,
         slice: _getslice,
-        Ellipsis: _getellipsis
+        type(Ellipsis): _getellipsis
         }
 
     def __getitem__(self, inp):
