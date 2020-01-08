@@ -245,9 +245,7 @@ class Scope(Set, Hashable):
         return 'Scope(\n{0}\n)'.format(
             '\n'.join([
                 str(row) \
-                    for row in sorted(
-                        set(self._set)
-                        )
+                    for row in set(self._set)
                 ])
             )
     def __reduce__(self):
@@ -417,7 +415,7 @@ class Reader:
 
     def _pull(self, scope, key):
         arrList = []
-        for superkey, scopeCounts in sorted(scope):
+        for superkey, scopeCounts in scope:
             thisGroup = self.h5file[superkey]
             thisTargetDataset = thisGroup['outs'][key]
             if scopeCounts == '...':
@@ -431,7 +429,7 @@ class Reader:
                     )
                 slicer = (
                     maskArr,
-                    *[slice(1) for i in range(1, len(thisTargetDataset.shape))]
+                    *[slice(None) for i in range(1, len(thisTargetDataset.shape))]
                     )
                 arr = thisTargetDataset[slicer]
             arrList.append(arr)
