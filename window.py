@@ -33,11 +33,21 @@ class Fetch:
             opTag = operation
             operation = self._fnDict[operation]
         elif opTag is None:
-            opTag = 'anon'
+            opTag = 'Fetch'
 
         self.args = args
         self.operation = operation
         self.opTag = opTag
+        self.ID = str(self)
+
+    def __repr__(self):
+        ID = self.opTag + '({0})'.format(
+            ', '.join([
+                str(arg) \
+                    for arg in self.args
+                ])
+            )
+        return ID
 
     def __reduce__(self):
         return (Fetch, (self.args, self.operation, self.opTag))
@@ -172,20 +182,33 @@ class Fetch:
 class Scope(Set, Hashable):
 
     __hash__ = Set._hash
-    contents = set()
 
-    def __new__(cls, inp, context = None):
-        selfobj = super(Scope, cls).__new__(Scope)
-        if type(inp) is Fetch:
-            unclean_iterable = cls._process_fetch(inp, context)
+    def __new__(cls, inp):
+        if type(inp) is Scope:
+            return inp
         else:
-            unclean_iterable = inp
-        cleaned_iterable = cls._process_iterable(unclean_iterable)
-        selfobj._set = frozenset(cleaned_iterable)
-        return selfobj
+            selfobj = super().__new__(Scope)
+            _set, sources = cls._process_inp(inp)
+            opTag, sourceargs = sources
+            ID = opTag + '({0})'.format(
+                ', '.join([
+                    sourcearg.ID \
+                        for sourcearg in sourceargs
+                    ])
+                )
+            selfobj.sources = sources
+            selfobj._set = _set
+            selfobj.ID = ID
+            return selfobj
 
-    def keys(self):
-        return set([key for key, val in self._set])
+    @classmethod
+    def _process_inp(cls, arg):
+        if type(arg[0]) is Fetch:
+            inSet = frozenset(cls._process_fetch(*arg))
+            sources = ('Scope', (arg[0],))
+        else:
+            inSet, sources = arg
+        return inSet, sources
 
     @staticmethod
     def _process_fetch(inFetch, context):
@@ -201,7 +224,7 @@ class Scope(Set, Hashable):
                 if np.all(result):
                     indices = '...'
                 elif np.any(result):
-                    countsPath = '/'.join((
+                    countsPath = '/' + '/'.join((
                         superkey,
                         'outs',
                         _specialnames.COUNTS_FLAG
@@ -213,27 +236,35 @@ class Scope(Set, Hashable):
                 raise TypeError
             if not indices is None:
                 outs.add((superkey, indices))
-        self.contents.add((inFetch, context))
         return outs
 
-    @staticmethod
-    def _process_iterable(iterable):
-        cleaned_iterable = []
-        for key, val in iterable:
-            if val == '...' or type(val) is tuple:
-                pass
-            # elif type(val) is np.ndarray:
-            #     val = tuple(val)
-            else:
-                raise TypeError
-            cleaned_iterable.append((key, val))
-        return cleaned_iterable
+    def keys(self):
+        return set([key for key, val in self._set])
+
+    def __repr__(self):
+        return 'Scope(\n{0}\n)'.format(
+            '\n'.join([
+                str(row) \
+                    for row in sorted(
+                        set(self._set)
+                        )
+                ])
+            )
+    def __reduce__(self):
+        return (Scope, ((self._set, self.sources),))
+    def __getattr__(self, attr):
+        return getattr(self._set, attr)
+    def __contains__(self, item):
+        return item in self._set
+    def __len__(self):
+        return len(self._set)
+    def __iter__(self):
+        return iter(self._set)
 
     @classmethod
     def _process_args(cls, *args):
-        if not all([type(arg) is cls for arg in args]):
-            raise TypeError
-        allSets = [arg._set for arg in args]
+        allScopes = [cls(arg) for arg in args]
+        allSets = [subScope._set for subScope in allScopes]
         allDicts = [dict(subSet) for subSet in allSets]
         commonkeys = set.intersection(
             *[set(subDict) for subDict in allDicts]
@@ -243,11 +274,25 @@ class Scope(Set, Hashable):
                 for subDict in allDicts \
                     for key in subDict.keys()
             ]
-        return allDicts, commonkeys, uncommonkeys
+        return allScopes, allDicts, commonkeys, uncommonkeys
+
+    @classmethod
+    def invert(cls, arg):
+        inScope = cls(arg)
+        scopeDict = dict(inScope._set)
+        outDict = {}
+        for key in sorted(inScope.keys()):
+            outDict[key] = tuple(
+                np.sort(
+                    np.array(scopeDict[key]) - int(1e18)
+                    )
+                )
+        return cls((frozenset(outDict.items()), ('__invert__', (inScope,))))
 
     @classmethod
     def union(cls, *args):
-        allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
+        allScopes, allDicts, commonkeys, uncommonkeys = \
+            cls._process_args(*args)
         outDict = dict()
         for subDict in allDicts:
             outDict.update(subDict)
@@ -266,13 +311,12 @@ class Scope(Set, Hashable):
                     )
             else:
                 outDict[key] = '...'
-        outScope = Scope(outDict.items())
-        outScope.contents.add((inFetch, context))
-        return outScope
+        return cls((frozenset(outDict.items()), ('__union__', allScopes)))
 
     @classmethod
     def difference(cls, *args):
-        allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
+        allScopes, allDicts, commonkeys, uncommonkeys = \
+            cls._process_args(*args)
         if not len(allDicts) == 2:
             raise ValueError
         primeDict, opDict = allDicts
@@ -305,12 +349,12 @@ class Scope(Set, Hashable):
                     ]
                 if len(out) > 0:
                     outDict[key] = tuple(out)
-        outScope = Scope(outDict.items())
-        return outScope
+        return cls((frozenset(outDict.items()), ('__difference__', allScopes)))
 
     @classmethod
     def intersection(cls, *args):
-        allDicts, commonkeys, uncommonkeys = cls._process_args(*args)
+        allScopes, allDicts, commonkeys, uncommonkeys = \
+            cls._process_args(*args)
         outDict = dict()
         for key in commonkeys:
             allData = tuple(
@@ -329,43 +373,24 @@ class Scope(Set, Hashable):
                     outDict[key] = intTuple
             else:
                 outDict[key] = '...'
-        outScope = Scope(outDict.items())
-        return outScope
+        return cls((frozenset(outDict.items()), ('__intersection__', allScopes)))
 
     @classmethod
     def symmetric(cls, *args):
         raise Exception("Not supported yet!")
 
-    @classmethod
-    def _operation(cls, *args, opFn = None):
-        if all([type(arg) is Scope for arg in args]):
-            return opFn(*args)
-        else:
-            return Pending(*args, function = opFn)
-
+    def __invert__(self): # ~
+        return self.invert(self)
     def __or__(self, arg):
-        return self._operation(self, arg, opFn = self.union)
+        return self.union(self, arg)
     def __lshift__(self, arg):
-        return self._operation(self, arg, opFn = self.difference)
+        return self.difference(self, arg)
     def __rshift__(self, arg):
-        return self._operation(arg, self, opFn = self.difference)
+        return self.difference(arg, self)
     def __and__(self, arg):
-        return self._operation(self, arg, opFn = self.intersection)
+        return self.intersection(self, arg)
     def __xor__(self, arg):
-        return self._operation(self, arg, opFn = self.symmetric)
-
-    def __repr__(self):
-        return "Scope({0})".format(set(self._set))
-    def __reduce__(self):
-        return (Scope, (self._set,))
-    def __getattr__(self, attr):
-        return getattr(self._set, attr)
-    def __contains__(self, item):
-        return item in self._set
-    def __len__(self):
-        return len(self._set)
-    def __iter__(self):
-        return iter(self._set)
+        return self.symmetric(self, arg)
 
 class Reader:
 
@@ -377,13 +402,6 @@ class Reader:
             ):
         self.h5filename = h5filename
         self.file = partial(h5py.File, h5filename, 'r')
-
-    @disk.h5filewrap
-    def full_scope(self):
-        scopelets = set()
-        for superkey in self.h5file:
-            scopelets.add((superkey, '...'))
-        return Scope(scopelets)
 
     @disk.h5filewrap
     def pull(self, scope, keys):
@@ -424,53 +442,53 @@ class Reader:
             allTuple = tuple(arrList)
             return allTuple
 
-    def view_attrs(self, scope = None):
-        if scope is None:
-            scope = self.full_scope()
-        return self._view_attrs(scope)
+    # def view_attrs(self, scope = None):
+    #     if scope is None:
+    #         scope = self.full_scope()
+    #     return self._view_attrs(scope)
 
-    @disk.h5filewrap
-    def _view_attrs(self, scope):
-        outDict = dict()
-        for superkey, scopeCounts in scope:
-            builtGroup = self.h5file[superkey]
-            for key in builtGroup.attrs:
-                if not key in outDict:
-                    outDict[key] = dict()
-                keyval = builtGroup.attrs[key]
-                if not keyval in outDict[key]:
-                    outDict[key][keyval] = set()
-                outDict[key][keyval].add((superkey, scopeCounts))
-        for key in outDict:
-            for subKey in outDict[key]:
-                outDict[key][subKey] = Scope(outDict[key][subKey])
-        return outDict
+    # @disk.h5filewrap
+    # def _view_attrs(self, scope):
+    #     outDict = dict()
+    #     for superkey, scopeCounts in scope:
+    #         builtGroup = self.h5file[superkey]
+    #         for key in builtGroup.attrs:
+    #             if not key in outDict:
+    #                 outDict[key] = dict()
+    #             keyval = builtGroup.attrs[key]
+    #             if not keyval in outDict[key]:
+    #                 outDict[key][keyval] = set()
+    #             outDict[key][keyval].add((superkey, scopeCounts))
+    #     for key in outDict:
+    #         for subKey in outDict[key]:
+    #             outDict[key][subKey] = Scope(outDict[key][subKey])
+    #     return outDict
 
-    @staticmethod
-    def summary_of_dict(allDict):
-        for key in sorted(allDict):
-            print(key)
-            for subKey in sorted(allDict[key]):
-                print(subKey)
-
-    @disk.h5filewrap
-    def sort_by_attr(self, key, scope = None):
-        if scope is None:
-            superkeys = self.h5file.keys()
-        else:
-            superkeys = [key for key, val in scope]
-        outDict = dict()
-        for superkey in superkeys:
-            builtGroup = self.h5file[superkey]
-            if key in builtGroup.attrs:
-                keyval = builtGroup.attrs[key]
-                if not keyval in outDict:
-                    outDict[keyval] = set()
-                newEntry = (superkey, '...')
-                outDict[keyval].add(newEntry)
-        for key in outDict:
-            outDict[key] = Scope(outDict[key])
-        return sorted(outDict.items())
+    # @staticmethod
+    # def summary_of_dict(allDict):
+    #     for key in sorted(allDict):
+    #         print(key)
+    #         for subKey in sorted(allDict[key]):
+    #             print(subKey)
+    #
+    # @disk.h5filewrap
+    # def sort_by_attr(self, key, scope = None):
+    #     if scope is None:
+    #         superkeys = self.h5file.keys()
+    #     else:
+    #         superkeys = [key for key, val in scope]
+    #     outDict = dict()
+    #     for superkey in superkeys:
+    #         builtGroup = self.h5file[superkey]
+    #         if key in builtGroup.attrs:
+    #             keyval = builtGroup.attrs[key]
+    #             if not keyval in outDict:
+    #                 outDict[keyval] = set()
+    #             newEntry = (superkey, '...')
+    #             outDict[keyval].add(newEntry)
+    #     for key in outDict:
+    #         outDict[key] = Scope(outDict[key])
+    #     return sorted(outDict.items())
 
     @classmethod
     def _seek(cls, key, searchArea):
@@ -541,7 +559,7 @@ class Reader:
         return out
 
     def _getfetch(self, fetch):
-        return Scope(fetch, self.__getitem__)
+        return Scope((fetch, self.__getitem__))
 
     def _getslice(self, inp):
         if type(inp.start) is Scope:
