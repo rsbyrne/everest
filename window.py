@@ -183,60 +183,25 @@ class Scope(Set, Hashable):
 
     __hash__ = Set._hash
 
-    def __new__(cls, inp):
+    def __new__(cls, inp, sources = None):
         if type(inp) is Scope:
             return inp
         else:
             selfobj = super().__new__(Scope)
-            _set, sources = cls._process_inp(inp)
-            opTag, sourceargs = sources
-            ID = opTag + '({0})'.format(
-                ', '.join([
-                    sourcearg.ID \
-                        for sourcearg in sourceargs
-                    ])
-                )
-            selfobj.sources = sources
-            selfobj._set = _set
+            if sources is None:
+                ID = 'anon'
+            else:
+                opTag, sourceargs = sources
+                ID = opTag + '({0})'.format(
+                    ', '.join([
+                        sourcearg.ID \
+                            for sourcearg in sourceargs
+                        ])
+                    )
             selfobj.ID = ID
+            selfobj.sources = sources
+            selfobj._set = frozenset(inp)
             return selfobj
-
-    @classmethod
-    def _process_inp(cls, arg):
-        if type(arg[0]) is Fetch:
-            inSet = frozenset(cls._process_fetch(*arg))
-            sources = ('Scope', (arg[0],))
-        else:
-            inSet, sources = arg
-        return inSet, sources
-
-    @staticmethod
-    def _process_fetch(inFetch, context):
-        inDict = inFetch(context)
-        outs = set()
-        for key, result in inDict.items():
-            superkey = key.split('/')[0]
-            indices = None
-            try:
-                if result:
-                    indices = '...'
-            except ValueError:
-                if np.all(result):
-                    indices = '...'
-                elif np.any(result):
-                    countsPath = '/' + '/'.join((
-                        superkey,
-                        'outs',
-                        _specialnames.COUNTS_FLAG
-                        ))
-                    counts = context(countsPath)
-                    indices = counts[result.flatten()]
-                    indices = tuple(indices)
-            except:
-                raise TypeError
-            if not indices is None:
-                outs.add((superkey, indices))
-        return outs
 
     def keys(self):
         return set([key for key, val in self._set])
@@ -249,7 +214,7 @@ class Scope(Set, Hashable):
                 ])
             )
     def __reduce__(self):
-        return (Scope, ((self._set, self.sources),))
+        return Scope, (self._set, self.sources)
     def __getattr__(self, attr):
         return getattr(self._set, attr)
     def __contains__(self, item):
@@ -285,7 +250,7 @@ class Scope(Set, Hashable):
                     np.array(scopeDict[key]) - int(1e18)
                     )
                 )
-        return cls((frozenset(outDict.items()), ('__invert__', (inScope,))))
+        return cls(frozenset(outDict.items()), ('__invert__', (inScope,)))
 
     @classmethod
     def union(cls, *args):
@@ -309,7 +274,7 @@ class Scope(Set, Hashable):
                     )
             else:
                 outDict[key] = '...'
-        return cls((frozenset(outDict.items()), ('__union__', allScopes)))
+        return cls(frozenset(outDict.items()), ('__union__', allScopes))
 
     @classmethod
     def difference(cls, *args):
@@ -347,7 +312,7 @@ class Scope(Set, Hashable):
                     ]
                 if len(out) > 0:
                     outDict[key] = tuple(out)
-        return cls((frozenset(outDict.items()), ('__difference__', allScopes)))
+        return cls(frozenset(outDict.items()), ('__difference__', allScopes))
 
     @classmethod
     def intersection(cls, *args):
@@ -371,7 +336,7 @@ class Scope(Set, Hashable):
                     outDict[key] = intTuple
             else:
                 outDict[key] = '...'
-        return cls((frozenset(outDict.items()), ('__intersection__', allScopes)))
+        return cls(frozenset(outDict.items()), ('__intersection__', allScopes))
 
     @classmethod
     def symmetric(cls, *args):
@@ -379,15 +344,15 @@ class Scope(Set, Hashable):
 
     def __invert__(self): # ~
         return self.invert(self)
-    def __or__(self, arg):
+    def __or__(self, arg): # |
         return self.union(self, arg)
-    def __lshift__(self, arg):
+    def __lshift__(self, arg): # <<
         return self.difference(self, arg)
-    def __rshift__(self, arg):
+    def __rshift__(self, arg): # >>
         return self.difference(arg, self)
-    def __and__(self, arg):
+    def __and__(self, arg): # &
         return self.intersection(self, arg)
-    def __xor__(self, arg):
+    def __xor__(self, arg): # ^
         return self.symmetric(self, arg)
 
 class Reader:
@@ -537,6 +502,34 @@ class Reader:
             out = toResolve
         return out
 
+    @staticmethod
+    def _process_fetch(inFetch, context):
+        inDict = inFetch(context)
+        outs = set()
+        for key, result in inDict.items():
+            superkey = key.split('/')[0]
+            indices = None
+            try:
+                if result:
+                    indices = '...'
+            except ValueError:
+                if np.all(result):
+                    indices = '...'
+                elif np.any(result):
+                    countsPath = '/' + '/'.join((
+                        superkey,
+                        'outs',
+                        _specialnames.COUNTS_FLAG
+                        ))
+                    counts = context(countsPath)
+                    indices = counts[result.flatten()]
+                    indices = tuple(indices)
+            except:
+                raise TypeError
+            if not indices is None:
+                outs.add((superkey, indices))
+        return outs
+
     def _gettuple(self, inp):
         return [self.__getitem__(subInp) for subInp in inp]
 
@@ -557,7 +550,9 @@ class Reader:
         return out
 
     def _getfetch(self, fetch):
-        return Scope((fetch, self.__getitem__))
+        processed = self._process_fetch(fetch, self.__getitem__)
+        sources = ('Scope', (fetch,))
+        return Scope(processed, sources = sources)
 
     def _getslice(self, inp):
         if type(inp.start) is Scope:
