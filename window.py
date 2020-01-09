@@ -224,6 +224,13 @@ class Scope(Set, Hashable):
     def __iter__(self):
         return iter(self._set)
 
+    def rekey(self, mapAttr, context):
+        newlist = []
+        for hashID, counts in list(self):
+            newID = list(context(Fetch(mapAttr) == hashID))[0][0]
+            newlist.append((newID, counts))
+        return Scope(newlist, ('rekey_' + mapAttr, [self,]))
+
     @classmethod
     def _process_args(cls, *args):
         allScopes = [cls(arg) for arg in args]
@@ -585,3 +592,5 @@ class Reader:
                     "Must provide a key to pull data from a scope"
                     )
             raise TypeError("Input not recognised: ", inp)
+
+    context = __getitem__
