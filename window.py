@@ -103,6 +103,9 @@ class Fetch:
                 )
         return out
 
+    # def rekey(self):
+    #     return Fetch(self, operation = 'rekey')
+
     def fn(self, operation, args):
         return Fetch(
             *(self, *args),
