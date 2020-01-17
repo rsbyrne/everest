@@ -14,6 +14,8 @@ from . import wordhash
 
 from . import _specialnames
 
+BUFFERSIZE = 2**30
+
 def load(hashID, name, path = ''):
     framepath = frame.get_framepath(name, path)
     script = None
@@ -244,6 +246,22 @@ class Built:
             self.stored.append(entry)
             self.stored.sort()
         self._update_counts()
+        if self.get_stored_nbytes() > BUFFERSIZE:
+            if self.anchored:
+                self.save()
+            else:
+                raise Exception(
+                    "BUFFERSIZE has been exceeded, \n\
+                    but no save destination has been provided \n\
+                    to dump the data."
+                    )
+
+    def get_stored_nbytes(self):
+        nbytes = 0
+        for count in self.stored:
+            for data in count[1]:
+                nbytes += np.array(data).nbytes
+        return nbytes
 
     def _clear(self):
         self.stored = []
