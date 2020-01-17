@@ -14,8 +14,6 @@ from . import wordhash
 
 from . import _specialnames
 
-BUFFERSIZE = 2**30
-
 def load(hashID, name, path = ''):
     framepath = frame.get_framepath(name, path)
     script = None
@@ -89,6 +87,10 @@ class Built:
 
     h5file = None
     h5filename = None
+    autosave = False
+    buffersize = 2**30
+    saveinterval = 3600. # seconds
+    type = 'anon'
 
     def __init__(
             self,
@@ -166,10 +168,18 @@ class Built:
             'script': script,
             'meta': meta,
             'stamps': stamps,
+            'type': self.type,
             'hashID': hashID,
             'outs': {},
             'temp': {}
             }
+
+    def set_autosave(self, val: bool):
+        self.autosave = val
+    def set_buffersize(self, val: int):
+        self.buffersize = val
+    def set_saveinterval(self, val: float):
+        self.saveinterval = val
 
     def __hash__(self):
         return self.hashVal
@@ -233,10 +243,6 @@ class Built:
     def _update_wrap(self, update):
         update()
 
-    def go(self, n):
-        for i in range(n):
-            self.iterate()
-
     def _store(self):
         self.update()
         vals = self.out()
@@ -246,15 +252,8 @@ class Built:
             self.stored.append(entry)
             self.stored.sort()
         self._update_counts()
-        if self.get_stored_nbytes() > BUFFERSIZE:
-            if self.anchored:
-                self.save()
-            else:
-                raise Exception(
-                    "BUFFERSIZE has been exceeded, \n\
-                    but no save destination has been provided \n\
-                    to dump the data."
-                    )
+        if self.autosave:
+            self._autosave()
 
     def get_stored_nbytes(self):
         nbytes = 0
@@ -296,6 +295,22 @@ class Built:
                 )
         self.clear()
         self._update_counts()
+        self.lastsaved = time.time()
+
+    def _autosave(self):
+        if self.get_stored_nbytes() > self.buffersize:
+            if self.anchored:
+                self.save()
+            else:
+                raise Exception(
+                    "Buffersize has been exceeded, \n\
+                    but no save destination has been provided \n\
+                    to dump the data."
+                    )
+        elif hasattr(self, 'lastsaved'):
+            if time.time() - self.lastsaved > self.saveinterval:
+                if self.anchored:
+                    self.save()
 
     def _initialise_wrap(self, initialise, count):
         count.value = 0
