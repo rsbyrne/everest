@@ -393,16 +393,25 @@ class Built:
                 subgroupNames = self._add_subgroup(name, groupNames)
                 for subname, subitem in sorted(item.items()):
                     self._add_item(subitem, subname, subgroupNames)
+            elif isinstance(item, Built):
+                if not self._check_item(item.hashID):
+                    item.anchor(self.frameID, self.path)
+                # self._add_link(item.hashID, name, groupNames)
+                self._add_ref(item.hashID, name, groupNames)
             else:
-                if isinstance(item, Built):
-                    item.coanchor(self)
-                    # self._add_link(item.hashID, name, groupNames)
-                    self._add_ref(item.hashID, name, groupNames)
-                else:
-                    self._add_attr(item, name, groupNames)
+                self._add_attr(item, name, groupNames)
+
+    def _coanchored(self, coBuilt):
+        if hasattr(self, 'h5filename') and hasattr(coBuilt, 'h5filename'):
+            return self.h5filename == coBuilt.h5filename
+        else:
+            return False
 
     def coanchor(self, coBuilt):
-        self.anchor(coBuilt.frameID, coBuilt.path)
+        if not coBuilt.anchored:
+            raise Exception("Trying to coanchor to unanchored built!")
+        if not self._coanchored(coBuilt):
+            self.anchor(coBuilt.frameID, coBuilt.path)
 
     def _post_anchor_hook(self):
         pass
@@ -420,14 +429,12 @@ class Built:
     @disk.h5filewrap
     def _get_disk_counts(self):
         counts_disk = []
-        if _specialnames.COUNTS_FLAG in self.h5file[self.hashID]['outs']:
-            counts_disk.extend(
-                utilities.unique_list(
-                    list(
-                        self.h5file[self.hashID]['outs'][_specialnames.COUNTS_FLAG][...]
-                        )
-                    )
-                )
+        selfgroup = self.h5file[self.hashID]
+        if 'outs' in selfgroup:
+            outsgroup = selfgroup['outs']
+            if _specialnames.COUNTS_FLAG in outsgroup:
+                counts = outsgroup[_specialnames.COUNTS_FLAG]
+                counts_disk.extend(utilities.unique_list(list(counts[...])))
         return counts_disk
 
     def file(self):
