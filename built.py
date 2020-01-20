@@ -4,6 +4,7 @@ import importlib
 import h5py
 import time
 import hashlib
+import weakref
 
 from . import frame
 from . import utilities
@@ -14,7 +15,67 @@ from . import wordhash
 
 from . import _specialnames
 
+BUILTS = dict()
+
+def buildWrap(func, builtClass):
+    def wrapper(_direct = False, **inputs):
+        defaultInps = utilities.get_default_args(builtClass)
+        inputs = {**defaultInps, **inputs}
+        if _direct: return func(**inputs)
+        filename = builtClass.__init__.__globals__['__file__']
+        script = disk.ToOpen(filename)()
+        hashID = make_hashID(script, inputs)
+        try:
+            built = get(hashID)
+        except KeyError:
+            built = func(**inputs)
+        assert built.hashID == hashID, (built.inputs, inputs)
+        return built
+        # except KeyError: return construct(script, inputs)
+    return wrapper
+
+def make_buildFn(builtClass):
+    def build(**kwargs):
+        built = builtClass(**kwargs)
+        return built
+    return buildWrap(build, builtClass)
+
+def construct(script, inputs):
+    with disk.TempFile(
+                script,
+                extension = 'py',
+                mode = 'w'
+                ) \
+            as tempfile:
+        imported = disk.local_import(tempfile)
+        constructed = imported.build(_direct = True, **inputs)
+    return constructed
+
+def get(hashID):
+    gotbuilt = BUILTS[hashID]()
+    if isinstance(gotbuilt, Built):
+        return gotbuilt
+    else:
+        del BUILTS[hashID]
+        raise KeyError
+
+def make_hashID(script, inputs, return_hashVal = False):
+    hashVal = make_hash((script, inputs))
+    hashID = wordhash.get_random_phrase(hashVal)
+    if return_hashVal:
+        return hashID, hashVal
+    else:
+        return hashID
+
 def load(hashID, name, path = ''):
+    try:
+        loadedBuilt = get(hashID)
+    except KeyError:
+        loadedBuilt = _load(hashID, name, path)
+    loadedBuilt.anchor(name, path)
+    return loadedBuilt
+
+def _load(hashID, name, path = ''):
     framepath = frame.get_framepath(name, path)
     script = None
     inputs = {}
@@ -33,15 +94,7 @@ def load(hashID, name, path = ''):
     subBuiltIDs = mpi.comm.bcast(subBuiltIDs, root = 0)
     for key, val in sorted(subBuiltIDs.items()):
         inputs[key] = load(subBuiltIDs[key], name, path)
-    with disk.TempFile(
-                script,
-                extension = 'py',
-                mode = 'w'
-                ) \
-            as tempfile:
-        imported = disk.local_import(tempfile)
-        loadedBuilt = imported.build(**inputs)
-    loadedBuilt.anchor(name, path)
+    loadedBuilt = construct(script, inputs)
     return loadedBuilt
 
 def process_inputs(inputs):
@@ -146,8 +199,7 @@ class Built:
             self.initialise()
 
         script = disk.ToOpen(script)()
-        hashVal = make_hash((script, inputs))
-        hashID = wordhash.get_random_phrase(hashVal)
+        hashID, hashVal = make_hashID(script, inputs, return_hashVal = True)
 
         stamps = {
             'script': wordhash.get_random_phrase(make_hash(script)),
@@ -173,6 +225,12 @@ class Built:
             'outs': {},
             'temp': {}
             }
+
+        self._add_weakref()
+
+    def _add_weakref(self):
+        self.ref = weakref.ref(self)
+        BUILTS[self.hashID] = self.ref
 
     def set_autosave(self, val: bool):
         self.autosave = val
