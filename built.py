@@ -88,6 +88,8 @@ class Built:
     h5file = None
     h5filename = None
 
+    species = genus = family = 'anon'
+
     def __init__(
             self,
             inputs,
@@ -97,9 +99,6 @@ class Built:
 
         process_inputs(inputs)
 
-        if hasattr(self, 'update'):
-            update = self.update
-            self.update = lambda: self._update_wrap(update)
         if hasattr(self, 'out') or hasattr(self, 'iterate'):
             self.count = value.Value(0)
         if hasattr(self, 'out'):
@@ -117,6 +116,7 @@ class Built:
             self.counts_captured = []
             self.clear = self._clear
             self.save = self._save
+            self.consignments = []
         if hasattr(self, 'iterate'):
             if not hasattr(self, 'load'):
                 raise Exception
@@ -227,16 +227,10 @@ class Built:
         for i in range(n):
             count.value += 1
             iterate()
-
-    def _update_wrap(self, update):
-        update()
-
-    def go(self, n):
-        for i in range(n):
-            self.iterate()
+            if any(self.consignments):
+                self.store()
 
     def _store(self):
-        self.update()
         vals = self.out()
         count = self.count()
         if not count in self.counts_captured:
