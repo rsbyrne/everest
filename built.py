@@ -4,6 +4,7 @@ import importlib
 import h5py
 import time
 import hashlib
+import weakref
 
 from . import frame
 from . import utilities
@@ -14,7 +15,67 @@ from . import wordhash
 
 from . import _specialnames
 
+BUILTS = dict()
+
+def buildWrap(func, builtClass):
+    def wrapper(_direct = False, **inputs):
+        defaultInps = utilities.get_default_args(builtClass)
+        inputs = {**defaultInps, **inputs}
+        if _direct: return func(**inputs)
+        filename = builtClass.__init__.__globals__['__file__']
+        script = disk.ToOpen(filename)()
+        hashID = make_hashID(script, inputs)
+        try:
+            built = get(hashID)
+        except KeyError:
+            built = func(**inputs)
+        assert built.hashID == hashID, (built.inputs, inputs)
+        return built
+        # except KeyError: return construct(script, inputs)
+    return wrapper
+
+def make_buildFn(builtClass):
+    def build(**kwargs):
+        built = builtClass(**kwargs)
+        return built
+    return buildWrap(build, builtClass)
+
+def construct(script, inputs):
+    with disk.TempFile(
+                script,
+                extension = 'py',
+                mode = 'w'
+                ) \
+            as tempfile:
+        imported = disk.local_import(tempfile)
+        constructed = imported.build(_direct = True, **inputs)
+    return constructed
+
+def get(hashID):
+    gotbuilt = BUILTS[hashID]()
+    if isinstance(gotbuilt, Built):
+        return gotbuilt
+    else:
+        del BUILTS[hashID]
+        raise KeyError
+
+def make_hashID(script, inputs, return_hashVal = False):
+    hashVal = make_hash((script, inputs))
+    hashID = wordhash.get_random_phrase(hashVal)
+    if return_hashVal:
+        return hashID, hashVal
+    else:
+        return hashID
+
 def load(hashID, name, path = ''):
+    try:
+        loadedBuilt = get(hashID)
+    except KeyError:
+        loadedBuilt = _load(hashID, name, path)
+    loadedBuilt.anchor(name, path)
+    return loadedBuilt
+
+def _load(hashID, name, path = ''):
     framepath = frame.get_framepath(name, path)
     script = None
     inputs = {}
@@ -33,15 +94,7 @@ def load(hashID, name, path = ''):
     subBuiltIDs = mpi.comm.bcast(subBuiltIDs, root = 0)
     for key, val in sorted(subBuiltIDs.items()):
         inputs[key] = load(subBuiltIDs[key], name, path)
-    with disk.TempFile(
-                script,
-                extension = 'py',
-                mode = 'w'
-                ) \
-            as tempfile:
-        imported = disk.local_import(tempfile)
-        loadedBuilt = imported.build(**inputs)
-    loadedBuilt.anchor(name, path)
+    loadedBuilt = construct(script, inputs)
     return loadedBuilt
 
 def process_inputs(inputs):
@@ -87,6 +140,10 @@ class Built:
 
     h5file = None
     h5filename = None
+    autosave = False
+    buffersize = 2**30
+    saveinterval = 3600. # seconds
+    type = 'anon'
 
     species = genus = family = 'anon'
 
@@ -142,8 +199,7 @@ class Built:
             self.initialise()
 
         script = disk.ToOpen(script)()
-        hashVal = make_hash((script, inputs))
-        hashID = wordhash.get_random_phrase(hashVal)
+        hashID, hashVal = make_hashID(script, inputs, return_hashVal = True)
 
         stamps = {
             'script': wordhash.get_random_phrase(make_hash(script)),
@@ -164,10 +220,24 @@ class Built:
             'script': script,
             'meta': meta,
             'stamps': stamps,
+            'type': self.type,
             'hashID': hashID,
             'outs': {},
             'temp': {}
             }
+
+        self._add_weakref()
+
+    def _add_weakref(self):
+        self.ref = weakref.ref(self)
+        BUILTS[self.hashID] = self.ref
+
+    def set_autosave(self, val: bool):
+        self.autosave = val
+    def set_buffersize(self, val: int):
+        self.buffersize = val
+    def set_saveinterval(self, val: float):
+        self.saveinterval = val
 
     def __hash__(self):
         return self.hashVal
@@ -238,6 +308,15 @@ class Built:
             self.stored.append(entry)
             self.stored.sort()
         self._update_counts()
+        if self.autosave:
+            self._autosave()
+
+    def get_stored_nbytes(self):
+        nbytes = 0
+        for count in self.stored:
+            for data in count[1]:
+                nbytes += np.array(data).nbytes
+        return nbytes
 
     def _clear(self):
         self.stored = []
@@ -272,6 +351,22 @@ class Built:
                 )
         self.clear()
         self._update_counts()
+        self.lastsaved = time.time()
+
+    def _autosave(self):
+        if self.get_stored_nbytes() > self.buffersize:
+            if self.anchored:
+                self.save()
+            else:
+                raise Exception(
+                    "Buffersize has been exceeded, \n\
+                    but no save destination has been provided \n\
+                    to dump the data."
+                    )
+        elif hasattr(self, 'lastsaved'):
+            if time.time() - self.lastsaved > self.saveinterval:
+                if self.anchored:
+                    self.save()
 
     def _initialise_wrap(self, initialise, count):
         count.value = 0
@@ -354,16 +449,25 @@ class Built:
                 subgroupNames = self._add_subgroup(name, groupNames)
                 for subname, subitem in sorted(item.items()):
                     self._add_item(subitem, subname, subgroupNames)
+            elif isinstance(item, Built):
+                if not self._check_item(item.hashID):
+                    item.anchor(self.frameID, self.path)
+                # self._add_link(item.hashID, name, groupNames)
+                self._add_ref(item.hashID, name, groupNames)
             else:
-                if isinstance(item, Built):
-                    item.coanchor(self)
-                    # self._add_link(item.hashID, name, groupNames)
-                    self._add_ref(item.hashID, name, groupNames)
-                else:
-                    self._add_attr(item, name, groupNames)
+                self._add_attr(item, name, groupNames)
+
+    def _coanchored(self, coBuilt):
+        if hasattr(self, 'h5filename') and hasattr(coBuilt, 'h5filename'):
+            return self.h5filename == coBuilt.h5filename
+        else:
+            return False
 
     def coanchor(self, coBuilt):
-        self.anchor(coBuilt.frameID, coBuilt.path)
+        if not coBuilt.anchored:
+            raise Exception("Trying to coanchor to unanchored built!")
+        if not self._coanchored(coBuilt):
+            self.anchor(coBuilt.frameID, coBuilt.path)
 
     def _post_anchor_hook(self):
         pass
@@ -381,14 +485,12 @@ class Built:
     @disk.h5filewrap
     def _get_disk_counts(self):
         counts_disk = []
-        if _specialnames.COUNTS_FLAG in self.h5file[self.hashID]['outs']:
-            counts_disk.extend(
-                utilities.unique_list(
-                    list(
-                        self.h5file[self.hashID]['outs'][_specialnames.COUNTS_FLAG][...]
-                        )
-                    )
-                )
+        selfgroup = self.h5file[self.hashID]
+        if 'outs' in selfgroup:
+            outsgroup = selfgroup['outs']
+            if _specialnames.COUNTS_FLAG in outsgroup:
+                counts = outsgroup[_specialnames.COUNTS_FLAG]
+                counts_disk.extend(utilities.unique_list(list(counts[...])))
         return counts_disk
 
     def file(self):

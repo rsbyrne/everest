@@ -1,4 +1,5 @@
 import collections
+import inspect
 
 from . import mpi
 
@@ -21,3 +22,17 @@ def flatten(d, parent_key = '', sep = '_'):
         else:
             items.append((new_key, v))
     return dict(items)
+
+def get_default_args(func):
+    # only works with kwargs
+    argspec = inspect.getfullargspec(func)
+    argspec.args.remove('self')
+    defaultInps = {
+        key: val \
+            for key, val \
+                in zip(
+                    argspec.args,
+                    argspec.defaults
+                    )
+        }
+    return defaultInps
