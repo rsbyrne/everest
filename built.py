@@ -16,6 +16,14 @@ from . import wordhash
 from . import _specialnames
 
 BUILTS = dict()
+BUFFERSIZE = 2 ** 30
+
+def buffersize_exceeded():
+    nbytes = 0
+    for builtID, built in sorted(BUILTS.items()):
+        try: nbytes += built.nbytes
+        except: pass
+    return nbytes > BUFFERSIZE
 
 def buildWrap(func, builtClass):
     def wrapper(_direct = False, **inputs):
@@ -141,9 +149,9 @@ class Built:
     h5file = None
     h5filename = None
     autosave = False
-    buffersize = 2**30
     saveinterval = 3600. # seconds
     type = 'anon'
+    nbytes = 0
 
     species = genus = family = 'anon'
 
@@ -234,8 +242,6 @@ class Built:
 
     def set_autosave(self, val: bool):
         self.autosave = val
-    def set_buffersize(self, val: int):
-        self.buffersize = val
     def set_saveinterval(self, val: float):
         self.saveinterval = val
 
@@ -308,6 +314,7 @@ class Built:
             self.stored.append(entry)
             self.stored.sort()
         self._update_counts()
+        self.nbytes = self.get_stored_nbytes()
         if self.autosave:
             self._autosave()
 
@@ -354,7 +361,7 @@ class Built:
         self.lastsaved = time.time()
 
     def _autosave(self):
-        if self.get_stored_nbytes() > self.buffersize:
+        if buffersize_exceeded():
             if self.anchored:
                 self.save()
             else:
