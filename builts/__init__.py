@@ -45,17 +45,6 @@ def make_buildFn(builtClass):
         return built
     return buildWrap(build, builtClass)
 
-def construct(script, inputs):
-    with disk.TempFile(
-                script,
-                extension = 'py',
-                mode = 'w'
-                ) \
-            as tempfile:
-        imported = disk.local_import(tempfile)
-        constructed = imported.build(_direct = True, **inputs)
-    return constructed
-
 def get(hashID):
     gotbuilt = BUILTS[hashID]()
     if isinstance(gotbuilt, Built):
@@ -82,24 +71,42 @@ def load(hashID, name, path = ''):
 
 def _load(hashID, name, path = ''):
     framepath = os.path.join(os.path.abspath(path), name + '.frm')
-    script = None
-    inputs = {}
-    subBuiltIDs = {}
+    is_constructor = False
     if mpi.rank == 0:
-        h5file = h5py.File(framepath, mode = 'r')
-        h5group = h5file[hashID]
-        script = h5group.attrs['script']
-        inputsGroup = h5group['inputs']
-        for key, val in inputsGroup.attrs.items():
-            if type(val) is h5py.Reference:
-                subBuiltIDs[key] = h5file[val].attrs['hashID']
-            else:
-                inputs[key] = np.array(val).item()
-    inputs = mpi.comm.bcast(inputs, root = 0)
-    subBuiltIDs = mpi.comm.bcast(subBuiltIDs, root = 0)
-    for key, val in sorted(subBuiltIDs.items()):
-        inputs[key] = load(subBuiltIDs[key], name, path)
-    loadedBuilt = construct(script, inputs)
+        with h5py.File(framepath, mode = 'r') as h5file:
+            h5group = h5file[hashID]
+            if not 'constructor' in h5group.attrs:
+                is_constructor = True
+    is_constructor = mpi.comm.bcast(is_constructor, root = 0)
+    if is_constructor:
+        script = None
+        if mpi.rank == 0:
+            with h5py.File(framepath, mode = 'r') as h5file:
+                h5group = h5file[hashID]
+                script = h5group['inputs'].attrs['script']
+        script = mpi.comm.bcast(script, root = 0)
+        loadedBuilt = Constructor(script)
+    else:
+        constructorID = None
+        inputs = {}
+        subBuiltIDs = {}
+        if mpi.rank == 0:
+            with h5py.File(framepath, mode = 'r') as h5file:
+                h5group = h5file[hashID]
+                constructorID = h5file[h5group.attrs['constructor']].name
+                inputsGroup = h5group['inputs']
+                for key, val in inputsGroup.attrs.items():
+                    if type(val) is h5py.Reference:
+                        subBuiltIDs[key] = h5file[val].name
+                    else:
+                        inputs[key] = np.array(val).item()
+        constructorID = mpi.comm.bcast(constructorID, root = 0)
+        inputs = mpi.comm.bcast(inputs, root = 0)
+        subBuiltIDs = mpi.comm.bcast(subBuiltIDs, root = 0)
+        for key, val in sorted(subBuiltIDs.items()):
+            inputs[key] = load(subBuiltIDs[key], name, path)
+        constructor = load(constructorID, name, path)
+        loadedBuilt = constructor(**inputs)
     return loadedBuilt
 
 def process_inputs(inputs):
@@ -151,11 +158,9 @@ class Built:
 
     h5file = None
     h5filename = None
-    type = 'anon'
 
     species = genus = 'anon'
     inputs = dict()
-    script = None
     meta = dict()
     nbytes = 0
 
@@ -163,35 +168,30 @@ class Built:
 
         process_inputs(self.inputs)
 
-        scriptFilename = self.__init__.__globals__['__file__']
-        self.script = disk.ToOpen(scriptFilename)()
+        if type(self) is Constructor:
+            script = ''
+        else:
+            self.constructor = Constructor(type(self))
+            script = self.constructor.script
+
         hashID, hashVal = make_hashID(
-            self.script,
+            script,
             self.inputs,
             return_hashVal = True
             )
 
-        stamps = {
-            'script': wordhash.get_random_phrase(make_hash(self.script)),
-            'inputs': wordhash.get_random_phrase(make_hash(self.inputs)),
-            'self': hashID
-            }
-
         self.anchored = False
         self.hashVal = hashVal
         self.hashID = hashID
-        self.stamps = stamps
 
         self.organisation = {
-            'inputs': self.inputs,
-            'script': self.script,
-            'meta': self.meta,
-            'stamps': self.stamps,
-            'type': self.type,
             'hashID': self.hashID,
-            'outs': {},
-            'temp': {}
+            'inputs': self.inputs,
+            'meta': self.meta,
+            'outs': {}
             }
+        if not type(self) is Constructor:
+            self.organisation['constructor'] = self.constructor
 
         self._add_weakref()
 
@@ -307,3 +307,5 @@ class Built:
 
     def file(self):
         return h5py.File(self.h5filename)
+
+from .constructor import Constructor
