@@ -112,6 +112,12 @@ def process_inputs(inputs):
     for key in badKeys:
         if key in inputs:
             del inputs[key]
+    # for key, val in sorted(inputs.items()):
+    #     if type(val) is type:
+    #         if hasattr(val, 'script'):
+    #             inputs[key] = '_EVERESTTYPE_' + disk.ToOpen(val)()
+    #         else:
+    #             raise TypeError
 
 def make_hash(obj):
     if isinstance(obj, Built):
@@ -157,7 +163,8 @@ class Built:
 
         process_inputs(self.inputs)
 
-        self.script = disk.ToOpen(self.script)()
+        scriptFilename = self.__init__.__globals__['__file__']
+        self.script = disk.ToOpen(scriptFilename)()
         hashID, hashVal = make_hashID(
             self.script,
             self.inputs,

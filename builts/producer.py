@@ -23,7 +23,7 @@ class Producer(Counter):
             self.counts_stored = []
             self.counts_disk = []
             self.counts_captured = []
-            self.consignments = []
+            self.consignments = set()
             super().__init__()
 
     def set_autosave(self, val: bool):
@@ -31,6 +31,12 @@ class Producer(Counter):
 
     def set_saveinterval(self, val: float):
         self.saveinterval = val
+
+    def add_consignment(self, consignment):
+        self.consignments.add(consignment)
+
+    def remove_consignment(self, consignment):
+        self.consignments.remove(consignment)
 
     def _out_wrap(self, out):
         return out()
