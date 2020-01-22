@@ -1,11 +1,15 @@
-from .counter import Counter
+import numpy as np
+
 from .. import utilities
+from .. import disk
+
+from . import buffersize_exceeded
+from .counter import Counter
 
 class Producer(Counter):
 
     autosave = True
     saveinterval = 3600. # seconds
-    nbytes = 0
 
     def __init__(self, outFn, outkeys):
             out = self.out
@@ -59,14 +63,14 @@ class Producer(Counter):
             key: np.array(val, dtype = utilities._obtain_dtype(val[0])) \
                 for key, val in zip(self.outkeys, zip(*outs))
             })
-        self.dataDict[_specialnames.COUNTS_FLAG] = np.array(counts, dtype = 'i8')
+        self.dataDict['_counts_'] = np.array(counts, dtype = 'i8')
 
     def save(self):
         self._check_anchored()
         if len(self.stored) == 0:
             return None
         self._update_dataDict()
-        for key in [_specialnames.COUNTS_FLAG, *self.outkeys]:
+        for key in ['_counts_', *self.outkeys]:
             self._add_dataset(
                 self.dataDict[key],
                 key,
@@ -107,7 +111,7 @@ class Producer(Counter):
         selfgroup = self.h5file[self.hashID]
         if 'outs' in selfgroup:
             outsgroup = selfgroup['outs']
-            if _specialnames.COUNTS_FLAG in outsgroup:
-                counts = outsgroup[_specialnames.COUNTS_FLAG]
+            if '_counts_' in outsgroup:
+                counts = outsgroup['_counts_']
                 counts_disk.extend(utilities.unique_list(list(counts[...])))
         return counts_disk

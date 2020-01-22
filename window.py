@@ -273,7 +273,7 @@ class Scope(Set, Hashable):
             allData = tuple(
                 np.array(subDict[key]) \
                     for subDict in allDicts \
-                        if not subDict[key] == _specialnames.ALL_COUNTS_FLAG
+                        if not subDict[key] == '...'
                 )
             if len(allData) > 0:
                 outDict[key] = tuple(
@@ -303,8 +303,8 @@ class Scope(Set, Hashable):
             outDict[key] = primeDict[key]
         for key in commonkeys:
             primeData, opData = primeDict[key], opDict[key]
-            primeAll = primeData == _specialnames.ALL_COUNTS_FLAG
-            opAll = opData == _specialnames.ALL_COUNTS_FLAG
+            primeAll = primeData == '...'
+            opAll = opData == '...'
             if opAll and primeAll:
                 pass
             elif opAll:
@@ -333,7 +333,7 @@ class Scope(Set, Hashable):
             allData = tuple(
                 np.array(subDict[key]) \
                     for subDict in allDicts \
-                        if not subDict[key] == _specialnames.ALL_COUNTS_FLAG
+                        if not subDict[key] == '...'
                 )
             if len(allData) > 0:
                 intTuple = tuple(
@@ -371,9 +371,10 @@ class Reader:
 
     def __init__(
             self,
-            h5filename
+            name,
+            outputPath
             ):
-        self.h5filename = h5filename
+        self.h5filename = os.path.join(os.path.abspath(outputPath), name + '.frm')
         self.file = partial(h5py.File, h5filename, 'r')
 
     @disk.h5filewrap
@@ -396,7 +397,7 @@ class Reader:
             if scopeCounts == '...':
                 arr = thisTargetDataset[...]
             else:
-                thisCountsDataset = thisGroup['outs'][_specialnames.COUNTS_FLAG]
+                thisCountsDataset = thisGroup['outs']['_counts_']
                 maskArr = np.isin(
                     thisCountsDataset,
                     scopeCounts,
@@ -529,7 +530,7 @@ class Reader:
                     countsPath = '/' + '/'.join((
                         superkey,
                         'outs',
-                        _specialnames.COUNTS_FLAG
+                        '_counts_'
                         ))
                     counts = context(countsPath)
                     indices = counts[result.flatten()]

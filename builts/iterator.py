@@ -1,8 +1,10 @@
-from .counter import Counter
+from .. import disk
+
+from .producer import Producer
 
 class Iterator(Producer):
 
-    def __init__(self, initialiseFn, iterateFn, loadFn, outFn):
+    def __init__(self, initialiseFn, iterateFn, outFn, outkeys, loadFn):
         self.initialise = lambda: self._initialise_wrap(
             initialiseFn,
             )
@@ -15,7 +17,7 @@ class Iterator(Producer):
             count
             )
         self.reset = self.initialise
-        super().__init__(outFn)
+        super().__init__(outFn, outkeys)
         self.initialise()
 
     def _initialise_wrap(self, initialise):
@@ -60,7 +62,7 @@ class Iterator(Producer):
         self._check_anchored()
         # self.save()
         loadDict = {}
-        counts = self.h5file[self.hashID]['outs'][_specialnames.COUNTS_FLAG]
+        counts = self.h5file[self.hashID]['outs']['_counts_']
         iterNo = 0
         while True:
             if iterNo >= len(counts):

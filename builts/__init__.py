@@ -84,7 +84,7 @@ def load(hashID, name, path = ''):
     return loadedBuilt
 
 def _load(hashID, name, path = ''):
-    framepath = frame.get_framepath(name, path)
+    framepath = os.path.join(os.path.abspath(path), name + '.frm')
     script = None
     inputs = {}
     subBuiltIDs = {}
@@ -154,17 +154,22 @@ class Built:
     inputs = dict()
     script = None
     meta = dict()
+    nbytes = 0
 
     def __init__(self):
 
         process_inputs(self.inputs)
 
-        script = disk.ToOpen(script)()
-        hashID, hashVal = make_hashID(script, inputs, return_hashVal = True)
+        self.script = disk.ToOpen(self.script)()
+        hashID, hashVal = make_hashID(
+            self.script,
+            self.inputs,
+            return_hashVal = True
+            )
 
         stamps = {
-            'script': wordhash.get_random_phrase(make_hash(script)),
-            'inputs': wordhash.get_random_phrase(make_hash(inputs)),
+            'script': wordhash.get_random_phrase(make_hash(self.script)),
+            'inputs': wordhash.get_random_phrase(make_hash(self.inputs)),
             'self': hashID
             }
 
@@ -174,12 +179,12 @@ class Built:
         self.stamps = stamps
 
         self.organisation = {
-            'inputs': inputs,
-            'script': script,
-            'meta': meta,
-            'stamps': stamps,
+            'inputs': self.inputs,
+            'script': self.script,
+            'meta': self.meta,
+            'stamps': self.stamps,
             'type': self.type,
-            'hashID': hashID,
+            'hashID': self.hashID,
             'outs': {},
             'temp': {}
             }
@@ -204,7 +209,7 @@ class Built:
             os.makedirs(path, exist_ok = True)
         self.frameID = frameID
         self.path = path
-        self.h5filename = frame.get_framepath(frameID, path)
+        self.h5filename = os.path.join(os.path.abspath(path), frameID + '.frm')
         self._add_item(self.organisation, self.hashID)
         self.anchored = True
         if hasattr(self, 'count'):
