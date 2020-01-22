@@ -1,5 +1,6 @@
 import collections
 import inspect
+import numpy as np
 
 from . import mpi
 
@@ -7,6 +8,13 @@ def message(*args):
     for arg in args:
         if mpi.rank == 0:
             print(arg)
+
+def _obtain_dtype(object):
+    if type(object) == np.ndarray:
+        dtype = object.dtype
+    else:
+        dtype = type(object)
+    return dtype
 
 def unique_list(inList):
     return list(sorted(set(inList)))
