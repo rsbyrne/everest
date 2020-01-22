@@ -20,9 +20,10 @@ BUFFERSIZE = 2 ** 30
 
 def buffersize_exceeded():
     nbytes = 0
-    for builtID, built in sorted(BUILTS.items()):
-        try: nbytes += built.nbytes
-        except: pass
+    for builtID, builtRef in sorted(BUILTS.items()):
+        built = builtRef()
+        if not built is None:
+            nbytes += built.nbytes
     return nbytes > BUFFERSIZE
 
 def buildWrap(func, builtClass):
@@ -148,7 +149,7 @@ class Built:
 
     h5file = None
     h5filename = None
-    autosave = False
+    autosave = True
     saveinterval = 3600. # seconds
     type = 'anon'
     nbytes = 0
