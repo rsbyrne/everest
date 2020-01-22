@@ -6,13 +6,10 @@ import time
 import hashlib
 import weakref
 
-from .. import frame
 from .. import utilities
-
 from .. import disk
 from .. import mpi
 from .. import wordhash
-from .. import _specialnames
 
 BUILTS = dict()
 BUFFERSIZE = 2 ** 30

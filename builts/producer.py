@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 from .. import utilities
 from .. import disk

@@ -10,13 +10,7 @@ import time
 import os
 
 from . import disk
-from . import _specialnames
 from . import utilities
-
-# from . import frame
-#
-# def frame_name(frameID, outputPath):
-#     return os.path.join(outputPath, frameID) + '.' + _specialnames.FRAME_EXT
 
 class Fetch:
 
