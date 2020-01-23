@@ -34,7 +34,8 @@ def flatten(d, parent_key = '', sep = '_'):
 def get_default_kwargs(func):
     # only works with kwargs
     argspec = inspect.getfullargspec(func)
-    argspec.args.remove('self')
+    if 'self' in argspec.args:
+        argspec.args.remove('self')
     defaultInps = {
         key: val \
             for key, val \

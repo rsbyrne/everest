@@ -46,7 +46,7 @@ def _load(hashID, name, path = ''):
                 h5group = h5file[hashID]
                 script = h5group['inputs'].attrs['script']
         script = mpi.comm.bcast(script, root = 0)
-        loadedBuilt = Constructor(script)
+        loadedBuilt = Constructor(script = script)
     else:
         constructorID = None
         inputs = {}
@@ -82,7 +82,7 @@ def make_hash(obj):
     if isinstance(obj, Built):
         hashVal = obj.instanceHash
     elif type(obj) is dict:
-        hashVal = make_hash(sorted(dict.items()))
+        hashVal = make_hash(sorted(obj.items()))
     elif type(obj) is list or type(obj) is tuple:
         hashList = [make_hash(subObj) for subObj in obj]
         hashVal = make_hash(str(hashList))
@@ -96,16 +96,14 @@ def make_hash(obj):
 
 class MetaBuilt(type):
     def __call__(cls, **inputs):
-        defaultInps = utilities.get_default_kwargs(cls)
+        defaultInps = utilities.get_default_kwargs(cls.__init__)
         inputs = {**defaultInps, **inputs}
         cls._process_inputs(inputs)
         if cls is Constructor:
             cls.typeHash = 0
             obj = cls.__new__(cls, inputs)
         else:
-            constructor = Constructor(cls)
-            cls.constructor = constructor
-            cls.typeHash = constructor.instanceHash
+            constructor = Constructor(script = cls)
             obj = constructor(**inputs)
         return obj
 
@@ -130,7 +128,7 @@ class Built(metaclass = MetaBuilt):
         try:
             obj = get(hashID)
         except KeyError:
-            obj = super().__init__(cls)
+            obj = super().__new__(cls)
             obj.inputs = inputs
             obj.inputsHash = inputsHash
             obj.instanceHash = instanceHash
@@ -143,9 +141,9 @@ class Built(metaclass = MetaBuilt):
         self.anchored = False
 
         self.organisation = {
-            'typeHash': self.typeHash,
-            'inputsHash': self.inputsHash,
-            'instanceHash': self.instanceHash,
+            'typeHash': str(self.typeHash),
+            'inputsHash': str(self.inputsHash),
+            'instanceHash': str(self.instanceHash),
             'hashID': self.hashID,
             'inputs': self.inputs,
             'meta': self.meta,
