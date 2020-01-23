@@ -22,29 +22,6 @@ def buffersize_exceeded():
             nbytes += built.nbytes
     return nbytes > BUFFERSIZE
 
-def buildWrap(func, builtClass):
-    def wrapper(_direct = False, **inputs):
-        defaultInps = utilities.get_default_args(builtClass)
-        inputs = {**defaultInps, **inputs}
-        if _direct: return func(**inputs)
-        filename = builtClass.__init__.__globals__['__file__']
-        script = disk.ToOpen(filename)()
-        hashID = make_hashID(script, inputs)
-        try:
-            built = get(hashID)
-        except KeyError:
-            built = func(**inputs)
-        assert built.hashID == hashID, (built.inputs, inputs)
-        return built
-        # except KeyError: return construct(script, inputs)
-    return wrapper
-
-def make_buildFn(builtClass):
-    def build(**kwargs):
-        built = builtClass(**kwargs)
-        return built
-    return buildWrap(build, builtClass)
-
 def get(hashID):
     gotbuilt = BUILTS[hashID]()
     if isinstance(gotbuilt, Built):
@@ -52,22 +29,6 @@ def get(hashID):
     else:
         del BUILTS[hashID]
         raise KeyError
-
-def make_hashID(script, inputs, return_hashVal = False):
-    hashVal = make_hash((script, inputs))
-    hashID = wordhash.get_random_phrase(hashVal)
-    if return_hashVal:
-        return hashID, hashVal
-    else:
-        return hashID
-
-def load(hashID, name, path = ''):
-    try:
-        loadedBuilt = get(hashID)
-    except KeyError:
-        loadedBuilt = _load(hashID, name, path)
-    loadedBuilt.anchor(name, path)
-    return loadedBuilt
 
 def _load(hashID, name, path = ''):
     framepath = os.path.join(os.path.abspath(path), name + '.frm')
@@ -109,52 +70,46 @@ def _load(hashID, name, path = ''):
         loadedBuilt = constructor(**inputs)
     return loadedBuilt
 
-def process_inputs(inputs):
-    badKeys = {
-        'args',
-        'kwargs',
-        'self',
-        '__class__'
-        }
-    for key in badKeys:
-        if key in inputs:
-            del inputs[key]
-    # for key, val in sorted(inputs.items()):
-    #     if type(val) is type:
-    #         if hasattr(val, 'script'):
-    #             inputs[key] = '_EVERESTTYPE_' + disk.ToOpen(val)()
-    #         else:
-    #             raise TypeError
+def load(hashID, name, path = ''):
+    try:
+        loadedBuilt = get(hashID)
+    except KeyError:
+        loadedBuilt = _load(hashID, name, path)
+    loadedBuilt.anchor(name, path)
+    return loadedBuilt
 
 def make_hash(obj):
     if isinstance(obj, Built):
-        hashVal = hash(obj)
-    elif type(obj) is str:
-        hashVal = hash(int(
-            hashlib.md5(obj.encode()).hexdigest(),
-            16
-            ))
-    elif type(obj) is list or type(obj) is tuple:
-        hashVal = hash(
-            tuple([
-                make_hash(subobj) \
-                    for subobj in obj
-                ])
-            )
+        hashVal = obj.instanceHash
     elif type(obj) is dict:
-        hashVal = hash(
-            tuple([
-                (make_hash(key), make_hash(val)) \
-                    for key, val in sorted(obj.items())
-                ])
-            )
+        hashVal = make_hash(sorted(dict.items()))
+    elif type(obj) is list or type(obj) is tuple:
+        hashList = [make_hash(subObj) for subObj in obj]
+        hashVal = make_hash(str(hashList))
     elif isinstance(obj, np.generic):
         hashVal = make_hash(np.asscalar(obj))
     else:
-        hashVal = make_hash(str(obj))
+        strObj = str(obj)
+        hexID = hashlib.md5(strObj.encode()).hexdigest()
+        hashVal = int(hexID, 16)
     return hashVal
 
-class Built:
+class MetaBuilt(type):
+    def __call__(cls, **inputs):
+        defaultInps = utilities.get_default_kwargs(cls)
+        inputs = {**defaultInps, **inputs}
+        cls._process_inputs(inputs)
+        if cls is Constructor:
+            cls.typeHash = 0
+            obj = cls.__new__(cls, inputs)
+        else:
+            constructor = Constructor(cls)
+            cls.constructor = constructor
+            cls.typeHash = constructor.instanceHash
+            obj = constructor(**inputs)
+        return obj
+
+class Built(metaclass = MetaBuilt):
 
     h5file = None
     h5filename = None
@@ -164,27 +119,33 @@ class Built:
     meta = dict()
     nbytes = 0
 
+    @staticmethod
+    def _process_inputs(inputs):
+        pass
+
+    def __new__(cls, inputs):
+        inputsHash = make_hash(inputs)
+        instanceHash = make_hash((cls.typeHash, inputsHash))
+        hashID = wordhash.get_random_phrase(instanceHash)
+        try:
+            obj = get(hashID)
+        except KeyError:
+            obj = super().__init__(cls)
+            obj.inputs = inputs
+            obj.inputsHash = inputsHash
+            obj.instanceHash = instanceHash
+            obj.hashID = hashID
+            obj.__init__(**inputs)
+        return obj
+
     def __init__(self):
 
-        process_inputs(self.inputs)
-
-        if type(self) is Constructor:
-            script = ''
-        else:
-            self.constructor = Constructor(type(self))
-            script = self.constructor.script
-
-        hashID, hashVal = make_hashID(
-            script,
-            self.inputs,
-            return_hashVal = True
-            )
-
         self.anchored = False
-        self.hashVal = hashVal
-        self.hashID = hashID
 
         self.organisation = {
+            'typeHash': self.typeHash,
+            'inputsHash': self.inputsHash,
+            'instanceHash': self.instanceHash,
             'hashID': self.hashID,
             'inputs': self.inputs,
             'meta': self.meta,
@@ -200,7 +161,7 @@ class Built:
         BUILTS[self.hashID] = self.ref
 
     def __hash__(self):
-        return self.hashVal
+        return self.instanceHash
 
     def _check_anchored(self):
         if not self.anchored:

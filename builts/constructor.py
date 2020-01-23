@@ -1,25 +1,29 @@
 from .. import disk
-
 from . import Built
 
 class Constructor(Built):
-    def __init__(self, arg):
+    @staticmethod
+    def _process_inputs(inputs):
+        arg = inputs['script']
         if type(arg) is str:
-            self.script = arg
+            script = arg
         elif type(arg) is type:
             scriptFilename = arg.__init__.__globals__['__file__']
-            self.script = disk.ToOpen(scriptFilename)()
+            script = disk.ToOpen(scriptFilename)()
         else:
             raise TypeError(arg)
-        self.inputs = {'script': self.script}
-        super().__init__()
-    def __call__(self, **inputs):
+        inputs['script'] = arg
+    def __init__(self, script = None):
         with disk.TempFile(
-                    self.script,
+                    arg,
                     extension = 'py',
                     mode = 'w'
                     ) \
                 as tempfile:
             imported = disk.local_import(tempfile)
-            constructed = imported.build(_direct = True, **inputs)
+        cls = imported.CLASS
+        super().__init__()
+    def __call__(self, **inputs):
+        cls.constructor = self
+        obj = cls.__new__(cls, inputs)
         return constructed
