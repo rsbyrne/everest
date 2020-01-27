@@ -3,6 +3,18 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
+from .exceptions import EverestException
+class MPIError(EverestException):
+    '''Something went wrong with an MPI thing.'''
+    pass
+
+def share(obj):
+    obj = comm.bcast(obj, root = 0)
+    allTypes = comm.allgather(type(obj))
+    if not len(set(allTypes)) == 1:
+        raise MPIError
+    return obj
+
 # def share_class(object):
 #     strClass = None
 #     if rank == 0:

@@ -10,26 +10,11 @@ from .. import utilities
 from .. import disk
 from .. import mpi
 from .. import wordhash
-from .. import exceptions
 
-BUILTS = dict()
-BUFFERSIZE = 2 ** 30
-
-def buffersize_exceeded():
-    nbytes = 0
-    for builtID, builtRef in sorted(BUILTS.items()):
-        built = builtRef()
-        if not built is None:
-            nbytes += built.nbytes
-    return nbytes > BUFFERSIZE
-
-def get(hashID):
-    try: gotbuilt = BUILTS[hashID]()
-    except KeyError: raise exceptions.BuiltNotCreatedYet
-    if isinstance(gotbuilt, Built): return gotbuilt
-    else:
-        del BUILTS[hashID]
-        raise exceptions.BuiltNotCreatedYet
+from ..exceptions import EverestException
+class BuiltNotCreatedYet(EverestException):
+    '''That hashID does not correspond to a previously created Built.'''
+    pass
 
 def _process_subBuilts(inputs, place):
     for key, val in inputs.items():
@@ -38,34 +23,25 @@ def _process_subBuilts(inputs, place):
                 properName = val[len('_REF_:'):]
                 inputs[key] = load(properName, *place[1:])
 
-def _load_typical(place):
-    try:
-        constructorID = disk.get_from_h5(*[*place, 'attrs', 'constructor'])
-    except exceptions.GetFromH5Exception:
-        raise exceptions.NotTypicalBuilt
-    constructor = load(constructorID, *place[1:])
+def _get_constructorID(hashID, name, path = '.'):
+    constructorID = None
+    if mpi.rank == 0:
+        with h5py.File(os.path.join(path, name) + '.frm') as h5file:
+            if 'constructor' in h5file[hashID].attrs.keys():
+                constructorID = h5file[h5file[hashID].attrs['constructor']].name
+    constructorID = mpi.share(constructorID)
+    return constructorID
+
+def load(hashID, name, path = '.'):
+    place = (hashID, name, path)
+    constructorID = _get_constructorID(*place)
+    if constructorID is None:
+        constructor = Constructor
+    else:
+        constructor = load(constructorID, name, path)
     inputs = disk.get_from_h5(*[*place, 'inputs', 'attrs'])
     _process_subBuilts(inputs, place)
     return constructor(**inputs)
-
-def _load_constructor(place):
-    script = disk.get_from_h5(*[*place, 'inputs', 'attrs', 'script'])
-    return Constructor(script = script)
-
-def _load(hashID, name, path = ''):
-    place = (hashID, name, path)
-    try:
-        return _load_typical(place)
-    except exceptions.NotTypicalBuilt:
-        return _load_constructor(place)
-
-def load(hashID, name, path = ''):
-    try:
-        loadedBuilt = get(hashID)
-    except exceptions.BuiltNotCreatedYet:
-        loadedBuilt = _load(hashID, name, path)
-    loadedBuilt.anchor(name, path)
-    return loadedBuilt
 
 def make_hash(obj):
     if isinstance(obj, Built):
@@ -83,6 +59,16 @@ def make_hash(obj):
         hashVal = int(hexID, 16)
     return hashVal
 
+BUFFERSIZE = 2 ** 30
+
+def buffersize_exceeded():
+    nbytes = 0
+    for builtID, builtRef in sorted(Built._prebuilts.items()):
+        built = builtRef()
+        if not built is None:
+            nbytes += built.nbytes
+    return nbytes > BUFFERSIZE
+
 class MetaBuilt(type):
     def __call__(cls, **inputs):
         defaultInps = utilities.get_default_kwargs(cls.__init__)
@@ -97,14 +83,21 @@ class MetaBuilt(type):
 
 class Built(metaclass = MetaBuilt):
 
-    # h5file = None
-    # h5filename = None
-    #
-    # species = genus = 'anon'
-    # inputs = dict()
-    # meta = dict()
-    # organisation = dict()
-    # nbytes = 0
+    _prebuilts = dict()
+
+    @classmethod
+    def _get_prebuilt(cls, hashID):
+        if not type(hashID) is str:
+            raise TypeError(hashID, "is not type 'str'")
+        try:
+            gotbuilt = cls._prebuilts[hashID]()
+        except KeyError:
+            raise BuiltNotCreatedYet
+        if isinstance(gotbuilt, Built):
+            return gotbuilt
+        else:
+            del cls._prebuilts[hashID]
+            raise BuiltNotCreatedYet
 
     @staticmethod
     def _process_inputs(inputs):
@@ -116,8 +109,8 @@ class Built(metaclass = MetaBuilt):
         instanceHash = make_hash((cls.typeHash, inputsHash))
         hashID = wordhash.get_random_phrase(instanceHash)
         try:
-            obj = get(hashID)
-        except exceptions.BuiltNotCreatedYet:
+            obj = cls._get_prebuilt(hashID)
+        except BuiltNotCreatedYet:
             obj = super().__new__(cls)
             obj.inputs = inputs
             obj.inputsHash = inputsHash
@@ -148,7 +141,7 @@ class Built(metaclass = MetaBuilt):
 
     def _add_weakref(self):
         self.ref = weakref.ref(self)
-        BUILTS[self.hashID] = self.ref
+        self._prebuilts[self.hashID] = self.ref
 
     def __hash__(self):
         return self.instanceHash

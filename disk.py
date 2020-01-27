@@ -19,6 +19,11 @@ from . import utilities
 message = utilities.message
 from . import mpi
 
+from .exceptions import EverestException
+class H5Error(EverestException):
+    '''Something went wrong with retrieving from h5 file.'''
+    pass
+
 h5File = h5py.File
 
 PYTEMP = '/home/jovyan/pytemp'
@@ -50,7 +55,7 @@ def tempname(length = 16, extension = None):
     if mpi.rank == 0:
         letters = string.ascii_lowercase
         name = ''.join(random.choice(letters) for i in range(length))
-    name = mpi.comm.bcast(name, root = 0)
+    name = mpi.share(name)
     if not extension is None:
         name += '.' + extension
     name = os.path.join(PYTEMP, name)
@@ -75,7 +80,7 @@ def h5filewrap(func):
             with h5py.File(self.h5filename) as h5file:
                 self.h5file = h5file
                 outputs = func(*args, **kwargs)
-        outputs = mpi.comm.bcast(outputs)
+        outputs = mpi.share(outputs)
         return outputs
     return wrapper
 
@@ -87,7 +92,7 @@ class ToOpen:
         if mpi.rank == 0:
             with open(self.filepath) as file:
                 filedata = file.read()
-        filedata = mpi.comm.bcast(filedata, root = 0)
+        filedata = mpi.share(filedata)
         return filedata
 
 class TempFile:
@@ -123,7 +128,7 @@ def _process_h5obj(h5obj, h5file):
     else:
         return np.array(h5obj).item()
 
-def _get_from_h5(hashID, frameName, filePath, *groupNames):
+def get_from_h5(hashID, frameName, filePath, *groupNames):
     h5obj = None
     framepath = os.path.join(filePath, frameName) + '.frm'
     if mpi.rank == 0:
@@ -137,13 +142,8 @@ def _get_from_h5(hashID, frameName, filePath, *groupNames):
                     if type(h5obj) is h5py.Reference:
                         h5obj = h5file[h5obj]
             h5obj = _process_h5obj(h5obj, h5file)
-    h5obj = mpi.comm.bcast(h5obj, root = 0)
+    h5obj = mpi.share(h5obj)
     return h5obj
-def get_from_h5(*args, **kwargs):
-    try:
-        return _get_from_h5(*args, **kwargs)
-    except:
-        raise exceptions.GetFromH5Exception
 
 def local_import(filepath):
     modname = os.path.basename(filepath)
