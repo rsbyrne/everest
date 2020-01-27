@@ -30,45 +30,30 @@ def get(hashID):
         del BUILTS[hashID]
         raise KeyError
 
+def _load_constructor(place):
+    script = disk.get_from_h5(*[*place, 'inputs', 'attrs', 'script'])
+    return Constructor(script = script)
+
+def _process_subBuilts(inputs, place):
+    for key, val in inputs.items():
+        if type(val) is str:
+            if val[:len('_REF_:')] == '_REF_:':
+                properName = val[len('_REF_:'):]
+                inputs[key] = load(properName, *place[1:])
+
+def _load_typical(place):
+    constructorID = disk.get_from_h5(*[*place, 'attrs', 'constructor'])
+    constructor = load(constructorID, *place[1:])
+    inputs = disk.get_from_h5(*[*place, 'inputs', 'attrs'])
+    _process_subBuilts(inputs, place)
+    return constructor(**inputs)
+
 def _load(hashID, name, path = ''):
-    framepath = os.path.join(os.path.abspath(path), name + '.frm')
-    is_constructor = False
-    if mpi.rank == 0:
-        with h5py.File(framepath, mode = 'r') as h5file:
-            h5group = h5file[hashID]
-            if not 'constructor' in h5group.attrs:
-                is_constructor = True
-    is_constructor = mpi.comm.bcast(is_constructor, root = 0)
-    if is_constructor:
-        script = None
-        if mpi.rank == 0:
-            with h5py.File(framepath, mode = 'r') as h5file:
-                h5group = h5file[hashID]
-                script = h5group['inputs'].attrs['script']
-        script = mpi.comm.bcast(script, root = 0)
-        loadedBuilt = Constructor(script = script)
-    else:
-        constructorID = None
-        inputs = {}
-        subBuiltIDs = {}
-        if mpi.rank == 0:
-            with h5py.File(framepath, mode = 'r') as h5file:
-                h5group = h5file[hashID]
-                constructorID = h5file[h5group.attrs['constructor']].name
-                inputsGroup = h5group['inputs']
-                for key, val in inputsGroup.attrs.items():
-                    if type(val) is h5py.Reference:
-                        subBuiltIDs[key] = h5file[val].name
-                    else:
-                        inputs[key] = np.array(val).item()
-        constructorID = mpi.comm.bcast(constructorID, root = 0)
-        inputs = mpi.comm.bcast(inputs, root = 0)
-        subBuiltIDs = mpi.comm.bcast(subBuiltIDs, root = 0)
-        for key, val in sorted(subBuiltIDs.items()):
-            inputs[key] = load(subBuiltIDs[key], name, path)
-        constructor = load(constructorID, name, path)
-        loadedBuilt = constructor(**inputs)
-    return loadedBuilt
+    place = (hashID, name, path)
+    try:
+        return _load_typical(place)
+    except KeyError:
+        return _load_constructor(place)
 
 def load(hashID, name, path = ''):
     try:
@@ -98,7 +83,6 @@ class MetaBuilt(type):
     def __call__(cls, **inputs):
         defaultInps = utilities.get_default_kwargs(cls.__init__)
         inputs = {**defaultInps, **inputs}
-        cls._process_inputs(inputs)
         if cls is Constructor:
             cls.typeHash = 0
             obj = cls.__new__(cls, inputs)
@@ -122,6 +106,7 @@ class Built(metaclass = MetaBuilt):
         pass
 
     def __new__(cls, inputs):
+        cls._process_inputs(inputs)
         inputsHash = make_hash(inputs)
         instanceHash = make_hash((cls.typeHash, inputsHash))
         hashID = wordhash.get_random_phrase(instanceHash)

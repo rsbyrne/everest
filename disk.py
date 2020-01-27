@@ -8,6 +8,7 @@ import traceback
 import random
 import subprocess
 import h5py
+import numpy as np
 import string
 import time
 
@@ -106,18 +107,52 @@ class TempFile:
         mpi.comm.barrier()
         remove_file(self.path)
 
+def _process_h5obj(h5obj, h5file):
+    if type(h5obj) is h5py.Group:
+        return h5obj.name
+    elif type(h5obj) is h5py.Dataset:
+        return h5obj[...]
+    elif type(h5obj) is h5py.AttributeManager:
+        inDict, outDict = h5obj.items(), dict()
+        for key, val in sorted(inDict):
+            outDict[key] = _process_h5obj(val, h5file)
+        return outDict
+    elif type(h5obj) is h5py.Reference:
+        return '_REF_:' + h5file[h5obj].name
+    else:
+        return np.array(h5obj).item()
+
+def get_from_h5(hashID, frameName, filePath, *groupNames, loadRefs = True):
+    h5obj = None
+    framepath = os.path.join(filePath, frameName) + '.frm'
+    if mpi.rank == 0:
+        with h5py.File(framepath, mode = 'r') as h5file:
+            h5obj = h5file[hashID]
+            for name in groupNames:
+                if name == 'attrs':
+                    h5obj = h5obj.attrs
+                else:
+                    h5obj = h5obj[name]
+                    if type(h5obj) is h5py.Reference:
+                        h5obj = h5file[h5obj]
+            h5obj = _process_h5obj(h5obj, h5file)
+    h5obj = mpi.comm.bcast(h5obj, root = 0)
+    return h5obj
+
 def local_import(filepath):
-
     modname = os.path.basename(filepath)
-
     spec = importlib.util.spec_from_file_location(
         modname,
         filepath,
         )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-
     return module
+
+def local_import_from_h5(hashID, frameName, filePath, *groupNames):
+    script = get_from_h5(hashID, frameName, filePath, groupNames)
+    with disk.TempFile(script, extension = 'py', mode = 'w') as tempfile:
+        imported = disk.local_import(tempfile)
 
 # def local_import(script_bytes):
 #     with TempFile(script_bytes, extension = 'py') as tempfile:
