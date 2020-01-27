@@ -16,18 +16,10 @@ def message(*args, **kwargs):
 
 def share(obj):
     comm.barrier()
-    if rank == 0:
-        print(10 * '-')
-    comm.barrier()
-    print(rank, " rank is sharing type ", type(obj))
     obj = comm.bcast(obj, root = 0)
     allTypes = comm.allgather(type(obj))
     if not len(set(allTypes)) == 1:
         raise MPIError
-    print(rank, " rank shared type ", type(obj))
-    comm.barrier()
-    if rank == 0:
-        print(10 * '-')
     comm.barrier()
     return obj
 

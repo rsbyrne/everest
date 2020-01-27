@@ -124,7 +124,7 @@ def _process_h5obj(h5obj, h5file):
             outDict[key] = _process_h5obj(val, h5file)
         return outDict
     elif type(h5obj) is h5py.Reference:
-        return '_REF_:' + h5file[h5obj].name
+        return '_REF_/' + h5file[h5obj].name
     else:
         return np.array(h5obj).item()
 
