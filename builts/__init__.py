@@ -10,6 +10,7 @@ from .. import utilities
 from .. import disk
 from .. import mpi
 from .. import wordhash
+from .. import exceptions
 
 BUILTS = dict()
 BUFFERSIZE = 2 ** 30
@@ -23,16 +24,12 @@ def buffersize_exceeded():
     return nbytes > BUFFERSIZE
 
 def get(hashID):
-    gotbuilt = BUILTS[hashID]()
-    if isinstance(gotbuilt, Built):
-        return gotbuilt
+    try: gotbuilt = BUILTS[hashID]()
+    except KeyError: raise exceptions.BuiltNotCreatedYet
+    if isinstance(gotbuilt, Built): return gotbuilt
     else:
         del BUILTS[hashID]
-        raise KeyError
-
-def _load_constructor(place):
-    script = disk.get_from_h5(*[*place, 'inputs', 'attrs', 'script'])
-    return Constructor(script = script)
+        raise exceptions.BuiltNotCreatedYet
 
 def _process_subBuilts(inputs, place):
     for key, val in inputs.items():
@@ -42,23 +39,30 @@ def _process_subBuilts(inputs, place):
                 inputs[key] = load(properName, *place[1:])
 
 def _load_typical(place):
-    constructorID = disk.get_from_h5(*[*place, 'attrs', 'constructor'])
+    try:
+        constructorID = disk.get_from_h5(*[*place, 'attrs', 'constructor'])
+    except exceptions.GetFromH5Exception:
+        raise exceptions.NotTypicalBuilt
     constructor = load(constructorID, *place[1:])
     inputs = disk.get_from_h5(*[*place, 'inputs', 'attrs'])
     _process_subBuilts(inputs, place)
     return constructor(**inputs)
 
+def _load_constructor(place):
+    script = disk.get_from_h5(*[*place, 'inputs', 'attrs', 'script'])
+    return Constructor(script = script)
+
 def _load(hashID, name, path = ''):
     place = (hashID, name, path)
     try:
         return _load_typical(place)
-    except KeyError:
+    except exceptions.NotTypicalBuilt:
         return _load_constructor(place)
 
 def load(hashID, name, path = ''):
     try:
         loadedBuilt = get(hashID)
-    except KeyError:
+    except exceptions.BuiltNotCreatedYet:
         loadedBuilt = _load(hashID, name, path)
     loadedBuilt.anchor(name, path)
     return loadedBuilt
@@ -93,13 +97,14 @@ class MetaBuilt(type):
 
 class Built(metaclass = MetaBuilt):
 
-    h5file = None
-    h5filename = None
-
-    species = genus = 'anon'
-    inputs = dict()
-    meta = dict()
-    nbytes = 0
+    # h5file = None
+    # h5filename = None
+    #
+    # species = genus = 'anon'
+    # inputs = dict()
+    # meta = dict()
+    # organisation = dict()
+    # nbytes = 0
 
     @staticmethod
     def _process_inputs(inputs):
@@ -112,7 +117,7 @@ class Built(metaclass = MetaBuilt):
         hashID = wordhash.get_random_phrase(instanceHash)
         try:
             obj = get(hashID)
-        except KeyError:
+        except exceptions.BuiltNotCreatedYet:
             obj = super().__new__(cls)
             obj.inputs = inputs
             obj.inputsHash = inputsHash
@@ -121,20 +126,22 @@ class Built(metaclass = MetaBuilt):
             obj.__init__(**inputs)
         return obj
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+
+        self.nbytes = 0
 
         self.anchored = False
 
-        self.organisation = {
+        self.organisation = kwargs
+        self.organisation.update({
             'typeHash': str(self.typeHash),
             'inputsHash': str(self.inputsHash),
             'instanceHash': str(self.instanceHash),
             'hashID': self.hashID,
             'inputs': self.inputs,
-            'meta': self.meta,
             'outs': {}
-            }
-        if not type(self) is Constructor:
+            })
+        if hasattr(self, 'constructor'):
             self.organisation['constructor'] = self.constructor
 
         self._add_weakref()

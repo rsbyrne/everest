@@ -4,7 +4,7 @@ from .producer import Producer
 
 class Iterator(Producer):
 
-    def __init__(self, initialiseFn, iterateFn, outFn, outkeys, loadFn):
+    def __init__(self, initialiseFn, iterateFn, outFn, outkeys, loadFn, **kwargs):
         self.initialise = lambda: self._initialise_wrap(
             initialiseFn,
             )
@@ -17,7 +17,7 @@ class Iterator(Producer):
             count
             )
         self.reset = self.initialise
-        super().__init__(outFn, outkeys)
+        super().__init__(outFn, outkeys, **kwargs)
         self.initialise()
 
     def _initialise_wrap(self, initialise):

@@ -15,18 +15,12 @@ class Constructor(Built):
         else:
             raise TypeError(script, type(script))
         inputs['script'] = script
-    def __init__(self, script = None):
-        with disk.TempFile(
-                    script,
-                    extension = 'py',
-                    mode = 'w'
-                    ) \
-                as tempfile:
-            imported = disk.local_import(tempfile)
+    def __init__(self, script = None, **kwargs):
+        imported = disk.local_import_from_str(script)
         self.cls = imported.CLASS
         self.cls.constructor = self
         self.cls.typeHash = self.instanceHash
-        super().__init__()
+        super().__init__(**kwargs)
     def __call__(self, **inputs):
         obj = self.cls.__new__(self.cls, inputs)
         return obj

@@ -12,7 +12,7 @@ class Producer(Counter):
     autosave = True
     saveinterval = 3600. # seconds
 
-    def __init__(self, outFn, outkeys):
+    def __init__(self, outFn, outkeys, **kwargs):
             out = self.out
             self.out = lambda: self._out_wrap(
                 outFn
@@ -24,7 +24,7 @@ class Producer(Counter):
             self.counts_disk = []
             self.counts_captured = []
             self.consignments = set()
-            super().__init__()
+            super().__init__(**kwargs)
 
     def set_autosave(self, val: bool):
         self.autosave = val

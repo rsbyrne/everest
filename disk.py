@@ -14,6 +14,7 @@ import time
 
 from functools import partial
 
+from . import exceptions
 from . import utilities
 message = utilities.message
 from . import mpi
@@ -100,7 +101,7 @@ class TempFile:
 
     def __enter__(self):
         write_file(self.path, self.content, self.mode)
-        # time.sleep(0.1) # needed to make Windows work!!!
+        time.sleep(0.1) # needed to make Windows work!!!
         return self.path
 
     def __exit__(self, *args):
@@ -122,7 +123,7 @@ def _process_h5obj(h5obj, h5file):
     else:
         return np.array(h5obj).item()
 
-def get_from_h5(hashID, frameName, filePath, *groupNames, loadRefs = True):
+def _get_from_h5(hashID, frameName, filePath, *groupNames):
     h5obj = None
     framepath = os.path.join(filePath, frameName) + '.frm'
     if mpi.rank == 0:
@@ -138,6 +139,11 @@ def get_from_h5(hashID, frameName, filePath, *groupNames, loadRefs = True):
             h5obj = _process_h5obj(h5obj, h5file)
     h5obj = mpi.comm.bcast(h5obj, root = 0)
     return h5obj
+def get_from_h5(*args, **kwargs):
+    try:
+        return _get_from_h5(*args, **kwargs)
+    except:
+        raise exceptions.GetFromH5Exception
 
 def local_import(filepath):
     modname = os.path.basename(filepath)
@@ -149,10 +155,21 @@ def local_import(filepath):
     spec.loader.exec_module(module)
     return module
 
-def local_import_from_h5(hashID, frameName, filePath, *groupNames):
+def local_import_from_str(scriptString):
+    with TempFile(
+                scriptString,
+                extension = 'py',
+                mode = 'w'
+                ) \
+            as tempfile:
+        imported = local_import(tempfile)
+    return imported
+
+def local_import_from_h5(hashID, frameName, filePath, *groupNames, doFn = None):
     script = get_from_h5(hashID, frameName, filePath, groupNames)
     with disk.TempFile(script, extension = 'py', mode = 'w') as tempfile:
         imported = disk.local_import(tempfile)
+    return imported
 
 # def local_import(script_bytes):
 #     with TempFile(script_bytes, extension = 'py') as tempfile:
