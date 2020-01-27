@@ -8,11 +8,27 @@ class MPIError(EverestException):
     '''Something went wrong with an MPI thing.'''
     pass
 
+def message(*args, **kwargs):
+    comm.barrier()
+    if rank == 0:
+        print(*args, **kwargs)
+    comm.barrier()
+
 def share(obj):
+    comm.barrier()
+    if rank == 0:
+        print(10 * '-')
+    comm.barrier()
+    print(rank, " rank is sharing type ", type(obj))
     obj = comm.bcast(obj, root = 0)
     allTypes = comm.allgather(type(obj))
     if not len(set(allTypes)) == 1:
         raise MPIError
+    print(rank, " rank shared type ", type(obj))
+    comm.barrier()
+    if rank == 0:
+        print(10 * '-')
+    comm.barrier()
     return obj
 
 # def share_class(object):

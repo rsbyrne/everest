@@ -129,6 +129,7 @@ def _process_h5obj(h5obj, h5file):
         return np.array(h5obj).item()
 
 def get_from_h5(hashID, frameName, filePath, *groupNames):
+    mpi.message("Retrieving ", *groupNames)
     h5obj = None
     framepath = os.path.join(filePath, frameName) + '.frm'
     if mpi.rank == 0:
@@ -143,6 +144,7 @@ def get_from_h5(hashID, frameName, filePath, *groupNames):
                         h5obj = h5file[h5obj]
             h5obj = _process_h5obj(h5obj, h5file)
     h5obj = mpi.share(h5obj)
+    mpi.message("Successfully retrieved.")
     return h5obj
 
 def local_import(filepath):
