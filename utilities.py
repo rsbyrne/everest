@@ -4,10 +4,7 @@ import numpy as np
 
 from . import mpi
 
-def message(*args):
-    for arg in args:
-        if mpi.rank == 0:
-            print(arg)
+message = mpi.message
 
 def _obtain_dtype(object):
     if type(object) == np.ndarray:

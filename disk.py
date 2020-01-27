@@ -111,7 +111,7 @@ class TempFile:
 
     def __exit__(self, *args):
         mpi.comm.barrier()
-        remove_file(self.path)
+        # remove_file(self.path)
 
 def _process_h5obj(h5obj, h5file):
     if type(h5obj) is h5py.Group:
@@ -129,7 +129,6 @@ def _process_h5obj(h5obj, h5file):
         return np.array(h5obj).item()
 
 def get_from_h5(hashID, frameName, filePath, *groupNames):
-    mpi.message("Retrieving ", *groupNames)
     h5obj = None
     framepath = os.path.join(filePath, frameName) + '.frm'
     if mpi.rank == 0:
@@ -144,7 +143,6 @@ def get_from_h5(hashID, frameName, filePath, *groupNames):
                         h5obj = h5file[h5obj]
             h5obj = _process_h5obj(h5obj, h5file)
     h5obj = mpi.share(h5obj)
-    mpi.message("Successfully retrieved.")
     return h5obj
 
 def local_import(filepath):
@@ -167,10 +165,10 @@ def local_import_from_str(scriptString):
         imported = local_import(tempfile)
     return imported
 
-def local_import_from_h5(hashID, frameName, filePath, *groupNames, doFn = None):
-    script = get_from_h5(hashID, frameName, filePath, groupNames)
-    with disk.TempFile(script, extension = 'py', mode = 'w') as tempfile:
-        imported = disk.local_import(tempfile)
+def local_import_from_h5(hashID, frameName, filePath, *groupNames):
+    script = get_from_h5(hashID, frameName, filePath, *groupNames)
+    with TempFile(script, extension = 'py', mode = 'w') as tempfile:
+        imported = local_import(tempfile)
     return imported
 
 # def local_import(script_bytes):

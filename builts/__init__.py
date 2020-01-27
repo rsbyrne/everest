@@ -17,13 +17,11 @@ class BuiltNotCreatedYet(EverestException):
     pass
 
 def _process_subBuilts(inputs, place):
-    mpi.message("Processing subbuilts...")
     for key, val in inputs.items():
         if type(val) is str:
             if val[:len('_REF_:')] == '_REF_:':
                 properName = val[len('_REF_:'):]
                 inputs[key] = load(properName, *place[1:])
-    mpi.message("Subbuilts processed.")
 
 def _get_constructorID(hashID, name, path = '.'):
     constructorID = None
@@ -35,18 +33,29 @@ def _get_constructorID(hashID, name, path = '.'):
     return constructorID
 
 def load(hashID, name, path = '.'):
-    mpi.message("Loading", hashID)
     place = (hashID, name, path)
-    constructorID = _get_constructorID(*place)
-    if constructorID is None:
-        constructor = Constructor
-    else:
-        constructor = load(constructorID, name, path)
     inputs = disk.get_from_h5(*[*place, 'inputs', 'attrs'])
     _process_subBuilts(inputs, place)
-    loadedBuilt = constructor(**inputs)
-    mpi.message("Loaded", loadedBuilt.hashID)
-    return loadedBuilt
+    script = disk.get_from_h5(*[*place, 'attrs', 'script'])
+    with disk.TempFile(script, extension = 'py', mode = 'w') as tempfile:
+        imported = disk.local_import(tempfile)
+        cls = imported.CLASS
+        print(cls)
+        print(inputs)
+        obj = cls(**inputs)
+    return obj
+
+# def load(hashID, name, path = '.'):
+#     place = (hashID, name, path)
+#     constructorID = _get_constructorID(*place)
+#     if constructorID is None:
+#         script = disk.get_from_h5(*[*place, 'inputs', 'attrs', 'script'])
+#         return Constructor(script = script)
+#     else:
+#         constructor = load(constructorID, name, path)
+#         inputs = disk.get_from_h5(*[*place, 'inputs', 'attrs'])
+#         _process_subBuilts(inputs, place)
+#         return constructor.cls(**inputs)
 
 def make_hash(obj):
     if isinstance(obj, Built):
@@ -74,21 +83,42 @@ def buffersize_exceeded():
             nbytes += built.nbytes
     return nbytes > BUFFERSIZE
 
+# class MetaBuilt(type):
+#     def __call__(cls, **inputs):
+#         defaultInps = utilities.get_default_kwargs(cls.__init__)
+#         inputs = {**defaultInps, **inputs}
+#         if cls is Constructor:
+#             cls.typeHash = 0
+#             obj = cls.__new__(cls, inputs)
+#             obj.cls.constructor = obj
+#             obj.cls.typeHash = obj.instanceHash
+#         else:
+#             if not hasattr(cls, 'constructor'):
+#                 scriptFilename = cls.__init__.__globals__['__file__']
+#                 script = disk.ToOpen(scriptFilename)()
+#                 cls.constructor = Constructor(script = script)
+#                 cls.typeHash = cls.constructor.instanceHash
+#             obj = cls.__new__(cls, inputs)
+#         return obj
+
 class MetaBuilt(type):
     def __call__(cls, **inputs):
         defaultInps = utilities.get_default_kwargs(cls.__init__)
         inputs = {**defaultInps, **inputs}
-        if cls is Constructor:
-            mpi.message("Calling to instantiate new constructor...")
-            cls.typeHash = 0
-            obj = cls.__new__(cls, inputs)
-            mpi.message("New constructor instantiated.")
-        else:
-            mpi.message("Calling to create new built from constructor...")
-            constructor = Constructor(script = cls)
-            obj = constructor(**inputs)
-            mpi.message("New built constructed from constructor.")
-        return obj
+        return cls.__new__(cls, inputs)
+    # def __call__(cls, **inputs):
+    #     defaultInps = utilities.get_default_kwargs(cls.__init__)
+    #     inputs = {**defaultInps, **inputs}
+    #     if cls is Constructor:
+    #         assert len(inputs) == 1
+    #         assert 'script' in inputs
+    #         cls.typeHash = 0
+    #         return cls.__new__(cls, inputs)
+    #     else:
+    #         constructor = Constructor(script = cls)
+    #         constructor.cls.constructor = constructor # circular reference!
+    #         constructor.cls.typeHash = constructor.instanceHash
+    #         return constructor.cls.__new__(constructor.cls, inputs)
 
 class Built(metaclass = MetaBuilt):
 
@@ -96,7 +126,6 @@ class Built(metaclass = MetaBuilt):
 
     @classmethod
     def _get_prebuilt(cls, hashID):
-        mpi.message("Getting prebuilt...")
         if not type(hashID) is str:
             raise TypeError(hashID, "is not type 'str'")
         try:
@@ -104,11 +133,9 @@ class Built(metaclass = MetaBuilt):
         except KeyError:
             raise BuiltNotCreatedYet
         if isinstance(gotbuilt, Built):
-            mpi.message("Prebuilt got.")
             return gotbuilt
         else:
             del cls._prebuilts[hashID]
-            mpi.message("Failed to get prebuilt.")
             raise BuiltNotCreatedYet
 
     @staticmethod
@@ -116,32 +143,24 @@ class Built(metaclass = MetaBuilt):
         pass
 
     def __new__(cls, inputs):
-        mpi.message("Creating new Built instance...")
+        cls.script = disk.ToOpen(cls.__init__.__globals__['__file__'])()
+        cls.typeHash = make_hash(cls.script)
         cls._process_inputs(inputs)
         inputsHash = make_hash(inputs)
         instanceHash = make_hash((cls.typeHash, inputsHash))
         hashID = wordhash.get_random_phrase(instanceHash)
         try:
-            mpi.message("Trying to get prebuilt...")
             obj = cls._get_prebuilt(hashID)
-            mpi.message("Successfully got prebuilt.")
         except BuiltNotCreatedYet:
-            mpi.message("Making new Built instance...")
             obj = super().__new__(cls)
             obj.inputs = inputs
             obj.inputsHash = inputsHash
             obj.instanceHash = instanceHash
             obj.hashID = hashID
-            mpi.message("Made new Built instance.")
-            mpi.message("Initialising...")
             obj.__init__(**inputs)
-            mpi.message("Initialised.")
-        mpi.message("Created new Built instance", hashID, ".")
         return obj
 
     def __init__(self, **kwargs):
-
-        mpi.message("Initialising Built of type", type(self), '...')
 
         self.nbytes = 0
 
@@ -156,12 +175,12 @@ class Built(metaclass = MetaBuilt):
             'inputs': self.inputs,
             'outs': {}
             })
-        if hasattr(self, 'constructor'):
-            self.organisation['constructor'] = self.constructor
+        # if hasattr(self, 'constructor'):
+        #     self.organisation['constructor'] = self.constructor
+        if hasattr(self, 'script'):
+            self.organisation['script'] = self.script
 
         self._add_weakref()
-
-        mpi.message("Initialised Built of type ", type(self), 'hashID ', self.hashID, '.')
 
     def _add_weakref(self):
         self.ref = weakref.ref(self)
