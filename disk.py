@@ -113,7 +113,7 @@ class TempFile:
         mpi.comm.barrier()
         # remove_file(self.path)
 
-def _process_h5obj(h5obj, h5file):
+def _process_h5obj(h5obj, h5file, framePath):
     if type(h5obj) is h5py.Group:
         return h5obj.name
     elif type(h5obj) is h5py.Dataset:
@@ -121,18 +121,18 @@ def _process_h5obj(h5obj, h5file):
     elif type(h5obj) is h5py.AttributeManager:
         inDict, outDict = h5obj.items(), dict()
         for key, val in sorted(inDict):
-            outDict[key] = _process_h5obj(val, h5file)
+            outDict[key] = _process_h5obj(val, h5file, framePath)
         return outDict
     elif type(h5obj) is h5py.Reference:
-        return '_REF_/' + h5file[h5obj].name
+        return '_path_' + os.path.join(framePath, h5file[h5obj].name)
     else:
         return np.array(h5obj).item()
 
 def get_from_h5(hashID, frameName, filePath, *groupNames):
     h5obj = None
-    framepath = os.path.join(filePath, frameName) + '.frm'
+    framePath = os.path.join(os.path.abspath(filePath), frameName) + '.frm'
     if mpi.rank == 0:
-        with h5py.File(framepath, mode = 'r') as h5file:
+        with h5py.File(framePath, mode = 'r') as h5file:
             h5obj = h5file[hashID]
             for name in groupNames:
                 if name == 'attrs':
@@ -141,7 +141,7 @@ def get_from_h5(hashID, frameName, filePath, *groupNames):
                     h5obj = h5obj[name]
                     if type(h5obj) is h5py.Reference:
                         h5obj = h5file[h5obj]
-            h5obj = _process_h5obj(h5obj, h5file)
+            h5obj = _process_h5obj(h5obj, h5file, framePath)
     h5obj = mpi.share(h5obj)
     return h5obj
 

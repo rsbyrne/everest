@@ -12,17 +12,15 @@ from .. import mpi
 from .. import wordhash
 
 from ..exceptions import EverestException
-class BuiltNotCreatedYet(EverestException):
+class NoPreBuiltError(EverestException):
     '''That hashID does not correspond to a previously created Built.'''
     pass
 
 def load(hashID, name, path = '.'):
-    place = (hashID, name, path)
-    inputs = disk.get_from_h5(*[*place, 'inputs', 'attrs'])
-    _process_subBuilts(inputs, place)
-    script = disk.get_from_h5(*[*place, 'attrs', 'script'])
+    inputs = disk.get_from_h5(hashID, name, path, 'inputs', 'attrs')
+    script = disk.get_from_h5(hashID, name, path, 'attrs', 'script')
     imported = disk.local_import_from_str(script)
-    obj = imported.build(_script = script, **inputs)
+    obj = imported.build(**inputs)
     return obj
 
 def make_hash(obj):
@@ -41,8 +39,21 @@ def make_hash(obj):
         hashVal = int(hexID, 16)
     return hashVal
 
-BUFFERSIZE = 2 ** 30
+_PREBUILTS = dict()
+def _get_prebuilt(hashID):
+    if not type(hashID) is str:
+        raise TypeError(hashID, "is not type 'str'")
+    try:
+        gotbuilt = _PREBUILTS[hashID]()
+    except KeyError:
+        raise NoPreBuiltError
+    if isinstance(gotbuilt, Built):
+        return gotbuilt
+    else:
+        del _PREBUILTS[hashID]
+        raise NoPreBuiltError
 
+BUFFERSIZE = 2 ** 30
 def buffersize_exceeded():
     nbytes = 0
     for builtID, builtRef in sorted(_PREBUILTS.items()):
@@ -51,43 +62,36 @@ def buffersize_exceeded():
             nbytes += built.nbytes
     return nbytes > BUFFERSIZE
 
-_PREBUILTS = dict()
-def _get_prebuilt(hashID):
-    if not type(hashID) is str:
-        raise TypeError(hashID, "is not type 'str'")
-    try:
-        gotbuilt = _PREBUILTS[hashID]()
-    except KeyError:
-        raise BuiltNotCreatedYet
-    if isinstance(gotbuilt, Built):
-        return gotbuilt
-    else:
-        del _PREBUILTS[hashID]
-        raise BuiltNotCreatedYet
+class Meta(type):
+    def __new__(cls, name, bases, dic):
+        outCls = super().__new__(cls, name, bases, dic)
+        outCls.script = disk.ToOpen(outCls.__init__.__globals__['__file__'])()
+        return outCls
 
-def _process_subBuilts(inputs, place):
-    for key, val in inputs.items():
-        if type(val) is str:
-            if val[:len('_REF_/')] == '_REF_/':
-                hashID = val[len('_REF_/'):]
-                try:
-                    obj = _get_prebuilt(hashID)
-                except BuiltNotCreatedYet:
-                    obj = load(hashID, *place[1:])
-                inputs[key] = obj
-
-class Built:
+class Built(metaclass = Meta):
 
     @staticmethod
     def _process_inputs(inputs):
-        pass
+        for key, val in inputs.items():
+            if type(val) is str:
+                if val[:len('_path_')] == '_path_':
+                    fullPath = val[len('_path_'):]
+                    hashID = os.path.basename(fullPath)
+                    try:
+                        obj = _get_prebuilt(hashID)
+                    except NoPreBuiltError:
+                        framePath = os.path.dirname(fullPath)
+                        splitPath = framePath.split('/')
+                        frameName = os.path.splitext(splitPath[-1])[0]
+                        outputPath = os.path.join(splitPath[:-1])
+                        obj = load(hashID, frameName, outputPath)
+                    inputs[key] = obj
 
     @classmethod
-    def build(cls, _script = None, **kwargs):
-        if _script is None:
-            cls.script = disk.ToOpen(cls.__init__.__globals__['__file__'])()
-        else:
-            cls.script = _script
+    def build(cls, **kwargs):
+        return cls.__new__(cls, **kwargs)
+
+    def __new__(cls, **kwargs):
         cls.typeHash = make_hash(cls.script)
         defaultInps = utilities.get_default_kwargs(cls.__init__)
         inputs = {**defaultInps, **kwargs}
@@ -97,8 +101,8 @@ class Built:
         hashID = wordhash.get_random_phrase(instanceHash)
         try:
             obj = _get_prebuilt(hashID)
-        except BuiltNotCreatedYet:
-            obj = cls.__new__(cls)
+        except NoPreBuiltError:
+            obj = super().__new__(cls)
             obj.inputs = inputs
             obj.inputsHash = inputsHash
             obj.instanceHash = instanceHash
@@ -121,8 +125,6 @@ class Built:
             'inputs': self.inputs,
             'outs': {}
             })
-        # if hasattr(self, 'constructor'):
-        #     self.organisation['constructor'] = self.constructor
         if hasattr(self, 'script'):
             self.organisation['script'] = self.script
 
@@ -241,5 +243,3 @@ class Built:
 
     def file(self):
         return h5py.File(self.h5filename)
-
-# from .constructor import Constructor
