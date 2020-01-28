@@ -91,7 +91,13 @@ class Built(metaclass = Meta):
     def build(cls, **kwargs):
         return cls.__new__(cls, **kwargs)
 
-    def __new__(cls, **kwargs):
+    @staticmethod
+    def _add_weakref(self):
+        if not self.hashID in _PREBUILTS:
+            self.ref = weakref.ref(self)
+            _PREBUILTS[self.hashID] = self.ref
+
+    def __new__(cls, _singleton = True, **kwargs):
         cls.typeHash = make_hash(cls.script)
         defaultInps = utilities.get_default_kwargs(cls.__init__)
         inputs = {**defaultInps, **kwargs}
@@ -99,15 +105,21 @@ class Built(metaclass = Meta):
         inputsHash = make_hash(inputs)
         instanceHash = make_hash((cls.typeHash, inputsHash))
         hashID = wordhash.get_random_phrase(instanceHash)
-        try:
-            obj = _get_prebuilt(hashID)
-        except NoPreBuiltError:
+        obj is None
+        if _singleton:
+            try:
+                obj = _get_prebuilt(hashID)
+            except NoPreBuiltError:
+                pass
+        if obj is None:
             obj = super().__new__(cls)
             obj.inputs = inputs
             obj.inputsHash = inputsHash
             obj.instanceHash = instanceHash
             obj.hashID = hashID
             obj.__init__(**inputs)
+        if _singleton:
+            self._add_weakref(self)
         return obj
 
     def __init__(self, **customAttributes):
@@ -127,13 +139,6 @@ class Built(metaclass = Meta):
             'script': self.script,
             'outs': {}
             })
-
-        self._add_weakref()
-
-    def _add_weakref(self):
-        if not self.hashID in _PREBUILTS:
-            self.ref = weakref.ref(self)
-            _PREBUILTS[self.hashID] = self.ref
 
     def __hash__(self):
         return self.instanceHash
