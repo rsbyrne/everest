@@ -110,23 +110,23 @@ class Built(metaclass = Meta):
             obj.__init__(**inputs)
         return obj
 
-    def __init__(self, **kwargs):
+    def __init__(self, **customAttributes):
 
         self.nbytes = 0
 
         self.anchored = False
 
-        self.organisation = kwargs
+        self.organisation = dict()
+        self.organisation.update(customAttributes)
         self.organisation.update({
             'typeHash': str(self.typeHash),
             'inputsHash': str(self.inputsHash),
             'instanceHash': str(self.instanceHash),
             'hashID': self.hashID,
             'inputs': self.inputs,
+            'script': self.script,
             'outs': {}
             })
-        if hasattr(self, 'script'):
-            self.organisation['script'] = self.script
 
         self._add_weakref()
 
