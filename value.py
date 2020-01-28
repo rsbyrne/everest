@@ -27,3 +27,21 @@ class Value:
 
     def __call__(self):
         return self.value
+
+    def __eq__(self, arg):
+        return self.value == arg
+    def __ne__(self, arg):
+        return self.value != arg
+    def __ge__(self, arg):
+        return self.value >= arg
+    def __le__(self, arg):
+        return self.value <= arg
+    def __gt__(self, arg):
+        return self.value > arg
+    def __lt__(self, arg):
+        return self.value < arg
+
+    def __str__(self):
+        return str(self.value)
+    def __repr__(self):
+        return str(self)
