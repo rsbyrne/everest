@@ -1,15 +1,16 @@
-from . import Built
-from ._condition import Condition
-from ._cycler import Cycler
+from types import FunctionType
 
-class Task(Condition):
+from . import Built
+# from ._cycler import Cycler
+
+class Task(Built):
     def __init__(
             self,
             prerequisites,
-            cycler : Cycler,
+            makeFn,
             stopCondition,
-            bailCondition
+            bailCondition,
+            **kwargs
             ):
-        self.available = Condition()
-        self.complete
-        super().__init__(lambda: bool(stopCondition))
+
+        super().__init__(status = self.status)

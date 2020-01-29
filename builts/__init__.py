@@ -20,8 +20,10 @@ class NotOnDiskError(EverestException):
     pass
 
 def load(hashID, name, path = '.'):
-    try: hashID = disk.get_from_h5(name, path, hashID)
-    except KeyError: raise NotOnDiskError
+    try:
+        hashID = disk.get_from_h5(name, path, hashID)
+    except KeyError:
+        raise NotOnDiskError
     typeHash = disk.get_from_h5(name, path, hashID, 'attrs', 'typeHash')
     script = disk.get_from_h5(name, path, '_globals_', '_classes_', 'attrs', str(typeHash))
     imported = disk.local_import_from_str(script)
@@ -32,15 +34,18 @@ def load(hashID, name, path = '.'):
 
 def get(cls, inputs = dict(), name = 'test', path = '.'):
     inputs, inputsHash, instanceHash, hashID = _get_info(cls, inputs)
-    try: return _get_prebuilt(hashID)
-    except NoPreBuiltError: pass
-    try: return load(hashID, name, path)
-    except NotOnDiskError: pass
-    return cls(**inputs)
+    try:
+        return _get_prebuilt(hashID)
+    except NoPreBuiltError:
+        try:
+            return load(hashID, name, path)
+        except NotOnDiskError:
+            return cls(**inputs)
 
 def _get_inputs(cls, inputs = dict()):
     defaultInps = utilities.get_default_kwargs(cls.__init__)
     inputs = {**defaultInps, **inputs}
+    cls._deep_process_inputs(inputs)
     cls._process_inputs(inputs)
     return inputs
 
@@ -100,11 +105,15 @@ class Meta(type):
         outCls.script = disk.ToOpen(outCls.__init__.__globals__['__file__'])()
         outCls.typeHash = make_hash(outCls.script)
         return outCls
+    def __call__(cls, *args, **kwargs):
+        obj = cls.__new__(cls, *args, **kwargs)
+        obj.__init__(**obj.inputs)
+        return obj
 
 class Built(metaclass = Meta):
 
     @staticmethod
-    def _process_inputs(inputs):
+    def _deep_process_inputs(inputs):
         for key, val in inputs.items():
             if type(val) is str:
                 if val[:len('_path_')] == '_path_':
@@ -119,10 +128,20 @@ class Built(metaclass = Meta):
                         outputPath = os.path.join(splitPath[:-1])
                         obj = load(hashID, frameName, outputPath)
                     inputs[key] = obj
+    @staticmethod
+    def _process_inputs(inputs):
+        # designed to be overridden
+        pass
 
     @classmethod
     def build(cls, **kwargs):
-        return cls.__new__(cls, **kwargs)
+        obj = cls.__new__(cls, **kwargs)
+        try:
+            obj = _get_prebuilt(obj.hashID)
+        except NoPreBuiltError:
+            obj.__init__(**obj.inputs)
+            cls._add_weakref(obj)
+        return obj
 
     @staticmethod
     def _add_weakref(obj):
@@ -130,21 +149,14 @@ class Built(metaclass = Meta):
             obj.ref = weakref.ref(obj)
             _PREBUILTS[obj.hashID] = obj.ref
 
-    def __new__(cls, _singleton = True, **inputs):
+    def __new__(cls, **inputs):
         inputs, inputsHash, instanceHash, hashID = _get_info(cls, inputs)
-        obj = None
-        if _singleton:
-            try: obj = _get_prebuilt(hashID)
-            except NoPreBuiltError: pass
-        if obj is None:
-            obj = super().__new__(cls)
-            obj.inputs = inputs
-            obj.inputsHash = inputsHash
-            obj.instanceHash = instanceHash
-            obj.hashID = hashID
-            obj.__init__(**inputs)
-        if _singleton:
-            cls._add_weakref(obj)
+        obj = super().__new__(cls)
+        obj.inputs = inputs
+        obj.inputsHash = inputsHash
+        obj.instanceHash = instanceHash
+        obj.hashID = hashID
+        obj._initialised = False
         return obj
 
     def __init__(self, **customAttributes):
@@ -166,6 +178,8 @@ class Built(metaclass = Meta):
         self.globalObjects = {
             '_classes_': {str(self.typeHash): self.script}
             }
+
+        super().__init__()
 
     def __hash__(self):
         return self.instanceHash

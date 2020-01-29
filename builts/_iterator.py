@@ -1,9 +1,19 @@
+from types import FunctionType
+
 from everest import disk
 from everest.builts._producer import Producer
 
 class Iterator(Producer):
 
-    def __init__(self, initialiseFn, iterateFn, outFn, outkeys, loadFn, **kwargs):
+    def __init__(
+            self,
+            initialiseFn : FunctionType,
+            iterateFn : FunctionType,
+            outFn : FunctionType,
+            outkeys : list,
+            loadFn : FunctionType,
+            **kwargs
+            ):
         self.initialise = lambda: self._initialise_wrap(
             initialiseFn,
             )

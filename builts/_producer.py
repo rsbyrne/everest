@@ -1,5 +1,6 @@
 import numpy as np
 import time
+from types import FunctionType
 
 from .. import utilities
 from .. import disk
@@ -12,19 +13,24 @@ class Producer(Counter):
     autosave = True
     saveinterval = 3600. # seconds
 
-    def __init__(self, outFn, outkeys, **kwargs):
-            out = self.out
-            self.out = lambda: self._out_wrap(
-                outFn
-                )
-            self.outkeys = outkeys
-            self.stored = []
-            self.dataDict = {}
-            self.counts_stored = []
-            self.counts_disk = []
-            self.counts_captured = []
-            self.consignments = set()
-            super().__init__(**kwargs)
+    def __init__(
+            self,
+            outFn : FunctionType,
+            outkeys : list,
+            **kwargs
+            ):
+        out = self.out
+        self.out = lambda: self._out_wrap(
+            outFn
+            )
+        self.outkeys = outkeys
+        self.stored = []
+        self.dataDict = {}
+        self.counts_stored = []
+        self.counts_disk = []
+        self.counts_captured = []
+        self.consignments = set()
+        super().__init__(**kwargs)
 
     def set_autosave(self, val: bool):
         self.autosave = val
