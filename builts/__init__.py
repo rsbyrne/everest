@@ -21,6 +21,7 @@ def load(hashID, name, path = '.'):
     script = disk.get_from_h5(hashID, name, path, 'attrs', 'script')
     imported = disk.local_import_from_str(script)
     obj = imported.build(**inputs)
+    obj.anchor(name, path)
     return obj
 
 def make_hash(obj):

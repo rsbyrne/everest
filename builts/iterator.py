@@ -1,6 +1,5 @@
-from .. import disk
-
-from .producer import Producer
+from everest import disk
+from everest.builts.producer import Producer
 
 class Iterator(Producer):
 
@@ -78,7 +77,7 @@ class Iterator(Producer):
 
 ### EXAMPLE ###
 
-from ..value import Value
+from everest.value import Value
 
 class ExampleIterator(Iterator):
     # Implements the Bailey-Borwein-Plouffe formula;

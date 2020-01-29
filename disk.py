@@ -126,7 +126,11 @@ def _process_h5obj(h5obj, h5file, framePath):
     elif type(h5obj) is h5py.Reference:
         return '_path_' + os.path.join(framePath, h5file[h5obj].name)
     else:
-        return np.array(h5obj).item()
+        array = np.array(h5obj)
+        try:
+            return array.item()
+        except ValueError:
+            return list(array)
 
 def get_from_h5(hashID, frameName, filePath, *groupNames):
     h5obj = None
