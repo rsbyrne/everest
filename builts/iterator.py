@@ -81,6 +81,8 @@ class Iterator(Producer):
 from ..value import Value
 
 class ExampleIterator(Iterator):
+    # Implements the Bailey-Borwein-Plouffe formula;
+    # default args yield pi.
     def __init__(
             self,
             s : int = 1,
