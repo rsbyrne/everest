@@ -132,12 +132,12 @@ def _process_h5obj(h5obj, h5file, framePath):
         except ValueError:
             return list(array)
 
-def get_from_h5(hashID, frameName, filePath, *groupNames):
+def get_from_h5(frameName, filePath, *groupNames):
     h5obj = None
     framePath = os.path.join(os.path.abspath(filePath), frameName) + '.frm'
     if mpi.rank == 0:
         with h5py.File(framePath, mode = 'r') as h5file:
-            h5obj = h5file[hashID]
+            h5obj = h5file
             for name in groupNames:
                 if name == 'attrs':
                     h5obj = h5obj.attrs
@@ -166,12 +166,6 @@ def local_import_from_str(scriptString):
                 mode = 'w'
                 ) \
             as tempfile:
-        imported = local_import(tempfile)
-    return imported
-
-def local_import_from_h5(hashID, frameName, filePath, *groupNames):
-    script = get_from_h5(hashID, frameName, filePath, *groupNames)
-    with TempFile(script, extension = 'py', mode = 'w') as tempfile:
         imported = local_import(tempfile)
     return imported
 

@@ -81,7 +81,7 @@ class Producer(Counter):
             self._add_dataset(
                 self.dataDict[key],
                 key,
-                ['outs',]
+                [self.hashID, 'outs',]
                 )
         self.clear()
         self._update_counts()

@@ -20,10 +20,10 @@ class NotOnDiskError(EverestException):
     pass
 
 def load(hashID, name, path = '.'):
-    try: hashID = disk.get_from_h5(hashID, name, path)
+    try: hashID = disk.get_from_h5(name, path, hashID)
     except KeyError: raise NotOnDiskError
-    inputs = disk.get_from_h5(hashID, name, path, 'inputs', 'attrs')
-    script = disk.get_from_h5(hashID, name, path, 'attrs', 'script')
+    inputs = disk.get_from_h5(name, path, hashID, 'inputs', 'attrs')
+    script = disk.get_from_h5(name, path, hashID, 'attrs', 'script')
     imported = disk.local_import_from_str(script)
     obj = imported.build(**inputs)
     obj.anchor(name, path)
@@ -152,9 +152,9 @@ class Built(metaclass = Meta):
 
         self.anchored = False
 
-        self.organisation = dict()
-        self.organisation.update(customAttributes)
-        self.organisation.update({
+        self.localObjects = dict()
+        self.localObjects.update(customAttributes)
+        self.localObjects.update({
             'typeHash': str(self.typeHash),
             'inputsHash': str(self.inputsHash),
             'instanceHash': str(self.instanceHash),
@@ -163,6 +163,9 @@ class Built(metaclass = Meta):
             'script': self.script,
             'outs': {}
             })
+        # self.globalObjejcts = {
+        #     '_classes_':
+        #     }
 
     def __hash__(self):
         return self.instanceHash
@@ -179,7 +182,7 @@ class Built(metaclass = Meta):
         self.frameID = frameID
         self.path = path
         self.h5filename = os.path.join(os.path.abspath(path), frameID + '.frm')
-        self._add_item(self.organisation, self.hashID)
+        self._add_item(self.localObjects, self.hashID)
         self.anchored = True
         if hasattr(self, 'count'):
             self._update_counts()
@@ -216,7 +219,7 @@ class Built(metaclass = Meta):
 
     @disk.h5filewrap
     def _add_dataset(self, data, key, groupNames = []):
-        group = self.h5file[self.hashID]['/'.join(groupNames)]
+        group = self.h5file['/'.join(groupNames)]
         if key in group:
             dataset = group[key]
         else:
