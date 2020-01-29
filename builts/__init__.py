@@ -15,8 +15,13 @@ from ..exceptions import EverestException
 class NoPreBuiltError(EverestException):
     '''That hashID does not correspond to a previously created Built.'''
     pass
+class NotOnDiskError(EverestException):
+    '''That hashID could not be found at the provided location.'''
+    pass
 
 def load(hashID, name, path = '.'):
+    try: hashID = disk.get_from_h5(hashID, name, path)
+    except KeyError: raise NotOnDiskError
     inputs = disk.get_from_h5(hashID, name, path, 'inputs', 'attrs')
     script = disk.get_from_h5(hashID, name, path, 'attrs', 'script')
     imported = disk.local_import_from_str(script)
@@ -24,8 +29,33 @@ def load(hashID, name, path = '.'):
     obj.anchor(name, path)
     return obj
 
+def get(cls, inputs = dict(), name = 'test', path = '.'):
+    inputs, inputsHash, instanceHash, hashID = _get_info(cls, inputs)
+    try: return _get_prebuilt(hashID)
+    except NoPreBuiltError: pass
+    try: return load(hashID, name, path)
+    except NotOnDiskError: pass
+    return cls(**inputs)
+
+def _get_inputs(cls, inputs = dict()):
+    defaultInps = utilities.get_default_kwargs(cls.__init__)
+    inputs = {**defaultInps, **inputs}
+    cls._process_inputs(inputs)
+    return inputs
+
+def _get_hashes(cls, inputs):
+    inputsHash = make_hash(inputs)
+    instanceHash = make_hash((cls.typeHash, inputsHash))
+    hashID = wordhash.get_random_phrase(instanceHash)
+    return inputsHash, instanceHash, hashID
+
+def _get_info(cls, inputs = dict()):
+    inputs = _get_inputs(cls, inputs)
+    inputsHash, instanceHash, hashID = _get_hashes(cls, inputs)
+    return inputs, inputsHash, instanceHash, hashID
+
 def make_hash(obj):
-    if isinstance(obj, Built):
+    if hasattr(obj, 'instanceHash'):
         hashVal = obj.instanceHash
     elif type(obj) is dict:
         hashVal = make_hash(sorted(obj.items()))
@@ -67,6 +97,7 @@ class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
         outCls.script = disk.ToOpen(outCls.__init__.__globals__['__file__'])()
+        outCls.typeHash = make_hash(outCls.script)
         return outCls
 
 class Built(metaclass = Meta):
@@ -98,20 +129,12 @@ class Built(metaclass = Meta):
             obj.ref = weakref.ref(obj)
             _PREBUILTS[obj.hashID] = obj.ref
 
-    def __new__(cls, _singleton = True, **kwargs):
-        cls.typeHash = make_hash(cls.script)
-        defaultInps = utilities.get_default_kwargs(cls.__init__)
-        inputs = {**defaultInps, **kwargs}
-        cls._process_inputs(inputs)
-        inputsHash = make_hash(inputs)
-        instanceHash = make_hash((cls.typeHash, inputsHash))
-        hashID = wordhash.get_random_phrase(instanceHash)
+    def __new__(cls, _singleton = True, **inputs):
+        inputs, inputsHash, instanceHash, hashID = _get_info(cls, inputs)
         obj = None
         if _singleton:
-            try:
-                obj = _get_prebuilt(hashID)
-            except NoPreBuiltError:
-                pass
+            try: obj = _get_prebuilt(hashID)
+            except NoPreBuiltError: pass
         if obj is None:
             obj = super().__new__(cls)
             obj.inputs = inputs
