@@ -5,7 +5,7 @@ from .. import utilities
 from .. import disk
 
 from . import buffersize_exceeded
-from .counter import Counter
+from ._counter import Counter
 
 class Producer(Counter):
 

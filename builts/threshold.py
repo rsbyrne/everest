@@ -1,4 +1,4 @@
-from everest.builts.condition import Condition
+from everest.builts._condition import Condition
 from everest.builts import Built
 
 class Threshold(Condition):
