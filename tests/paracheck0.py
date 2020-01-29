@@ -1,5 +1,5 @@
-from everest.builts._iterator import build
-pimachine = build()
+from everest.builts._iterator import get
+pimachine = get()
 
 import os
 from everest import mpi

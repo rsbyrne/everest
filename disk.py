@@ -51,10 +51,11 @@ def check_file(filename, checks = 10):
                 raise Exception("File check failed!")
 
 def tempname(length = 16, extension = None):
-    name = ''
+    name = None
     if mpi.rank == 0:
         letters = string.ascii_lowercase
         name = ''.join(random.choice(letters) for i in range(length))
+        assert not name is None
     name = mpi.share(name)
     if not extension is None:
         name += '.' + extension
@@ -110,8 +111,7 @@ class TempFile:
         return self.path
 
     def __exit__(self, *args):
-        mpi.comm.barrier()
-        # remove_file(self.path)
+        remove_file(self.path)
 
 def _process_h5obj(h5obj, h5file, framePath):
     if type(h5obj) is h5py.Group:
@@ -132,21 +132,38 @@ def _process_h5obj(h5obj, h5file, framePath):
         except ValueError:
             return list(array)
 
+def get_framePath(frameName, filePath):
+    return os.path.join(os.path.abspath(filePath), frameName) + '.frm'
+
+def path_exists(path):
+    pathExists = False
+    if mpi.rank == 0:
+        pathExists = os.path.exists(path)
+    return mpi.share(pathExists)
+
 def get_from_h5(frameName, filePath, *groupNames):
     h5obj = None
-    framePath = os.path.join(os.path.abspath(filePath), frameName) + '.frm'
+    keyerror = False
+    framePath = get_framePath(frameName, filePath)
+    if not path_exists(framePath):
+        raise OSError
     if mpi.rank == 0:
-        with h5py.File(framePath, mode = 'r') as h5file:
-            h5obj = h5file
-            for name in groupNames:
-                if name == 'attrs':
-                    h5obj = h5obj.attrs
-                else:
-                    try: h5obj = h5obj[name]
-                    except KeyError: raise Exception(groupNames, name, h5obj.name, str(h5obj.keys()))
-                    if type(h5obj) is h5py.Reference:
-                        h5obj = h5file[h5obj]
-            h5obj = _process_h5obj(h5obj, h5file, framePath)
+        try:
+            with h5py.File(framePath, mode = 'r') as h5file:
+                h5obj = h5file
+                for name in groupNames:
+                    if name == 'attrs':
+                        h5obj = h5obj.attrs
+                    else:
+                        h5obj = h5obj[name]
+                        if type(h5obj) is h5py.Reference:
+                            h5obj = h5file[h5obj]
+                h5obj = _process_h5obj(h5obj, h5file, framePath)
+        except KeyError:
+            keyerror = True
+    keyerror = mpi.share(keyerror)
+    if keyerror:
+        raise KeyError
     h5obj = mpi.share(h5obj)
     return h5obj
 

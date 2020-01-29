@@ -119,3 +119,4 @@ class ExampleIterator(Iterator):
 
 CLASS = ExampleIterator
 build = CLASS.build
+get = CLASS.get

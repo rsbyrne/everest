@@ -16,12 +16,12 @@ def message(*args, **kwargs):
 
 def share(obj):
     comm.barrier()
-    obj = comm.bcast(obj, root = 0)
-    allTypes = comm.allgather(type(obj))
+    shareObj = comm.bcast(obj, root = 0)
+    allTypes = comm.allgather(type(shareObj))
     if not len(set(allTypes)) == 1:
         raise MPIError
     comm.barrier()
-    return obj
+    return shareObj
 
 # def share_class(object):
 #     strClass = None

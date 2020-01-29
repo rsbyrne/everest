@@ -18,11 +18,16 @@ class NoPreBuiltError(EverestException):
 class NotOnDiskError(EverestException):
     '''That hashID could not be found at the provided location.'''
     pass
+class NotInFrameError(EverestException):
+    '''No frame by that name could be found.'''
+    pass
 
 def load(hashID, name, path = '.'):
     try:
         hashID = disk.get_from_h5(name, path, hashID)
     except KeyError:
+        raise NotInFrameError
+    except OSError:
         raise NotOnDiskError
     typeHash = disk.get_from_h5(name, path, hashID, 'attrs', 'typeHash')
     script = disk.get_from_h5(name, path, '_globals_', '_classes_', 'attrs', str(typeHash))
@@ -31,16 +36,6 @@ def load(hashID, name, path = '.'):
     obj = imported.build(**inputs)
     obj.anchor(name, path)
     return obj
-
-def get(cls, inputs = dict(), name = 'test', path = '.'):
-    inputs, inputsHash, instanceHash, hashID = _get_info(cls, inputs)
-    try:
-        return _get_prebuilt(hashID)
-    except NoPreBuiltError:
-        try:
-            return load(hashID, name, path)
-        except NotOnDiskError:
-            return cls(**inputs)
 
 def _get_inputs(cls, inputs = dict()):
     defaultInps = utilities.get_default_kwargs(cls.__init__)
@@ -134,14 +129,21 @@ class Built(metaclass = Meta):
         pass
 
     @classmethod
-    def build(cls, **kwargs):
+    def get(cls, _name = 'default', _path = '.', **kwargs):
         obj = cls.__new__(cls, **kwargs)
         try:
             obj = _get_prebuilt(obj.hashID)
         except NoPreBuiltError:
-            obj.__init__(**obj.inputs)
-            cls._add_weakref(obj)
+            try:
+                obj = load(obj.hashID, _name, _path)
+            except (NotOnDiskError, NotInFrameError):
+                obj.__init__(**obj.inputs)
+                cls._add_weakref(obj)
         return obj
+
+    @classmethod
+    def build(cls, **kwargs):
+        return cls(**kwargs)
 
     @staticmethod
     def _add_weakref(obj):
