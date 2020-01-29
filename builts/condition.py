@@ -6,6 +6,8 @@ class Condition(Built):
         super().__init__(**kwargs)
     def __bool__(self):
         return self.boolFn()
+    def __call__(self):
+        return self.__bool__()
 
 # # Unary
 # class Not(Condition):
