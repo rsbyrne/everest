@@ -21,6 +21,8 @@ class NotOnDiskError(EverestException):
 class NotInFrameError(EverestException):
     '''No frame by that name could be found.'''
     pass
+class BuiltNotFoundError(EverestException):
+    '''A Built with those parameters could not be found.'''
 
 def load(hashID, name, path = '.'):
     try:
@@ -29,13 +31,29 @@ def load(hashID, name, path = '.'):
         raise NotInFrameError
     except OSError:
         raise NotOnDiskError
+    cls = _get_class(hashID, name, path)
+    inputs = disk.get_from_h5(name, path, hashID, 'inputs', 'attrs')
+    obj = cls.build(**inputs)
+    obj.anchor(name, path)
+    return obj
+
+def get(hashID, name = None, path = '.'):
+    try:
+        return _get_prebuilt(hashID)
+    except NoPreBuiltError:
+        if name is None:
+            raise BuiltNotFoundError
+        else:
+            try:
+                return load(hashID, name, path)
+            except (NotOnDiskError, NotInFrameError):
+                raise BuiltNotFoundError
+
+def _get_class(hashID, name, path):
     typeHash = disk.get_from_h5(name, path, hashID, 'attrs', 'typeHash')
     script = disk.get_from_h5(name, path, '_globals_', '_classes_', 'attrs', str(typeHash))
     imported = disk.local_import_from_str(script)
-    inputs = disk.get_from_h5(name, path, hashID, 'inputs', 'attrs')
-    obj = imported.build(**inputs)
-    obj.anchor(name, path)
-    return obj
+    return imported.CLASS
 
 def _get_inputs(cls, inputs = dict()):
     defaultInps = utilities.get_default_kwargs(cls.__init__)
@@ -129,16 +147,13 @@ class Built(metaclass = Meta):
         pass
 
     @classmethod
-    def get(cls, _name = 'default', _path = '.', **kwargs):
+    def get(cls, **kwargs):
         obj = cls.__new__(cls, **kwargs)
         try:
-            obj = _get_prebuilt(obj.hashID)
+            return _get_prebuilt(obj.hashID)
         except NoPreBuiltError:
-            try:
-                obj = load(obj.hashID, _name, _path)
-            except (NotOnDiskError, NotInFrameError):
-                obj.__init__(**obj.inputs)
-                cls._add_weakref(obj)
+            obj.__init__(**obj.inputs)
+            cls._add_weakref(obj)
         return obj
 
     @classmethod
