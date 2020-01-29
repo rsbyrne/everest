@@ -142,7 +142,8 @@ def get_from_h5(frameName, filePath, *groupNames):
                 if name == 'attrs':
                     h5obj = h5obj.attrs
                 else:
-                    h5obj = h5obj[name]
+                    try: h5obj = h5obj[name]
+                    except KeyError: raise Exception(groupNames, name, h5obj.name, str(h5obj.keys()))
                     if type(h5obj) is h5py.Reference:
                         h5obj = h5file[h5obj]
             h5obj = _process_h5obj(h5obj, h5file, framePath)

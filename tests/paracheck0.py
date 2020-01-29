@@ -41,7 +41,7 @@ from everest.builts import _PREBUILTS
 del _PREBUILTS[hashID]
 
 from everest.builts import load
-pimachine = load(hashID, 'test', '..')
+pimachine = load(hashID, 'test', '.')
 
 message(pimachine)
 

@@ -22,9 +22,10 @@ class NotOnDiskError(EverestException):
 def load(hashID, name, path = '.'):
     try: hashID = disk.get_from_h5(name, path, hashID)
     except KeyError: raise NotOnDiskError
-    inputs = disk.get_from_h5(name, path, hashID, 'inputs', 'attrs')
-    script = disk.get_from_h5(name, path, hashID, 'attrs', 'script')
+    typeHash = disk.get_from_h5(name, path, hashID, 'attrs', 'typeHash')
+    script = disk.get_from_h5(name, path, '_globals_', '_classes_', 'attrs', str(typeHash))
     imported = disk.local_import_from_str(script)
+    inputs = disk.get_from_h5(name, path, hashID, 'inputs', 'attrs')
     obj = imported.build(**inputs)
     obj.anchor(name, path)
     return obj
@@ -160,12 +161,11 @@ class Built(metaclass = Meta):
             'instanceHash': str(self.instanceHash),
             'hashID': self.hashID,
             'inputs': self.inputs,
-            'script': self.script,
             'outs': {}
             })
-        # self.globalObjejcts = {
-        #     '_classes_':
-        #     }
+        self.globalObjects = {
+            '_classes_': {str(self.typeHash): self.script}
+            }
 
     def __hash__(self):
         return self.instanceHash
@@ -183,6 +183,7 @@ class Built(metaclass = Meta):
         self.path = path
         self.h5filename = os.path.join(os.path.abspath(path), frameID + '.frm')
         self._add_item(self.localObjects, self.hashID)
+        self._add_item(self.globalObjects, '_globals_')
         self.anchored = True
         if hasattr(self, 'count'):
             self._update_counts()
@@ -245,18 +246,18 @@ class Built(metaclass = Meta):
         return name in group
 
     def _add_item(self, item, name, groupNames = []):
-        if not self._check_item(name, groupNames):
-            if type(item) is dict:
-                subgroupNames = self._add_subgroup(name, groupNames)
-                for subname, subitem in sorted(item.items()):
-                    self._add_item(subitem, subname, subgroupNames)
-            elif isinstance(item, Built):
-                if not self._check_item(item.hashID):
-                    item.anchor(self.frameID, self.path)
-                # self._add_link(item.hashID, name, groupNames)
-                self._add_ref(item.hashID, name, groupNames)
-            else:
-                self._add_attr(item, name, groupNames)
+        # if not self._check_item(name, groupNames):
+        if type(item) is dict:
+            subgroupNames = self._add_subgroup(name, groupNames)
+            for subname, subitem in sorted(item.items()):
+                self._add_item(subitem, subname, subgroupNames)
+        elif isinstance(item, Built):
+            if not self._check_item(item.hashID):
+                item.anchor(self.frameID, self.path)
+            # self._add_link(item.hashID, name, groupNames)
+            self._add_ref(item.hashID, name, groupNames)
+        else:
+            self._add_attr(item, name, groupNames)
 
     def _coanchored(self, coBuilt):
         if hasattr(self, 'h5filename') and hasattr(coBuilt, 'h5filename'):
