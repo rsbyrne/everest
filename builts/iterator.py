@@ -75,3 +75,36 @@ class Iterator(Producer):
             loadData = self.h5file[self.hashID]['outs'][key][iterNo]
             loadDict[key] = loadData
         return loadDict
+
+### EXAMPLE ###
+
+from ..value import Value
+
+class ExampleIterator(Iterator):
+    def __init__(
+            self,
+            s : int = 1,
+            b : int = 16,
+            A : list = [4, 0, 0, -2, -1, -1, 0, 0]
+            ):
+        self.state = Value(0.)
+        self.kth = lambda k: 1. / b **k * sum([a / (len(A) * k + (j + 1))**s for j, a in enumerate(A)])
+        super().__init__(
+            self.initialise,
+            self.iterate,
+            self.out,
+            ['pi',],
+            self.load
+            )
+    def out(self):
+        return [self.state.value,]
+    def initialise(self):
+        self.state.value = self.kth(0)
+    def iterate(self):
+        kthVal = self.kth(self.count.value)
+        self.state.value += kthVal
+    def load(self, loadDict):
+        self.state.value = loadDict['pi']
+
+CLASS = ExampleIterator
+build = CLASS.build
