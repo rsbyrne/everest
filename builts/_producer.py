@@ -7,9 +7,10 @@ from .. import disk
 
 from . import buffersize_exceeded
 from ._counter import Counter
+from ._mutators import Mutator
 from ..reader import Reader
 
-class Producer(Counter):
+class Producer(Mutator, Counter):
 
     autosave = True
     saveinterval = 3600. # seconds
@@ -20,40 +21,49 @@ class Producer(Counter):
             outkeys : list,
             **kwargs
             ):
-        out = self.out
-        self.out = lambda: self._out_wrap(
-            outFn
-            )
+
+        self.out = lambda: self._out_wrap(outFn)
+        samples = self.out()
+        mutateDict = {
+            key: np.array([data,]) \
+                for key, data in zip(outkeys, samples)
+            }
+        mutateDict['_counts_'] = np.array([1,], dtype = np.int8)
+
         self.outkeys = outkeys
         self.stored = []
-        self.dataDict = {}
+        # self.dataDict = {}
         self.counts_stored = []
         self.counts_disk = []
         self.counts_captured = []
-        self.consignments = set()
-        super().__init__(**kwargs)
+
+        def update_mutateDict():
+            counts, outs = zip(*self.stored)
+            mutateDict.update({
+                key: np.array(val, dtype = utilities._obtain_dtype(val[0])) \
+                    for key, val in zip(self.outkeys, zip(*outs))
+                })
+            mutateDict['_counts_'] = np.array(counts, dtype = 'i8')
+
+        super().__init__(
+            mutateDict = mutateDict,
+            update_MutateDict = update_mutateDict,
+            **{**mutateDict, **kwargs}
+            )
 
     def set_autosave(self, val: bool):
         self.autosave = val
-
     def set_saveinterval(self, val: float):
         self.saveinterval = val
-
-    def add_consignment(self, consignment):
-        self.consignments.add(consignment)
-
-    def remove_consignment(self, consignment):
-        self.consignments.remove(consignment)
-
-    def _out_wrap(self, out):
-        return out()
-
     def get_stored_nbytes(self):
         nbytes = 0
         for count in self.stored:
             for data in count[1]:
                 nbytes += np.array(data).nbytes
         return nbytes
+
+    def _out_wrap(self, out):
+        return out()
 
     def store(self):
         vals = self.out()
@@ -71,26 +81,11 @@ class Producer(Counter):
         self.stored = []
         self.counts_stored = []
 
-    def _update_dataDict(self):
-        counts, outs = zip(*self.stored)
-        self.dataDict.update({
-            key: np.array(val, dtype = utilities._obtain_dtype(val[0])) \
-                for key, val in zip(self.outkeys, zip(*outs))
-            })
-        self.dataDict['_counts_'] = np.array(counts, dtype = 'i8')
-
     def save(self):
         self._check_anchored()
         if len(self.stored) == 0:
             return None
-        self._update_dataDict()
-        for key in ['_counts_', *self.outkeys]:
-            self.writer._add_dataset(
-                self.dataDict[key],
-                key,
-                self.hashID,
-                'outs'
-                )
+        self.mutate()
         self.clear()
         self._update_counts()
         self.lastsaved = time.time()
@@ -122,17 +117,5 @@ class Producer(Counter):
 
     def _get_disk_counts(self):
         self._check_anchored()
-        reader = Reader(self.name, self.path)
-        counts = Reader.get(self.hashID, 'outs', '_counts_')
-        counts_disk.extend(utilities.unique_list(list(counts[...])))
-
-    # @disk.h5filewrap
-    # def _get_disk_counts(self):
-    #     counts_disk = []
-    #     selfgroup = self.h5file[self.hashID]
-    #     if 'outs' in selfgroup:
-    #         outsgroup = selfgroup['outs']
-    #         if '_counts_' in outsgroup:
-    #             counts = outsgroup['_counts_']
-    #             counts_disk.extend(utilities.unique_list(list(counts[...])))
-    #     return counts_disk
+        counts = Reader(self.name, self.path).get(self.hashID, '_counts_')
+        return list(set(counts))

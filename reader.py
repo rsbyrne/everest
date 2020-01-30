@@ -35,11 +35,11 @@ class Reader:
         arrList = []
         for superkey, scopeCounts in scope:
             thisGroup = self.h5file[superkey]
-            thisTargetDataset = thisGroup['outs'][key]
+            thisTargetDataset = thisGroup[key]
             if scopeCounts == '...':
                 arr = thisTargetDataset[...]
             else:
-                thisCountsDataset = thisGroup['outs']['_counts_']
+                thisCountsDataset = thisGroup['_counts_']
                 maskArr = np.isin(
                     thisCountsDataset,
                     scopeCounts,

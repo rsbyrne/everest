@@ -193,8 +193,7 @@ class Built(metaclass = Meta):
             'inputsHash': str(self.inputsHash),
             'instanceHash': str(self.instanceHash),
             'hashID': self.hashID,
-            'inputs': self.inputs,
-            'outs': {}
+            'inputs': self.inputs
             })
         self.globalObjects = {
             '_classes_': {str(self.typeHash): self.script}
@@ -215,8 +214,8 @@ class Built(metaclass = Meta):
         for fn in self._pre_anchor_fns: fn()
         self.name, self.path = name, path
         writer = Writer(name, path)
-        writer.add(self.localObjects, self.hashID)
-        writer.add(self.globalObjects, '_globals_')
+        writer.add(self.localObjects, self.hashID, _toInitialise = True)
+        writer.add(self.globalObjects, '_globals_', _toInitialise = True)
         self.anchored = True
         if hasattr(self, 'count'):
             self._update_counts()

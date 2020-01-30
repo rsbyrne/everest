@@ -11,9 +11,6 @@ class Writer:
             self,
             name,
             path,
-            append = True,
-            redact = True,
-            alter = True
             ):
         self.name = name
         self.path = path
@@ -23,16 +20,24 @@ class Writer:
         from .builts import Built
         self.BuiltClass = Built
 
-    def add(self, item, name = '/', *names):
+    def add(self, item, name = '/', *names, _toInitialise = False):
         if type(item) is dict:
             for key, val in item.items():
-                self.add(val, key, *[*names, name])
+                self.add(
+                    val,
+                    key,
+                    *[*names, name],
+                    _toInitialise = _toInitialise
+                    )
         else:
             if isinstance(item, self.BuiltClass):
                 item.anchor(self.name, self.path)
                 self._add_link(item.hashID, name, *names)
             elif type(item) is np.ndarray:
-                self._add_dataset(item, name, *names)
+                if _toInitialise:
+                    self._add_dataset(item, name, *names)
+                else:
+                    self._extend_dataset(item, name, *names)
             else:
                 self._add_attr(item, name, *names)
 
@@ -53,10 +58,11 @@ class Writer:
 
     @_addwrap
     def _add_dataset(self, sampleData, name, group):
-        shape = [0, *sampleData.shape[1:]]
-        maxshape = [None, *sampleData.shape[1:]]
-        dtype = sampleData.dtype
-        group.require_dataset(name, shape, dtype, maxshape = maxshape)
+        if not name in group:
+            shape = [0, *sampleData.shape[1:]]
+            maxshape = [None, *sampleData.shape[1:]]
+            dtype = sampleData.dtype
+            group.require_dataset(name, shape, dtype, maxshape = maxshape)
 
     @_addwrap
     def _extend_dataset(self, data, name, group):

@@ -27,6 +27,9 @@ class Iterator(Producer):
             )
         self.reset = self.initialise
         super().__init__(outFn, outkeys, **kwargs)
+        def _post_anchor():
+            self.h5filename = self.writer.h5filename
+        self._post_anchor_fns.append(_post_anchor)
         self.initialise()
 
     def _initialise_wrap(self, initialise):
@@ -37,8 +40,6 @@ class Iterator(Producer):
         for i in range(n):
             self.count.value += 1
             iterate()
-            if any(self.consignments):
-                self.store()
 
     def _load_wrap(self, load, count):
         if not self.count() == count:
@@ -71,7 +72,7 @@ class Iterator(Producer):
         self._check_anchored()
         # self.save()
         loadDict = {}
-        counts = self.h5file[self.hashID]['outs']['_counts_']
+        counts = self.h5file[self.hashID]['_counts_']
         iterNo = 0
         while True:
             if iterNo >= len(counts):
@@ -81,7 +82,7 @@ class Iterator(Producer):
             iterNo += 1
         loadDict = {}
         for key in self.outkeys:
-            loadData = self.h5file[self.hashID]['outs'][key][iterNo]
+            loadData = self.h5file[self.hashID][key][iterNo]
             loadDict[key] = loadData
         return loadDict
 
