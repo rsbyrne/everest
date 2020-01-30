@@ -41,6 +41,8 @@ class Writer:
         # assumes h5file is open
         myobj = self.h5file
         for name in names:
+            if name == 'attrs':
+                myobj = myobj.attrs
             myobj = myobj[name]
         return myobj
 
@@ -96,7 +98,7 @@ class Writer:
     def file(self):
         if not mpi.size == 1:
             raise mpi.MPIError
-        return h5py.File(self.writer.h5filename)
+        return h5py.File(self.h5filename)
 
     #
     #

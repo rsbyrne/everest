@@ -361,15 +361,14 @@ class Scope(Set, Hashable):
 
 class Reader:
 
-    h5file = None
-
     def __init__(
             self,
             name,
             outputPath
             ):
+        self.h5file = None
         self.h5filename = os.path.join(os.path.abspath(outputPath), name + '.frm')
-        self.file = partial(h5py.File, h5filename, 'r')
+        self.file = partial(h5py.File, self.h5filename, 'r')
 
     @disk.h5filewrap
     def pull(self, scope, keys):
@@ -592,3 +591,39 @@ class Reader:
             raise TypeError("Input not recognised: ", inp)
 
     context = __getitem__
+
+    @disk.h5filewrap
+    def get_from_h5(self, *names):
+        h5obj = self.h5file
+        try:
+            for name in names:
+                if name == 'attrs':
+                    h5obj = h5obj.attrs
+                else:
+                    h5obj = h5obj[name]
+                    if type(h5obj) is h5py.Reference:
+                        h5obj = h5file[h5obj]
+            h5obj = _process_h5obj(h5obj, self.h5file, self.h5filename)
+            return h5obj
+        except KeyError as exception:
+            return exception
+
+    def _process_h5obj(h5obj, h5file, framePath):
+        # expects filewrap
+        if type(h5obj) is h5py.Group:
+            return h5obj.name
+        elif type(h5obj) is h5py.Dataset:
+            return h5obj[...]
+        elif type(h5obj) is h5py.AttributeManager:
+            inDict, outDict = h5obj.items(), dict()
+            for key, val in sorted(inDict):
+                outDict[key] = _process_h5obj(val, h5file, framePath)
+            return outDict
+        elif type(h5obj) is h5py.Reference:
+            return '_path_' + os.path.join(framePath, h5file[h5obj].name)
+        else:
+            array = np.array(h5obj)
+            try:
+                return array.item()
+            except ValueError:
+                return list(array)

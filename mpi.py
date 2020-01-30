@@ -7,6 +7,9 @@ from .exceptions import EverestException
 class MPIError(EverestException):
     '''Something went wrong with an MPI thing.'''
     pass
+class SubMPIError(EverestException):
+    '''Something went wrong inside an MPI block.'''
+    pass
 
 def message(*args, **kwargs):
     comm.barrier()
