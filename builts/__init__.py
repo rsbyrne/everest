@@ -11,6 +11,7 @@ from .. import disk
 from .. import mpi
 from .. import wordhash
 from ..writer import Writer
+from ..reader import Reader
 
 from ..exceptions import EverestException
 class NoPreBuiltError(EverestException):
@@ -27,13 +28,13 @@ class BuiltNotFoundError(EverestException):
 
 def load(hashID, name, path = '.'):
     try:
-        hashID = disk.get_from_h5(name, path, hashID)
+        hashID = Reader(name, path).get(hashID)
     except KeyError:
         raise NotInFrameError
     except OSError:
         raise NotOnDiskError
     cls = _get_class(hashID, name, path)
-    inputs = disk.get_from_h5(name, path, hashID, 'inputs', 'attrs')
+    inputs = Reader(name, path).get(hashID, 'inputs', 'attrs')
     obj = cls.build(**inputs)
     obj.anchor(name, path)
     return obj
@@ -51,8 +52,8 @@ def get(hashID, name = None, path = '.'):
                 raise BuiltNotFoundError
 
 def _get_class(hashID, name, path):
-    typeHash = disk.get_from_h5(name, path, hashID, 'attrs', 'typeHash')
-    script = disk.get_from_h5(name, path, '_globals_', '_classes_', 'attrs', str(typeHash))
+    typeHash = Reader(name, path).get(hashID, 'attrs', 'typeHash')
+    script = Reader(name, path).get('_globals_', '_classes_', 'attrs', str(typeHash))
     imported = disk.local_import_from_str(script)
     return imported.CLASS
 

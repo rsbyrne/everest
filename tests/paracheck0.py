@@ -36,10 +36,6 @@ hashID = pimachine.hashID
 
 message(hashID)
 
-del pimachine
-from everest.builts import _PREBUILTS
-del _PREBUILTS[hashID]
-
 from everest.builts import load
 pimachine = load(hashID, 'test', '.')
 

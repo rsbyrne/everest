@@ -27,80 +27,46 @@ class H5Error(EverestException):
 h5File = h5py.File
 
 PYTEMP = '/home/jovyan/pytemp'
-if mpi.rank == 0:
-    os.makedirs(PYTEMP, exist_ok = True)
-    if not PYTEMP in sys.path:
-        sys.path.append(PYTEMP)
+mpi.dowrap(os.makedirs)(PYTEMP, exist_ok = True)
+if not PYTEMP in sys.path:
+    sys.path.append(PYTEMP)
 
-# h5File = partial(
-#     h5py.File,
-#     driver = 'mpio',
-#     comm = mpi.comm
-#     )
-
-def check_file(filename, checks = 10):
-    check = 0
-    if mpi.rank == 0:
-        while True:
-            if os.path.isfile(filename):
-                break
-            elif check < checks:
-                check += 1
-                time.sleep(0.1)
-            else:
-                raise Exception("File check failed!")
-
+@mpi.dowrap
 def tempname(length = 16, extension = None):
-    name = None
-    if mpi.rank == 0:
-        letters = string.ascii_lowercase
-        name = ''.join(random.choice(letters) for i in range(length))
-        assert not name is None
-    name = mpi.share(name)
+    letters = string.ascii_lowercase
+    name = ''.join(random.choice(letters) for i in range(length))
     if not extension is None:
         name += '.' + extension
     name = os.path.join(PYTEMP, name)
     return name
 
+@mpi.dowrap
 def write_file(filename, content, mode = 'w'):
-    if mpi.rank == 0:
-        with open(filename, mode) as file:
-            file.write(content)
-    # check_file(filename)
+    with open(filename, mode) as file:
+        file.write(content)
 
+@mpi.dowrap
 def remove_file(filename):
-    if mpi.rank == 0:
-        if os.path.exists(filename):
-            os.remove(filename)
+    if os.path.exists(filename):
+        os.remove(filename)
 
 def h5filewrap(func):
+    @mpi.dowrap
     def wrapper(*args, **kwargs):
         self = args[0]
-        output = None
-        if mpi.rank == 0:
-            with h5py.File(self.h5filename) as h5file:
-                self.h5file = h5file
-                try:
-                    output = func(*args, **kwargs)
-                except:
-                    mpi.SubMPIError
-        output = mpi.share(output)
-        if isinstance(output, Exception):
-            raise output
-        else:
-            return output
+        with h5py.File(self.h5filename) as h5file:
+            self.h5file = h5file
+            output = func(*args, **kwargs)
+        return output
     return wrapper
 
 class ToOpen:
     def __init__(self, filepath):
         self.filepath = filepath
+    @mpi.dowrap
     def __call__(self):
-        filedata = ''
-        if mpi.rank == 0:
-            with open(self.filepath) as file:
-                filedata = file.read()
-        filedata = mpi.share(filedata)
-        return filedata
+        with open(self.filepath) as file:
+            return file.read()
 
 class TempFile:
 
@@ -140,38 +106,6 @@ def _process_h5obj(h5obj, h5file, framePath):
 
 def get_framePath(frameName, filePath):
     return os.path.join(os.path.abspath(filePath), frameName) + '.frm'
-
-def path_exists(path):
-    pathExists = False
-    if mpi.rank == 0:
-        pathExists = os.path.exists(path)
-    return mpi.share(pathExists)
-
-def get_from_h5(frameName, filePath, *groupNames):
-    h5obj = None
-    keyerror = False
-    framePath = get_framePath(frameName, filePath)
-    if not path_exists(framePath):
-        raise OSError
-    if mpi.rank == 0:
-        try:
-            with h5py.File(framePath, mode = 'r') as h5file:
-                h5obj = h5file
-                for name in groupNames:
-                    if name == 'attrs':
-                        h5obj = h5obj.attrs
-                    else:
-                        h5obj = h5obj[name]
-                        if type(h5obj) is h5py.Reference:
-                            h5obj = h5file[h5obj]
-                h5obj = _process_h5obj(h5obj, h5file, framePath)
-        except KeyError:
-            keyerror = True
-    keyerror = mpi.share(keyerror)
-    if keyerror:
-        raise KeyError
-    h5obj = mpi.share(h5obj)
-    return h5obj
 
 def local_import(filepath):
     modname = os.path.basename(filepath)

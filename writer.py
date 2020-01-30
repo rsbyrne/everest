@@ -11,8 +11,7 @@ class Writer:
         self.path = path
         self.h5filename = disk.get_framePath(name, path)
         self.h5file = None
-        if mpi.rank == 0:
-            os.makedirs(path, exist_ok = True)
+        mpi.dowrap(os.makedirs)(path, exist_ok = True)
         from .builts import Built
         self.BuiltClass = Built
 

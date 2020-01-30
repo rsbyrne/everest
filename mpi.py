@@ -1,3 +1,4 @@
+import sys
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -25,6 +26,22 @@ def share(obj):
         raise MPIError
     comm.barrier()
     return shareObj
+
+def dowrap(func):
+    def wrapper(*args, **kwargs):
+        output = None
+        if rank == 0:
+            try:
+                output = func(*args, **kwargs)
+            except:
+                exc_type, exc_val = sys.exc_info()[:2]
+                output = exc_type(exc_val)
+        output = share(output)
+        if isinstance(output, Exception):
+            raise output
+        else:
+            return output
+    return wrapper
 
 # def share_class(object):
 #     strClass = None
