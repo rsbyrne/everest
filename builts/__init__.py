@@ -176,6 +176,8 @@ class Built(metaclass = Meta):
         obj.instanceHash = instanceHash
         obj.hashID = hashID
         obj._initialised = False
+        obj._pre_anchor_fns = []
+        obj._post_anchor_fns = []
         return obj
 
     def __init__(self, **customAttributes):
@@ -210,15 +212,15 @@ class Built(metaclass = Meta):
                 )
 
     def anchor(self, name, path = ''):
-        self.writer = Writer(name, path)
-        self.h5file = self.writer.h5file
-        self.h5filename = self.writer.h5filename
-        self.writer.add(self.localObjects, self.hashID)
-        self.writer.add(self.globalObjects, '_globals_')
+        for fn in self._pre_anchor_fns: fn()
+        self.name, self.path = name, path
+        writer = Writer(name, path)
+        writer.add(self.localObjects, self.hashID)
+        writer.add(self.globalObjects, '_globals_')
         self.anchored = True
         if hasattr(self, 'count'):
             self._update_counts()
-        self._post_anchor_hook()
+        for fn in self._post_anchor_fns: fn()
 
     def _coanchored(self, coBuilt):
         if hasattr(self, 'h5filename') and hasattr(coBuilt, 'h5filename'):
@@ -231,6 +233,3 @@ class Built(metaclass = Meta):
             raise Exception("Trying to coanchor to unanchored built!")
         if not self._coanchored(coBuilt):
             self.anchor(coBuilt.frameID, coBuilt.path)
-
-    def _post_anchor_hook(self):
-        pass

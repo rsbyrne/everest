@@ -7,6 +7,7 @@ from .. import disk
 
 from . import buffersize_exceeded
 from ._counter import Counter
+from ..reader import Reader
 
 class Producer(Counter):
 
@@ -119,13 +120,19 @@ class Producer(Counter):
             [*self.counts_stored, *self.counts_disk]
             )
 
-    @disk.h5filewrap
     def _get_disk_counts(self):
-        counts_disk = []
-        selfgroup = self.h5file[self.hashID]
-        if 'outs' in selfgroup:
-            outsgroup = selfgroup['outs']
-            if '_counts_' in outsgroup:
-                counts = outsgroup['_counts_']
-                counts_disk.extend(utilities.unique_list(list(counts[...])))
-        return counts_disk
+        self._check_anchored()
+        reader = Reader(self.name, self.path)
+        counts = Reader.get(self.hashID, 'outs', '_counts_')
+        counts_disk.extend(utilities.unique_list(list(counts[...])))
+
+    # @disk.h5filewrap
+    # def _get_disk_counts(self):
+    #     counts_disk = []
+    #     selfgroup = self.h5file[self.hashID]
+    #     if 'outs' in selfgroup:
+    #         outsgroup = selfgroup['outs']
+    #         if '_counts_' in outsgroup:
+    #             counts = outsgroup['_counts_']
+    #             counts_disk.extend(utilities.unique_list(list(counts[...])))
+    #     return counts_disk

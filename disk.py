@@ -52,11 +52,10 @@ def remove_file(filename):
 
 def h5filewrap(func):
     @mpi.dowrap
-    def wrapper(*args, **kwargs):
-        self = args[0]
+    def wrapper(self, *args, **kwargs):
         with h5py.File(self.h5filename) as h5file:
             self.h5file = h5file
-            output = func(*args, **kwargs)
+            output = func(self, *args, **kwargs)
         return output
     return wrapper
 
