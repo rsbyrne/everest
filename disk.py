@@ -88,7 +88,7 @@ def h5filewrap(func):
         if isinstance(output, Exception):
             raise output
         else:
-            return outputs
+            return output
     return wrapper
 
 class ToOpen:
