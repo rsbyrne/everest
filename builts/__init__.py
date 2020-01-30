@@ -210,6 +210,8 @@ class Built(metaclass = Meta):
 
     def anchor(self, name, path = ''):
         self.writer = Writer(name, path)
+        self.h5file = self.writer.h5file
+        self.h5filename = self.writer.h5filename
         self.writer.add(self.localObjects, self.hashID)
         self.writer.add(self.globalObjects, '_globals_')
         self.anchored = True

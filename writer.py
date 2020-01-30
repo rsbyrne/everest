@@ -7,7 +7,10 @@ from . import mpi
 class Writer:
 
     def __init__(self, name, path):
+        self.name = name
+        self.path = path
         self.h5filename = disk.get_framePath(name, path)
+        self.h5file = None
         if mpi.rank == 0:
             os.makedirs(path, exist_ok = True)
         from .builts import Built
@@ -28,7 +31,7 @@ class Writer:
                 self._add_item(subitem, subname, *subgroupNames)
         elif isinstance(item, self.BuiltClass):
             if not self._check_item(item.hashID):
-                item.anchor(self.frameID, self.path)
+                item.anchor(self.name, self.path)
             # self._add_link(item.hashID, name, groupNames)
             self._add_ref(item.hashID, *names)
         else:

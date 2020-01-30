@@ -84,10 +84,11 @@ class Producer(Counter):
             return None
         self._update_dataDict()
         for key in ['_counts_', *self.outkeys]:
-            self._add_dataset(
+            self.writer._add_dataset(
                 self.dataDict[key],
                 key,
-                [self.hashID, 'outs',]
+                self.hashID,
+                'outs'
                 )
         self.clear()
         self._update_counts()
