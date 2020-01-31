@@ -16,35 +16,33 @@ for i in range(3):
         pimachine.store()
     pimachine.save()
 
-message(pimachine.counts)
+message('Counts:', pimachine.counts)
 
 pimachine.load(12)
 
 pimachine.iterate(15)
 
-message(pimachine.count)
+message('Count:', pimachine.count)
 
-message(pimachine.state)
+message('State:', pimachine.state)
 
 pimachine.load(3)
 
-message(pimachine.state)
-
-message(pimachine)
+message('State:', pimachine.state)
 
 hashID = pimachine.hashID
 
-message(hashID)
+message('HashID:', hashID)
 
 from everest.builts import load
 pimachine = load(hashID, 'test', '.')
 
-message(pimachine)
+assert pimachine.hashID == hashID
 
-message(pimachine.counts)
+message('Counts:', pimachine.counts)
 
 pimachine.load(27)
 
 pimachine.iterate(100)
 
-message(pimachine.state)
+message('State:', pimachine.state)

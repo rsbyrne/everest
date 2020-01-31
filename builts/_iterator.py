@@ -4,6 +4,7 @@ from types import FunctionType
 from everest import disk
 from everest.builts._counter import Counter
 from everest.builts._producer import Producer
+from everest.builts._producer import make_dataDict
 from everest import exceptions
 
 class Iterator(Counter, Producer):
@@ -35,25 +36,29 @@ class Iterator(Counter, Producer):
         self.samples.extend(
             [np.array([data,]) for data in outFn()]
             )
+        self.indexKey = '_count_'
+        self.dataKeys = [
+            key for key in self.outkeys if not key == self.indexKey
+            ]
         def _post_anchor():
             self.h5filename = self.writer.h5filename
         self._post_anchor_fns.append(_post_anchor)
         self.initialise()
 
     def _initialise_wrap(self, initialise):
-        self.count = 0
+        self.count.value = 0
         initialise()
 
     def _iterate_wrap(self, iterate, n):
         for i in range(n):
-            self.count += 1
+            self.count.value += 1
             iterate()
 
     def _load_wrap(self, load, count):
-        if not self.count == count:
+        if not self.count() == count:
             loadDict = self._load_dataDict(count)
             load(loadDict)
-            self.count = count
+            self.count.value = count
 
     def _load_dataDict(self, count):
         if count in self.counts_stored:
@@ -62,29 +67,23 @@ class Iterator(Counter, Producer):
             return self._load_dataDict_saved(count)
 
     def _load_dataDict_stored(self, count):
-        storedDict = {
-            count: data for count, data in self.stored
-            }
-        loadData = storedDict[count]
-        loadDict = {
-            outkey: data \
-                for outkey, data in zip(
-                    self.outkeys,
-                    loadData
-                    )
-            }
-        return loadDict
+        dataDict = self.make_dataDict()
+        counts = dataDict[self.indexKey]
+        index = np.where(counts == count)[0][0]
+        datas = [dataDict[key] for key in self.dataKeys]
+        return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
     def _load_dataDict_saved(self, count):
         self._check_anchored()
-        loadDict = {}
-        counts = self.reader[self.hashID, '_count_']
+        counts = self.reader[self.hashID, self.indexKey]
         matches = np.where(counts == count)[0]
         assert len(matches) <= 1
         if len(matches) == 0:
+            print(matches)
             raise exceptions.CountNotOnDiskError
-        index = np.where(counts == count)[0][0]
-        dataKeys = [key for key in self.outkeys if not key == '_count_']
-        return {key: self.reader[self.hashID, key] for key in dataKeys}
+        else:
+            index = matches[0]
+        datas = [self.reader[self.hashID, key] for key in self.dataKeys]
+        return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
-from .examples.pimachine import PiMachine as Example
+from .examples import pimachine as example

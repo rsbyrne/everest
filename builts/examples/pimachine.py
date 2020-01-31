@@ -1,3 +1,5 @@
+import numpy as np
+
 from everest.builts._iterator import Iterator
 
 class PiMachine(Iterator):
@@ -16,11 +18,11 @@ class PiMachine(Iterator):
                 for j, a in enumerate(A)
                 ])
         def out():
-            yield self.state
+            yield np.array(self.state)
         def initialise():
             self.state = self.kth(0)
         def iterate():
-            kthVal = self.kth(self.count)
+            kthVal = self.kth(self.count())
             self.state += kthVal
         def load(loadDict):
             self.state = loadDict['pi']

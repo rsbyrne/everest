@@ -8,6 +8,9 @@ from .. import disk
 from . import buffersize_exceeded
 from ._mutators import Mutator
 
+def make_dataDict(outkeys, stored):
+    return dict(zip(outkeys, list(map(list, zip(*stored)))))
+
 class Producer(Mutator):
 
     autosave = True
@@ -29,20 +32,15 @@ class Producer(Mutator):
 
         super().__init__(**kwargs)
 
-        self._pre_anchor_fns.append(lambda: \
-            self.localObjects.update({
-                key: val \
-                    for key, val in zip(self.outkeys, self.samples)
-                })
+        self._pre_anchor_fns.append(
+            lambda: self.localObjects.update({
+                    key: val \
+                        for key, val in zip(self.outkeys, self.samples)
+                    })
+                )
+        self._update_mutateDict_fns.append(
+            lambda: self._mutateDict.update(self.make_dataDict())
             )
-
-        def _update_mutateDict():
-            outs = list(map(list, zip(*self.stored)))
-            self._mutateDict.update({
-                key: np.array(val, dtype = utilities._obtain_dtype(val[0])) \
-                    for key, val in zip(self.outkeys, outs)
-                })
-        self._update_mutateDict_fns.append(_update_mutateDict)
 
     def set_autosave(self, val: bool):
         self.autosave = val
@@ -54,6 +52,10 @@ class Producer(Mutator):
             for data in datas:
                 nbytes += np.array(data).nbytes
         return nbytes
+
+    def make_dataDict(self):
+        processed = list(map(np.stack, (list(map(list, zip(*self.stored))))))
+        return dict(zip(self.outkeys, processed))
 
     def out(self):
         outs = tuple([item for fn in self.outFns for item in fn()])
