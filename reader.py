@@ -203,36 +203,3 @@ class Reader:
             raise TypeError("Input not recognised: ", inp)
 
     context = __getitem__
-    # 
-    # @disk.h5filewrap
-    # def get(self, *names):
-    #     h5obj = self.h5file
-    #     for name in names:
-    #         if name == 'attrs':
-    #             h5obj = h5obj.attrs
-    #         else:
-    #             h5obj = h5obj[name]
-    #             if type(h5obj) is h5py.Reference:
-    #                 h5obj = h5file[h5obj]
-    #     h5obj = self._process_h5obj(h5obj, self.h5file, self.h5filename)
-    #     return h5obj
-    #
-    # def _process_h5obj(self, h5obj, h5file, framePath):
-    #     # expects filewrap
-    #     if type(h5obj) is h5py.Group:
-    #         return h5obj.name
-    #     elif type(h5obj) is h5py.Dataset:
-    #         return h5obj[...]
-    #     elif type(h5obj) is h5py.AttributeManager:
-    #         inDict, outDict = h5obj.items(), dict()
-    #         for key, val in sorted(inDict):
-    #             outDict[key] = self._process_h5obj(val, h5file, framePath)
-    #         return outDict
-    #     elif type(h5obj) is h5py.Reference:
-    #         return '_path_' + os.path.join(framePath, h5file[h5obj].name)
-    #     else:
-    #         array = np.array(h5obj)
-    #         try:
-    #             return array.item()
-    #         except ValueError:
-    #             return list(array)
