@@ -1,14 +1,9 @@
 import numpy as np
-import os
-import importlib
-import h5py
-import time
 import hashlib
 import weakref
 
 from .. import utilities
 from .. import disk
-from .. import mpi
 from .. import wordhash
 from ..writer import Writer
 from ..reader import Reader
