@@ -7,7 +7,7 @@ from everest.builts._producer import Producer
 from everest.builts._producer import make_dataDict
 from everest import exceptions
 
-class Iterator(Counter, Producer):
+class Iterator(Counter):
 
     def __init__(
             self,
