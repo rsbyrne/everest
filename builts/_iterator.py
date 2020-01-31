@@ -2,6 +2,7 @@ from types import FunctionType
 
 from everest import disk
 from everest.builts._producer import Producer
+from everest import exceptions
 
 class Iterator(Producer):
 
@@ -50,7 +51,7 @@ class Iterator(Producer):
     def _load_dataDict(self, count):
         if count in self.counts_stored:
             return self._load_dataDict_stored(count)
-        else:
+        elif self.anchored:
             return self._load_dataDict_saved(count)
 
     def _load_dataDict_stored(self, count):
@@ -67,20 +68,16 @@ class Iterator(Producer):
             }
         return loadDict
 
-    @disk.h5filewrap
     def _load_dataDict_saved(self, count):
-        self._check_anchored()
-        # self.save()
         loadDict = {}
-        counts = self.h5file[self.hashID]['_counts_']
-        iterNo = 0
-        while True:
-            if iterNo >= len(counts):
-                raise Exception("Count not found!")
-            if counts[iterNo] == count:
-                break
-            iterNo += 1
-        loadDict = {}
+        counts = self.reader[self.hashID, '_counts_']
+        # counts = self.h5file[self.hashID]['_counts_']
+        matches = np.where(myarr == count)[0]
+        assert len(matches) <= 1
+        if len(matches) == 0:
+            raise exceptions.CountNotOnDiskError
+        index = np.where(myarr == count)[0][0]
+        loadDict = {key: val for key,
         for key in self.outkeys:
             loadData = self.h5file[self.hashID][key][iterNo]
             loadDict[key] = loadData

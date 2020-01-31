@@ -8,7 +8,6 @@ from .. import disk
 from . import buffersize_exceeded
 from ._counter import Counter
 from ._mutators import Mutator
-from ..reader import Reader
 
 class Producer(Mutator, Counter):
 
@@ -32,7 +31,6 @@ class Producer(Mutator, Counter):
 
         self.outkeys = outkeys
         self.stored = []
-        # self.dataDict = {}
         self.counts_stored = []
         self.counts_disk = []
         self.counts_captured = []
@@ -83,12 +81,11 @@ class Producer(Mutator, Counter):
 
     def save(self):
         self._check_anchored()
-        if len(self.stored) == 0:
-            return None
-        self.mutate()
-        self.clear()
-        self._update_counts()
-        self.lastsaved = time.time()
+        if len(self.stored) > 0:
+            self.mutate()
+            self.clear()
+            self._update_counts()
+            self.lastsaved = time.time()
 
     def _autosave(self):
         if buffersize_exceeded():
@@ -107,15 +104,11 @@ class Producer(Mutator, Counter):
 
     def _update_counts(self):
         if self.anchored:
-            self.counts_disk = self._get_disk_counts()
+            counts = self.reader[self.hashID, '_counts_']
+            self.counts_disk = list(set(counts))
         self.counts_stored = utilities.unique_list(
             [index for index, data in self.stored]
             )
         self.counts_captured = utilities.unique_list(
             [*self.counts_stored, *self.counts_disk]
             )
-
-    def _get_disk_counts(self):
-        self._check_anchored()
-        counts = Reader(self.name, self.path)[self.hashID, '_counts_']
-        return list(set(counts))

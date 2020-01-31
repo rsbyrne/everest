@@ -202,6 +202,8 @@ class Built(metaclass = Meta):
             '_classes_': {str(self.typeHash): self.script}
             }
 
+        self.reader = Reader(self.name, self.path)
+
         super().__init__()
 
     def __hash__(self):
