@@ -1,5 +1,7 @@
 import h5py
 from functools import partial
+from functools import reduce
+import operator
 import os
 import numpy as np
 
@@ -123,7 +125,6 @@ class Reader:
                 elif np.any(result):
                     countsPath = '/' + '/'.join((
                         superkey,
-                        'outs',
                         '_counts_'
                         ))
                     counts = context(countsPath)
@@ -136,16 +137,26 @@ class Reader:
         return outs
 
     def _gettuple(self, inp):
-        return [self.__getitem__(subInp) for subInp in inp]
+        if len(set([type(subInp) for subInp in inp])) == 1:
+            inpType = type(inp[0])
+            if not inpType in self._getmethods:
+                raise TypeError
+            if inpType is type(Ellipsis):
+                raise TypeError
+        else:
+            raise TypeError
+        method = self._getmethods[inpType]
+        if inpType is str:
+            return method(self, '/'.join(inp))
+        else:
+            outs = tuple([method(self, subInp) for subInp in inp])
+            if inpType is Fetch:
+                return reduce(operator.__and__, outs, 1)
+            else:
+                return outs
 
     @disk.h5filewrap
     def _getstr(self, key):
-        if key == '':
-            key = '**'
-        elif key[0] == '/':
-            key = key[1:]
-        elif not key[:2] == '**':
-            key = '**/' + key
         sought = self._seek(key, self.h5file)
         resolved = self._seekresolve(sought)
         if type(resolved) is dict:
@@ -171,7 +182,7 @@ class Reader:
         return self.pull(inScope, inp.stop)
 
     def _getellipsis(self, inp):
-        return self._getfetch(Fetch('/*'))
+        return self._getfetch(Fetch('**'))
 
     _getmethods = {
         tuple: _gettuple,
@@ -192,36 +203,36 @@ class Reader:
             raise TypeError("Input not recognised: ", inp)
 
     context = __getitem__
-
-    @disk.h5filewrap
-    def get(self, *names):
-        h5obj = self.h5file
-        for name in names:
-            if name == 'attrs':
-                h5obj = h5obj.attrs
-            else:
-                h5obj = h5obj[name]
-                if type(h5obj) is h5py.Reference:
-                    h5obj = h5file[h5obj]
-        h5obj = self._process_h5obj(h5obj, self.h5file, self.h5filename)
-        return h5obj
-
-    def _process_h5obj(self, h5obj, h5file, framePath):
-        # expects filewrap
-        if type(h5obj) is h5py.Group:
-            return h5obj.name
-        elif type(h5obj) is h5py.Dataset:
-            return h5obj[...]
-        elif type(h5obj) is h5py.AttributeManager:
-            inDict, outDict = h5obj.items(), dict()
-            for key, val in sorted(inDict):
-                outDict[key] = self._process_h5obj(val, h5file, framePath)
-            return outDict
-        elif type(h5obj) is h5py.Reference:
-            return '_path_' + os.path.join(framePath, h5file[h5obj].name)
-        else:
-            array = np.array(h5obj)
-            try:
-                return array.item()
-            except ValueError:
-                return list(array)
+    # 
+    # @disk.h5filewrap
+    # def get(self, *names):
+    #     h5obj = self.h5file
+    #     for name in names:
+    #         if name == 'attrs':
+    #             h5obj = h5obj.attrs
+    #         else:
+    #             h5obj = h5obj[name]
+    #             if type(h5obj) is h5py.Reference:
+    #                 h5obj = h5file[h5obj]
+    #     h5obj = self._process_h5obj(h5obj, self.h5file, self.h5filename)
+    #     return h5obj
+    #
+    # def _process_h5obj(self, h5obj, h5file, framePath):
+    #     # expects filewrap
+    #     if type(h5obj) is h5py.Group:
+    #         return h5obj.name
+    #     elif type(h5obj) is h5py.Dataset:
+    #         return h5obj[...]
+    #     elif type(h5obj) is h5py.AttributeManager:
+    #         inDict, outDict = h5obj.items(), dict()
+    #         for key, val in sorted(inDict):
+    #             outDict[key] = self._process_h5obj(val, h5file, framePath)
+    #         return outDict
+    #     elif type(h5obj) is h5py.Reference:
+    #         return '_path_' + os.path.join(framePath, h5file[h5obj].name)
+    #     else:
+    #         array = np.array(h5obj)
+    #         try:
+    #             return array.item()
+    #         except ValueError:
+    #             return list(array)

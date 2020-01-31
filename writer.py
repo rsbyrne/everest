@@ -4,6 +4,7 @@ import numpy as np
 
 from . import disk
 from . import mpi
+from .globevars import _BUILTTAG_, _CLASSTAG_
 
 class Writer:
 
@@ -17,8 +18,8 @@ class Writer:
         self.h5filename = disk.get_framePath(name, path)
         self.h5file = None
         mpi.dowrap(os.makedirs)(path, exist_ok = True)
-        from .builts import Built
-        self.BuiltClass = Built
+        from . import builts as builtsmodule
+        self.builtsmodule = builtsmodule
 
     def add(self, item, name = '/', *names, _toInitialise = False):
         if type(item) is dict:
@@ -30,9 +31,11 @@ class Writer:
                     _toInitialise = _toInitialise
                     )
         else:
-            if isinstance(item, self.BuiltClass):
+            if isinstance(item, self.builtsmodule.Built):
                 item.anchor(self.name, self.path)
-                self._add_link(item.hashID, name, *names)
+                self._add_attr(_BUILTTAG_ + item.hashID, name, *names)
+            elif type(item) is self.builtsmodule.Meta:
+                self._add_attr(_CLASSTAG_ + item.hashID, name, *names)
             elif type(item) is np.ndarray:
                 if _toInitialise:
                     self._add_dataset(item, name, *names)
@@ -51,6 +54,10 @@ class Writer:
     @_addwrap
     def _add_link(self, item, name, group):
         group[name] = self.h5file[item]
+
+    @_addwrap
+    def _add_ref(self, address, name, group):
+        group.attrs[name] = self.h5file[address].ref
 
     @_addwrap
     def _add_attr(self, item, name, group):

@@ -77,7 +77,7 @@ class Fetch:
 
     def __call__(self, context):
         if self.operation is None:
-            out = context(self.args[0])
+            out = context(self.args)
         else:
             out = self._operate(
                 *self.args,

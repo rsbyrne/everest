@@ -13,6 +13,8 @@ from .. import wordhash
 from ..writer import Writer
 from ..reader import Reader
 
+from ..globevars import _BUILTTAG_, _CLASSTAG_
+
 from ..exceptions import EverestException
 class NoPreBuiltError(EverestException):
     '''That hashID does not correspond to a previously created Built.'''
@@ -25,37 +27,37 @@ class NotInFrameError(EverestException):
     pass
 class BuiltNotFoundError(EverestException):
     '''A Built with those parameters could not be found.'''
+    pass
+class NoPreClassError(EverestException):
+    '''That typeHash is not associated with a class on file yet.'''
+    pass
 
-def load(hashID, name, path = '.'):
-    try:
-        hashID = Reader(name, path).get(hashID)
-    except KeyError:
-        raise NotInFrameError
-    except OSError:
-        raise NotOnDiskError
-    cls = _get_class(hashID, name, path)
-    inputs = Reader(name, path).get(hashID, 'inputs', 'attrs')
-    obj = cls.build(**inputs)
+def load(hashID, name, path = '.', get = False):
+    try: ignoreMe = Reader(name, path)[hashID]
+    except KeyError: raise NotInFrameError
+    except OSError: raise NotOnDiskError
+    cls = load_class(hashID, name, path)
+    inputs = Reader(name, path)[hashID, 'inputs', '*']
+    _process_loaded_inputs(inputs, name, path, get = get)
+    if get: obj = cls.get(**inputs)
+    else: obj = cls.build(**inputs)
+    assert obj.hashID == hashID, "Loaded hashID does not match input!"
     obj.anchor(name, path)
     return obj
 
-def get(hashID, name = None, path = '.'):
-    try:
-        return _get_prebuilt(hashID)
-    except NoPreBuiltError:
-        if name is None:
-            raise BuiltNotFoundError
-        else:
-            try:
-                return load(hashID, name, path)
-            except (NotOnDiskError, NotInFrameError):
-                raise BuiltNotFoundError
+def _process_loaded_inputs(inputs, name, path, **kwargs):
+    for key, val in inputs.items():
+        if type(val) is str:
+            if val.startswith(_BUILTTAG_):
+                inputs[key] = load(val.lstrip(_BUILTTAG_), name, path, **kwargs)
+            elif val.startswith(_CLASSTAG_):
+                inputs[key] = load_class(val.lstrip(_CLASSTAG_), name, path)
 
-def _get_class(hashID, name, path):
-    typeHash = Reader(name, path).get(hashID, 'attrs', 'typeHash')
-    script = Reader(name, path).get('_globals_', '_classes_', 'attrs', str(typeHash))
-    imported = disk.local_import_from_str(script)
-    return imported.CLASS
+def load_class(hashID, name, path):
+    reader = Reader(name, path)
+    script = reader['_globals_', '_classes_', reader[hashID, 'typeHash']]
+    outclass = disk.local_import_from_str(script).CLASS
+    return outclass
 
 def _get_inputs(cls, inputs = dict()):
     defaultInps = utilities.get_default_kwargs(cls.__init__)
@@ -114,12 +116,29 @@ def buffersize_exceeded():
             nbytes += built.nbytes
     return nbytes > BUFFERSIZE
 
+_PRECLASSES = dict()
+def _get_preclass(typeHash):
+    try:
+        outclass = _PRECLASSES[typeHash]
+        assert not outclass is None
+        return outclass
+    except AssertionError:
+        del _PRECLASSES[typeHash]
+    except KeyError:
+        pass
+    finally:
+        raise NoPreClassError
+
 class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
         outCls.script = disk.ToOpen(outCls.__init__.__globals__['__file__'])()
         outCls.typeHash = make_hash(outCls.script)
-        return outCls
+        try:
+            return _get_preclass(outCls.typeHash)
+        except NoPreClassError:
+            _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
+            return outCls
     def __call__(cls, *args, **kwargs):
         obj = cls.__new__(cls, *args, **kwargs)
         obj.__init__(**obj.inputs)
@@ -130,19 +149,8 @@ class Built(metaclass = Meta):
     @staticmethod
     def _deep_process_inputs(inputs):
         for key, val in inputs.items():
-            if type(val) is str:
-                if val[:len('_path_')] == '_path_':
-                    fullPath = val[len('_path_'):]
-                    hashID = os.path.basename(fullPath)
-                    try:
-                        obj = _get_prebuilt(hashID)
-                    except NoPreBuiltError:
-                        framePath = os.path.dirname(fullPath)
-                        splitPath = framePath.split('/')
-                        frameName = os.path.splitext(splitPath[-1])[0]
-                        outputPath = os.path.join(splitPath[:-1])
-                        obj = load(hashID, frameName, outputPath)
-                    inputs[key] = obj
+            if type(val) is np.ndarray:
+                inputs[key] = list(val)
     @staticmethod
     def _process_inputs(inputs):
         # designed to be overridden

@@ -117,5 +117,5 @@ class Producer(Mutator, Counter):
 
     def _get_disk_counts(self):
         self._check_anchored()
-        counts = Reader(self.name, self.path).get(self.hashID, '_counts_')
+        counts = Reader(self.name, self.path)[self.hashID, '_counts_']
         return list(set(counts))
