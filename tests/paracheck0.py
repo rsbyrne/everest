@@ -1,4 +1,4 @@
-from everest.builts._iterator import get
+from everest.builts.examples.pimachine import get
 pimachine = get()
 
 import os
