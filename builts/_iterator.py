@@ -1,10 +1,12 @@
+import numpy as np
 from types import FunctionType
 
 from everest import disk
+from everest.builts._counter import Counter
 from everest.builts._producer import Producer
 from everest import exceptions
 
-class Iterator(Producer):
+class Iterator(Counter, Producer):
 
     def __init__(
             self,
@@ -27,26 +29,31 @@ class Iterator(Producer):
             count
             )
         self.reset = self.initialise
-        super().__init__(outFn, outkeys, **kwargs)
+        super().__init__(**kwargs)
+        self.outFns.append(outFn)
+        self.outkeys.extend(outkeys)
+        self.samples.extend(
+            [np.array([data,]) for data in outFn()]
+            )
         def _post_anchor():
             self.h5filename = self.writer.h5filename
         self._post_anchor_fns.append(_post_anchor)
         self.initialise()
 
     def _initialise_wrap(self, initialise):
-        self.count.value = 0
+        self.count = 0
         initialise()
 
     def _iterate_wrap(self, iterate, n):
         for i in range(n):
-            self.count.value += 1
+            self.count += 1
             iterate()
 
     def _load_wrap(self, load, count):
-        if not self.count() == count:
+        if not self.count == count:
             loadDict = self._load_dataDict(count)
             load(loadDict)
-            self.count.value = count
+            self.count = count
 
     def _load_dataDict(self, count):
         if count in self.counts_stored:
@@ -69,19 +76,16 @@ class Iterator(Producer):
         return loadDict
 
     def _load_dataDict_saved(self, count):
+        self._check_anchored()
         loadDict = {}
-        counts = self.reader[self.hashID, '_counts_']
-        # counts = self.h5file[self.hashID]['_counts_']
-        matches = np.where(myarr == count)[0]
+        counts = self.reader[self.hashID, '_count_']
+        matches = np.where(counts == count)[0]
         assert len(matches) <= 1
         if len(matches) == 0:
             raise exceptions.CountNotOnDiskError
-        index = np.where(myarr == count)[0][0]
-        loadDict = {key: val for key,
-        for key in self.outkeys:
-            loadData = self.h5file[self.hashID][key][iterNo]
-            loadDict[key] = loadData
-        return loadDict
+        index = np.where(counts == count)[0][0]
+        dataKeys = [key for key in self.outkeys if not key == '_count_']
+        return {key: self.reader[self.hashID, key] for key in dataKeys}
 
 ### EXAMPLE ###
 
@@ -96,24 +100,28 @@ class ExampleIterator(Iterator):
             b : int = 16,
             A : list = [4, 0, 0, -2, -1, -1, 0, 0]
             ):
-        self.state = Value(0.)
-        self.kth = lambda k: 1. / b **k * sum([a / (len(A) * k + (j + 1))**s for j, a in enumerate(A)])
+        self.state = 0.
+        self.kth = lambda k: \
+            1. / b **k \
+            * sum([a / (len(A) * k + (j + 1))**s \
+                for j, a in enumerate(A)
+                ])
+        def out():
+            yield self.state
+        def initialise():
+            self.state = self.kth(0)
+        def iterate():
+            kthVal = self.kth(self.count)
+            self.state += kthVal
+        def load(loadDict):
+            self.state = loadDict['pi']
         super().__init__(
-            self.initialise,
-            self.iterate,
-            self.out,
+            initialise,
+            iterate,
+            out,
             ['pi',],
-            self.load
+            load
             )
-    def out(self):
-        return [self.state.value,]
-    def initialise(self):
-        self.state.value = self.kth(0)
-    def iterate(self):
-        kthVal = self.kth(self.count.value)
-        self.state.value += kthVal
-    def load(self, loadDict):
-        self.state.value = loadDict['pi']
 
 CLASS = ExampleIterator
 build = CLASS.build

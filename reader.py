@@ -41,7 +41,7 @@ class Reader:
             if scopeCounts == '...':
                 arr = thisTargetDataset[...]
             else:
-                thisCountsDataset = thisGroup['_counts_']
+                thisCountsDataset = thisGroup['_count_']
                 maskArr = np.isin(
                     thisCountsDataset,
                     scopeCounts,
@@ -125,7 +125,7 @@ class Reader:
                 elif np.any(result):
                     countsPath = '/' + '/'.join((
                         superkey,
-                        '_counts_'
+                        '_count_'
                         ))
                     counts = context(countsPath)
                     indices = counts[result.flatten()]

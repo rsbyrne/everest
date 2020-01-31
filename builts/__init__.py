@@ -179,8 +179,6 @@ class Built(metaclass = Meta):
         obj.instanceHash = instanceHash
         obj.hashID = hashID
         obj._initialised = False
-        obj._pre_anchor_fns = []
-        obj._post_anchor_fns = []
         return obj
 
     def __init__(self, **customAttributes):
@@ -188,6 +186,8 @@ class Built(metaclass = Meta):
         self.nbytes = 0
 
         self.anchored = False
+        self._pre_anchor_fns = []
+        self._post_anchor_fns = []
 
         self.localObjects = dict()
         self.localObjects.update(customAttributes)
@@ -201,8 +201,6 @@ class Built(metaclass = Meta):
         self.globalObjects = {
             '_classes_': {str(self.typeHash): self.script}
             }
-
-        self.reader = Reader(self.name, self.path)
 
         super().__init__()
 
@@ -221,10 +219,9 @@ class Built(metaclass = Meta):
         writer = Writer(name, path)
         writer.add(self.localObjects, self.hashID, _toInitialise = True)
         writer.add(self.globalObjects, '_globals_', _toInitialise = True)
-        self.anchored = True
-        if hasattr(self, 'count'):
-            self._update_counts()
+        self.reader = Reader(self.name, self.path)
         for fn in self._post_anchor_fns: fn()
+        self.anchored = True
 
     def _coanchored(self, coBuilt):
         if hasattr(self, 'h5filename') and hasattr(coBuilt, 'h5filename'):

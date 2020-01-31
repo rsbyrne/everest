@@ -16,7 +16,7 @@ for i in range(3):
         pimachine.store()
     pimachine.save()
 
-message(pimachine.counts_captured)
+message(pimachine.counts)
 
 pimachine.load(12)
 
@@ -41,7 +41,7 @@ pimachine = load(hashID, 'test', '.')
 
 message(pimachine)
 
-message(pimachine.counts_captured)
+message(pimachine.counts)
 
 pimachine.load(27)
 
