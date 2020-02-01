@@ -1,13 +1,13 @@
 import numpy as np
 from types import FunctionType
 
-from everest import disk
-from everest.builts._counter import Counter
-from everest.builts._producer import Producer
-from everest.builts._producer import make_dataDict
-from everest import exceptions
+from .. import disk
+from ._counter import Counter
+from ._cycler import Cycler
+from ._producer import make_dataDict
+from .. import exceptions
 
-class Iterator(Counter):
+class Iterator(Counter, Cycler):
 
     def __init__(
             self,
@@ -18,6 +18,7 @@ class Iterator(Counter):
             loadFn : FunctionType,
             **kwargs
             ):
+
         self.initialise = lambda: self._initialise_wrap(
             initialiseFn,
             )
@@ -30,7 +31,10 @@ class Iterator(Counter):
             count
             )
         self.reset = self.initialise
+
         super().__init__(**kwargs)
+
+        # Producer attributes:
         self.outFns.append(outFn)
         self.outkeys.extend(outkeys)
         self.samples.extend(
@@ -40,9 +44,16 @@ class Iterator(Counter):
         self.dataKeys = [
             key for key in self.outkeys if not key == self.indexKey
             ]
+
+        # Cycler attributes:
+        self._cycle_fns.append(self.iterate)
+
+        # Built attributes:
         def _post_anchor():
             self.h5filename = self.writer.h5filename
         self._post_anchor_fns.append(_post_anchor)
+
+
         self.initialise()
 
     def _initialise_wrap(self, initialise):
