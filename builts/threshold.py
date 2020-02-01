@@ -13,7 +13,8 @@ class Threshold(Condition):
         getProperty = lambda: getattr(built, prop)
         getOpFn = lambda: getattr(getProperty(), op)
         boolFn = lambda: getOpFn()(val)
-        super().__init__(boolFn)
+        super().__init__()
+        self._cycle_fns.append(boolFn)
 
 CLASS = Threshold
 build = CLASS.build

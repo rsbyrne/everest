@@ -5,13 +5,19 @@ from . import Built
 class Condition(Built):
     def __init__(
             self,
-            boolFn : FunctionType,
+            _bool_meta_fn = all,
             **kwargs
             ):
-        self.boolFn = boolFn
+        self._pre_bool_fns = []
+        self._bool_fns = []
+        self._post_bool_fns = []
+        self._bool_meta_fn = _bool_meta_fn
         super().__init__(**kwargs)
     def __bool__(self):
-        return self.boolFn()
+        for fn in self._pre_bool_fns: fn()
+        truth = _bool_meta_fn(self._bool_fns)
+        for fn in self._post_bool_fns: fn()
+        return truth
 
 # # Unary
 # class Not(Condition):

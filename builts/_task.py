@@ -1,16 +1,12 @@
 from types import FunctionType
 
-from . import Built
-# from ._cycler import Cycler
+from ._cycler import Cycler
+from ._condition import Condition
+from ._mutators import Mutator
 
-class Task(Built):
+class Task(Cycler, Condition, Mutator):
     def __init__(
             self,
-            prerequisites,
-            makeFn,
-            stopCondition,
-            bailCondition,
             **kwargs
             ):
-
         super().__init__(status = self.status)
