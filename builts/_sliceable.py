@@ -1,3 +1,5 @@
+from functools import reduce
+
 from . import Built
 from ..exceptions import EverestException
 
@@ -6,14 +8,8 @@ class SliceTypeError(EverestException):
     pass
 
 class Sliceable(Built):
-    def __init__(self, sliceFn, sliceType = None, **kwargs):
-        self.sliceFn, self.sliceType = sliceFn, sliceType
+    def __init__(self, **kwargs):
+        self._slice_fns = []
         super().__init__(**kwargs)
     def __getitem__(self, slicer):
-        if self.sliceType is None:
-            return self.sliceFn(slicer)
-        else:
-            if isinstance(slicer, self.sliceType):
-                return self.sliceFn(slicer)
-            else:
-                raise SliceTypeError
+        return reduce(lambda x, y: y(x), [slicer, *self._slice_fns])

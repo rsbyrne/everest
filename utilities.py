@@ -29,16 +29,12 @@ def flatten(d, parent_key = '', sep = '_'):
     return dict(items)
 
 def get_default_kwargs(func):
-    # only works with kwargs
-    argspec = inspect.getfullargspec(func)
-    if 'self' in argspec.args:
-        argspec.args.remove('self')
-    defaultInps = {
-        key: val \
-            for key, val \
-                in zip(
-                    argspec.args,
-                    argspec.defaults
-                    )
+    allargs = {
+        key: val.default for key, val \
+            in inspect.signature(func).parameters.items()
         }
-    return defaultInps
+    kwargs = {
+        key: val for key, val \
+            in allargs.items() if not val is inspect.Parameter.empty
+        }
+    return kwargs
