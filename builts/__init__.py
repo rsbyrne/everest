@@ -194,9 +194,6 @@ class Built(metaclass = Meta):
 
     def __init__(self, **customAttributes):
 
-        if any([isinstance(val, Placeholder) for val in self.inputs.values()]):
-
-
         self.nbytes = 0
 
         self.anchored = False
