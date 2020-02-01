@@ -37,4 +37,7 @@ class Task(Condition, Cycler):
 
         # Condition attributes:
         condition = _task_stopPartial.build(cycler)
-        self._bool_fns.append(lambda: _task_boolFn(cycler))
+        if not isinstance(condition, Condition):
+            raise Exception
+        boolFn = lambda: condition
+        self._bool_fns.append(boolFn)

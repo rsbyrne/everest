@@ -27,6 +27,9 @@ class BuiltNotFoundError(EverestException):
 class NoPreClassError(EverestException):
     '''That typeHash is not associated with a class on file yet.'''
     pass
+class PlaceholderError(EverestException):
+    '''A placeholder has been set which is yet to be fulfilled!'''
+    pass
 
 def load(hashID, name, path = '.', get = False):
     reader = Reader(name, path)
@@ -45,7 +48,7 @@ def load(hashID, name, path = '.', get = False):
     return obj
 
 def _process_loaded_inputs(inputs, name, path, **kwargs):
-    for key, val in inputs.items():
+    for key, val in sorted(inputs.items()):
         if type(val) is str:
             if val.startswith(_BUILTTAG_):
                 inputs[key] = load(val.lstrip(_BUILTTAG_), name, path, **kwargs)
@@ -153,6 +156,7 @@ class Built(metaclass = Meta):
         for key, val in inputs.items():
             if type(val) is np.ndarray:
                 inputs[key] = list(val)
+
     @staticmethod
     def _process_inputs(inputs):
         # designed to be overridden
@@ -189,6 +193,9 @@ class Built(metaclass = Meta):
         return obj
 
     def __init__(self, **customAttributes):
+
+        if any([isinstance(val, Placeholder) for val in self.inputs.values()]):
+
 
         self.nbytes = 0
 
@@ -242,25 +249,68 @@ class Built(metaclass = Meta):
         if not self._coanchored(coBuilt):
             self.anchor(coBuilt.frameID, coBuilt.path)
 
-    @classmethod
-    def partial(cls, **inputs):
-        return Partial(cls, **inputs)
-    @classmethod
-    def pending(cls, **inputs):
-        return Pending(cls, **inputs)
 
-class Partial:
-    def __init__(self, cls, **inputs):
-        self.cls = cls.__new__(cls, **inputs)
-        self.inputs = inputs
-        self.build = partial(self._construct, cls.build)
-        self.get = partial(self._construct, cls.get)
-    def _construct(self, constructFn, **inputs):
-        inputs = {**self.inputs, **inputs}
-        return constructFn(**inputs)
 
-class Pending:
-    def __init__(self, cls, **inputs):
-        self.cls = cls.__new__(cls, **inputs)
-        self.build = lambda: cls.build(**inputs)
-        self.get = lambda: cls.get(**inputs)
+
+# elif isinstance(val, Partial):
+#     inputs[key] = _PARTIALTAG_ + str(val.typeHash)
+#     for subKey, subVal in sorted(val.inputs.items()):
+#         subKey = key + _PARTIALARGTAG_ + subKey
+#         if isinstance(subVal, Placeholder):
+#             subVal = _PLACEHOLDERTAG_
+#         inputs[subKey] = subVal
+
+#     @classmethod
+#     def partial(cls, **inputs):
+#         return Partial(cls, **inputs)
+#     @classmethod
+#     def pending(cls, **inputs):
+#         return Pending(cls, **inputs)
+#
+# class Partial:
+#     def __init__(self, cls, **inputs):
+#         self.typeHash = cls.typeHash
+#         self.inputs = inputs
+#         self.cls._deep_process_inputs(self.inputs)
+#         self.cls._process_inputs(self.inputs)
+#         self.build = partial(self._construct, cls.build)
+#         self.get = partial(self._construct, cls.get)
+#     def _construct(self, constructFn, *args, **kwargs):
+#         inputs = {**self.inputs}
+#         args = list(args)
+#         for key, val in sorted(inputs):
+#             if isinstance(val, Placeholder):
+#                 if key in kwargs:
+#                     inputs[key] = kwargs[key]
+#                     del kwargs[key]
+#                 else:
+#                     inputs[key] = args.pop[0]
+#         if len(args): raise Exception
+#         if len(kwargs): raise Exception
+#         return constructFn(**inputs)
+#
+# class Pending:
+#     def __init__(self, cls, **inputs):
+#         self.cls = cls.__new__(cls, **inputs)
+#         self.build = lambda: cls.build(**inputs)
+#         self.get = lambda: cls.get(**inputs)
+#
+# class Placeholder:
+#     pass
+#
+#     partialKeys = [key for key in inputs if inputs[key].startswith(_PARTIALTAG_)]
+#     for partialKey in partialKeys:
+#         modPartialKey = val.lstrip(_PARTIALTAG_)
+#         partialArgKeys = [
+#             key for key in inputs \
+#                 if key.startswith(modPartialKey + _PARTIALARGTAG_)
+#             ]
+#         partialInputs = dict()
+#         for key in partialArgKeys:
+#             modKey = key.lstrip(partialKey).lstrip(_PARTIALARGTAG_)
+#             partialInputs[modKey] = inputs.pop(key)
+#         partialClass = load_class(inputs)
+
+# _PARTIALTAG_ = '_partial_'
+# _PARTIALARGTAG_ = '_partialarg_'
+# _PLACEHOLDERTAG_ = '_placeholder_'
