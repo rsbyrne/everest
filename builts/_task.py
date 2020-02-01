@@ -1,5 +1,3 @@
-from types import FunctionType
-
 from ._cycler import Cycler
 from ._condition import Condition
 from ..exceptions import EverestException
@@ -16,8 +14,8 @@ class Task(Condition, Cycler):
 
     def __init__(
             self,
-            _task_in : = None,
-            _task_stopPartial = None,
+            _task_in = None,
+            _task_stop = None,
             **kwargs
             ):
 
@@ -36,8 +34,5 @@ class Task(Condition, Cycler):
         self._cycle_fns.append(cycle)
 
         # Condition attributes:
-        condition = _task_stopPartial.build(cycler)
-        if not isinstance(condition, Condition):
-            raise Exception
         boolFn = lambda: condition
-        self._bool_fns.append(boolFn)
+        self._bool_fns.append(_task_stop)
