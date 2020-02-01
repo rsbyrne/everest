@@ -9,7 +9,8 @@ class PiMachine(Iterator):
             self,
             s : int = 1,
             b : int = 16,
-            A : list = [4, 0, 0, -2, -1, -1, 0, 0]
+            A : list = [4, 0, 0, -2, -1, -1, 0, 0],
+            **kwargs
             ):
         self.state = 0.
         self.kth = lambda k: \
@@ -31,7 +32,8 @@ class PiMachine(Iterator):
             iterate,
             out,
             ['pi',],
-            load
+            load,
+            **kwargs
             )
 
 CLASS = PiMachine

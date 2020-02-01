@@ -35,7 +35,7 @@ class Writer:
                 item.anchor(self.name, self.path)
                 self._add_attr(_BUILTTAG_ + item.hashID, name, *names)
             elif type(item) is self.builtsmodule.Meta:
-                self._add_attr(_CLASSTAG_ + item.hashID, name, *names)
+                self._add_attr(_CLASSTAG_ + str(item.typeHash), name, *names)
             elif type(item) is np.ndarray:
                 if _toInitialise:
                     self._add_dataset(item, name, *names)

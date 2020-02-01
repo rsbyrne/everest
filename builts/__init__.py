@@ -28,15 +28,18 @@ class NoPreClassError(EverestException):
     pass
 
 def load(hashID, name, path = '.', get = False):
-    try: ignoreMe = Reader(name, path)[hashID]
+    reader = Reader(name, path)
+    try: assert hashID == reader[hashID, 'hashID']
     except KeyError: raise NotInFrameError
     except OSError: raise NotOnDiskError
-    cls = load_class(hashID, name, path)
-    inputs = Reader(name, path)[hashID, 'inputs', '*']
-    _process_loaded_inputs(inputs, name, path, get = get)
+    typeHash = reader[hashID, 'typeHash']
+    cls = load_class(typeHash, name, path)
+    inputs = reader[hashID, 'inputs', '*']
+    _process_loaded_inputs(inputs, name, path)
     if get: obj = cls.get(**inputs)
     else: obj = cls.build(**inputs)
-    assert obj.hashID == hashID, "Loaded hashID does not match input!"
+    # assert obj.hashID == hashID, \
+    #     "Loaded hashID " + obj.hashID + " does not match requested " + hashID
     obj.anchor(name, path)
     return obj
 
@@ -48,10 +51,11 @@ def _process_loaded_inputs(inputs, name, path, **kwargs):
             elif val.startswith(_CLASSTAG_):
                 inputs[key] = load_class(val.lstrip(_CLASSTAG_), name, path)
 
-def load_class(hashID, name, path):
+def load_class(typeHash, name, path):
     reader = Reader(name, path)
-    script = reader['_globals_', '_classes_', reader[hashID, 'typeHash']]
+    script = reader['_globals_', '_classes_', typeHash]
     outclass = disk.local_import_from_str(script).CLASS
+    assert typeHash == str(outclass.typeHash)
     return outclass
 
 def _get_inputs(cls, inputs = dict()):
@@ -75,6 +79,8 @@ def _get_info(cls, inputs = dict()):
 def make_hash(obj):
     if hasattr(obj, 'instanceHash'):
         hashVal = obj.instanceHash
+    elif hasattr(obj, 'typeHash'):
+        hashVal = obj.typeHash
     elif type(obj) is dict:
         hashVal = make_hash(sorted(obj.items()))
     elif type(obj) is list or type(obj) is tuple:
