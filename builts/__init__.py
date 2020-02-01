@@ -1,6 +1,7 @@
 import numpy as np
 import hashlib
 import weakref
+from functools import partial
 
 from .. import utilities
 from .. import disk
@@ -240,3 +241,26 @@ class Built(metaclass = Meta):
             raise Exception("Trying to coanchor to unanchored built!")
         if not self._coanchored(coBuilt):
             self.anchor(coBuilt.frameID, coBuilt.path)
+
+    @classmethod
+    def partial(cls, **inputs):
+        return Partial(cls, **inputs)
+    @classmethod
+    def pending(cls, **inputs):
+        return Pending(cls, **inputs)
+
+class Partial:
+    def __init__(self, cls, **inputs):
+        self.cls = cls.__new__(cls, **inputs)
+        self.inputs = inputs
+        self.build = partial(self._construct, cls.build)
+        self.get = partial(self._construct, cls.get)
+    def _construct(self, constructFn, **inputs):
+        inputs = {**self.inputs, **inputs}
+        return constructFn(**inputs)
+
+class Pending:
+    def __init__(self, cls, **inputs):
+        self.cls = cls.__new__(cls, **inputs)
+        self.build = lambda: cls.build(**inputs)
+        self.get = lambda: cls.get(**inputs)
