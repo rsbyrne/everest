@@ -51,9 +51,11 @@ def _process_loaded_inputs(inputs, name, path, **kwargs):
     for key, val in sorted(inputs.items()):
         if type(val) is str:
             if val.startswith(_BUILTTAG_):
-                inputs[key] = load(val.lstrip(_BUILTTAG_), name, path, **kwargs)
+                hashID = val[len(_BUILTTAG_):]
+                inputs[key] = load(hashID, name, path, **kwargs)
             elif val.startswith(_CLASSTAG_):
-                inputs[key] = load_class(val.lstrip(_CLASSTAG_), name, path)
+                typeHash = val[len(_CLASSTAG_):]
+                inputs[key] = load_class(typeHash, name, path)
 
 def load_class(typeHash, name, path):
     reader = Reader(name, path)
@@ -137,7 +139,11 @@ def _get_preclass(typeHash):
 class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
-        outCls.script = disk.ToOpen(outCls.__init__.__globals__['__file__'])()
+        if hasattr(outCls, '_file_'):
+            scriptPath = outCls._file_
+        else:
+            scriptPath = outCls.__init__.__globals__['__file__']
+        outCls.script = disk.ToOpen(scriptPath)()
         outCls.typeHash = make_hash(outCls.script)
         try:
             return _get_preclass(outCls.typeHash)

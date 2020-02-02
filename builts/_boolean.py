@@ -2,7 +2,7 @@ from types import FunctionType
 
 from . import Built
 
-class Condition(Built):
+class Boolean(Built):
     def __init__(
             self,
             _bool_meta_fn = all,
