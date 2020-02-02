@@ -11,6 +11,9 @@ class MPIError(EverestException):
 class SubMPIError(EverestException):
     '''Something went wrong inside an MPI block.'''
     pass
+class MPIPlaceholderError(EverestException):
+    '''An MPI broadcast operation failed.'''
+    pass
 
 def message(*args, **kwargs):
     comm.barrier()
@@ -29,7 +32,8 @@ def share(obj):
 
 def dowrap(func):
     def wrapper(*args, **kwargs):
-        output = None
+        comm.barrier()
+        output = MPIPlaceholderError()
         if rank == 0:
             try:
                 output = func(*args, **kwargs)
@@ -37,6 +41,7 @@ def dowrap(func):
                 exc_type, exc_val = sys.exc_info()[:2]
                 output = exc_type(exc_val)
         output = share(output)
+        comm.barrier()
         if isinstance(output, Exception):
             raise output
         else:
