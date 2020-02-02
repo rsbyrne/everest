@@ -11,11 +11,11 @@ class Iterator(Counter, Cycler):
 
     def __init__(
             self,
-            initialiseFn : FunctionType,
-            iterateFn : FunctionType,
-            outFn : FunctionType,
-            outkeys : list,
-            loadFn : FunctionType,
+            initialiseFn : FunctionType = None,
+            iterateFn : FunctionType = None,
+            outFn : FunctionType = None,
+            outkeys : list = None,
+            loadFn : FunctionType = None
             **kwargs
             ):
 
