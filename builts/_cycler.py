@@ -11,4 +11,4 @@ class Cycler(Built):
         for fn in self._cycle_fns: fn()
         for fn in self._post_cycle_fns: fn()
     def __call__(self):
-        return self.cycle()
+        self.cycle()

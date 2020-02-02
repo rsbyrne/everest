@@ -10,7 +10,7 @@ class Inquirer(Built):
     def __init__(
             self,
             _inquirer_meta_fn = all,
-            _inquirer_arg_typeCheck = lambda x: x,
+            _inquirer_arg_typeCheck = lambda x: True,
             **kwargs
             ):
         self._pre_inquirer_fns = []

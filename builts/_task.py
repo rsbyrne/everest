@@ -1,38 +1,27 @@
 from ._cycler import Cycler
-from ._condition import Condition
-from ..exceptions import EverestException
+from ._boolean import Boolean
 
-# class TaskPrerequisiteNotMetError(EverestException):
-#     '''The prerequisite to commence this task \
-# has not been met yet.'''
-#     pass
-# class TaskStopMetError(EverestException):
-#     '''The task has been completed.'''
-#     pass
-
-class Task(Condition, Cycler):
+class Task(Boolean, Cycler):
 
     def __init__(
             self,
-            _task_in = None,
-            _task_stop = None,
+            _task_stop_metaFn = all,
             **kwargs
             ):
+
+        self._task_cycler_fns = []
+        self._task_stop_fns = []
+        self._task_products = []
 
         super().__init__()
 
         # Cycler attributes:
-        if isinstance(_task_in, Task):
-            cycler = _task_in()
-        else:
-            cycler = _task_in
-        if not isinstance(cycler, Cycler):
-            raise TypeError
-        def cycle():
-            while not self: cycler()
-            return cycler
-        self._cycle_fns.append(cycle)
+        def cycleFn():
+            while not self:
+                for fn in self._task_cycler_fns: fn()
+        self._cycle_fns.append(cycleFn)
 
-        # Condition attributes:
-        boolFn = lambda: condition
-        self._bool_fns.append(_task_stop)
+        # Boolean attributes:
+        def boolFn():
+            return _task_stop_metaFn([fn() for fn in self._task_stop_fns])
+        self._bool_fns.append(boolFn)

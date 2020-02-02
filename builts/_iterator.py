@@ -15,7 +15,7 @@ class Iterator(Counter, Cycler):
             iterateFn : FunctionType = None,
             outFn : FunctionType = None,
             outkeys : list = None,
-            loadFn : FunctionType = None
+            loadFn : FunctionType = None,
             **kwargs
             ):
 
