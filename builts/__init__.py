@@ -3,6 +3,8 @@ import hashlib
 import weakref
 from functools import partial
 
+from .. import mpi
+
 from .. import utilities
 from .. import disk
 from .. import wordhash
@@ -138,6 +140,7 @@ def _get_preclass(typeHash):
 
 class Meta(type):
     def __new__(cls, name, bases, dic):
+        mpi.comm.barrier()
         outCls = super().__new__(cls, name, bases, dic)
         if hasattr(outCls, '_file_'):
             scriptPath = outCls._file_
@@ -146,13 +149,18 @@ class Meta(type):
         outCls.script = disk.ToOpen(scriptPath)()
         outCls.typeHash = make_hash(outCls.script)
         try:
+            mpi.comm.barrier()
             return _get_preclass(outCls.typeHash)
         except NoPreClassError:
             _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
+            mpi.comm.barrier()
             return outCls
     def __call__(cls, *args, **kwargs):
+        mpi.comm.barrier()
         obj = cls.__new__(cls, *args, **kwargs)
+        mpi.comm.barrier()
         obj.__init__(**obj.inputs)
+        mpi.comm.barrier()
         return obj
 
 class Built(metaclass = Meta):
@@ -231,14 +239,16 @@ class Built(metaclass = Meta):
                 )
 
     def anchor(self, name, path = ''):
+        mpi.comm.barrier()
         for fn in self._pre_anchor_fns: fn()
         self.name, self.path = name, path
-        writer = Writer(name, path)
-        writer.add(self.localObjects, self.hashID, _toInitialise = True)
-        writer.add(self.globalObjects, '_globals_', _toInitialise = True)
+        self.writer = Writer(name, path)
+        self.writer.add(self.localObjects, self.hashID, _toInitialise = True)
+        self.writer.add(self.globalObjects, '_globals_', _toInitialise = True)
         self.reader = Reader(self.name, self.path)
         for fn in self._post_anchor_fns: fn()
         self.anchored = True
+        mpi.comm.barrier()
 
     def _coanchored(self, coBuilt):
         if hasattr(self, 'h5filename') and hasattr(coBuilt, 'h5filename'):
@@ -251,9 +261,6 @@ class Built(metaclass = Meta):
             raise Exception("Trying to coanchor to unanchored built!")
         if not self._coanchored(coBuilt):
             self.anchor(coBuilt.frameID, coBuilt.path)
-
-
-
 
 # elif isinstance(val, Partial):
 #     inputs[key] = _PARTIALTAG_ + str(val.typeHash)

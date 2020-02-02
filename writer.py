@@ -23,7 +23,7 @@ class Writer:
 
     def add(self, item, name = '/', *names, _toInitialise = False):
         if type(item) is dict:
-            for key, val in item.items():
+            for key, val in sorted(item.items()):
                 self.add(
                     val,
                     key,
