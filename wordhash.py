@@ -36,9 +36,11 @@ def _make_syllables():
     allcons = [*consonants, *conclusters, *condigraphs]
     vowels = [*list("aeiou")]
     voweldiphthongs = [
-        'ai', 'ay', 'ea', 'ee', 'ei',
-        'ie', 'oa', 'oo', 'ow', 'ue',
-        'ou'
+        'aa', 'ae', 'ai', 'ao', 'au',
+        'ea', 'ee', 'ei', 'eo', 'eu',
+        'ia', 'ie', 'ii', 'io', 'iu',
+        'oa', 'oe', 'oi', 'oo', 'ou',
+        'ua', 'ue', 'ui', 'uo', 'uu'
         ]
     allvowels = [*vowels, *voweldiphthongs]
     cvs = [consonant + vowel for vowel in allvowels for consonant in allcons]
@@ -71,6 +73,16 @@ def random_phrase(phraselength = 2, wordlength = 2):
     phrase = "-".join(phraseList)
     return phrase
 
+def random_alphanumeric(length = 6):
+    characters = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    choices = [random.choice(characters) for i in range(length)]
+    return ''.join(choices)
+
+def get_random_alphanumeric(randomseed = None, **kwargs):
+    with Reseed(randomseed):
+        output = random_alphanumeric(**kwargs)
+    return output
+
 def get_random_word(randomseed = None, **kwargs):
     with Reseed(randomseed):
         output = random_word(**kwargs)
@@ -79,4 +91,11 @@ def get_random_word(randomseed = None, **kwargs):
 def get_random_phrase(randomseed = None, **kwargs):
     with Reseed(randomseed):
         output = random_phrase(**kwargs)
+    return output
+
+def get_random_mix(randomseed = None, **kwargs):
+    with Reseed(randomseed):
+        phrase = random_phrase(phraselength = 1)
+        alphanum = random_alphanumeric()
+        output = '-'.join((phrase, alphanum))
     return output

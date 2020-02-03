@@ -22,6 +22,7 @@ class Iterator(Counter, Cycler):
         self.initialise = lambda: self._initialise_wrap(
             initialiseFn,
             )
+        self.initialised = False
         self.iterate = lambda n = 1: self._iterate_wrap(
             iterateFn,
             n,
@@ -59,13 +60,17 @@ class Iterator(Counter, Cycler):
     def _initialise_wrap(self, initialise):
         self.count.value = 0
         initialise()
+        self.initialised = True
 
     def _iterate_wrap(self, iterate, n):
+        if not self.initialised:
+            self.initialise()
         for i in range(n):
             self.count.value += 1
             iterate()
 
     def _load_wrap(self, load, count):
+        self.initialised = True
         if not self.count() == count:
             loadDict = self._load_dataDict(count)
             load(loadDict)
