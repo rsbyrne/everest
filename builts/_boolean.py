@@ -1,5 +1,3 @@
-from types import FunctionType
-
 from . import Built
 
 class Boolean(Built):
