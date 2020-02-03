@@ -140,7 +140,6 @@ def _get_preclass(typeHash):
 
 class Meta(type):
     def __new__(cls, name, bases, dic):
-        mpi.comm.barrier()
         outCls = super().__new__(cls, name, bases, dic)
         if hasattr(outCls, '_file_'):
             scriptPath = outCls._file_
@@ -149,18 +148,13 @@ class Meta(type):
         outCls.script = disk.ToOpen(scriptPath)()
         outCls.typeHash = make_hash(outCls.script)
         try:
-            mpi.comm.barrier()
             return _get_preclass(outCls.typeHash)
         except NoPreClassError:
             _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
-            mpi.comm.barrier()
             return outCls
     def __call__(cls, *args, **kwargs):
-        mpi.comm.barrier()
         obj = cls.__new__(cls, *args, **kwargs)
-        mpi.comm.barrier()
         obj.__init__(**obj.inputs)
-        mpi.comm.barrier()
         return obj
 
 class Built(metaclass = Meta):
@@ -196,7 +190,7 @@ class Built(metaclass = Meta):
             obj.ref = weakref.ref(obj)
             _PREBUILTS[obj.hashID] = obj.ref
 
-    def __new__(cls, **inputs):
+    def __new__(cls, name = None, path = '.', **inputs):
         inputs, inputsHash, instanceHash, hashID = _get_info(cls, inputs)
         obj = super().__new__(cls)
         obj.inputs = inputs
@@ -204,6 +198,11 @@ class Built(metaclass = Meta):
         obj.instanceHash = instanceHash
         obj.hashID = hashID
         obj._initialised = False
+        if name is None:
+            obj._initAnchor = False
+        else:
+            obj._initAnchor = True
+            obj.name, obj.path = name, path
         return obj
 
     def __init__(self, **customAttributes):
@@ -228,6 +227,9 @@ class Built(metaclass = Meta):
             }
 
         super().__init__()
+
+        if self._initAnchor:
+            self.anchor(self.name, self.path)
 
     def __hash__(self):
         return self.instanceHash
