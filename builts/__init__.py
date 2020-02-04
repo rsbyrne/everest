@@ -2,6 +2,7 @@ import numpy as np
 import hashlib
 import weakref
 from functools import partial
+from collections.abc import Mapping
 
 from .. import mpi
 
@@ -11,7 +12,7 @@ from .. import wordhash
 from ..writer import Writer
 from ..reader import Reader
 
-from ..globevars import _BUILTTAG_, _CLASSTAG_
+from ..globevars import _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_
 
 from ..exceptions import EverestException
 class NoPreBuiltError(EverestException):
@@ -40,12 +41,9 @@ def load(hashID, name, path = '.', get = False):
     except OSError: raise NotOnDiskError
     typeHash = reader[hashID, 'typeHash']
     cls = load_class(typeHash, name, path)
-    inputs = reader[hashID, 'inputs', '*']
-    _process_loaded_inputs(inputs, name, path)
+    inputs = load_inputs(hashID + '/inputs', name, path)
     if get: obj = cls.get(**inputs)
     else: obj = cls.build(**inputs)
-    # assert obj.hashID == hashID, \
-    #     "Loaded hashID " + obj.hashID + " does not match requested " + hashID
     obj.anchor(name, path)
     return obj
 
@@ -58,6 +56,17 @@ def _process_loaded_inputs(inputs, name, path, **kwargs):
             elif val.startswith(_CLASSTAG_):
                 typeHash = val[len(_CLASSTAG_):]
                 inputs[key] = load_class(typeHash, name, path)
+            elif val.startswith(_ADDRESSTAG_):
+                address = val[len(_ADDRESSTAG_):]
+                inputs[key] = load_inputs(address, name, path)
+
+def load_inputs(address, name, path):
+    reader = Reader(name, path)
+    splitAddr = [*address.split('/'), '*']
+    if splitAddr[0] == '': splitAddr.pop(0)
+    inputs = reader[tuple(splitAddr)]
+    _process_loaded_inputs(inputs, name, path)
+    return inputs
 
 def load_class(typeHash, name, path):
     reader = Reader(name, path)

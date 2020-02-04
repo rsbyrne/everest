@@ -1,4 +1,4 @@
-from . import Built
+from collections.abc import Mapping
 
 class Vector(Built):
     from .vector import __file__ as _file_

@@ -9,6 +9,7 @@ from . import disk
 from . import utilities
 from .fetch import Fetch
 from .scope import Scope
+from .globevars import _ADDRESSTAG_
 
 class Reader:
 
@@ -98,7 +99,7 @@ class Reader:
             for key, val in toResolve.items():
                 out[key] = self._seekresolve(val)
         elif type(toResolve) is h5py.Group:
-            out = toResolve.name
+            out = _ADDRESSTAG_ + toResolve.name
         elif type(toResolve) is h5py.Dataset:
             out = np.array(toResolve)
         elif type(toResolve) is h5py.Reference:
