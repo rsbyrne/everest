@@ -25,7 +25,7 @@ class Vector(Built):
         if isinstance(arg, Vector):
             mod1 = {**arg.inputs, **self.inputs}
             mod2 = {**self.inputs, **arg.inputs}
-            return = [opFn(mod1[key], mod2[key]) for key in mod1]
+            return [opFn(mod1[key], mod2[key]) for key in mod1]
         else:
             raise TypeError
     def __eq__(self, arg): return self._operation(arg, operator.eq)

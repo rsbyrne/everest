@@ -1,4 +1,6 @@
 from . import Space
+from .. import Built
+from .. import Meta
 
 from ...exceptions import EverestException
 
@@ -23,6 +25,8 @@ class HyperCube(Space):
         keys = sorted(set([*avec.keys, *bvec.keys, *defaults.keys()]))
         self.system, self.avec, self.bvec, self.defaults = \
             system, avec, bvec, defaults
+
+        super().__init__(self._slice_vector, **kwargs)
 
         def _slice_vector(self, inVec):
             allkeys = sorted(set([*inVec.keys, *keys]))
@@ -51,10 +55,19 @@ class HyperCube(Space):
                     elif not bval is None:
                         out1[index] = out2[index] = bval
                 elif (not aval is None) and (not bval is None):
-                    if min(aval, bval) <= cval <= max(aval, bval):
-                        out1[index] = out2[index] = cval
+                    if isinstance(cval, Built):
+                        if not aval.hashID == cval.hashID == bval.hashID:
+                            raise TypeError
+                        else:
+                            out1[index] = out2[index] = cval
+                    elif type(cval) is Meta:
+                        if not aval.typeHash == cval.typeHash == bval.typeHash:
+                            out1[index] = out2[index] = cval
                     else:
-                        raise OutOfSpaceError
+                        if min(aval, bval) <= cval <= max(aval, bval):
+                            out1[index] = out2[index] = cval
+                        else:
+                            raise OutOfSpaceError
                 elif not aval is None:
                     if cval == aval:
                         out1[index] = out2[index] = aval
@@ -75,5 +88,3 @@ class HyperCube(Space):
                     buildVecFn(**dict(zip(allkeys, out1))),
                     buildVecFn(**dict(zip(allkeys, out2)))
                     )
-
-        super().__init__(_slice_vector, **kwargs)
