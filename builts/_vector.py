@@ -1,6 +1,6 @@
 from . import Built
 
-class Basket(Built):
+class Vector(Built):
     def __init__(self, **kwargs):
         super().__init__()
     def __iter__(self):
