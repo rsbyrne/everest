@@ -91,8 +91,7 @@ def load_class(typeHash, name, path):
     return outclass
 
 def _get_inputs(cls, inputs = dict()):
-    defaultInps = utilities.get_default_kwargs(cls.__init__)
-    inputs = {**defaultInps, **inputs}
+    inputs = {**cls.defaultInps, **inputs}
     cls._deep_process_inputs(inputs)
     cls._process_inputs(inputs)
     return inputs
@@ -171,6 +170,7 @@ class Meta(type):
             scriptPath = outCls.__init__.__globals__['__file__']
         outCls.script = disk.ToOpen(scriptPath)()
         outCls.typeHash = make_hash(outCls.script)
+        outCls.defaultInps = utilities.get_default_kwargs(outCls.__init__)
         try:
             return _get_preclass(outCls.typeHash)
         except NoPreClassError:
@@ -216,7 +216,8 @@ class Built(metaclass = Meta):
 
     def __new__(cls, name = None, path = None, **inputs):
 
-        inputs, inputsHash, instanceHash, hashID = _get_info(cls, inputs)
+        inputs, inputsHash, instanceHash, hashID = \
+            _get_info(cls, inputs)
         obj = super().__new__(cls)
         obj.inputs = inputs
         obj.inputsHash = inputsHash
