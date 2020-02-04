@@ -1,6 +1,7 @@
 import numpy as np
 import hashlib
 import weakref
+import os
 from functools import partial
 from collections.abc import Mapping
 
@@ -33,6 +34,20 @@ class NoPreClassError(EverestException):
 class PlaceholderError(EverestException):
     '''A placeholder has been set which is yet to be fulfilled!'''
     pass
+
+NAME = None
+PATH = None
+GLOBALANCHOR = False
+def set_global_anchor(name, path):
+    global GLOBALANCHOR, NAME, PATH
+    NAME = name
+    PATH = os.path.abspath(path)
+    GLOBALANCHOR = True
+def release_global_anchor():
+    global GLOBALANCHOR, NAME, PATH
+    NAME = None
+    PATH = None
+    GLOBALANCHOR = False
 
 def load(hashID, name, path = '.', get = False):
     reader = Reader(name, path)
@@ -199,7 +214,8 @@ class Built(metaclass = Meta):
             obj.ref = weakref.ref(obj)
             _PREBUILTS[obj.hashID] = obj.ref
 
-    def __new__(cls, name = None, path = '.', **inputs):
+    def __new__(cls, name = None, path = None, **inputs):
+
         inputs, inputsHash, instanceHash, hashID = _get_info(cls, inputs)
         obj = super().__new__(cls)
         obj.inputs = inputs
@@ -207,11 +223,18 @@ class Built(metaclass = Meta):
         obj.instanceHash = instanceHash
         obj.hashID = hashID
         obj._initialised = False
-        if name is None:
-            obj._initAnchor = False
-        else:
+
+        global GLOBALANCHOR, NAME, PATH
+        if GLOBALANCHOR:
             obj._initAnchor = True
-            obj.name, obj.path = name, path
+        else:
+            if name is None:
+                obj._initAnchor = False
+            else:
+                if path is None: raise Exception
+                obj._initAnchor = True
+                obj.name, obj.path = name, path
+
         return obj
 
     def __init__(self, **customAttributes):
@@ -238,7 +261,10 @@ class Built(metaclass = Meta):
         super().__init__()
 
         if self._initAnchor:
-            self.anchor(self.name, self.path)
+            if GLOBALANCHOR:
+                self.anchor()
+            else:
+                self.anchor(self.name, self.path)
 
     def __hash__(self):
         return self.instanceHash
@@ -249,7 +275,17 @@ class Built(metaclass = Meta):
                 "Must be anchored first."
                 )
 
-    def anchor(self, name, path = ''):
+    def anchor(self, name = None, path = None):
+        global GLOBALANCHOR, NAME, PATH
+        if GLOBALANCHOR:
+            if not name is None and path is None:
+                raise Exception("Global anchor has been set!")
+            else:
+                self._anchor(NAME, PATH)
+        else:
+            self._anchor(name, path)
+
+    def _anchor(self, name, path):
         mpi.comm.barrier()
         for fn in self._pre_anchor_fns: fn()
         self.name, self.path = name, path
