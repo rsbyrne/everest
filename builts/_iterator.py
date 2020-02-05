@@ -55,7 +55,7 @@ class Iterator(Counter, Cycler):
         if not self.initialised:
             self.initialise()
         for i in range(n):
-            self.count.value += 1
+            self.count += 1
             self._iterate()
 
     def load(self, count):
