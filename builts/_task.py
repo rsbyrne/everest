@@ -12,6 +12,8 @@ class Task(Boolean, Cycler):
             **kwargs
             ):
 
+        self._task_stop_metaFn = _task_stop_metaFn
+
         self._task_cycler_fns = WeakList()
         self._task_stop_fns = WeakList()
         self._task_products = WeakList()
@@ -21,18 +23,17 @@ class Task(Boolean, Cycler):
         self.promptees = dict()
 
         # Cycler attributes:
-        def cycleFn():
-            while not self:
-                for fn in self._task_cycler_fns: fn()
-                self.prompt_promptees()
-        self._task_cycler_fn = cycleFn
-        self._cycle_fns.append(self._task_cycler_fn)
+        self._cycle_fns.append(self._task_cycleFn)
 
         # Boolean attributes:
-        def boolFn():
-            return _task_stop_metaFn([fn() for fn in self._task_stop_fns])
-        self._task_bool_fn = boolFn
-        self._bool_fns.append(self._task_bool_fn)
+        self._bool_fns.append(self._task_boolFn)
+
+    def _task_cycleFn(self):
+        while not self:
+            for fn in self._task_cycler_fns: fn()
+            self.prompt_promptees()
+    def _task_boolFn(self):
+        return self._task_stop_metaFn([fn() for fn in self._task_stop_fns])
 
     def add_promptee(self, obj):
         self.promptees[obj.hashID] = weakref.ref(obj)
