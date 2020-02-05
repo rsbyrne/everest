@@ -3,7 +3,7 @@ import operator
 from . import State
 
 class BoolOperator(State):
-    from .operator import __file__ as _file_
+    from .booloperator import __file__ as _file_
     def __init__(
             self,
             prop : str = 'count',
