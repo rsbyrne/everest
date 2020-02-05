@@ -25,7 +25,7 @@ class Inquirer(Callable):
         if not self._inquirer_arg_typeCheck(arg):
             raise ArgTypeError
         for fn in self._pre_inquirer_fns: fn()
-        truths = [fn()(arg) for fn in self._inquirer_fns]
+        truths = [fn(arg) for fn in self._inquirer_fns]
         truth = self._inquirer_meta_fn(truths)
         for fn in self._post_inquirer_fns: fn()
         return truth

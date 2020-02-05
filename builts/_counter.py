@@ -9,16 +9,18 @@ class Counter(Producer):
         self.counts = []
         self.counts_stored = []
         self.counts_disk = []
-        outFn = lambda: None
         super().__init__(**kwargs)
-        def out():
-            yield np.array(self.count(), dtype = np.int32)
-        self.outFns.append(out)
+        # Producer attributes:
+        self._outFns.append(self._count_outFn)
         self.outkeys.append('_count_')
         self.samples.append(np.array([0,], dtype = np.int32))
         self._post_store_fns.append(self._counter_post_store_fn)
         self._post_save_fns.append(self._counter_post_save_fn)
+        # Built attributes:
         self._post_anchor_fns.append(self._counter_post_anchor_fn)
+
+    def _count_outFn(self):
+        yield np.array(self.count(), dtype = np.int32)
 
     def _counter_post_store_fn(self):
         if self.count() in self.counts:

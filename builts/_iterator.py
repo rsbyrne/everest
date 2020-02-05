@@ -4,42 +4,28 @@ from types import FunctionType
 from .. import disk
 from ._counter import Counter
 from ._cycler import Cycler
+from ._producer import Producer
 from ._producer import make_dataDict
 from .. import exceptions
 
 class Iterator(Counter, Cycler):
+# class Iterator(Producer):
+# class Iterator(Cycler):
 
     def __init__(
             self,
-            initialiseFn : FunctionType = None,
-            iterateFn : FunctionType = None,
-            outFn : FunctionType = None,
-            outkeys : list = None,
-            loadFn : FunctionType = None,
             **kwargs
             ):
 
-        self.initialise = lambda: self._initialise_wrap(
-            initialiseFn,
-            )
         self.initialised = False
-        self.iterate = lambda n = 1: self._iterate_wrap(
-            iterateFn,
-            n,
-            )
-        self.load = lambda count: self._load_wrap(
-            loadFn,
-            count
-            )
-        self.reset = self.initialise
 
         super().__init__(**kwargs)
 
         # Producer attributes:
-        self.outFns.append(outFn)
-        self.outkeys.extend(outkeys)
+        self._outFns.append(self._out)
+        self.outkeys.extend(self._outkeys)
         self.samples.extend(
-            [np.array([data,]) for data in outFn()]
+            [np.array([data,]) for data in self.out()]
             )
         self.indexKey = '_count_'
         self.dataKeys = [
@@ -50,30 +36,33 @@ class Iterator(Counter, Cycler):
         self._cycle_fns.append(self.iterate)
 
         # Built attributes:
-        def _post_anchor():
-            self.h5filename = self.writer.h5filename
-        self._iterator_post_anchor = _post_anchor
         self._post_anchor_fns.append(self._iterator_post_anchor)
 
         self.initialise()
 
-    def _initialise_wrap(self, initialise):
+    def _iterator_post_anchor(self):
+        self.h5filename = self.writer.h5filename
+
+    def initialise(self):
         self.count.value = 0
-        initialise()
+        self._initialise()
         self.initialised = True
 
-    def _iterate_wrap(self, iterate, n):
+    def reset(self):
+        self.initialise()
+
+    def iterate(self, n = 1):
         if not self.initialised:
             self.initialise()
         for i in range(n):
             self.count.value += 1
-            iterate()
+            self._iterate()
 
-    def _load_wrap(self, load, count):
+    def load(self, count):
         self.initialised = True
         if not self.count() == count:
             loadDict = self._load_dataDict(count)
-            load(loadDict)
+            self._load(loadDict)
             self.count.value = count
 
     def _load_dataDict(self, count):

@@ -22,7 +22,7 @@ class Producer(Mutator):
             **kwargs
             ):
 
-        self.outFns = WeakList()
+        self._outFns = WeakList()
         self._pre_store_fns = WeakList()
         self._post_store_fns = WeakList()
         self._pre_save_fns = WeakList()
@@ -33,16 +33,20 @@ class Producer(Mutator):
 
         super().__init__(**kwargs)
 
-        self._producer_pre_anchor_fn = \
-            lambda: self.localObjects.update({
-                key: val \
-                    for key, val in zip(self.outkeys, self.samples)
-                })
+        # Mutator attributes:
+        self._update_mutateDict_fns.append(self._producer_update_mutateDict_fn)
+
+        # Built attributes:
         self._pre_anchor_fns.append(self._producer_pre_anchor_fn)
 
-        self._producer_update_mutateDict_fn = \
-            lambda: self._mutateDict.update(self.make_dataDict())
-        self._update_mutateDict_fns.append(self._producer_update_mutateDict_fn)
+    def _producer_update_mutateDict_fn(self):
+            self._mutateDict.update(self.make_dataDict())
+
+    def _producer_pre_anchor_fn(self):
+        self.localObjects.update({
+            key: val \
+                for key, val in zip(self.outkeys, self.samples)
+            })
 
     def set_autosave(self, val: bool):
         self.autosave = val
@@ -60,7 +64,7 @@ class Producer(Mutator):
         return dict(zip(self.outkeys, processed))
 
     def out(self):
-        outs = tuple([item for fn in self.outFns for item in fn()])
+        outs = tuple([item for fn in self._outFns for item in fn()])
         assert len(outs) == len(self.outkeys)
         return outs
 

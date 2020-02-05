@@ -22,7 +22,7 @@ class Callable(Built):
         super().__init__(**kwargs)
     def __call__(self, *args, **kwargs):
         for fn in self._pre_call_fns: fn()
-        products = [fn()(*args, **kwargs) for fn in self._call_fns]
+        products = [fn(*args, **kwargs) for fn in self._call_fns]
         product = self._call_meta_fn(products)
         for fn in self._post_call_fns: fn()
         return product
