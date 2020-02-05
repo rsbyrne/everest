@@ -2,6 +2,7 @@ import weakref
 
 from ._cycler import Cycler
 from ._boolean import Boolean
+from ..weaklist import WeakList
 
 class Task(Boolean, Cycler):
 
@@ -11,9 +12,9 @@ class Task(Boolean, Cycler):
             **kwargs
             ):
 
-        self._task_cycler_fns = []
-        self._task_stop_fns = []
-        self._task_products = []
+        self._task_cycler_fns = WeakList()
+        self._task_stop_fns = WeakList()
+        self._task_products = WeakList()
 
         super().__init__()
 
@@ -24,12 +25,14 @@ class Task(Boolean, Cycler):
             while not self:
                 for fn in self._task_cycler_fns: fn()
                 self.prompt_promptees()
-        self._cycle_fns.append(cycleFn)
+        self._task_cycler_fn = cycleFn
+        self._cycle_fns.append(self._task_cycler_fn)
 
         # Boolean attributes:
         def boolFn():
             return _task_stop_metaFn([fn() for fn in self._task_stop_fns])
-        self._bool_fns.append(boolFn)
+        self._task_bool_fn = boolFn
+        self._bool_fns.append(self._task_bool_fn)
 
     def add_promptee(self, obj):
         self.promptees[obj.hashID] = weakref.ref(obj)

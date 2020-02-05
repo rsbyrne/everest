@@ -12,6 +12,7 @@ from .. import disk
 from .. import wordhash
 from ..writer import Writer
 from ..reader import Reader
+from ..weaklist import WeakList
 
 from ..globevars import _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_
 
@@ -243,8 +244,8 @@ class Built(metaclass = Meta):
         self.nbytes = 0
 
         self.anchored = False
-        self._pre_anchor_fns = []
-        self._post_anchor_fns = []
+        self._pre_anchor_fns = WeakList()
+        self._post_anchor_fns = WeakList()
 
         self.localObjects = dict()
         self.localObjects.update(customAttributes)

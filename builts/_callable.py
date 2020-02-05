@@ -1,4 +1,5 @@
 from . import Built
+from ..weaklist import WeakList
 
 class Callable(Built):
     def __init__(
@@ -6,9 +7,9 @@ class Callable(Built):
             _call_meta_fn = None,
             **kwargs
             ):
-        self._pre_call_fns = []
-        self._call_fns = []
-        self._post_call_fns = []
+        self._pre_call_fns = WeakList()
+        self._call_fns = WeakList()
+        self._post_call_fns = WeakList()
         if _call_meta_fn is None:
             def _call_meta_fn(products):
                 if len(products) == 0:
@@ -21,7 +22,7 @@ class Callable(Built):
         super().__init__(**kwargs)
     def __call__(self, *args, **kwargs):
         for fn in self._pre_call_fns: fn()
-        products = [fn(*args, **kwargs) for fn in self._call_fns]
+        products = [fn()(*args, **kwargs) for fn in self._call_fns]
         product = self._call_meta_fn(products)
         for fn in self._post_call_fns: fn()
         return product

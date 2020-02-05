@@ -2,6 +2,7 @@ from types import FunctionType
 
 from . import Built
 from ..writer import Writer
+from ..weaklist import WeakList
 
 class Mutator(Built):
     def __init__(
@@ -9,7 +10,7 @@ class Mutator(Built):
             **kwargs
             ):
         self._mutateDict = dict()
-        self._update_mutateDict_fns = []
+        self._update_mutateDict_fns = WeakList()
         super().__init__(**kwargs)
     def mutate(self):
         self._check_anchored()

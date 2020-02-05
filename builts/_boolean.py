@@ -1,4 +1,5 @@
 from . import Built
+from ..weaklist import WeakList
 
 class Boolean(Built):
     def __init__(
@@ -6,9 +7,9 @@ class Boolean(Built):
             _bool_meta_fn = all,
             **kwargs
             ):
-        self._pre_bool_fns = []
-        self._bool_fns = []
-        self._post_bool_fns = []
+        self._pre_bool_fns = WeakList()
+        self._bool_fns = WeakList()
+        self._post_bool_fns = WeakList()
         self._bool_meta_fn = _bool_meta_fn
         super().__init__(**kwargs)
     def __bool__(self):

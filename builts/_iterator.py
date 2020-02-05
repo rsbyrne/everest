@@ -52,8 +52,8 @@ class Iterator(Counter, Cycler):
         # Built attributes:
         def _post_anchor():
             self.h5filename = self.writer.h5filename
-        self._post_anchor_fns.append(_post_anchor)
-
+        self._iterator_post_anchor = _post_anchor
+        self._post_anchor_fns.append(self._iterator_post_anchor)
 
         self.initialise()
 

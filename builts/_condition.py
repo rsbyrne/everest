@@ -11,5 +11,5 @@ class Condition(Boolean):
             **kwargs
             ):
         super().__init__(**kwargs)
-        inquire = lambda: inquirer(arg)
-        self._bool_fns.append(inquire)
+        self._inquireFn = lambda: inquirer(arg)
+        self._bool_fns.append(_inquireFn)
