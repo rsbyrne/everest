@@ -10,6 +10,9 @@ class Condition(Boolean):
             arg = None,
             **kwargs
             ):
+        self.inquirer, self.arg = inquirer, arg
         super().__init__(**kwargs)
-        self._inquireFn = lambda: inquirer(arg)
-        self._bool_fns.append(_inquireFn)
+        # Boolean attributes:
+        self._bool_fns.append(self._condition_boolFn)
+    def _condition_boolFn(self):
+        return self.inquirer(self.arg)
