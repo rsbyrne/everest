@@ -2,7 +2,7 @@ import operator
 
 from . import State
 
-class Operator(State):
+class BoolOperator(State):
     from .operator import __file__ as _file_
     def __init__(
             self,
