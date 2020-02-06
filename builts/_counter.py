@@ -11,15 +11,15 @@ class Counter(Producer):
         self.counts_disk = []
         super().__init__(**kwargs)
         # Producer attributes:
-        self._outFns.append(self._count_outFn)
-        self.outkeys.append('_count_')
+        self._outFns.append(self.countoutFn)
+        self.outkeys.append('count')
         self.samples.append(np.array([0,], dtype = np.int32))
         self._post_store_fns.append(self._counter_post_store_fn)
         self._post_save_fns.append(self._counter_post_save_fn)
         # Built attributes:
         self._post_anchor_fns.append(self._counter_post_anchor_fn)
 
-    def _count_outFn(self):
+    def countoutFn(self):
         yield np.array(self.count(), dtype = np.int32)
 
     def _counter_post_store_fn(self):
@@ -28,7 +28,7 @@ class Counter(Producer):
             discardedCount = {
                 key: val \
                     for key, val in zip(self.outkeys, discardedDatas)
-                }['_count_']
+                }['count']
             assert discardedCount == self.count()
         else:
             self.counts.append(self.count())
@@ -40,6 +40,9 @@ class Counter(Producer):
             self.counts_stored = []
             self.counts_disk = list(set(self.counts_disk))
     def _counter_post_anchor_fn(self):
-        self.counts_disk = list(set(self.reader[self.hashID, '_count_']))
+        try: self.counts_disk = list(set(self.reader[
+            self.hashID, 'outputs', 'count'
+            ]))
+        except KeyError: pass
         self.counts.extend(self.counts_disk)
         self.counts = list(set(self.counts))

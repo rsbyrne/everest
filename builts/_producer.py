@@ -8,6 +8,7 @@ from .. import disk
 from . import buffersize_exceeded
 from ._mutator import Mutator
 from ..weaklist import WeakList
+from ..writer import ExtendDataset
 
 def make_dataDict(outkeys, stored):
     return dict(zip(outkeys, list(map(list, zip(*stored)))))
@@ -37,16 +38,29 @@ class Producer(Mutator):
         self._update_mutateDict_fns.append(self._producer_update_mutateDict_fn)
 
         # Built attributes:
-        self._pre_anchor_fns.append(self._producer_pre_anchor_fn)
+        # self._pre_anchor_fns.append(self._producer_pre_anchor_fn)
+        # self._post_anchor_fns.append()
 
     def _producer_update_mutateDict_fn(self):
-            self._mutateDict.update(self.make_dataDict())
+        wrappedDict = {
+            key: ExtendDataset(val)
+                for key, val in self.make_dataDict().items()
+                }
+        if 'outputs' in self._mutateDict:
+            self._mutateDict['outputs'].update(wrappedDict)
+        else:
+            self._mutateDict['outputs'] = wrappedDict
 
-    def _producer_pre_anchor_fn(self):
-        self.localObjects.update({
-            key: val \
-                for key, val in zip(self.outkeys, self.samples)
-            })
+    # def _producer_post_anchor_fn(self):
+    #     if any([key in])
+    #     self.store()
+    #     self.mutate()
+
+    # def _producer_pre_anchor_fn(self):
+    #     self.localObjects.update({
+    #         key: val \
+    #             for key, val in zip(self.outkeys, self.samples)
+    #         })
 
     def set_autosave(self, val: bool):
         self.autosave = val

@@ -183,6 +183,9 @@ class Meta(type):
     def __call__(cls, *args, **kwargs):
         obj = cls.__new__(cls, *args, **kwargs)
         obj.__init__(**obj.inputs)
+        if obj._initAnchor:
+            if GLOBALANCHOR: obj.anchor()
+            else: obj.anchor(obj.name, obj.path)
         return obj
 
 class Built(metaclass = Meta):
@@ -270,12 +273,6 @@ class Built(metaclass = Meta):
 
         super().__init__()
 
-        if self._initAnchor:
-            if GLOBALANCHOR:
-                self.anchor()
-            else:
-                self.anchor(self.name, self.path)
-
     def __hash__(self):
         return self.instanceHash
 
@@ -297,8 +294,8 @@ class Built(metaclass = Meta):
         for fn in self._pre_anchor_fns: fn()
         self.name, self.path = name, path
         self.writer = Writer(name, path)
-        self.writer.add(self.localObjects, self.hashID, _toInitialise = True)
-        self.writer.add(self.globalObjects, '_globals_', _toInitialise = True)
+        self.writer.add(self.localObjects, self.hashID)
+        self.writer.add(self.globalObjects, '_globals_')
         self.reader = Reader(self.name, self.path)
         for fn in self._post_anchor_fns: fn()
         self.anchored = True

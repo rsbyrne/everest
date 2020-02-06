@@ -43,7 +43,7 @@ class Reader:
             if scopeCounts == '...':
                 arr = thisTargetDataset[...]
             else:
-                thisCountsDataset = thisGroup['_count_']
+                thisCountsDataset = thisGroup['outputs']['count']
                 maskArr = np.isin(
                     thisCountsDataset,
                     scopeCounts,
@@ -106,7 +106,8 @@ class Reader:
         elif type(toResolve) is h5py.Reference:
             out = self.h5file[toResolve].attrs['hashID']
         else:
-            out = ast.literal_eval(toResolve)
+            try: out = ast.literal_eval(toResolve)
+            except ValueError: out = toResolve
         # elif isinstance(toResolve, np.generic):
         #     out = np.asscalar(toResolve)
         # else:
@@ -129,7 +130,8 @@ class Reader:
                 elif np.any(result):
                     countsPath = '/' + '/'.join((
                         superkey,
-                        '_count_'
+                        'outputs',
+                        'count'
                         ))
                     counts = context(countsPath)
                     indices = counts[result.flatten()]

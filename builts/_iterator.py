@@ -54,7 +54,7 @@ class Iterator(Counter, Cycler, Stampable):
         self.samples.extend(
             [np.array([data,]) for data in self.out()]
             )
-        self.indexKey = '_count_'
+        self.indexKey = 'count'
         self.dataKeys = [
             key for key in self.outkeys if not key == self.indexKey
             ]
@@ -119,15 +119,15 @@ class Iterator(Counter, Cycler, Stampable):
     def _load_dataDict_saved(self, count):
         if not self.anchored:
             raise LoadDiskFail
-        counts = self.reader[self.hashID, self.indexKey]
+        counts = self.reader[self.hashID, 'outputs', self.indexKey]
         matches = np.where(counts == count)[0]
         assert len(matches) <= 1
-        if len(matches) == 0:
-            print(matches)
-            raise exceptions.CountNotOnDiskError
-        else:
-            index = matches[0]
-        datas = [self.reader[self.hashID, key] for key in self.dataKeys]
+        if len(matches) == 0: raise LoadDiskFail
+        else: index = matches[0]
+        datas = [
+            self.reader[self.hashID, 'outputs', key] \
+                for key in self.dataKeys
+            ]
         return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
     def bounce(self, count):

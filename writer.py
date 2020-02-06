@@ -6,6 +6,10 @@ from . import disk
 from . import mpi
 from .globevars import _BUILTTAG_, _CLASSTAG_
 
+class ExtendDataset:
+    def __init__(self, arg):
+        self.arg = arg
+
 class Writer:
 
     def __init__(
@@ -21,14 +25,13 @@ class Writer:
         from . import builts as builtsmodule
         self.builtsmodule = builtsmodule
 
-    def add(self, item, name = '/', *names, _toInitialise = False):
+    def add(self, item, name = '/', *names):
         if type(item) is dict:
             for key, val in sorted(item.items()):
                 self.add(
                     val,
                     key,
-                    *[*names, name],
-                    _toInitialise = _toInitialise
+                    *[*names, name]
                     )
         else:
             if isinstance(item, self.builtsmodule.Built):
@@ -36,11 +39,11 @@ class Writer:
                 self._add_attr(_BUILTTAG_ + item.hashID, name, *names)
             elif type(item) is self.builtsmodule.Meta:
                 self._add_attr(_CLASSTAG_ + str(item.typeHash), name, *names)
+            elif isinstance(item, ExtendDataset):
+                try: self._extend_dataset(item, name, *names)
+                except KeyError: self.add(item.arg, name, *names)
             elif type(item) is np.ndarray:
-                if _toInitialise:
-                    self._add_dataset(item, name, *names)
-                else:
-                    self._extend_dataset(item, name, *names)
+                self._add_dataset(item, name, *names)
             else:
                 self._add_attr(item, name, *names)
 
@@ -64,12 +67,16 @@ class Writer:
         group.attrs[name] = str(item)
 
     @_addwrap
-    def _add_dataset(self, sampleData, name, group):
-        if not name in group:
-            shape = [0, *sampleData.shape[1:]]
-            maxshape = [None, *sampleData.shape[1:]]
-            dtype = sampleData.dtype
-            group.require_dataset(name, shape, dtype, maxshape = maxshape)
+    def _add_dataset(self, data, name, group):
+        # shape = [0, *data.shape[1:]]
+        maxshape = [None, *data.shape[1:]]
+        group.require_dataset(
+            name = name,
+            data = data,
+            shape = data.shape,
+            maxshape = maxshape,
+            dtype = data.dtype
+            )
 
     @_addwrap
     def _extend_dataset(self, data, name, group):
