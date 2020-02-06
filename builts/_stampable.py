@@ -1,9 +1,7 @@
 import ast
 
 from ._mutator import Mutator
-from ._counter import Counter
-from . import load
-from . import Built
+from ._inquirer import Inquirer
 
 class Stampable(Mutator):
 
@@ -31,4 +29,12 @@ class Stampable(Mutator):
         self._mutateDict['stamps'] = self.stamps
 
     def stamp(self, stamper):
+        if not isinstance(stamper, Inquirer):
+            raise TypeError("Input must be Inquirer class.")
         self.stamps.append((stamper.hashID, self.count()))
+
+    def make_stampsDict(self):
+        stampsDict = {key: [] for key, val in self.stamps}
+        fn = lambda x, y: stampsDict[x].append(y)
+        for key, val in stampsList: fn(key, val)
+        return stampsDict

@@ -18,7 +18,7 @@ class Task(Boolean, Cycler):
         self._task_stop_fns = WeakList()
         self._task_products = WeakList()
 
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.promptees = dict()
 

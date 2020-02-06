@@ -7,6 +7,7 @@ from ._cycler import Cycler
 from ._producer import Producer
 from ._producer import make_dataDict
 from ._stampable import Stampable
+from .states import State
 from ..exceptions import EverestException
 
 class LoadFail(EverestException):
@@ -15,15 +16,17 @@ class LoadDiskFail(EverestException):
     pass
 class LoadStoredFail(EverestException):
     pass
+class LoadStampFail(EverestException):
+    pass
 
 class Bounce:
-    def __init__(self, iterator, count):
+    def __init__(self, iterator, arg):
         self.iterator = iterator
-        self.count = count
+        self.arg = arg
     def __enter__(self):
         self.returnStep = self.iterator.count()
         self.iterator.store()
-        self.iterator.load(self.count)
+        self.iterator.load(self.arg)
         return self.iterator
     def __exit__(self, *args):
         self.iterator.load(self.returnStep)
@@ -71,20 +74,30 @@ class Iterator(Counter, Cycler, Stampable):
             self.count += 1
             self._iterate()
 
-    def load(self, count):
+    def load(self, arg, **kwargs):
+        try:
+            if type(arg) is int: self._load_count(arg, **kwargs)
+            elif isinstance(arg, State): self._load_state(arg, **kwargs)
+            else: raise TypeError
+        except (LoadDiskFail, LoadStoredFail, LoadStampFail):
+            raise LoadFail
+
+    def _load_state(self, state, earliest = True):
+        if earliest: stamps = self.stamps[::-1]
+        else: stamps = self.stamps
+        try: count = dict(stamps)[state.hashID]
+        except KeyError: raise LoadStampFail
+        self._load_count(count)
+
+    def _load_count(self, count, **kwargs):
         if not self.count() == count:
             loadDict = self._load_dataDict(count)
             self._load(loadDict)
             self.count.value = count
 
     def _load_dataDict(self, count):
-        try:
-            return self._load_dataDict_stored(count)
-        except LoadStoredFail:
-            try:
-                return self._load_dataDict_saved(count)
-            except:
-                raise LoadFail
+        try: return self._load_dataDict_stored(count)
+        except LoadStoredFail: return self._load_dataDict_saved(count)
 
     def _load_dataDict_stored(self, count):
         if not count in self.counts_stored:
