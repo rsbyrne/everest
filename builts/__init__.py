@@ -35,6 +35,8 @@ class NoPreClassError(EverestException):
 class PlaceholderError(EverestException):
     '''A placeholder has been set which is yet to be fulfilled!'''
     pass
+class NotYetAnchoredError(EverestException):
+    pass
 
 NAME = None
 PATH = None
@@ -186,9 +188,10 @@ class Built(metaclass = Meta):
 
     @staticmethod
     def _deep_process_inputs(inputs):
-        for key, val in inputs.items():
-            if type(val) is np.ndarray:
-                inputs[key] = list(val)
+        pass
+        # for key, val in inputs.items():
+        #     if type(val) is np.ndarray:
+        #         inputs[key] = val.tolist()
 
     @staticmethod
     def _process_inputs(inputs):
@@ -226,6 +229,17 @@ class Built(metaclass = Meta):
         obj.hashID = hashID
         obj._initialised = False
 
+        obj.localObjects = {
+            'typeHash': str(obj.typeHash),
+            'inputsHash': str(obj.inputsHash),
+            'instanceHash': str(obj.instanceHash),
+            'hashID': obj.hashID,
+            'inputs': obj.inputs
+            }
+        obj.globalObjects = {
+            '_classes_': {str(obj.typeHash): obj.script}
+            }
+
         global GLOBALANCHOR, NAME, PATH
         if GLOBALANCHOR:
             obj._initAnchor = True
@@ -241,24 +255,13 @@ class Built(metaclass = Meta):
 
     def __init__(self, **customAttributes):
 
+        self.localObjects.update(customAttributes)
+
         self.nbytes = 0
 
         self.anchored = False
         self._pre_anchor_fns = WeakList()
         self._post_anchor_fns = WeakList()
-
-        self.localObjects = dict()
-        self.localObjects.update(customAttributes)
-        self.localObjects.update({
-            'typeHash': str(self.typeHash),
-            'inputsHash': str(self.inputsHash),
-            'instanceHash': str(self.instanceHash),
-            'hashID': self.hashID,
-            'inputs': self.inputs
-            })
-        self.globalObjects = {
-            '_classes_': {str(self.typeHash): self.script}
-            }
 
         super().__init__()
 
@@ -272,10 +275,7 @@ class Built(metaclass = Meta):
         return self.instanceHash
 
     def _check_anchored(self):
-        if not self.anchored:
-            raise Exception(
-                "Must be anchored first."
-                )
+        if not self.anchored: raise NotYetAnchoredError
 
     def anchor(self, name = None, path = None):
         global GLOBALANCHOR, NAME, PATH

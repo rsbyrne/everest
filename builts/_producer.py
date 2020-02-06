@@ -6,7 +6,7 @@ from .. import utilities
 from .. import disk
 
 from . import buffersize_exceeded
-from ._mutators import Mutator
+from ._mutator import Mutator
 from ..weaklist import WeakList
 
 def make_dataDict(outkeys, stored):
@@ -82,10 +82,9 @@ class Producer(Mutator):
     def save(self):
         for fn in self._pre_save_fns: fn()
         self._check_anchored()
-        if len(self.stored) > 0:
-            self.mutate()
-            self.clear()
-            self.lastsaved = time.time()
+        self.mutate()
+        self.clear()
+        self.lastsaved = time.time()
         for fn in self._post_save_fns: fn()
 
     def _autosave(self):

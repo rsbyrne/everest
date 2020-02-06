@@ -13,7 +13,7 @@ class BoolOperator(State):
             ):
         self.operation = getattr(operator, op)
         self.prop, self.val = prop, val
-        super().__init__(self._boolFn, **kwargs)
+        super().__init__(self._evaluateFn, **kwargs)
 
-    def _boolFn(self, arg):
+    def _evaluateFn(self, arg):
         return bool(self.operation(getattr(arg, self.prop), self.val))

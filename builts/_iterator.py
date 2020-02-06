@@ -6,18 +6,34 @@ from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import Producer
 from ._producer import make_dataDict
-from .. import exceptions
+from ._stampable import Stampable
+from ..exceptions import EverestException
 
-class Iterator(Counter, Cycler):
-# class Iterator(Producer):
-# class Iterator(Cycler):
+class LoadFail(EverestException):
+    pass
+class LoadDiskFail(EverestException):
+    pass
+class LoadStoredFail(EverestException):
+    pass
+
+class Bounce:
+    def __init__(self, iterator, count):
+        self.iterator = iterator
+        self.count = count
+    def __enter__(self):
+        self.returnStep = self.iterator.count()
+        self.iterator.store()
+        self.iterator.load(self.count)
+        return self.iterator
+    def __exit__(self, *args):
+        self.iterator.load(self.returnStep)
+
+class Iterator(Counter, Cycler, Stampable):
 
     def __init__(
             self,
             **kwargs
             ):
-
-        self.initialised = False
 
         super().__init__(**kwargs)
 
@@ -46,32 +62,33 @@ class Iterator(Counter, Cycler):
     def initialise(self):
         self.count.value = 0
         self._initialise()
-        self.initialised = True
 
     def reset(self):
         self.initialise()
 
     def iterate(self, n = 1):
-        if not self.initialised:
-            self.initialise()
         for i in range(n):
             self.count += 1
             self._iterate()
 
     def load(self, count):
-        self.initialised = True
         if not self.count() == count:
             loadDict = self._load_dataDict(count)
             self._load(loadDict)
             self.count.value = count
 
     def _load_dataDict(self, count):
-        if count in self.counts_stored:
+        try:
             return self._load_dataDict_stored(count)
-        elif self.anchored:
-            return self._load_dataDict_saved(count)
+        except LoadStoredFail:
+            try:
+                return self._load_dataDict_saved(count)
+            except:
+                raise LoadFail
 
     def _load_dataDict_stored(self, count):
+        if not count in self.counts_stored:
+            raise LoadStoredFail
         dataDict = self.make_dataDict()
         counts = dataDict[self.indexKey]
         index = np.where(counts == count)[0][0]
@@ -79,7 +96,8 @@ class Iterator(Counter, Cycler):
         return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
     def _load_dataDict_saved(self, count):
-        self._check_anchored()
+        if not self.anchored:
+            raise LoadDiskFail
         counts = self.reader[self.hashID, self.indexKey]
         matches = np.where(counts == count)[0]
         assert len(matches) <= 1
@@ -90,5 +108,8 @@ class Iterator(Counter, Cycler):
             index = matches[0]
         datas = [self.reader[self.hashID, key] for key in self.dataKeys]
         return dict(zip(self.dataKeys, [data[index] for data in datas]))
+
+    def bounce(self, count):
+        return Bounce(self, count)
 
 from .examples import pimachine as example

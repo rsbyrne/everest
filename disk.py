@@ -75,25 +75,6 @@ class TempFile:
     def __exit__(self, *args):
         remove_file(self.path)
 
-def _process_h5obj(h5obj, h5file, framePath):
-    if type(h5obj) is h5py.Group:
-        return h5obj.name
-    elif type(h5obj) is h5py.Dataset:
-        return h5obj[...]
-    elif type(h5obj) is h5py.AttributeManager:
-        inDict, outDict = h5obj.items(), dict()
-        for key, val in sorted(inDict):
-            outDict[key] = _process_h5obj(val, h5file, framePath)
-        return outDict
-    elif type(h5obj) is h5py.Reference:
-        return '_path_' + os.path.join(framePath, h5file[h5obj].name)
-    else:
-        array = np.array(h5obj)
-        try:
-            return array.item()
-        except ValueError:
-            return list(array)
-
 def get_framePath(frameName, filePath):
     return os.path.join(os.path.abspath(filePath), frameName) + '.frm'
 

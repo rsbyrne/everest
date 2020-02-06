@@ -5,10 +5,8 @@ class Boolean(Built):
     def __init__(
             self,
             _bool_meta_fn = all,
-            inv = False,
             **kwargs
             ):
-        self.inv = inv
         self._pre_bool_fns = WeakList()
         self._bool_fns = WeakList()
         self._post_bool_fns = WeakList()
@@ -18,7 +16,5 @@ class Boolean(Built):
         for fn in self._pre_bool_fns: fn()
         truths = [fn() for fn in self._bool_fns]
         truth = self._bool_meta_fn(truths)
-        if self.inv:
-            truth = not truth
         for fn in self._post_bool_fns: fn()
         return truth

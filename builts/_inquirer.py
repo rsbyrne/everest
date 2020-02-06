@@ -12,10 +12,8 @@ class Inquirer(Callable):
             self,
             _inquirer_meta_fn = all,
             _inquirer_arg_typeCheck = lambda x: True,
-            inv = False,
             **kwargs
             ):
-        self.inv = inv
         self._pre_inquirer_fns = WeakList()
         self._inquirer_fns = WeakList()
         self._post_inquirer_fns = WeakList()
@@ -29,7 +27,5 @@ class Inquirer(Callable):
         for fn in self._pre_inquirer_fns: fn()
         truths = [fn(arg) for fn in self._inquirer_fns]
         truth = self._inquirer_meta_fn(truths)
-        if self.inv:
-            truth = not truth
         for fn in self._post_inquirer_fns: fn()
         return truth

@@ -61,7 +61,7 @@ class Writer:
 
     @_addwrap
     def _add_attr(self, item, name, group):
-        group.attrs[name] = item
+        group.attrs[name] = str(item)
 
     @_addwrap
     def _add_dataset(self, sampleData, name, group):

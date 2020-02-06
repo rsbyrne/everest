@@ -4,6 +4,7 @@ from functools import reduce
 import operator
 import os
 import numpy as np
+import ast
 
 from . import disk
 from . import utilities
@@ -104,10 +105,12 @@ class Reader:
             out = np.array(toResolve)
         elif type(toResolve) is h5py.Reference:
             out = self.h5file[toResolve].attrs['hashID']
-        elif isinstance(toResolve, np.generic):
-            out = np.asscalar(toResolve)
         else:
-            out = toResolve
+            out = ast.literal_eval(toResolve)
+        # elif isinstance(toResolve, np.generic):
+        #     out = np.asscalar(toResolve)
+        # else:
+        #     out = toResolve
         return out
 
     @staticmethod
