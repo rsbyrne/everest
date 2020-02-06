@@ -174,6 +174,7 @@ class Meta(type):
         outCls.script = disk.ToOpen(scriptPath)()
         outCls.typeHash = make_hash(outCls.script)
         outCls.defaultInps = utilities.get_default_kwargs(outCls.__init__)
+        outCls._custom_cls_fn()
         try:
             return _get_preclass(outCls.typeHash)
         except NoPreClassError:
@@ -185,6 +186,10 @@ class Meta(type):
         return obj
 
 class Built(metaclass = Meta):
+
+    @classmethod
+    def _custom_cls_fn(cls):
+        pass
 
     @staticmethod
     def _deep_process_inputs(inputs):

@@ -7,6 +7,7 @@ from ._cycler import Cycler
 from ._producer import Producer
 from ._producer import make_dataDict
 from ._stampable import Stampable
+from . import perambulator
 from .states import State
 from ..exceptions import EverestException
 
@@ -20,14 +21,14 @@ class LoadStampFail(EverestException):
     pass
 
 class Bounce:
-    def __init__(self, iterator, arg):
+    def __init__(self, iterator, arg = 0):
         self.iterator = iterator
         self.arg = arg
     def __enter__(self):
         self.returnStep = self.iterator.count()
         self.iterator.store()
-        self.iterator.load(self.arg)
-        return self.iterator
+        if self.arg == 0: self.iterator.reset()
+        else: self.iterator.load(self.arg)
     def __exit__(self, *args):
         self.iterator.load(self.returnStep)
 
@@ -131,5 +132,9 @@ class Iterator(Counter, Cycler, Stampable):
 
     def bounce(self, count):
         return Bounce(self, count)
+
+    def perambulate(self, arg, **kwargs):
+        task = perambulator.build(self, arg, **kwargs)
+        task()
 
 from .examples import pimachine as example
