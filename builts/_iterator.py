@@ -38,6 +38,13 @@ class Iterator(Counter, Cycler, Stampable):
             **kwargs
             ):
 
+        # Expects:
+        # self._initialise
+        # self._iterate
+        # self._out
+        # self._outkeys
+        # self._load
+
         super().__init__(**kwargs)
 
         # Producer attributes:

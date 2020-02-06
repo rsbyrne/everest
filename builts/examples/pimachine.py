@@ -13,29 +13,24 @@ class PiMachine(Iterator):
             **kwargs
             ):
         self.state = 0.
-        self.kth = lambda k: \
-            1. / b **k \
-            * sum([a / (len(A) * k + (j + 1))**s \
+        self._outkeys = ['pi,']
+        super().__init__(**kwargs)
+    def kth(self, k):
+        s, b, A = self.inputs['s'], self.inputs['b'], self.inputs['A']
+        val = 1. / b **k * sum([
+            a / (len(A) * k + (j + 1))**s \
                 for j, a in enumerate(A)
-                ])
-        def out():
-            yield np.array(self.state)
-        def initialise():
-            self.state = self.kth(0)
-        def iterate():
-            kthVal = self.kth(self.count())
-            self.state += kthVal
-        def load(loadDict):
-            self.state = loadDict['pi']
-        super().__init__(
-            initialise,
-            iterate,
-            out,
-            ['pi',],
-            load,
-            **kwargs
-            )
+            ])
+        return val
+    def _out(self):
+        yield np.array(self.state)
+    def _initialise(self):
+        self.state = self.kth(0)
+    def _iterate(self):
+        kthVal = self.kth(self.count())
+        self.state += kthVal
+    def _load(self, loadDict):
+        self.state = loadDict['pi']
 
 CLASS = PiMachine
-build = CLASS.build
-get = CLASS.get
+build, get = CLASS.build, CLASS.get
