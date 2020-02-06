@@ -1,5 +1,4 @@
 from ._task import Task
-from ._iterator import LoadFail
 from .states import State
 from .states import booloperator
 
@@ -39,6 +38,7 @@ class Perambulator(Task):
 
     def _perambulator_task_cycle_fn(self):
         if self.express and not self._expressChecked:
+            from ._iterator import LoadFail
             try: self.arg.load(self.state)
             except LoadFail: self.arg()
             self._expressChecked = True
