@@ -173,7 +173,8 @@ class Meta(type):
             scriptPath = outCls.__init__.__globals__['__file__']
         outCls.script = disk.ToOpen(scriptPath)()
         outCls.typeHash = make_hash(outCls.script)
-        outCls.defaultInps = utilities.get_default_kwargs(outCls.__init__)
+        outCls.defaultInps, outCls.kwargsOrder = \
+            utilities.get_default_kwargs(outCls.__init__, return_order = True)
         outCls._custom_cls_fn()
         try:
             return _get_preclass(outCls.typeHash)
@@ -181,7 +182,11 @@ class Meta(type):
             _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
             return outCls
     def __call__(cls, *args, **kwargs):
-        obj = cls.__new__(cls, *args, **kwargs)
+        argkwargs = dict(
+            zip(cls.kwargsOrder, args[:len(cls.kwargsOrder)])
+            )
+        kwargs.update(argkwargs)
+        obj = cls.__new__(cls, **kwargs)
         obj.__init__(**obj.inputs)
         if obj._initAnchor:
             if GLOBALANCHOR: obj.anchor()
@@ -206,8 +211,12 @@ class Built(metaclass = Meta):
         # designed to be overridden
         pass
 
+    # @staticmethod
+    # def _process_args_kwargs(*args, **kwargs, defaults):
+    #     outDict = dict()
+
     @classmethod
-    def get(cls, **kwargs):
+    def get(cls, *args, **kwargs):
         obj = cls.__new__(cls, **kwargs)
         try:
             return _get_prebuilt(obj.hashID)
@@ -217,8 +226,8 @@ class Built(metaclass = Meta):
         return obj
 
     @classmethod
-    def build(cls, **kwargs):
-        return cls(**kwargs)
+    def build(cls, *args, **kwargs):
+        return cls(*args, **kwargs)
 
     @staticmethod
     def _add_weakref(obj):
