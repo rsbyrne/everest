@@ -11,18 +11,52 @@ from . import disk
 from . import utilities
 from .fetch import Fetch
 from .scope import Scope
-from .globevars import _ADDRESSTAG_, _BYTESTAG_
+from .globevars import \
+    _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
+    _BYTESTAG_, _STRINGTAG_, _EVALTAG_
+
+# class ReadWriteAgent:
+#
+#     _BUILTTAG_ = '_built_'
+#     _CLASSTAG_ = '_class_'
+#     _ADDRESSTAG_ = '_address_'
+#     _BYTESTAG_ = '_bytes_'
+#     _STRINGTAG_ = '_string_'
+#     _EVALTAG_ = '_eval_'
+#
+#     def __init__(self,
+#             name,
+#             path
+#             ):
+#         self.name, self.path = name, path
+#         from . import builts as builtsModule
+#         self.builtsModule = builtsModule
+#
+#     def process(self, inp, mode):
+#         pass
+#
+#     def _process_str(self, inp, mode):
+#         if mode == 'w':
+#             return inp
+#         elif mode == 'r':
+#             return self.process()
+#
+#     def _process_built(self, inp, mode):
+
 
 class Reader:
 
     def __init__(
             self,
             name,
-            outputPath
+            path
             ):
+        self.name, self.path = name, path
         self.h5file = None
-        self.h5filename = os.path.join(os.path.abspath(outputPath), name + '.frm')
+        self.h5filename = os.path.join(os.path.abspath(path), name + '.frm')
         self.file = partial(h5py.File, self.h5filename, 'r')
+        from . import builts as builtsmodule
+        self._builtsModule = builtsmodule
 
     @disk.h5filewrap
     def pull(self, scope, keys):
@@ -63,15 +97,16 @@ class Reader:
             allTuple = tuple(arrList)
             return allTuple
 
-    @classmethod
-    def _seek(cls, key, searchArea):
+    def _recursive_seek(self, key, searchArea = None):
         # expects h5filewrap
+        if searchArea is None:
+            searchArea = self.h5file
         splitkey = key.split('/')
         primekey = splitkey[0]
         remkey = '/'.join(splitkey[1:])
         if primekey == '**':
-            found = cls._seek('*/' + remkey, searchArea)
-            found[''] = cls._seek('*/' + key, searchArea)
+            found = self._recursive_seek('*/' + remkey, searchArea)
+            found[''] = self._recursive_seek('*/' + key, searchArea)
         elif primekey == '*':
             localkeys = {*searchArea, *searchArea.attrs}
             searchkeys = [
@@ -82,7 +117,7 @@ class Reader:
             for searchkey in searchkeys:
                 try:
                     found[searchkey.split('/')[0]] = \
-                        cls._seek(searchkey, searchArea)
+                        self._recursive_seek(searchkey, searchArea)
                 except:
                     pass
         else:
@@ -91,39 +126,75 @@ class Reader:
             except:
                 found = searchArea.attrs[primekey]
             if not remkey == '':
-                found = cls._seek(remkey, found)
+                found = self._recursive_seek(remkey, found)
         return found
 
-    def _seekresolve(self, inp):
+    def _pre_seekresolve(self, inp):
         # expects h5filewrap
-        global _ADDRESSTAG_
-        global _BYTESTAG_
-        if type(inp) is dict:
-            out = dict()
-            for key, val in inp.items():
-                out[key] = self._seekresolve(val)
-        elif type(inp) is h5py.Group:
+        if type(inp) is h5py.Group:
             out = _ADDRESSTAG_ + inp.name
         elif type(inp) is h5py.Dataset:
-            out = np.array(inp)
-        elif type(inp) is h5py.Reference:
-            out = self.h5file[inp].attrs['hashID']
-        elif type(inp) is str:
-            if inp[:len(_BYTESTAG_)] == _BYTESTAG_:
-                bytesStr = ast.literal_eval(inp[len(_BYTESTAG_):])
-                out = pickle.loads(bytesStr)
-            else:
-                try:
-                    out = ast.literal_eval(inp)
-                except:
-                    out = inp
+            out = inp[...]
+        elif type(inp) is dict:
+            out = dict()
+            for key, sub in sorted(inp.items()):
+                out[key] = self._pre_seekresolve(sub)
         else:
-            raise TypeError
-        if type(out) in {list, tuple, frozenset}:
-            procOut = list()
-            for item in out:
-                procOut.append(self._seekresolve(item))
-            out = type(out)(procOut)
+            out = inp
+        return out
+
+    @disk.h5filewrap
+    def _seek(self, key):
+        return self._pre_seekresolve(self._recursive_seek(key))
+
+    @staticmethod
+    def _process_tag(inp, tag):
+        processed = inp[len(tag):]
+        assert len(processed) > 0
+        return processed
+
+    def _seekresolve(self, inp):
+        if type(inp) is dict:
+            out = dict()
+            for key, sub in sorted(inp.items()):
+                out[key] = self._seekresolve(sub)
+        elif type(inp) is np.ndarray:
+            out = inp
+        elif type(inp) is str:
+            global \
+                _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
+                _BYTESTAG_, _STRINGTAG_, _EVALTAG_
+            if inp.startswith(_BUILTTAG_):
+                processed = self._process_tag(inp, _BUILTTAG_)
+                out = self._builtsModule.load(processed, self.name, self.path)
+            elif inp.startswith(_CLASSTAG_):
+                processed = self._process_tag(inp, _CLASSTAG_)
+                out = disk.local_import_from_str(processed).CLASS
+            elif inp.startswith(_ADDRESSTAG_):
+                processed = self._process_tag(inp, _ADDRESSTAG_)
+                splitAddr = [*processed.split('/'), '*']
+                if splitAddr[0] == '': splitAddr.pop(0)
+                out = self[tuple(splitAddr)]
+            elif inp.startswith(_BYTESTAG_):
+                processed = self._process_tag(inp, _BYTESTAG_)
+                bytesStr = ast.literal_eval(processed)
+                assert len(processed) > 0
+                out = pickle.loads(bytesStr)
+            elif inp.startswith(_EVALTAG_):
+                processed = self._process_tag(inp, _EVALTAG_)
+                assert len(processed) > 0
+                out = ast.literal_eval(processed)
+                if type(out) in {list, tuple, frozenset}:
+                    procOut = list()
+                    for item in out:
+                        procOut.append(self._seekresolve(item))
+                    out = type(out)(procOut)
+            elif inp.startswith(_STRINGTAG_):
+                processed = self._process_tag(inp, _STRINGTAG_)
+                assert len(processed) > 0
+                out = processed
+            else:
+                raise TypeError
         return out
 
     @staticmethod
@@ -173,10 +244,8 @@ class Reader:
             else:
                 return outs
 
-    @disk.h5filewrap
     def _getstr(self, key):
-        sought = self._seek(key, self.h5file)
-        resolved = self._seekresolve(sought)
+        resolved = self._seekresolve(self._seek(key))
         if type(resolved) is dict:
             out = utilities.flatten(resolved, sep = '/')
         else:
@@ -219,15 +288,5 @@ class Reader:
                     "Must provide a key to pull data from a scope"
                     )
             raise TypeError("Input not recognised: ", inp)
-
-    def __eq__(self, arg):
-        if not isinstance(arg, Built):
-            raise TypeError
-        return self.hashID == arg.hashID
-
-    def __lt__(self, arg):
-        if not isinstance(arg, Built):
-            raise TypeError
-        return self.hashID < arg.hashID
 
     context = __getitem__

@@ -14,8 +14,6 @@ from ..writer import Writer
 from ..reader import Reader
 from ..weaklist import WeakList
 
-from ..globevars import _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_
-
 from ..exceptions import EverestException
 class NoPreBuiltError(EverestException):
     '''That hashID does not correspond to a previously created Built.'''
@@ -74,41 +72,12 @@ def load(hashID, name = None, path = '.', get = False):
     try: assert hashID == reader[hashID, 'hashID']
     except KeyError: raise NotInFrameError
     except OSError: raise NotOnDiskError
-    typeHash = reader[hashID, 'typeHash']
-    cls = load_class(typeHash, name, path)
-    inputs = load_inputs(hashID + '/inputs', name, path)
+    cls = reader[hashID, 'class']
+    inputs = reader[hashID, 'inputs']
     if get: obj = cls.get(**inputs)
     else: obj = cls.build(**inputs)
     obj.anchor(name, path)
     return obj
-
-def _process_loaded_inputs(inputs, name, path, **kwargs):
-    for key, val in sorted(inputs.items()):
-        if type(val) is str:
-            if val.startswith(_BUILTTAG_):
-                hashID = val[len(_BUILTTAG_):]
-                inputs[key] = load(hashID, name, path, **kwargs)
-            elif val.startswith(_CLASSTAG_):
-                typeHash = val[len(_CLASSTAG_):]
-                inputs[key] = load_class(typeHash, name, path)
-            elif val.startswith(_ADDRESSTAG_):
-                address = val[len(_ADDRESSTAG_):]
-                inputs[key] = load_inputs(address, name, path)
-
-def load_inputs(address, name, path):
-    reader = Reader(name, path)
-    splitAddr = [*address.split('/'), '*']
-    if splitAddr[0] == '': splitAddr.pop(0)
-    inputs = reader[tuple(splitAddr)]
-    _process_loaded_inputs(inputs, name, path)
-    return inputs
-
-def load_class(typeHash, name, path):
-    reader = Reader(name, path)
-    script = reader['_globals_', '_classes_', str(typeHash)]
-    outclass = disk.local_import_from_str(script).CLASS
-    assert str(typeHash) == str(outclass.typeHash)
-    return outclass
 
 def _get_inputs(cls, inputs = dict()):
     inputs = {**cls.defaultInps, **inputs}
@@ -264,15 +233,15 @@ class Built(metaclass = Meta):
         obj._initialised = False
 
         obj.localObjects = {
-            'typeHash': str(obj.typeHash),
-            'inputsHash': str(obj.inputsHash),
-            'instanceHash': str(obj.instanceHash),
+            'typeHash': obj.typeHash,
+            'inputsHash': obj.inputsHash,
+            'instanceHash': obj.instanceHash,
             'hashID': obj.hashID,
-            'inputs': obj.inputs
+            'inputs': obj.inputs,
+            'class': cls
             }
-        obj.globalObjects = {
-            '_classes_': {str(obj.typeHash): obj.script}
-            }
+
+        obj.globalObjects = {}
 
         global GLOBALANCHOR, NAME, PATH
         if GLOBALANCHOR:

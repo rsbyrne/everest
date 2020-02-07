@@ -9,7 +9,8 @@ from collections import OrderedDict
 
 from . import disk
 from . import mpi
-from .globevars import _BUILTTAG_, _CLASSTAG_, _BYTESTAG_
+from .globevars import \
+    _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
 
 class ExtendableDataset:
     def __init__(self, arg):
@@ -36,45 +37,37 @@ class Writer:
 
         self.builtsmodule = builtsmodule
 
-    def _process_built(self, inp):
-        global _BUILTTAG_
-        return _BUILTTAG_ + inp.hashID
-
-    def _process_builtClass(self, inp):
-        global _CLASSTAG_
-        return _CLASSTAG_ + inp.hashID
-
-    def _process_bytes(self, inp):
-        global _BYTESTAG_
-        return _BYTESTAG_ + str(inp)
-
     def _process_inp(self, inp):
         if isinstance(inp, Mapping):
             raise TypeError
         elif type(inp) is str:
-            out = inp
+            global _STRINGTAG_
+            out = _STRINGTAG_ + inp
         elif isinstance(inp, self.builtsmodule.Built):
             inp.anchor(self.name, self.path)
             global _BUILTTAG_
             out = _BUILTTAG_ + inp.hashID
         elif type(inp) is self.builtsmodule.Meta:
             global _CLASSTAG_
-            out = _CLASSTAG_ + str(inp.typeHash)
+            out = _CLASSTAG_ + inp.script
         elif type(inp) in {list, tuple, frozenset}:
+            global _EVALTAG_
             out = list()
             for sub in inp: out.append(self._process_inp(sub))
             assert len(out) == len(inp), (inp, out)
-            out = str(type(inp)(out))
+            out = _EVALTAG_ + str(type(inp)(out))
         else:
             try:
+                global _EVALTAG_
                 out = str(inp)
                 if not inp == ast.literal_eval(out):
                     raise TypeError
+                out = _EVALTAG_ + out
             except:
+                global _BYTESTAG_
                 out = pickle.dumps(inp)
                 if not type(inp) == type(pickle.loads(out)):
                     raise TypeError
-                global _BYTESTAG_
                 out = _BYTESTAG_ + str(out)
         return out
 
@@ -103,13 +96,13 @@ class Writer:
             func(self, item, name, group)
         return wrapper
 
-    @_addwrap
-    def _add_link(self, item, name, group):
-        group[name] = self.h5file[item]
-
-    @_addwrap
-    def _add_ref(self, address, name, group):
-        group.attrs[name] = self.h5file[address].ref
+    # @_addwrap
+    # def _add_link(self, item, name, group):
+    #     group[name] = self.h5file[item]
+    #
+    # @_addwrap
+    # def _add_ref(self, address, name, group):
+    #     group.attrs[name] = self.h5file[address].ref
 
     @_addwrap
     def _add_attr(self, item, name, group):
