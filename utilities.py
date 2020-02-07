@@ -27,19 +27,3 @@ def flatten(d, parent_key = '', sep = '_'):
         else:
             items.append((new_key, v))
     return dict(items)
-
-def get_default_kwargs(func, return_order = True):
-    parameters = inspect.signature(func).parameters
-    allargs = {
-        key: val.default for key, val \
-            in parameters.items()
-        }
-    kwargs = {
-        key: val for key, val \
-            in allargs.items() if not val is inspect.Parameter.empty
-        }
-    kwargsOrder = [
-        key for key in parameters.keys() \
-            if not allargs[key] is inspect.Parameter.empty
-        ]
-    return kwargs, kwargsOrder

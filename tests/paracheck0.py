@@ -46,3 +46,9 @@ pimachine.load(27)
 pimachine.iterate(100)
 
 message('State:', pimachine.state)
+
+if mpi.rank == 0:
+    if os.path.exists(fullpath):
+        os.remove(fullpath)
+
+message("Complete!")

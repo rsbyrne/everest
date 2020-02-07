@@ -150,6 +150,24 @@ def _get_preclass(typeHash):
     finally:
         raise NoPreClassError
 
+def _get_default_inputs(func):
+    import inspect
+    from collections import OrderedDict
+    parameters = inspect.signature(func).parameters
+    out = parameters.copy()
+    if 'self' in out: del out['self']
+    for key, val in out.items():
+        default = val.default
+        if default is inspect.Parameter.empty:
+            default = None
+        out[key] = default
+    for key, val in parameters.items():
+        if len(str(val)) >= 1:
+            if str(val)[0] == '*':
+                del out[key] # removes *args, **kwargs
+    out = OrderedDict(out)
+    return out
+
 class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
@@ -159,8 +177,7 @@ class Meta(type):
             scriptPath = outCls.__init__.__globals__['__file__']
         outCls.script = disk.ToOpen(scriptPath)()
         outCls.typeHash = make_hash(outCls.script)
-        outCls.defaultInps, outCls.kwargsOrder = \
-            utilities.get_default_kwargs(outCls.__init__, return_order = True)
+        outCls.defaultInps =_get_default_inputs(outCls.__init__)
         outCls._custom_cls_fn()
         try:
             return _get_preclass(outCls.typeHash)
@@ -168,11 +185,11 @@ class Meta(type):
             _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
             return outCls
     def __call__(cls, *args, **kwargs):
-        argkwargs = dict(
-            zip(cls.kwargsOrder, args[:len(cls.kwargsOrder)])
-            )
-        kwargs.update(argkwargs)
-        obj = cls.__new__(cls, **kwargs)
+        inputs = cls.defaultInps.copy()
+        inputs.update(kwargs)
+        for arg, key in zip(args, list(inputs)[:len(args)]):
+            inputs[key] = arg
+        obj = cls.__new__(cls, **inputs)
         obj.__init__(**obj.inputs)
         if obj._initAnchor:
             if GLOBALANCHOR: obj.anchor()

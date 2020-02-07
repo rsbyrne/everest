@@ -1,5 +1,5 @@
 name = 'test'
-outputPath = '..'
+outputPath = '.'
 from everest import mpi
 import os
 fullpath = os.path.join(os.path.abspath(outputPath), name) + '.frm'
@@ -34,5 +34,9 @@ del myvec
 del loaded
 
 assert myref() is None
+
+if mpi.rank == 0:
+    if os.path.exists(fullpath):
+        os.remove(fullpath)
 
 mpi.message("Complete!")

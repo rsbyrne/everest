@@ -22,6 +22,8 @@ class Ticket:
         self.hashID = hashID
         self.timestamp = timestamp
         self.number = hashVal
+    def __repr__(self):
+        return '<' + self.hashID + ';' + str(self.timestamp) + '>'
     def __reduce__(self):
         return (self.__class__, (self.hashID, self.timestamp))
     def __hash__(self):
@@ -32,8 +34,14 @@ class Ticket:
     def __lt__(self, arg):
         if not isinstance(arg, Ticket): raise TypeError
         return self.timestamp < arg.timestamp
+    def __call__(self):
+        if type(self.obj) is str:
+            self.obj = load(self.obj)
+        return self.obj
 
 class ContainerError(EverestException):
+    pass
+class ContainerNotInitialisedError(EverestException):
     pass
 
 class Container(Mutator):
@@ -41,65 +49,77 @@ class Container(Mutator):
     from .container import __file__ as _file_
 
     def __init__(self,
-            iterable = None,
+            iterable,
             **kwargs
             ):
 
         check_global_anchor()
 
         self.iterable = iterable
-        self.checkedOut = []
-        self.checkedBack = []
+        self.initialised = False
 
-        self.localObjects.update({
-            'checkedOut': self.checkedOut,
-            'checkedBack': self.checkedBack
-            })
+        self._toRemove = None
 
         super().__init__(**kwargs)
 
         # Mutator attributes:
-        self._update_mutateDict_fns.append(
-            self._container_updateFn
-            )
+        self._update_mutateDict_fns.append(self._container_update_mutateFn)
 
-    def _container_updateFn(self):
+    def _container_update_mutateFn(self):
         self._check_anchored()
-        for key in ('checkedOut', 'checkedBack'):
-            loadedBytes = self.reader[self.hashID, key]
-            loaded = [pickle.loads(x) for x in loadedBytes]
-            pre = getattr(self, key)
-            new = sorted(set([*loaded, *pre]))
-            self._mutateDict[key] = new
+        for key in ('checkedOut', 'checkedBack', 'checkedComplete'):
+            if self.initialised:
+                loaded = self.reader[self.hashID, key]
+                pre = getattr(self, key)
+                new = sorted(set([*loaded, *pre]))
+                try:
+                    new.remove(self._toRemove)
+                    self._toRemove = None
+                except (ValueError, TypeError):
+                    pass
+                self._mutateDict[key] = new
+            else:
+                new = []
+                self._mutateDict[key] = new
             setattr(self, key, new)
 
-    def restore(self, ticket):
+    def checkBack(self, ticket):
         if not ticket in self.checkedOut:
-            raise ContainerError("Restored object was never checked out!")
-        self.checkedOut.remove(ticket)
+            raise ContainerError("Checked in object was never checked out!")
+        self._toRemove = ticket
         self.checkedBack.append(ticket)
         self.mutate()
 
     def complete(self, ticket):
-        self.checkedOut.remove(ticket)
+        self._toRemove = ticket
+        self.checkedComplete.append(ticket)
         self.mutate()
 
+    def initialise(self):
+        self.iter = iter(self.iterable)
+        self.mutate()
+        self.initialised = True
+
     def __next__(self):
-        if not len(self): raise StopIteration
+        if not self.initialised:
+            raise ContainerNotInitialisedError
         if len(self.checkedBack):
-            ticket = self.checkedBack.pop(-1)
+            ticket = self.checkedBack[0]
+            self._toRemove = ticket
         else:
             while True:
-                ticket = Ticket(next(self.iterable))
+                try:
+                    ticket = Ticket(next(self.iter))
+                except StopIteration:
+                    self.initialised = False
+                    raise StopIteration
                 if not ticket in self.checkedOut: break
         self.checkedOut.append(ticket)
-        if type(ticket.obj) is str:
-            ticket.obj = load(ticket.obj)
         self.mutate()
         return ticket
 
     def __len__(self):
-        try: return len(self.iterable) + len(self.checkedBack)
+        try: return len(self.iter) + len(self.checkedBack)
         except: return 99999999
 
     def __iter__(self):

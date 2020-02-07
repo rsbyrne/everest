@@ -38,33 +38,28 @@ class Writer:
         self.builtsmodule = builtsmodule
 
     def _process_inp(self, inp):
+        global _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
         if isinstance(inp, Mapping):
             raise TypeError
         elif type(inp) is str:
-            global _STRINGTAG_
             out = _STRINGTAG_ + inp
         elif isinstance(inp, self.builtsmodule.Built):
             inp.anchor(self.name, self.path)
-            global _BUILTTAG_
             out = _BUILTTAG_ + inp.hashID
         elif type(inp) is self.builtsmodule.Meta:
-            global _CLASSTAG_
             out = _CLASSTAG_ + inp.script
         elif type(inp) in {list, tuple, frozenset}:
-            global _EVALTAG_
             out = list()
             for sub in inp: out.append(self._process_inp(sub))
             assert len(out) == len(inp), (inp, out)
             out = _EVALTAG_ + str(type(inp)(out))
         else:
             try:
-                global _EVALTAG_
                 out = str(inp)
                 if not inp == ast.literal_eval(out):
                     raise TypeError
                 out = _EVALTAG_ + out
             except:
-                global _BYTESTAG_
                 out = pickle.dumps(inp)
                 if not type(inp) == type(pickle.loads(out)):
                     raise TypeError
@@ -73,6 +68,8 @@ class Writer:
 
     def add(self, item, name = '/', *names):
         if isinstance(item, Mapping):
+            if len(item) == 0:
+                self._add_group(item, name, *names)
             for key, val in sorted(item.items()):
                 self.add(
                     val,
@@ -103,6 +100,10 @@ class Writer:
     # @_addwrap
     # def _add_ref(self, address, name, group):
     #     group.attrs[name] = self.h5file[address].ref
+
+    @_addwrap
+    def _add_group(self, item, name, group):
+        pass
 
     @_addwrap
     def _add_attr(self, item, name, group):
