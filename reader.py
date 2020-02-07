@@ -107,11 +107,11 @@ class Reader:
             out = self.h5file[toResolve].attrs['hashID']
         else:
             try: out = ast.literal_eval(toResolve)
-            except ValueError: out = toResolve
-        # elif isinstance(toResolve, np.generic):
-        #     out = np.asscalar(toResolve)
-        # else:
-        #     out = toResolve
+            except (ValueError, SyntaxError):
+                if isinstance(toResolve, np.generic):
+                    out = np.asscalar(toResolve)
+                else:
+                    out = toResolve
         return out
 
     @staticmethod

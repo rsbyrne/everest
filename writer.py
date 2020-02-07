@@ -40,7 +40,7 @@ class Writer:
             elif type(item) is self.builtsmodule.Meta:
                 self._add_attr(_CLASSTAG_ + str(item.typeHash), name, *names)
             elif isinstance(item, ExtendDataset):
-                try: self._extend_dataset(item, name, *names)
+                try: self._extend_dataset(item.arg, name, *names)
                 except KeyError: self.add(item.arg, name, *names)
             elif type(item) is np.ndarray:
                 self._add_dataset(item, name, *names)

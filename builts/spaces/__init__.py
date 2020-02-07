@@ -1,15 +1,10 @@
-from .. import Built
-from ..vector import Vector
+from . import Built
 
 class Space(Built):
-    def __init__(
-            self,
-            slice_vector_fn,
 
+    def __init__(self,
+            ???,
             **kwargs
             ):
-        self._slice_vector_fn = slice_vector_fn
+
         super().__init__(**kwargs)
-    def __getitem__(self, arg):
-        out = self._slice_vector_fn(arg)
-        if isinstance(out, Vector):

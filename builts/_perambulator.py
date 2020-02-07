@@ -1,7 +1,6 @@
 from ._task import Task
 from .states import State
 from .states import threshold
-from ._iterator import Iterator
 
 class Perambulator(Task):
 
@@ -19,7 +18,6 @@ class Perambulator(Task):
                 op = 'ge',
                 val = state
                 )
-        if not isinstance(inputs['iterator'], Iterator): raise TypeError
 
     def __init__(
             self,

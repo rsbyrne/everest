@@ -37,6 +37,8 @@ class PlaceholderError(EverestException):
     pass
 class NotYetAnchoredError(EverestException):
     pass
+class GlobalAnchorRequired(EverestException):
+    pass
 
 NAME = None
 PATH = None
@@ -51,8 +53,23 @@ def release_global_anchor():
     NAME = None
     PATH = None
     GLOBALANCHOR = False
+def check_global_anchor():
+    global GLOBALANCHOR
+    if not GLOBALANCHOR: raise GlobalAnchorRequired
 
-def load(hashID, name, path = '.', get = False):
+def _load_namepath_process(name, path):
+    global GLOBALANCHOR, NAME, PATH
+    if GLOBALANCHOR:
+        if not name is None and path is None:
+            raise Exception("Global anchor has been set!")
+        name, path = NAME, PATH
+    else:
+        if (name is None) or (path is None):
+            raise TypeError
+    return name, path
+
+def load(hashID, name = None, path = '.', get = False):
+    name, path = _load_namepath_process(name, path)
     reader = Reader(name, path)
     try: assert hashID == reader[hashID, 'hashID']
     except KeyError: raise NotInFrameError
@@ -88,9 +105,9 @@ def load_inputs(address, name, path):
 
 def load_class(typeHash, name, path):
     reader = Reader(name, path)
-    script = reader['_globals_', '_classes_', typeHash]
+    script = reader['_globals_', '_classes_', str(typeHash)]
     outclass = disk.local_import_from_str(script).CLASS
-    assert typeHash == str(outclass.typeHash)
+    assert str(typeHash) == str(outclass.typeHash)
     return outclass
 
 def _get_inputs(cls, inputs = dict()):
