@@ -28,8 +28,8 @@ class Vector(Built):
             return [opFn(mod1[key], mod2[key]) for key in mod1]
         else:
             raise TypeError
-    def __eq__(self, arg): return self._operation(arg, operator.eq)
-    def __gt__(self, arg): return self._operation(arg, operator.gt)
-    def __lt__(self, arg): return self._operation(arg, operator.lt)
-    def __ge__(self, arg): return self._operation(arg, operator.ge)
-    def __le__(self, arg): return self._operation(arg, operator.eq)
+    # def __eq__(self, arg): return self._operation(arg, operator.eq)
+    # def __gt__(self, arg): return self._operation(arg, operator.gt)
+    # def __lt__(self, arg): return self._operation(arg, operator.lt)
+    # def __ge__(self, arg): return self._operation(arg, operator.ge)
+    # def __le__(self, arg): return self._operation(arg, operator.eq)

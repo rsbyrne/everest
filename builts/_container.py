@@ -100,7 +100,7 @@ class Container(Mutator):
 
     def __len__(self):
         try: return len(self.iterable) + len(self.checkedBack)
-        except: return -1
+        except: return 99999999
 
     def __iter__(self):
         return self

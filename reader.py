@@ -5,12 +5,13 @@ import operator
 import os
 import numpy as np
 import ast
+import pickle
 
 from . import disk
 from . import utilities
 from .fetch import Fetch
 from .scope import Scope
-from .globevars import _ADDRESSTAG_
+from .globevars import _ADDRESSTAG_, _BYTESTAG_
 
 class Reader:
 
@@ -93,25 +94,36 @@ class Reader:
                 found = cls._seek(remkey, found)
         return found
 
-    def _seekresolve(self, toResolve):
+    def _seekresolve(self, inp):
         # expects h5filewrap
-        if type(toResolve) is dict:
+        global _ADDRESSTAG_
+        global _BYTESTAG_
+        if type(inp) is dict:
             out = dict()
-            for key, val in toResolve.items():
+            for key, val in inp.items():
                 out[key] = self._seekresolve(val)
-        elif type(toResolve) is h5py.Group:
-            out = _ADDRESSTAG_ + toResolve.name
-        elif type(toResolve) is h5py.Dataset:
-            out = np.array(toResolve)
-        elif type(toResolve) is h5py.Reference:
-            out = self.h5file[toResolve].attrs['hashID']
+        elif type(inp) is h5py.Group:
+            out = _ADDRESSTAG_ + inp.name
+        elif type(inp) is h5py.Dataset:
+            out = np.array(inp)
+        elif type(inp) is h5py.Reference:
+            out = self.h5file[inp].attrs['hashID']
+        elif type(inp) is str:
+            if inp[:len(_BYTESTAG_)] == _BYTESTAG_:
+                bytesStr = ast.literal_eval(inp[len(_BYTESTAG_):])
+                out = pickle.loads(bytesStr)
+            else:
+                try:
+                    out = ast.literal_eval(inp)
+                except:
+                    out = inp
         else:
-            try: out = ast.literal_eval(toResolve)
-            except (ValueError, SyntaxError):
-                if isinstance(toResolve, np.generic):
-                    out = np.asscalar(toResolve)
-                else:
-                    out = toResolve
+            raise TypeError
+        if type(out) in {list, tuple, frozenset}:
+            procOut = list()
+            for item in out:
+                procOut.append(self._seekresolve(item))
+            out = type(out)(procOut)
         return out
 
     @staticmethod
@@ -207,5 +219,15 @@ class Reader:
                     "Must provide a key to pull data from a scope"
                     )
             raise TypeError("Input not recognised: ", inp)
+
+    def __eq__(self, arg):
+        if not isinstance(arg, Built):
+            raise TypeError
+        return self.hashID == arg.hashID
+
+    def __lt__(self, arg):
+        if not isinstance(arg, Built):
+            raise TypeError
+        return self.hashID < arg.hashID
 
     context = __getitem__

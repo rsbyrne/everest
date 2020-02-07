@@ -302,6 +302,20 @@ class Built(metaclass = Meta):
     def __hash__(self):
         return self.instanceHash
 
+    def __reduce__(self):
+        global _BUILTTAG_
+        return _BUILTTAG_ + self.hashID
+
+    def __eq__(self, arg):
+        if not isinstance(arg, Built):
+            raise TypeError
+        return self.hashID == arg.hashID
+
+    def __lt__(self, arg):
+        if not isinstance(arg, Built):
+            raise TypeError
+        return self.hashID < arg.hashID
+
     def _check_anchored(self):
         if not self.anchored: raise NotYetAnchoredError
 

@@ -8,7 +8,7 @@ from .. import disk
 from . import buffersize_exceeded
 from ._mutator import Mutator
 from ..weaklist import WeakList
-from ..writer import ExtendDataset
+from ..writer import ExtendableDataset
 
 def make_dataDict(outkeys, stored):
     return dict(zip(outkeys, list(map(list, zip(*stored)))))
@@ -43,7 +43,7 @@ class Producer(Mutator):
 
     def _producer_update_mutateDict_fn(self):
         wrappedDict = {
-            key: ExtendDataset(val)
+            key: ExtendableDataset(val)
                 for key, val in self.make_dataDict().items()
                 }
         if 'outputs' in self._mutateDict:

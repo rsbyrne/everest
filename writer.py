@@ -1,12 +1,20 @@
 import os
 import h5py
 import numpy as np
+import pickle
+import ast
+
+from collections.abc import Mapping
+from collections import OrderedDict
 
 from . import disk
 from . import mpi
-from .globevars import _BUILTTAG_, _CLASSTAG_
+from .globevars import _BUILTTAG_, _CLASSTAG_, _BYTESTAG_
 
-class ExtendDataset:
+class ExtendableDataset:
+    def __init__(self, arg):
+        self.arg = arg
+class FixedDataset:
     def __init__(self, arg):
         self.arg = arg
 
@@ -17,16 +25,61 @@ class Writer:
             name,
             path,
             ):
+
+        from . import builts as builtsmodule
+
         self.name = name
         self.path = path
         self.h5filename = disk.get_framePath(name, path)
         self.h5file = None
         mpi.dowrap(os.makedirs)(path, exist_ok = True)
-        from . import builts as builtsmodule
+
         self.builtsmodule = builtsmodule
 
+    def _process_built(self, inp):
+        global _BUILTTAG_
+        return _BUILTTAG_ + inp.hashID
+
+    def _process_builtClass(self, inp):
+        global _CLASSTAG_
+        return _CLASSTAG_ + inp.hashID
+
+    def _process_bytes(self, inp):
+        global _BYTESTAG_
+        return _BYTESTAG_ + str(inp)
+
+    def _process_inp(self, inp):
+        if isinstance(inp, Mapping):
+            raise TypeError
+        elif type(inp) is str:
+            out = inp
+        elif isinstance(inp, self.builtsmodule.Built):
+            inp.anchor(self.name, self.path)
+            global _BUILTTAG_
+            out = _BUILTTAG_ + inp.hashID
+        elif type(inp) is self.builtsmodule.Meta:
+            global _CLASSTAG_
+            out = _CLASSTAG_ + str(inp.typeHash)
+        elif type(inp) in {list, tuple, frozenset}:
+            out = list()
+            for sub in inp: out.append(self._process_inp(sub))
+            assert len(out) == len(inp), (inp, out)
+            out = str(type(inp)(out))
+        else:
+            try:
+                out = str(inp)
+                if not inp == ast.literal_eval(out):
+                    raise TypeError
+            except:
+                out = pickle.dumps(inp)
+                if not type(inp) == type(pickle.loads(out)):
+                    raise TypeError
+                global _BYTESTAG_
+                out = _BYTESTAG_ + str(out)
+        return out
+
     def add(self, item, name = '/', *names):
-        if type(item) is dict:
+        if isinstance(item, Mapping):
             for key, val in sorted(item.items()):
                 self.add(
                     val,
@@ -34,17 +87,13 @@ class Writer:
                     *[*names, name]
                     )
         else:
-            if isinstance(item, self.builtsmodule.Built):
-                item.anchor(self.name, self.path)
-                self._add_attr(_BUILTTAG_ + item.hashID, name, *names)
-            elif type(item) is self.builtsmodule.Meta:
-                self._add_attr(_CLASSTAG_ + str(item.typeHash), name, *names)
-            elif isinstance(item, ExtendDataset):
+            if isinstance(item, ExtendableDataset):
                 try: self._extend_dataset(item.arg, name, *names)
-                except KeyError: self.add(item.arg, name, *names)
-            elif type(item) is np.ndarray:
-                self._add_dataset(item, name, *names)
+                except KeyError: self._add_dataset(item.arg, name, *names)
+            elif isinstance(item, FixedDataset):
+                self._add_dataset(item.arg, name, *names)
             else:
+                item = self._process_inp(item)
                 self._add_attr(item, name, *names)
 
     def _addwrap(func):
@@ -64,7 +113,7 @@ class Writer:
 
     @_addwrap
     def _add_attr(self, item, name, group):
-        group.attrs[name] = str(item)
+        group.attrs[name] = item
 
     @_addwrap
     def _add_dataset(self, data, name, group):
