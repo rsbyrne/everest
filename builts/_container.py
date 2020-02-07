@@ -41,7 +41,7 @@ class Container(Mutator):
     from .container import __file__ as _file_
 
     def __init__(self,
-            iterable,
+            iterable = None,
             **kwargs
             ):
 
