@@ -143,6 +143,7 @@ class Container(Mutator):
         self.checkedOut.remove(ticket)
         self.checkedBack.append(ticket)
         self.mutate()
+        mpi.message("Relinquished ticket:", ticket)
 
     @_container_access_wrap
     def complete(self, ticket):
@@ -151,6 +152,7 @@ class Container(Mutator):
         self.checkedOut.remove(ticket)
         self.checkedComplete.append(ticket)
         self.mutate()
+        mpi.message("Completed ticket:", ticket)
 
     def initialise(self, projName = 'anon'):
         self.projName = projName
@@ -202,6 +204,7 @@ class Container(Mutator):
         self.checkedOut.append(ticket)
         self.mutate()
         assert ticket in self.reader[self.hashID, self.projName, 'checkedOut']
+        mpi.message("Checking out ticket:", ticket)
         return ticket
 
     def __len__(self):

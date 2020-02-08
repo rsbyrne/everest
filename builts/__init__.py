@@ -38,6 +38,9 @@ class NotYetAnchoredError(EverestException):
 class GlobalAnchorRequired(EverestException):
     pass
 
+GLOBALREADER = None
+GLOBALWRITER = None
+
 NAME = None
 PATH = None
 GLOBALANCHOR = False
