@@ -33,7 +33,9 @@ myref = weakref.ref(myvec)
 del myvec
 del loaded
 
-assert myref() is None
+if not myref() is None:
+    import gc
+    assert False, gc.get_referrers(myref())
 
 if mpi.rank == 0:
     if os.path.exists(fullpath):

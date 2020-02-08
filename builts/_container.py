@@ -1,6 +1,7 @@
 import hashlib
 import time
 import pickle
+from collections import OrderedDict
 
 from . import load
 from . import check_global_anchor
@@ -9,28 +10,34 @@ from ..exceptions import EverestException
 from .. import mpi
 
 class Ticket:
-    def __init__(self, obj, timestamp = None):
+    def __init__(self, obj, spice = 0, timestamp = None):
         from . import Built
+        if timestamp is None:
+            timestamp = mpi.share(time.time())
         if isinstance(obj, Built): hashID = obj.hashID
         elif type(obj) is str: hashID = obj
         else: raise TypeError
-        if timestamp is None: timestamp = mpi.share(time.time())
-        hashInp = hashID + str(timestamp)
+        if spice is None: spice = timestamp
+        hashInp = hashID + str(spice)
         hexID = hashlib.md5(hashInp.encode()).hexdigest()
         hashVal = int(hexID, 16)
+        self.spice = spice
         self.obj = obj
         self.hashID = hashID
-        self.timestamp = timestamp
         self.number = hashVal
+        self.timestamp = timestamp
     def __repr__(self):
         return '<' + self.hashID + ';' + str(self.timestamp) + '>'
     def __reduce__(self):
-        return (self.__class__, (self.hashID, self.timestamp))
+        return (
+            self.__class__,
+            (self.hashID, self.spice, self.timestamp)
+            )
     def __hash__(self):
-        return hash(self.number)
+        return self.number
     def __eq__(self, arg):
         if not isinstance(arg, Ticket): raise TypeError
-        return self.number == arg.number
+        return self.hashID == arg.hashID
     def __lt__(self, arg):
         if not isinstance(arg, Ticket): raise TypeError
         return self.timestamp < arg.timestamp
@@ -43,6 +50,42 @@ class ContainerError(EverestException):
     pass
 class ContainerNotInitialisedError(EverestException):
     pass
+
+class ContainerAccess:
+    def __init__(self, reader, writer, hashID, projName):
+        self.reader, self.writer, self.hashID, self.projName = \
+            reader, writer, hashID, projName
+    def __enter__(self):
+        while True:
+            try:
+                busy = self.reader[self.hashID, self.projName, '_busy_']
+            except KeyError:
+                busy = False
+            if busy:
+                time.sleep(1)
+            else:
+                self.writer.add(
+                    {self.projName: {'_busy_': True}},
+                    self.hashID
+                    )
+                break
+    def __exit__(self, *args):
+        self.writer.add(
+            {self.projName: {'_busy_': False}},
+            self.hashID
+            )
+
+def _container_access_wrap(func):
+    def wrapper(self, *args, **kwargs):
+        with ContainerAccess(
+                self.reader,
+                self.writer,
+                self.hashID,
+                self.projName
+                ):
+            output = func(self, *args, **kwargs)
+        return output
+    return wrapper
 
 class Container(Mutator):
 
@@ -58,64 +101,129 @@ class Container(Mutator):
         self.iterable = iterable
         self.initialised = False
 
-        self._toRemove = None
-
         super().__init__(**kwargs)
 
         # Mutator attributes:
-        self._update_mutateDict_fns.append(self._container_update_mutateFn)
+        self._update_mutateDict_fns.append(
+            self._container_update_mutateFn
+            )
 
     def _container_update_mutateFn(self):
-        self._check_anchored()
+        # expects @_container_access_wrap
+        self._mutateDict[self.projName] = dict()
         for key in ('checkedOut', 'checkedBack', 'checkedComplete'):
-            if self.initialised:
-                loaded = self.reader[self.hashID, key]
-                pre = getattr(self, key)
-                new = sorted(set([*loaded, *pre]))
-                try:
-                    new.remove(self._toRemove)
-                    self._toRemove = None
-                except (ValueError, TypeError):
-                    pass
-                self._mutateDict[key] = new
-            else:
-                new = []
-                self._mutateDict[key] = new
-            setattr(self, key, new)
+            self._mutateDict[self.projName][key] = getattr(self, key)
 
+    # def _container_update_from_disk(self):
+    #     # expects @_container_access_wrap
+    #     l_out, l_back, l_comp = empties = [], [], []
+    #     keys = ('checkedOut', 'checkedBack', 'checkedComplete')
+    #     for key, empty in zip(keys, empties):
+    #         try: empty[:] = self.reader[self.hashID, self.projName, key]
+    #         except KeyError: pass
+    #     out, back, comp = \
+    #         self.checkedOut, self.checkedBack, self.checkedComplete
+    #     for tik in l_out:
+    #         if not tik in out: out.append(tik)
+    #     for tik in l_back:
+    #         if not tik in back: back.append(tik)
+    #         if tik in out: out.remove(tik)
+    #     for tik in l_comp:
+    #         if tik in out: out.remove(tik)
+    #         if tik in back: back.remove(tik)
+    #         if not tik in comp: comp.append(tik)
+    #     for tik in out:
+    #         if tik in back: back.remov
+    #     self.checkedOut = list(OrderedDict.fromkeys(sorted(out)))
+    #     self.checkedBack = list(OrderedDict.fromkeys(sorted(back)))
+    #     self.checkedComplete = list(OrderedDict.fromkeys(sorted(comp)))
+    #     self._check_checks()
+
+    def _container_update_from_disk(self):
+        # expects @_container_access_wrap
+        l_out, l_back, l_comp = loads = [], [], []
+        keys = ('checkedOut', 'checkedBack', 'checkedComplete')
+        for key, empty in zip(keys, loads):
+            try: empty[:] = self.reader[self.hashID, self.projName, key]
+            except KeyError: pass
+        self.checkedOut, self.checkedBack, self.checkedComplete = loads
+        self._check_checks()
+
+    def _check_checks(self):
+        o, b, c = self.checkedOut, self.checkedBack, self.checkedComplete
+        together = [*o, *b, *c]
+        assert len(set(together)) == len(together), (o, b, c)
+
+    @_container_access_wrap
     def checkBack(self, ticket):
+        self._check_initialised()
         if not ticket in self.checkedOut:
-            raise ContainerError("Checked in object was never checked out!")
-        self._toRemove = ticket
+            raise ContainerError(
+                "Checked in object was never checked out!"
+                )
+        self._container_update_from_disk()
+        self.checkedOut.remove(ticket)
         self.checkedBack.append(ticket)
         self.mutate()
 
+    @_container_access_wrap
     def complete(self, ticket):
-        self._toRemove = ticket
+        self._check_initialised()
+        self._container_update_from_disk()
+        self.checkedOut.remove(ticket)
         self.checkedComplete.append(ticket)
         self.mutate()
 
-    def initialise(self):
+    def initialise(self, projName = 'anon'):
+        self.projName = projName
+        self.checkedOut = []
+        self.checkedBack = []
+        self.checkedComplete = []
         self.iter = iter(self.iterable)
-        self.mutate()
+        self._initialise()
         self.initialised = True
 
+    @_container_access_wrap
+    def _initialise(self):
+        self._container_update_from_disk()
+        self.mutate()
+
+    def _container_iter_finalise(self):
+        del self.projName
+        del self.checkedOut
+        del self.checkedBack
+        del self.checkedComplete
+        del self.iter
+        self.initialised = False
+        raise StopIteration
+
+    def _check_initialised(self):
+        if not self.initialised: raise ContainerNotInitialisedError
+
+    def _ticket_checked(self, ticket):
+        return any([
+            ticket in checked \
+                for checked in [
+                    self.checkedOut,
+                    self.checkedBack,
+                    self.checkedComplete
+                    ]
+            ])
+
+    @_container_access_wrap
     def __next__(self):
-        if not self.initialised:
-            raise ContainerNotInitialisedError
+        self._check_initialised()
+        self._container_update_from_disk()
         if len(self.checkedBack):
-            ticket = self.checkedBack[0]
-            self._toRemove = ticket
+            ticket = self.checkedBack.pop(0)
         else:
             while True:
-                try:
-                    ticket = Ticket(next(self.iter))
-                except StopIteration:
-                    self.initialised = False
-                    raise StopIteration
-                if not ticket in self.checkedOut: break
+                try: ticket = Ticket(next(self.iter))
+                except StopIteration: self._container_iter_finalise()
+                if not self._ticket_checked(ticket): break
         self.checkedOut.append(ticket)
         self.mutate()
+        assert ticket in self.reader[self.hashID, self.projName, 'checkedOut']
         return ticket
 
     def __len__(self):
