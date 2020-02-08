@@ -43,8 +43,11 @@ class Ticket:
         return self.timestamp < arg.timestamp
     def __call__(self):
         if type(self.obj) is str:
-            self.obj = load(self.obj)
-        return self.obj
+            obj = load(self.obj)
+        else:
+            obj = self.obj
+            self.obj = obj.hashID
+        return obj
 
 class ContainerError(EverestException):
     pass
@@ -113,31 +116,6 @@ class Container(Mutator):
         self._mutateDict[self.projName] = dict()
         for key in ('checkedOut', 'checkedBack', 'checkedComplete'):
             self._mutateDict[self.projName][key] = getattr(self, key)
-
-    # def _container_update_from_disk(self):
-    #     # expects @_container_access_wrap
-    #     l_out, l_back, l_comp = empties = [], [], []
-    #     keys = ('checkedOut', 'checkedBack', 'checkedComplete')
-    #     for key, empty in zip(keys, empties):
-    #         try: empty[:] = self.reader[self.hashID, self.projName, key]
-    #         except KeyError: pass
-    #     out, back, comp = \
-    #         self.checkedOut, self.checkedBack, self.checkedComplete
-    #     for tik in l_out:
-    #         if not tik in out: out.append(tik)
-    #     for tik in l_back:
-    #         if not tik in back: back.append(tik)
-    #         if tik in out: out.remove(tik)
-    #     for tik in l_comp:
-    #         if tik in out: out.remove(tik)
-    #         if tik in back: back.remove(tik)
-    #         if not tik in comp: comp.append(tik)
-    #     for tik in out:
-    #         if tik in back: back.remov
-    #     self.checkedOut = list(OrderedDict.fromkeys(sorted(out)))
-    #     self.checkedBack = list(OrderedDict.fromkeys(sorted(back)))
-    #     self.checkedComplete = list(OrderedDict.fromkeys(sorted(comp)))
-    #     self._check_checks()
 
     def _container_update_from_disk(self):
         # expects @_container_access_wrap
