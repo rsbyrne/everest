@@ -43,10 +43,9 @@ class Perambulator(Task):
         if self.express and not self._expressChecked:
             from ._iterator import LoadFail
             try: self.iterator.load(self.state)
-            except LoadFail: self.iterator()
+            except LoadFail: pass
             self._expressChecked = True
-        else:
-            self.iterator()
+        self.iterator()
 
     def _perambulator_task_stop_fn(self):
         return self.state(self.iterator)
