@@ -92,7 +92,7 @@ def _container_access_wrap(func):
 
 class Container(Mutator):
 
-    from .container import __file__ as _file_
+    global _file_
 
     def __init__(self,
             iterable,
@@ -214,3 +214,5 @@ class Container(Mutator):
 
     def __iter__(self):
         return self
+
+from .container import __file__ as _file_

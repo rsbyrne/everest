@@ -3,7 +3,7 @@ from ..vector import Vector
 
 class HyperCube(Space):
 
-    from .hypercube import __file__as _file_
+    global _file_
 
     def __init__(
             self,
@@ -11,3 +11,5 @@ class HyperCube(Space):
             ):
 
         super().__init__(**kwargs)
+
+from .hypercube import __file__as _file_

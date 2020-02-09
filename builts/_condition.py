@@ -3,7 +3,7 @@ from types import FunctionType
 from ._boolean import Boolean
 
 class Condition(Boolean):
-    from .condition import __file__ as _file_
+    global _file_
     def __init__(
             self,
             inquirer = None,
@@ -19,3 +19,5 @@ class Condition(Boolean):
         truth = self.inquirer(self.arg)
         if self.inv: truth = not truth
         return truth
+
+from .condition import __file__ as _file_
