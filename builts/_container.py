@@ -137,7 +137,8 @@ class Container(Mutator):
         self._check_initialised()
         if not ticket in self.checkedOut:
             raise ContainerError(
-                "Checked in object was never checked out!"
+                "Checked in object was never checked out!",
+                ticket, self.checkedOut
                 )
         self._container_update_from_disk()
         self.checkedOut.remove(ticket)
