@@ -36,6 +36,7 @@ class Iterator(Counter, Cycler, Stampable):
 
     def __init__(
             self,
+            _iterator_initialise = True,
             **kwargs
             ):
 
@@ -49,12 +50,11 @@ class Iterator(Counter, Cycler, Stampable):
         super().__init__(**kwargs)
 
         # Producer attributes:
-        self._outFns.append(self._out)
-        self.outkeys.extend(self._outkeys)
+        if hasattr(self, '_out'): self._outFns.append(self._out)
+        if hasattr(self, '_outkeys'): self.outkeys.extend(self._outkeys)
         self.samples.extend(
             [np.array([data,]) for data in self.out()]
             )
-        self.indexKey = 'count'
         self.dataKeys = [
             key for key in self.outkeys if not key == self.indexKey
             ]
@@ -65,7 +65,8 @@ class Iterator(Counter, Cycler, Stampable):
         # Built attributes:
         self._post_anchor_fns.append(self._iterator_post_anchor)
 
-        self.initialise()
+        if _iterator_initialise:
+            self.initialise()
 
     def _iterator_post_anchor(self):
         self.h5filename = self.writer.h5filename
@@ -103,6 +104,10 @@ class Iterator(Counter, Cycler, Stampable):
             self._load(loadDict)
             self.count.value = count
 
+    def _load(self, loadDict):
+        # expects to be overridden:
+        assert not len(loadDict)
+
     def _load_dataDict(self, count):
         try: return self._load_dataDict_stored(count)
         except LoadStoredFail: return self._load_dataDict_saved(count)
@@ -132,9 +137,3 @@ class Iterator(Counter, Cycler, Stampable):
 
     def bounce(self, count):
         return Bounce(self, count)
-
-    def perambulate(self, arg, **kwargs):
-        task = perambulator.build(self, arg, **kwargs)
-        task()
-
-from .examples import pimachine as example

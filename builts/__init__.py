@@ -38,22 +38,19 @@ class NotYetAnchoredError(EverestException):
 class GlobalAnchorRequired(EverestException):
     pass
 
-GLOBALREADER = None
-GLOBALWRITER = None
-
-NAME = None
-PATH = None
+GLOBALREADER, GLOBALWRITER = None, None
+NAME, PATH = None, None
 GLOBALANCHOR = False
 def set_global_anchor(name, path):
-    global GLOBALANCHOR, NAME, PATH
-    NAME = name
-    PATH = os.path.abspath(path)
+    global GLOBALANCHOR, NAME, PATH, GLOBALREADER, GLOBALWRITER
+    NAME, PATH = name, os.path.abspath(path)
     GLOBALANCHOR = True
+    GLOBALREADER, GLOBALWRITER = Reader(name, path), Writer(name, path)
 def release_global_anchor():
-    global GLOBALANCHOR, NAME, PATH
-    NAME = None
-    PATH = None
+    global GLOBALANCHOR, NAME, PATH, GLOBALREADER, GLOBALWRITER
+    NAME, PATH = None, None
     GLOBALANCHOR = False
+    GLOBALREADER, GLOBALWRITER = None, None
 def check_global_anchor():
     global GLOBALANCHOR
     if not GLOBALANCHOR: raise GlobalAnchorRequired

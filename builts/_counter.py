@@ -9,6 +9,7 @@ class Counter(Producer):
         self.counts = []
         self.counts_stored = []
         self.counts_disk = []
+        self.indexKey = 'count'
         super().__init__(**kwargs)
         # Producer attributes:
         self._outFns.append(self.countoutFn)
