@@ -44,9 +44,14 @@ class GlobalAnchorRequired(EverestException):
 GLOBALREADER, GLOBALWRITER = None, None
 NAME, PATH = None, None
 GLOBALANCHOR = False
-def set_global_anchor(name, path):
+def set_global_anchor(name, path, purge = False):
     global GLOBALANCHOR, NAME, PATH, GLOBALREADER, GLOBALWRITER
     NAME, PATH = name, os.path.abspath(path)
+    fullPath = os.path.join(PATH, NAME + '.frm')
+    if purge:
+        if mpi.rank == 0:
+            if os.path.exists(fullPath):
+                os.remove(fullPath)
     GLOBALANCHOR = True
     GLOBALREADER, GLOBALWRITER = Reader(name, path), Writer(name, path)
 def release_global_anchor():

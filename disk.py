@@ -10,15 +10,56 @@ import time
 from .utilities import message
 from . import mpi
 
-from .exceptions import EverestException
-class H5Error(EverestException):
-    '''Something went wrong with retrieving from h5 file.'''
-    pass
-
 PYTEMP = '/home/jovyan/pytemp'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
 
-h5File = h5py.File
+class RandomSeeder:
+    def __init__(self, seed):
+        self.seed = seed
+    def __enter__(self):
+        random.seed(seed)
+    def __exit__(self, *args):
+        random.seed()
+
+PRIMEFREQSEED = mpi.share(random.random())
+
+def gen_primes():
+    """ Generate an infinite sequence of prime numbers."""
+    D = {}
+    q = 2
+    while True:
+        if q not in D:
+            yield q
+            D[q * q] = [q]
+        else:
+            for p in D[q]:
+                D.setdefault(p + q, []).append(p)
+            del D[q]
+        q += 1
+
+primenos = []
+for i in gen_primes():
+    if 100 < i < 1000:
+        primenos.append(i)
+    else:
+        break
+
+def get_prime_freq():
+    # expects @mpi.dowrap
+    with RandomSeeder(PRIMEFREQSEED):
+        return random.choice(primenos)
+def millinow():
+    # expects @mpi.dowrap
+    timenow = 0
+    timenow = round(time.time() * 1e3)
+    return timenow
+def prime_window():
+    # expects @mpi.dowrap
+    while True:
+        if millinow() % get_prime_freq() == 0:
+            break
+        else:
+            time.sleep(random.random() / 1000.)
 
 @mpi.dowrap
 def tempname(length = 16, extension = None):
@@ -45,11 +86,31 @@ def remove_file(filePath):
 def h5filewrap(func):
     @mpi.dowrap
     def wrapper(self, *args, **kwargs):
-        with h5py.File(self.h5filename) as h5file:
-            self.h5file = h5file
-            output = func(self, *args, **kwargs)
-        return output
+        with H5Access(self.h5filename) as h5file:
+            return func(self, *args, **kwargs)
     return wrapper
+
+class H5Access:
+    def __init__(h5filename):
+        self.h5filename = h5filename
+    def __enter__(self):
+        try:
+            while True:
+                prime_window()
+                with h5py.File(self.h5filename, mode = 'r') as h5file:
+                    if h5file.attrs['_BUSY_']:
+                        print("File busy - waiting...")
+                    else:
+                        print("File available - accessing.")
+                        break
+        except OSError:
+            pass
+        self.h5file = h5py.File(self.h5filename)
+        self.h5file.attrs['_BUSY_'] = True
+        return self.h5file
+    def __exit__(self, exc_type, exc_val, traceback):
+        self.h5file.attrs['_BUSY_'] = False
+        self.h5file.close()
 
 class ToOpen:
     def __init__(self, filepath):
