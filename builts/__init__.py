@@ -1,9 +1,12 @@
+#BUILTMODULE
+
 import numpy as np
 import hashlib
 import weakref
 import os
 from functools import partial
 from collections.abc import Mapping
+import inspect
 
 from .. import mpi
 
@@ -171,17 +174,23 @@ def _get_default_inputs(func):
 class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
-        if not hasattr(outCls, 'script'):
-            scriptPath = outCls.__init__.__globals__['__file__']
-            outCls.script = disk.ToOpen(scriptPath)()
-        outCls.typeHash = make_hash(outCls.script)
+        if hasattr(outCls, 'script'):
+            outCls.mobile = True
+            if outCls.script.startswith('_script_'):
+                outCls.script = outCls.script[len('_script_'):]
+            else:
+                outCls.script = disk.ToOpen(outCls.script)()
+            outCls.typeHash = make_hash(outCls.script)
+            try:
+                return _get_preclass(outCls.typeHash)
+            except NoPreClassError:
+                _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
+        else:
+            outCls.mobile = False
         outCls.defaultInps =_get_default_inputs(outCls.__init__)
         outCls._custom_cls_fn()
-        try:
-            return _get_preclass(outCls.typeHash)
-        except NoPreClassError:
-            _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
-            return outCls
+        return outCls
+
     def __call__(cls, *args, **kwargs):
         inputs = cls.defaultInps.copy()
         inputs.update(kwargs)
@@ -203,9 +212,6 @@ class Built(metaclass = Meta):
     @staticmethod
     def _deep_process_inputs(inputs):
         pass
-        # for key, val in inputs.items():
-        #     if type(val) is np.ndarray:
-        #         inputs[key] = val.tolist()
 
     @staticmethod
     def _process_inputs(inputs):
@@ -241,6 +247,7 @@ class Built(metaclass = Meta):
         inputs, inputsHash, instanceHash, hashID = \
             _get_info(cls, inputs)
         obj = super().__new__(cls)
+        assert not obj.script[:len('#BUILTMODULE')] == '#BUILTMODULE', (obj, obj.script)
         obj.inputs = inputs
         obj.inputsHash = inputsHash
         obj.instanceHash = instanceHash

@@ -7,7 +7,6 @@ from ._cycler import Cycler
 from ._producer import Producer
 from ._producer import make_dataDict
 from ._stampable import Stampable
-from . import perambulator
 from .states import State
 from ..exceptions import EverestException
 

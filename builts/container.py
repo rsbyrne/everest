@@ -92,7 +92,7 @@ def _container_access_wrap(func):
 
 class Container(Mutator):
 
-    script = '''from everest.builts.container import Container as CLASS'''
+    script = '''_script_from everest.builts.container import Container as CLASS'''
 
     def __init__(self,
             iterable,

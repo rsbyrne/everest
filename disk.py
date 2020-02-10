@@ -23,7 +23,9 @@ h5File = h5py.File
 @mpi.dowrap
 def tempname(length = 16, extension = None):
     letters = string.ascii_lowercase
+    random.seed(time.time())
     name = ''.join(random.choice(letters) for i in range(length))
+    random.seed()
     if not extension is None:
         name += '.' + extension
     return name
@@ -74,8 +76,7 @@ class TempFile:
         return self.filePath
 
     def __exit__(self, *args):
-        pass
-        # remove_file(self.filePath)
+        remove_file(self.filePath)
 
 def get_framePath(frameName, filePath):
     return os.path.join(os.path.abspath(filePath), frameName) + '.frm'

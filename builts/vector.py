@@ -4,7 +4,7 @@ import operator
 from . import Built
 
 class Vector(Built):
-    script = '''from everest.builts.vector import Vector as CLASS'''
+    script = '''_script_from everest.builts.vector import Vector as CLASS'''
     def __init__(self, **kwargs):
         self.keys = sorted(kwargs.keys())
         self.vals = [kwargs[key] for key in self.keys]

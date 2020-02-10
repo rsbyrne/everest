@@ -59,7 +59,6 @@ class Task(Boolean, Cycler):
         import os
 
         from ..disk import TempFile
-        from .. import mpi
         from ..globevars import _DIRECTORY_
 
         script = '' \
@@ -87,7 +86,7 @@ class Task(Boolean, Cycler):
                         stdout = outFile,
                         stderr = errorFile
                         )
-                process.wait()
+                    process.wait()
 
         subprocess.call(
             ['sh', os.path.join(_DIRECTORY_, 'linux', 'cliplogs.sh'), errorFilePath]
