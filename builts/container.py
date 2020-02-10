@@ -114,13 +114,13 @@ class Container(Mutator):
     def _container_update_mutateFn(self):
         # expects @_container_access_wrap
         self._mutateDict[self.projName] = dict()
-        for key in ('checkedOut', 'checkedBack', 'checkedComplete'):
+        for key in ('checkedOut', 'checkedBack', 'checkedFailed', 'checkedComplete'):
             self._mutateDict[self.projName][key] = getattr(self, key)
 
     def _container_update_from_disk(self):
         # expects @_container_access_wrap
         l_out, l_back, l_comp = loads = [], [], []
-        keys = ('checkedOut', 'checkedBack', 'checkedComplete')
+        keys = ('checkedOut', 'checkedBack', 'checkedFailed', 'checkedComplete')
         for key, empty in zip(keys, loads):
             try: empty[:] = self.reader[self.hashID, self.projName, key]
             except KeyError: pass
@@ -147,6 +147,20 @@ class Container(Mutator):
         mpi.message("Relinquished ticket:", ticket)
 
     @_container_access_wrap
+    def checkFail(self, ticket):
+        self._check_initialised()
+        if not ticket in self.checkedOut:
+            raise ContainerError(
+                "Checked in object was never checked out!",
+                ticket, self.checkedOut
+                )
+        self._container_update_from_disk()
+        self.checkedOut.remove(ticket)
+        self.checkedFail.append(ticket)
+        self.mutate()
+        mpi.message("Failed ticket:", ticket)
+
+    @_container_access_wrap
     def complete(self, ticket):
         self._check_initialised()
         self._container_update_from_disk()
@@ -159,6 +173,7 @@ class Container(Mutator):
         self.projName = projName
         self.checkedOut = []
         self.checkedBack = []
+        self.checkedFailed = []
         self.checkedComplete = []
         self.iter = iter(self.iterable)
         self._initialise()
@@ -187,6 +202,7 @@ class Container(Mutator):
                 for checked in [
                     self.checkedOut,
                     self.checkedBack,
+                    self.checkedFailed,
                     self.checkedComplete
                     ]
             ])
@@ -204,7 +220,6 @@ class Container(Mutator):
                 if not self._ticket_checked(ticket): break
         self.checkedOut.append(ticket)
         self.mutate()
-        assert ticket in self.reader[self.hashID, self.projName, 'checkedOut']
         mpi.message("Checking out ticket:", ticket)
         return ticket
 

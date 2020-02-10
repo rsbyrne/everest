@@ -5,6 +5,10 @@ from ._boolean import Boolean
 from ..weaklist import WeakList
 from .. import mpi
 
+from ..exceptions import EverestException
+class TaskSubrunFailed(EverestException):
+    pass
+
 class Task(Boolean, Cycler):
 
     def __init__(
@@ -81,12 +85,20 @@ class Task(Boolean, Cycler):
         with open(outFilePath, 'w') as outFile:
             with open(errorFilePath, 'w') as errorFile:
                 with TempFile(script, extension = 'py') as filePath:
-                    process = subprocess.Popen(
-                        ['mpirun', '-np', str(cores), 'python', filePath],
-                        stdout = outFile,
-                        stderr = errorFile
-                        )
-                    process.wait()
+                    try:
+                        subprocess.check_call(
+                            ['mpirun', '-np', str(cores), 'python', filePath],
+                            stdout = outFile,
+                            stderr = errorFile
+                            )
+                    except subprocess.CalledProcessError as e:
+                        raise TaskSubrunFailed(e.returncode)
+                    # process = subprocess.Popen(
+                    #     ['mpirun', '-np', str(cores), 'python', filePath],
+                    #     stdout = outFile,
+                    #     stderr = errorFile
+                    #     )
+                    # process.wait()
 
         subprocess.call(
             ['sh', os.path.join(_DIRECTORY_, 'linux', 'cliplogs.sh'), errorFilePath]
