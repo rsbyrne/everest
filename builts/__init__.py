@@ -171,11 +171,9 @@ def _get_default_inputs(func):
 class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
-        if hasattr(outCls, '_file_'):
-            scriptPath = outCls._file_
-        else:
+        if not hasattr(outCls, 'script'):
             scriptPath = outCls.__init__.__globals__['__file__']
-        outCls.script = disk.ToOpen(scriptPath)()
+            outCls.script = disk.ToOpen(scriptPath)()
         outCls.typeHash = make_hash(outCls.script)
         outCls.defaultInps =_get_default_inputs(outCls.__init__)
         outCls._custom_cls_fn()
