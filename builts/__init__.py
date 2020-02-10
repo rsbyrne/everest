@@ -318,7 +318,7 @@ class Built(metaclass = Meta):
     def _anchor(self, name, path):
         mpi.comm.barrier()
         for fn in self._pre_anchor_fns: fn()
-        self.name, self.path = name, path
+        self.name, self.path = name, os.path.abspath(path)
         self.writer = Writer(name, path)
         self.writer.add(self.localObjects, self.hashID)
         self.writer.add(self.globalObjects, '_globals_')

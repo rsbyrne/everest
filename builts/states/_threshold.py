@@ -3,7 +3,7 @@ import operator
 from . import State
 
 class Threshold(State):
-    global _file_
+    from .threshold import __file__ as _file_
     def __init__(
             self,
             prop : str = 'count',
@@ -26,4 +26,3 @@ class Threshold(State):
             outVal = operation(outVal, val)
         if not self.rounding is None: outVal = round(outVal, rounding)
         return bool(outVal)
-from .threshold import __file__ as _file_

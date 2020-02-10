@@ -4,7 +4,7 @@ import operator
 from . import Built
 
 class Vector(Built):
-    global _file_
+    from .vector import __file__ as _file_
     def __init__(self, **kwargs):
         self.keys = sorted(kwargs.keys())
         self.vals = [kwargs[key] for key in self.keys]
@@ -33,4 +33,3 @@ class Vector(Built):
     # def __lt__(self, arg): return self._operation(arg, operator.lt)
     # def __ge__(self, arg): return self._operation(arg, operator.ge)
     # def __le__(self, arg): return self._operation(arg, operator.eq)
-from .vector import __file__ as _file_

@@ -2,7 +2,7 @@ from ._cycler import Cycler
 
 class Enactor(Cycler):
 
-    global _file_
+    from .enactor import __file__ as _file_
 
     def __init__(self,
             callable = None,
@@ -15,5 +15,3 @@ class Enactor(Cycler):
 
     def _enactor_cycleFn(self):
         if self.condition: self.callable()
-
-from .enactor import __file__ as _file_

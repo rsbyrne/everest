@@ -4,7 +4,7 @@ from .states import threshold
 
 class Perambulator(Task):
 
-    global _file_
+    from .perambulator import __file__ as _file_
 
     @staticmethod
     def _process_inputs(inputs):
@@ -54,5 +54,3 @@ class Perambulator(Task):
         if self.anchored:
             self.iterator.store()
             self.iterator.save()
-
-from .perambulator import __file__ as _file_
