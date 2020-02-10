@@ -92,7 +92,8 @@ class Task(Boolean, Cycler):
                             stderr = errorFile
                             )
                     except subprocess.CalledProcessError as e:
-                        raise TaskSubrunFailed(e.returncode)
+                        raise TaskSubrunFailed
+                        # raise TaskSubrunFailed(e.returncode)
                     # process = subprocess.Popen(
                     #     ['mpirun', '-np', str(cores), 'python', filePath],
                     #     stdout = outFile,

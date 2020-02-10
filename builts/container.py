@@ -114,13 +114,13 @@ class Container(Mutator):
     def _container_update_mutateFn(self):
         # expects @_container_access_wrap
         self._mutateDict[self.projName] = dict()
-        for key in ('checkedOut', 'checkedBack', 'checkedFailed', 'checkedComplete'):
+        for key in ('checkedOut', 'checkedBack', 'checkedFail', 'checkedComplete'):
             self._mutateDict[self.projName][key] = getattr(self, key)
 
     def _container_update_from_disk(self):
         # expects @_container_access_wrap
         l_out, l_back, l_comp = loads = [], [], []
-        keys = ('checkedOut', 'checkedBack', 'checkedFailed', 'checkedComplete')
+        keys = ('checkedOut', 'checkedBack', 'checkedFail', 'checkedComplete')
         for key, empty in zip(keys, loads):
             try: empty[:] = self.reader[self.hashID, self.projName, key]
             except KeyError: pass
@@ -173,7 +173,7 @@ class Container(Mutator):
         self.projName = projName
         self.checkedOut = []
         self.checkedBack = []
-        self.checkedFailed = []
+        self.checkedFail = []
         self.checkedComplete = []
         self.iter = iter(self.iterable)
         self._initialise()
@@ -202,7 +202,7 @@ class Container(Mutator):
                 for checked in [
                     self.checkedOut,
                     self.checkedBack,
-                    self.checkedFailed,
+                    self.checkedFail,
                     self.checkedComplete
                     ]
             ])
