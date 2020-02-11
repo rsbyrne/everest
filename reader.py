@@ -150,7 +150,7 @@ class Reader:
     @staticmethod
     def _process_tag(inp, tag):
         processed = inp[len(tag):]
-        assert len(processed) > 0
+        assert len(processed) > 0, "Len(processed) not greater than zero!"
         return processed
 
     def _seekresolve(self, inp):
@@ -178,11 +178,9 @@ class Reader:
             elif inp.startswith(_BYTESTAG_):
                 processed = self._process_tag(inp, _BYTESTAG_)
                 bytesStr = ast.literal_eval(processed)
-                assert len(processed) > 0
                 out = pickle.loads(bytesStr)
             elif inp.startswith(_EVALTAG_):
                 processed = self._process_tag(inp, _EVALTAG_)
-                assert len(processed) > 0
                 out = ast.literal_eval(processed)
                 if type(out) in {list, tuple, frozenset}:
                     procOut = list()
@@ -191,7 +189,6 @@ class Reader:
                     out = type(out)(procOut)
             elif inp.startswith(_STRINGTAG_):
                 processed = self._process_tag(inp, _STRINGTAG_)
-                assert len(processed) > 0
                 out = processed
             else:
                 raise TypeError

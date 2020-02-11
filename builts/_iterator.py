@@ -105,7 +105,7 @@ class Iterator(Counter, Cycler, Stampable):
 
     def _load(self, loadDict):
         # expects to be overridden:
-        assert not len(loadDict)
+        assert not len(loadDict), "No _load fn provided!"
 
     def _load_dataDict(self, count):
         try: return self._load_dataDict_stored(count)
@@ -125,7 +125,7 @@ class Iterator(Counter, Cycler, Stampable):
             raise LoadDiskFail
         counts = self.reader[self.hashID, 'outputs', self.indexKey]
         matches = np.where(counts == count)[0]
-        assert len(matches) <= 1
+        assert len(matches) <= 1, "Duplicates found in loaded counts!"
         if len(matches) == 0: raise LoadDiskFail
         else: index = matches[0]
         datas = [

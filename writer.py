@@ -51,7 +51,7 @@ class Writer:
         elif type(inp) in {list, tuple, frozenset}:
             out = list()
             for sub in inp: out.append(self._process_inp(sub))
-            assert len(out) == len(inp), (inp, out)
+            assert len(out) == len(inp), "Mismatch in eval lengths!"
             out = _EVALTAG_ + str(type(inp)(out))
         else:
             try:

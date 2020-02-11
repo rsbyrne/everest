@@ -78,13 +78,13 @@ def tempname(length = 16, extension = None):
 def write_file(filePath, content, mode = 'w'):
     with open(filePath, mode) as file:
         file.write(content)
-    assert os.path.exists(filePath)
+    assert os.path.exists(filePath), "File did not get written!"
 
 @mpi.dowrap
 def remove_file(filePath):
     if os.path.exists(filePath):
         os.remove(filePath)
-    assert not os.path.exists(filePath)
+    assert not os.path.exists(filePath), "File did not get removed!"
 
 def h5filewrap(func):
     @mpi.dowrap
@@ -127,7 +127,8 @@ class H5Access:
         self.h5file.close()
         self.busyfile.close()
         os.remove(self.busyname)
-        assert not os.path.exists(self.busyname)
+        assert not os.path.exists(self.busyname), \
+            "Busyfile did not get removed!"
 
 class ToOpen:
     def __init__(self, filepath):

@@ -79,7 +79,8 @@ def _load_namepath_process(name, path):
 def load(hashID, name = None, path = '.', get = False):
     name, path = _load_namepath_process(name, path)
     reader = Reader(name, path)
-    try: assert hashID == reader[hashID, 'hashID']
+    try: assert hashID == reader[hashID, 'hashID'], \
+        "Loaded hashID does not match derived hashID!"
     except KeyError: raise NotInFrameError
     except OSError: raise NotOnDiskError
     cls = reader[hashID, 'class']
@@ -254,7 +255,6 @@ class Built(metaclass = Meta):
         inputs, inputsHash, instanceHash, hashID = \
             _get_info(cls, inputs)
         obj = super().__new__(cls)
-        assert not obj.script[:len('#BUILTMODULE')] == '#BUILTMODULE', (obj, obj.script)
         obj.inputs = inputs
         obj.inputsHash = inputsHash
         obj.instanceHash = instanceHash

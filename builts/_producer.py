@@ -79,7 +79,8 @@ class Producer(Mutator):
 
     def out(self):
         outs = tuple([item for fn in self._outFns for item in fn()])
-        assert len(outs) == len(self.outkeys)
+        assert len(outs) == len(self.outkeys), \
+            "Outkeys do not match outputs!"
         return outs
 
     def store(self):

@@ -30,7 +30,8 @@ class Counter(Producer):
                 key: val \
                     for key, val in zip(self.outkeys, discardedDatas)
                 }['count']
-            assert discardedCount == self.count()
+            assert discardedCount == self.count(), \
+                "Discarded count does not match current count!"
         else:
             self.counts.append(self.count())
             self.counts_stored.append(self.count())
