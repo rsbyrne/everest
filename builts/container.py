@@ -36,7 +36,7 @@ class Ticket:
     def __hash__(self):
         return self.number
     def __eq__(self, arg):
-        if not isinstance(arg, Ticket): raise TypeError
+        if not type(arg) is self.__class__: raise TypeError(arg, type(arg))
         return self.hashID == arg.hashID
     def __lt__(self, arg):
         if not isinstance(arg, Ticket): raise TypeError
@@ -53,42 +53,6 @@ class ContainerError(EverestException):
     pass
 class ContainerNotInitialisedError(EverestException):
     pass
-
-class ContainerAccess:
-    def __init__(self, reader, writer, hashID, projName):
-        self.reader, self.writer, self.hashID, self.projName = \
-            reader, writer, hashID, projName
-    def __enter__(self):
-        while True:
-            try:
-                busy = self.reader[self.hashID, self.projName, '_busy_']
-            except KeyError:
-                busy = False
-            if busy:
-                time.sleep(1)
-            else:
-                self.writer.add(
-                    {self.projName: {'_busy_': True}},
-                    self.hashID
-                    )
-                break
-    def __exit__(self, *args):
-        self.writer.add(
-            {self.projName: {'_busy_': False}},
-            self.hashID
-            )
-
-def _container_access_wrap(func):
-    def wrapper(self, *args, **kwargs):
-        with ContainerAccess(
-                self.reader,
-                self.writer,
-                self.hashID,
-                self.projName
-                ):
-            output = func(self, *args, **kwargs)
-        return output
-    return wrapper
 
 class Container(Mutator):
 
@@ -112,19 +76,18 @@ class Container(Mutator):
             )
 
     def _container_update_mutateFn(self):
-        # expects @_container_access_wrap
         self._mutateDict[self.projName] = dict()
         for key in ('checkedOut', 'checkedBack', 'checkedFail', 'checkedComplete'):
             self._mutateDict[self.projName][key] = getattr(self, key)
 
     def _container_update_from_disk(self):
-        # expects @_container_access_wrap
-        l_out, l_back, l_comp = loads = [], [], []
         keys = ('checkedOut', 'checkedBack', 'checkedFail', 'checkedComplete')
+        loads = tuple([[] for key in keys])
         for key, empty in zip(keys, loads):
             try: empty[:] = self.reader[self.hashID, self.projName, key]
             except KeyError: pass
-        self.checkedOut, self.checkedBack, self.checkedComplete = loads
+        self.checkedOut, self.checkedBack, \
+            self.checkedFail, self.checkedComplete = loads
         self._check_checks()
 
     def _check_checks(self):
@@ -132,8 +95,8 @@ class Container(Mutator):
         together = [*o, *b, *c]
         assert len(set(together)) == len(together), (o, b, c)
 
-    @_container_access_wrap
     def checkBack(self, ticket):
+        assert not ticket is None
         self._check_initialised()
         if not ticket in self.checkedOut:
             raise ContainerError(
@@ -146,8 +109,8 @@ class Container(Mutator):
         self.mutate()
         mpi.message("Relinquished ticket:", ticket)
 
-    @_container_access_wrap
     def checkFail(self, ticket):
+        assert not ticket is None
         self._check_initialised()
         if not ticket in self.checkedOut:
             raise ContainerError(
@@ -160,8 +123,8 @@ class Container(Mutator):
         self.mutate()
         mpi.message("Failed ticket:", ticket)
 
-    @_container_access_wrap
     def complete(self, ticket):
+        assert not ticket is None
         self._check_initialised()
         self._container_update_from_disk()
         self.checkedOut.remove(ticket)
@@ -179,7 +142,6 @@ class Container(Mutator):
         self._initialise()
         self.initialised = True
 
-    @_container_access_wrap
     def _initialise(self):
         self._container_update_from_disk()
         self.mutate()
@@ -207,7 +169,6 @@ class Container(Mutator):
                     ]
             ])
 
-    @_container_access_wrap
     def __next__(self):
         self._check_initialised()
         self._container_update_from_disk()
