@@ -60,10 +60,6 @@ class Task(Boolean, Cycler):
             try: promptee()
             except: pass
 
-    def _subrun_detached(self, jobName, cores):
-
-        pass
-
     @mpi.dowrap
     def subrun(self, cores = 1):
 
