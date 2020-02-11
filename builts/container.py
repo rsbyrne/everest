@@ -1,6 +1,7 @@
 import hashlib
 import time
 import pickle
+import ast
 from collections import OrderedDict
 
 from . import load
@@ -8,6 +9,7 @@ from . import check_global_anchor
 from ._mutator import Mutator
 from ..exceptions import EverestException
 from .. import mpi
+from .. import disk
 
 class Ticket:
     def __init__(self, obj, spice = 0, timestamp = None):
@@ -53,6 +55,8 @@ class ContainerError(EverestException):
     pass
 class ContainerNotInitialisedError(EverestException):
     pass
+class NoCheckedBacks(EverestException):
+    pass
 
 class Container(Mutator):
 
@@ -70,92 +74,69 @@ class Container(Mutator):
 
         super().__init__(**kwargs)
 
-        # Mutator attributes:
-        self._update_mutateDict_fns.append(
-            self._container_update_mutateFn
-            )
+    def _read(self, key):
+        # expects @disk.h5filewrap
+        try:
+            raw = self.h5file[self.hashID][self.projName].attrs[key]
+            return [pickle.loads(ast.literal_eval(inp)) for inp in raw]
+        except KeyError:
+            return []
+    def _write(self, key, content):
+        # expects @disk.h5filewrap
+        out = [str(pickle.dumps(inp)) for inp in content]
+        self.h5file[self.hashID][self.projName].attrs[key] = out
 
-    def _container_update_mutateFn(self):
-        self._mutateDict[self.projName] = dict()
-        for key in ('checkedOut', 'checkedBack', 'checkedFail', 'checkedComplete'):
-            self._mutateDict[self.projName][key] = getattr(self, key)
-
-    def _container_update_from_disk(self):
-        keys = ('checkedOut', 'checkedBack', 'checkedFail', 'checkedComplete')
-        loads = tuple([[] for key in keys])
-        for key, empty in zip(keys, loads):
-            try: empty[:] = self.reader[self.hashID, self.projName, key]
-            except KeyError: pass
-        self.checkedOut, self.checkedBack, \
-            self.checkedFail, self.checkedComplete = loads
-        self._check_checks()
-
-    def _check_checks(self):
-        o, b, f, c = [
-            self.checkedOut,
-            self.checkedBack,
-            self.checkedFail,
-            self.checkedComplete
-            ]
-        together = [*o, *b, *f, *c]
-        assert len(set(together)) == len(together), (o, b, f, c)
+    def _remove_from_checkedOut(self, ticket):
+        # expects @disk.h5filewrap
+        checkedOut = self._read('checkedOut')
+        checkedOut.remove(ticket)
+        self._write('checkedOut', checkedOut)
 
     def checkBack(self, ticket):
-        assert not ticket is None
-        self._check_initialised()
-        if not ticket in self.checkedOut:
-            raise ContainerError(
-                "Checked in object was never checked out!",
-                ticket, self.checkedOut
-                )
-        self._container_update_from_disk()
-        self.checkedOut.remove(ticket)
-        self.checkedBack.append(ticket)
-        self.mutate()
+        self._checkBack(ticket)
         mpi.message("Relinquished ticket:", ticket)
+    @disk.h5filewrap
+    def _checkBack(self, ticket):
+        self._check_initialised()
+        self._remove_from_checkedOut(ticket)
+        checkedBack = self._read('checkedBack')
+        checkedBack.append(ticket)
+        self._write('checkedBack', checkedBack)
 
     def checkFail(self, ticket):
-        assert not ticket is None
-        self._check_initialised()
-        if not ticket in self.checkedOut:
-            raise ContainerError(
-                "Checked in object was never checked out!",
-                ticket, self.checkedOut
-                )
-        self._container_update_from_disk()
-        self.checkedOut.remove(ticket)
-        self.checkedFail.append(ticket)
-        self.mutate()
+        self._checkFail(ticket)
         mpi.message("Failed ticket:", ticket)
+    @disk.h5filewrap
+    def _checkFail(self, ticket):
+        self._check_initialised()
+        self._remove_from_checkedOut(ticket)
+        checkedFail = self._read('checkedFail')
+        checkedFail.append(ticket)
+        self._write('checkedFail', checkedFail)
 
     def complete(self, ticket):
-        assert not ticket is None
-        self._check_initialised()
-        self._container_update_from_disk()
-        self.checkedOut.remove(ticket)
-        self.checkedComplete.append(ticket)
-        self.mutate()
+        self._complete(ticket)
         mpi.message("Completed ticket:", ticket)
+    @disk.h5filewrap
+    def _complete(self, ticket):
+        self._check_initialised()
+        self._remove_from_checkedOut(ticket)
+        checkedComplete = self._read('checkedComplete')
+        checkedComplete.append(ticket)
+        self._write('checkedComplete', checkedComplete)
 
     def initialise(self, projName = 'anon'):
         self.projName = projName
-        self.checkedOut = []
-        self.checkedBack = []
-        self.checkedFail = []
-        self.checkedComplete = []
+        self._create_projGroup(projName)
         self.iter = iter(self.iterable)
-        self._initialise()
         self.initialised = True
 
-    def _initialise(self):
-        self._container_update_from_disk()
-        self.mutate()
+    @disk.h5filewrap
+    def _create_projGroup(self, projName):
+        self.h5file[self.hashID].require_group(projName)
 
     def _container_iter_finalise(self):
         del self.projName
-        del self.checkedOut
-        del self.checkedBack
-        del self.checkedComplete
         del self.iter
         self.initialised = False
         raise StopIteration
@@ -163,29 +144,48 @@ class Container(Mutator):
     def _check_initialised(self):
         if not self.initialised: raise ContainerNotInitialisedError
 
-    def _ticket_checked(self, ticket):
-        return any([
-            ticket in checked \
-                for checked in [
-                    self.checkedOut,
-                    self.checkedBack,
-                    self.checkedFail,
-                    self.checkedComplete
-                    ]
-            ])
+    @disk.h5filewrap
+    def _check_ticket(ticket):
+        self._container_update_from_disk()
+
+    @disk.h5filewrap
+    def _get_checkedBack(self):
+        checkedBack = self._read('checkedBack')
+        if len(checkedBack):
+            ticket = checkedBack.pop(0)
+            self._write('checkedBack', checkedBack)
+            return ticket
+        else:
+            raise NoCheckedBacks
+
+    @disk.h5filewrap
+    def _check_available(self, ticket):
+        checkedOut = self._read('checkedOut')
+        checkedBack = self._read('checkedBack')
+        checkedFail = self._read('checkedFail')
+        checkedComplete = self._read('checkedComplete')
+        checked = [*checkedOut, *checkedBack, *checkedFail, *checkedComplete]
+        if ticket in checked:
+            return False
+        else:
+            checkedOut.append(ticket)
+            self._write('checkedOut', checkedOut)
+            return True
 
     def __next__(self):
         self._check_initialised()
-        self._container_update_from_disk()
-        if len(self.checkedBack):
-            ticket = self.checkedBack.pop(0)
-        else:
-            while True:
-                try: ticket = Ticket(next(self.iter))
-                except StopIteration: self._container_iter_finalise()
-                if not self._ticket_checked(ticket): break
-        self.checkedOut.append(ticket)
-        self.mutate()
+        while True:
+            ticket = None
+            try:
+                ticket = self._get_checkedBack()
+                break
+            except NoCheckedBacks:
+                try:
+                    ticket = Ticket(next(self.iter))
+                    if self._check_available(ticket):
+                        break
+                except StopIteration:
+                    self._container_iter_finalise()
         mpi.message("Checking out ticket:", ticket)
         return ticket
 

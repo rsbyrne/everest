@@ -95,6 +95,7 @@ def h5filewrap(func):
     return wrapper
 
 class SetMask:
+    # expects @mpi.dowrap
     def __init__(self, maskNo):
         self.maskNo = maskNo
     def __enter__(self):

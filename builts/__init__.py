@@ -52,6 +52,8 @@ def set_global_anchor(name, path, purge = False):
         if mpi.rank == 0:
             if os.path.exists(fullPath):
                 os.remove(fullPath)
+            if os.path.exists(fullPath + '.busy'):
+                os.remove(fullPath + '.busy')
     GLOBALANCHOR = True
     GLOBALREADER, GLOBALWRITER = Reader(name, path), Writer(name, path)
 def release_global_anchor():
@@ -335,6 +337,7 @@ class Built(metaclass = Meta):
         self.reader = Reader(self.name, self.path)
         for fn in self._post_anchor_fns: fn()
         self.anchored = True
+        self.h5filename = disk.get_framePath(self.name, self.path)
         mpi.comm.barrier()
 
     def _coanchored(self, coBuilt):

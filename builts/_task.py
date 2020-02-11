@@ -4,6 +4,7 @@ from ._cycler import Cycler
 from ._boolean import Boolean
 from ..weaklist import WeakList
 from .. import mpi
+from .. import disk
 
 from ..exceptions import EverestException
 class TaskSubrunFailed(EverestException):
@@ -82,17 +83,19 @@ class Task(Boolean, Cycler):
         os.makedirs(logs, exist_ok = True)
         outFilePath = os.path.join(logs, jobName + '.out')
         errorFilePath = os.path.join(logs, jobName + '.error')
-        with open(outFilePath, 'w') as outFile:
-            with open(errorFilePath, 'w') as errorFile:
-                with TempFile(script, extension = 'py') as filePath:
-                    try:
-                        subprocess.check_call(
-                            ['mpirun', '-np', str(cores), 'python', filePath],
-                            stdout = outFile,
-                            stderr = errorFile
-                            )
-                    except subprocess.CalledProcessError as e:
-                        raise TaskSubrunFailed
+        with disk.SetMask(0000):
+            with open(outFilePath, 'a') as outFile:
+                with open(errorFilePath, 'a') as errorFile:
+                    with TempFile(script, extension = 'py') as filePath:
+                        cmd = ['mpirun', '-np', str(cores), 'python', filePath]
+                        try:
+                            subprocess.check_call(
+                                cmd,
+                                stdout = outFile,
+                                stderr = errorFile
+                                )
+                        except subprocess.CalledProcessError as e:
+                            raise TaskSubrunFailed
 
         subprocess.call(
             ['sh', os.path.join(_DIRECTORY_, 'linux', 'cliplogs.sh'), errorFilePath]
