@@ -1,10 +1,15 @@
 import weakref
+import subprocess
+import os
+import warnings
 
 from ._cycler import Cycler
 from ._boolean import Boolean
 from ..weaklist import WeakList
 from .. import mpi
 from .. import disk
+from ..disk import TempFile
+from ..globevars import _DIRECTORY_
 
 from ..exceptions import EverestException
 class TaskSubrunFailed(EverestException):
@@ -55,51 +60,50 @@ class Task(Boolean, Cycler):
             try: promptee()
             except: pass
 
+    def _subrun_detached(self, jobName, cores):
+
+        pass
+
     @mpi.dowrap
-    def subrun(self, jobName = 'anon', cores = 1):
+    def subrun(self, cores = 1):
 
         self._check_anchored()
 
-        import subprocess
-        import os
-
-        from ..disk import TempFile
-        from ..globevars import _DIRECTORY_
-
         script = '' \
-            + '''import sys\n''' \
-            + '''import os\n''' \
-            + '''workPath = '/home/jovyan/workspace'\n''' \
-            + '''if not workPath in sys.path:\n''' \
-            + '''    sys.path.append(workPath)\n''' \
-            + '''from everest.builts import set_global_anchor\n''' \
-            + '''set_global_anchor('{0}', '{1}')\n''' \
-            + '''from everest.builts import load\n''' \
-            + '''task = load('{2}')\n''' \
+            + '''import sys \n''' \
+            + '''import os \n''' \
+            + '''workPath = '/home/jovyan/workspace' \n''' \
+            + '''if not workPath in sys.path: \n''' \
+            + '''    sys.path.append(workPath) \n''' \
+            + '''from everest.builts import set_global_anchor \n''' \
+            + '''set_global_anchor('{0}', '{1}') \n''' \
+            + '''from everest.builts import load \n''' \
+            + '''task = load('{2}') \n''' \
             + '''task()'''
         script = script.format(self.name, self.path, self.hashID)
 
         logs = os.path.abspath(os.path.join(self.path, 'logs'))
         os.makedirs(logs, exist_ok = True)
-        outFilePath = os.path.join(logs, jobName + '.out')
-        errorFilePath = os.path.join(logs, jobName + '.error')
-        with disk.SetMask(0000):
-            with open(outFilePath, 'a') as outFile:
-                with open(errorFilePath, 'a') as errorFile:
-                    with TempFile(script, extension = 'py') as filePath:
-                        cmd = ['mpirun', '-np', str(cores), 'python', filePath]
-                        try:
-                            subprocess.check_call(
-                                cmd,
-                                stdout = outFile,
-                                stderr = errorFile
-                                )
-                        except subprocess.CalledProcessError as e:
-                            raise TaskSubrunFailed
-
-        subprocess.call(
-            ['sh', os.path.join(_DIRECTORY_, 'linux', 'cliplogs.sh'), errorFilePath]
-            )
-        subprocess.call(
-            ['sh', os.path.join(_DIRECTORY_, 'linux', 'cliplogs.sh'), outFilePath]
-            )
+        outFilePath = os.path.join(logs, self.hashID + '.out')
+        errorFilePath = os.path.join(logs, self.hashID + '.error')
+        with disk.SetMask(0000), \
+                open(outFilePath, 'a') as outFile, \
+                open(errorFilePath, 'a') as errorFile, \
+                TempFile(script, extension = 'py') as filePath:
+            cmd = ['mpirun', '-np', str(cores), 'python', filePath]
+            global _DIRECTORY_
+            try:
+                subprocess.check_call(
+                    cmd,
+                    stdout = outFile,
+                    stderr = errorFile
+                    )
+            except subprocess.CalledProcessError as e:
+                raise TaskSubrunFailed
+            finally:
+                try:
+                    clipsh = os.path.join(_DIRECTORY_, 'linux', 'cliplogs.sh')
+                    subprocess.call(['sh', clipsh, errorFilePath])
+                    subprocess.call(['sh', clipsh, outFilePath])
+                except:
+                        pass

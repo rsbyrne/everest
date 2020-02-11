@@ -77,14 +77,14 @@ class Container(Mutator):
     def _read(self, key):
         # expects @disk.h5filewrap
         try:
-            raw = self.h5file[self.hashID][self.projName].attrs[key]
+            raw = self.h5file[self.hashID].attrs[key]
             return [pickle.loads(ast.literal_eval(inp)) for inp in raw]
         except KeyError:
             return []
     def _write(self, key, content):
         # expects @disk.h5filewrap
         out = [str(pickle.dumps(inp)) for inp in content]
-        self.h5file[self.hashID][self.projName].attrs[key] = out
+        self.h5file[self.hashID].attrs[key] = out
 
     def _remove_from_checkedOut(self, ticket):
         # expects @disk.h5filewrap
@@ -125,18 +125,11 @@ class Container(Mutator):
         checkedComplete.append(ticket)
         self._write('checkedComplete', checkedComplete)
 
-    def initialise(self, projName = 'anon'):
-        self.projName = projName
-        self._create_projGroup(projName)
+    def initialise(self):
         self.iter = iter(self.iterable)
         self.initialised = True
 
-    @disk.h5filewrap
-    def _create_projGroup(self, projName):
-        self.h5file[self.hashID].require_group(projName)
-
     def _container_iter_finalise(self):
-        del self.projName
         del self.iter
         self.initialised = False
         raise StopIteration
