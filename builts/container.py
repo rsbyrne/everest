@@ -91,9 +91,14 @@ class Container(Mutator):
         self._check_checks()
 
     def _check_checks(self):
-        o, b, c = self.checkedOut, self.checkedBack, self.checkedComplete
-        together = [*o, *b, *c]
-        assert len(set(together)) == len(together), (o, b, c)
+        o, b, f, c = [
+            self.checkedOut,
+            self.checkedBack,
+            self.checkedFail,
+            self.checkedComplete
+            ]
+        together = [*o, *b, *f, *c]
+        assert len(set(together)) == len(together), (o, b, f, c)
 
     def checkBack(self, ticket):
         assert not ticket is None

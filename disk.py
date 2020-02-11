@@ -20,7 +20,7 @@ class RandomSeeder:
         random.seed(self.seed)
     def __exit__(self, *args):
         random.seed()
-
+#
 # PRIMEFREQSEED = mpi.share(random.random())
 #
 # def gen_primes():
@@ -63,7 +63,7 @@ class RandomSeeder:
 #         if millinow() % get_prime_freq() == 0:
 #             break
 #         else:
-#             time.sleep(random.random() / 1000.)
+#             time.sleep(random.random() / 100.)
 
 @mpi.dowrap
 def tempname(length = 16, extension = None):
@@ -94,6 +94,14 @@ def h5filewrap(func):
             return func(self, *args, **kwargs)
     return wrapper
 
+class SetMask:
+    def __init__(self, maskNo):
+        self.maskNo = maskNo
+    def __enter__(self):
+        self.prevMask = os.umask(0000)
+    def __exit__(self, *args):
+        ignoreMe = os.umask(self.prevMask)
+
 class H5Access:
     # expects @mpi.dowrap
     def __init__(self, h5filename):
@@ -102,17 +110,23 @@ class H5Access:
     def __enter__(self):
         while True:
             if os.path.exists(self.busyname):
+                print("File busy! Waiting...")
                 with RandomSeeder(time.time()):
-                    time.sleep((random.random() + 1.)  / 100.)
+                    time.sleep((random.random() * 9. + 1.) / 10.)
             else:
-                break
-        self.busyfile = open(self.busyname, mode = 'x')
+                try:
+                    with SetMask(0000):
+                        self.busyfile = open(self.busyname, mode = 'x')
+                    break
+                except FileExistsError:
+                    pass
         self.h5file = h5py.File(self.h5filename, mode = 'a')
         return self.h5file
     def __exit__(self, exc_type, exc_val, traceback):
         self.h5file.close()
         self.busyfile.close()
         os.remove(self.busyname)
+        assert not os.path.exists(self.busyname)
 
 class ToOpen:
     def __init__(self, filepath):

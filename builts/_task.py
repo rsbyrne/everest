@@ -93,13 +93,6 @@ class Task(Boolean, Cycler):
                             )
                     except subprocess.CalledProcessError as e:
                         raise TaskSubrunFailed
-                        # raise TaskSubrunFailed(e.returncode)
-                    # process = subprocess.Popen(
-                    #     ['mpirun', '-np', str(cores), 'python', filePath],
-                    #     stdout = outFile,
-                    #     stderr = errorFile
-                    #     )
-                    # process.wait()
 
         subprocess.call(
             ['sh', os.path.join(_DIRECTORY_, 'linux', 'cliplogs.sh'), errorFilePath]
