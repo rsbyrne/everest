@@ -5,7 +5,6 @@ import ast
 from collections import OrderedDict
 
 from . import load
-from . import check_global_anchor
 from ._unique import Unique
 from ._diskbased import DiskBased
 from ..exceptions import EverestException
@@ -67,8 +66,6 @@ class Container(Unique, DiskBased):
             iterable,
             **kwargs
             ):
-
-        check_global_anchor()
 
         self.iterable = iterable
         self.initialised = False

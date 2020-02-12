@@ -204,9 +204,6 @@ class Meta(type):
         for arg, key in zip(args, list(inputs)[:len(args)]):
             inputs[key] = arg
         obj = cls.build(**inputs)
-        if obj._initAnchor:
-            if GLOBALANCHOR: obj.anchor()
-            else: obj.anchor(obj.name, obj.path)
         return obj
 
 class Built(metaclass = Meta):
@@ -241,8 +238,8 @@ class Built(metaclass = Meta):
         obj._post_build()
         return obj
     def _post_build(self):
-        # designed to be overridden
-        pass
+        if hasattr(self, 'name') and hasattr(self, 'path'):
+            self.anchor(name, path)
 
     @staticmethod
     def _add_weakref(obj):
@@ -272,16 +269,7 @@ class Built(metaclass = Meta):
 
         obj.globalObjects = {}
 
-        global GLOBALANCHOR, NAME, PATH
-        if GLOBALANCHOR:
-            obj._initAnchor = True
-        else:
-            if name is None:
-                obj._initAnchor = False
-            else:
-                if path is None: raise Exception
-                obj._initAnchor = True
-                obj.name, obj.path = name, path
+        obj.name, obj.path = name, path
 
         return obj
 
@@ -319,13 +307,20 @@ class Built(metaclass = Meta):
 
     def anchor(self, name = None, path = None):
         global GLOBALANCHOR, NAME, PATH
+        if name is None and path is None:
+            name, path = self.name, self.path
+        if name is path and not name is None:
+            raise Exception("If setting name or path, you must set both.")
         if GLOBALANCHOR:
-            if not name is None and path is None:
-                raise Exception("Global anchor has been set!")
-            else:
-                self._anchor(NAME, PATH)
-        else:
+            if (not name is None) and (not path is None):
+                raise Exception(
+                    "Name and path were provided but global anchor already set."
+                    )
+            name, path = NAME, PATH
+        if (not name is None) and (not path is None):
             self._anchor(name, path)
+        else:
+            raise Exception("Anchor failed!")
 
     def _anchor(self, name, path):
         mpi.comm.barrier()
