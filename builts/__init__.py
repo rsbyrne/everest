@@ -171,10 +171,14 @@ def _get_default_inputs(func):
         if default is inspect.Parameter.empty:
             default = None
         out[key] = default
+    argi = 0
     for key, val in parameters.items():
-        if len(str(val)) >= 1:
-            if str(val)[0] == '*':
-                del out[key] # removes *args, **kwargs
+        if str(val)[:1] == '*':
+            del out[key]
+        # elif str(val)[:1] == '*':
+        #     del out[key]
+        #     out['arg' + str(argi)] = val
+        #     argi += 1
     out = OrderedDict(out)
     return out
 
@@ -198,12 +202,19 @@ class Meta(type):
         outCls._custom_cls_fn()
         return outCls
 
-    def __call__(cls, *args, **kwargs):
+    @staticmethod
+    def _align_inputs(cls, *args, **kwargs):
         inputs = cls.defaultInps.copy()
         inputs.update(kwargs)
         for arg, key in zip(args, list(inputs)[:len(args)]):
             inputs[key] = arg
+        return inputs
+
+    def __call__(cls, *args, **kwargs):
+        inputs = Meta._align_inputs(cls, *args, **kwargs)
         obj = cls.build(**inputs)
+        if (not obj.name is None) and (not obj.path is None):
+            obj.anchor(obj.name, obj.path)
         return obj
 
 class Built(metaclass = Meta):
@@ -223,23 +234,14 @@ class Built(metaclass = Meta):
         pass
 
     @classmethod
-    def _pre_build(cls):
-        # designed to be overridden
-        pass
-    @classmethod
     def build(cls, **inputs):
-        cls._pre_build()
         obj = cls.__new__(cls, **inputs)
         try:
-            return _get_prebuilt(obj.hashID)
+            obj = _get_prebuilt(obj.hashID)
         except NoPreBuiltError:
             obj.__init__(**obj.inputs)
             cls._add_weakref(obj)
-        obj._post_build()
         return obj
-    def _post_build(self):
-        if hasattr(self, 'name') and hasattr(self, 'path'):
-            self.anchor(name, path)
 
     @staticmethod
     def _add_weakref(obj):
@@ -270,6 +272,11 @@ class Built(metaclass = Meta):
         obj.globalObjects = {}
 
         obj.name, obj.path = name, path
+        global GLOBALANCHOR
+        if GLOBALANCHOR:
+            global NAME, PATH
+            if name is None: obj.name = NAME
+            if path is None: obj.path = PATH
 
         return obj
 
@@ -306,38 +313,24 @@ class Built(metaclass = Meta):
         if not self.anchored: raise NotYetAnchoredError
 
     def anchor(self, name = None, path = None):
-        global GLOBALANCHOR, NAME, PATH
-        if name is None and path is None:
-            name, path = self.name, self.path
-        if name is path and not name is None:
-            raise Exception("If setting name or path, you must set both.")
-        if GLOBALANCHOR:
-            if (not name is None) and (not path is None):
-                raise Exception(
-                    "Name and path were provided but global anchor already set."
-                    )
-            name, path = NAME, PATH
-        if (not name is None) and (not path is None):
-            self._anchor(name, path)
-        else:
-            raise Exception("Anchor failed!")
+        if not name is None: self.name = name
+        if not path is None: self.path = os.path.abspath(path)
+        self.h5filename = disk.get_framePath(self.name, self.path)
+        self._anchor()
 
-    def _anchor(self, name, path):
-        mpi.comm.barrier()
+    def _anchor(self):
+        name, path = self.name, self.path
         for fn in self._pre_anchor_fns: fn()
-        self.name, self.path = name, os.path.abspath(path)
         self.writer = Writer(name, path)
         self.writer.add(self.localObjects, self.hashID)
         self.writer.add(self.globalObjects, '_globals_')
         self.reader = Reader(self.name, self.path)
         for fn in self._post_anchor_fns: fn()
         self.anchored = True
-        self.h5filename = disk.get_framePath(self.name, self.path)
-        mpi.comm.barrier()
 
     def _coanchored(self, coBuilt):
         if hasattr(self, 'h5filename') and hasattr(coBuilt, 'h5filename'):
-            return self.writer.h5filename == coBuilt.writer.h5filename
+            return self.h5filename == coBuilt.h5filename
         else:
             return False
 
