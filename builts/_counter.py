@@ -14,7 +14,6 @@ class Counter(Producer):
         # Producer attributes:
         self._outFns.append(self.countoutFn)
         self.outkeys.append('count')
-        self.samples.append(np.array([0,], dtype = np.int32))
         self._post_store_fns.append(self._counter_post_store_fn)
         self._post_save_fns.append(self._counter_post_save_fn)
         # Built attributes:

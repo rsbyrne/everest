@@ -51,18 +51,17 @@ class Iterator(Counter, Cycler, Stampable):
         # Producer attributes:
         if hasattr(self, '_out'): self._outFns.append(self._out)
         if hasattr(self, '_outkeys'): self.outkeys.extend(self._outkeys)
-        self.samples.extend(
-            [np.array([data,]) for data in self.out()]
-            )
-        self.dataKeys = [
-            key for key in self.outkeys if not key == self.indexKey
-            ]
 
         # Cycler attributes:
         self._cycle_fns.append(self.iterate)
 
         # Built attributes:
         self._post_anchor_fns.append(self._iterator_post_anchor)
+
+        # Self attributes:
+        self.dataKeys = [
+            key for key in self.outkeys if not key == self.indexKey
+            ]
 
         if _iterator_initialise:
             self.initialise()

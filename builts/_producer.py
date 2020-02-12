@@ -29,17 +29,12 @@ class Producer(Mutator):
         self._pre_save_fns = WeakList()
         self._post_save_fns = WeakList()
         self.outkeys = []
-        self.samples = []
         self.stored = []
 
         super().__init__(**kwargs)
 
         # Mutator attributes:
         self._update_mutateDict_fns.append(self._producer_update_mutateDict_fn)
-
-        # Built attributes:
-        # self._pre_anchor_fns.append(self._producer_pre_anchor_fn)
-        # self._post_anchor_fns.append()
 
     def _producer_update_mutateDict_fn(self):
         wrappedDict = {
@@ -50,17 +45,6 @@ class Producer(Mutator):
             self._mutateDict['outputs'].update(wrappedDict)
         else:
             self._mutateDict['outputs'] = wrappedDict
-
-    # def _producer_post_anchor_fn(self):
-    #     if any([key in])
-    #     self.store()
-    #     self.mutate()
-
-    # def _producer_pre_anchor_fn(self):
-    #     self.localObjects.update({
-    #         key: val \
-    #             for key, val in zip(self.outkeys, self.samples)
-    #         })
 
     def set_autosave(self, val: bool):
         self.autosave = val
