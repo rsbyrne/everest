@@ -82,11 +82,11 @@ class HyperCube(Space):
                         raise OutOfSpaceError
                 else:
                     out1[index] = out2[index] = cval
-            buildVecFn = inVec.__class__.build
+            buildVecFn = inVec.__class__
             if out1 == out2:
                 return buildVecFn(**dict(zip(allkeys, out1)))
             else:
-                return self.__class__.build(
+                return self.__class__(
                     buildVecFn(**dict(zip(allkeys, out1))),
                     buildVecFn(**dict(zip(allkeys, out2)))
                     )

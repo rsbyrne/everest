@@ -8,6 +8,7 @@ from ._producer import Producer
 from ._producer import make_dataDict
 from ._stampable import Stampable
 from .states import State
+from ._unique import Unique
 from ..exceptions import EverestException
 
 class LoadFail(EverestException):
@@ -31,7 +32,7 @@ class Bounce:
     def __exit__(self, *args):
         self.iterator.load(self.returnStep)
 
-class Iterator(Counter, Cycler, Stampable):
+class Iterator(Counter, Cycler, Stampable, Unique):
 
     def __init__(
             self,

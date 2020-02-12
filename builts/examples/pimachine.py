@@ -33,4 +33,3 @@ class PiMachine(Iterator):
         self.state = loadDict['pi']
 
 CLASS = PiMachine
-build, get = CLASS.build, CLASS.get

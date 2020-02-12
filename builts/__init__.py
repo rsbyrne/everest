@@ -76,7 +76,7 @@ def _load_namepath_process(name, path):
             raise TypeError
     return name, path
 
-def load(hashID, name = None, path = '.', get = False):
+def load(hashID, name = None, path = '.'):
     name, path = _load_namepath_process(name, path)
     reader = Reader(name, path)
     try: assert hashID == reader[hashID, 'hashID'], \
@@ -85,8 +85,7 @@ def load(hashID, name = None, path = '.', get = False):
     except OSError: raise NotOnDiskError
     cls = reader[hashID, 'class']
     inputs = reader[hashID, 'inputs']
-    if get: obj = cls.get(**inputs)
-    else: obj = cls.build(**inputs)
+    obj = cls(**inputs)
     obj.anchor(name, path)
     return obj
 
@@ -204,8 +203,7 @@ class Meta(type):
         inputs.update(kwargs)
         for arg, key in zip(args, list(inputs)[:len(args)]):
             inputs[key] = arg
-        obj = cls.__new__(cls, **inputs)
-        obj.__init__(**obj.inputs)
+        obj = cls.build(**inputs)
         if obj._initAnchor:
             if GLOBALANCHOR: obj.anchor()
             else: obj.anchor(obj.name, obj.path)
@@ -215,6 +213,7 @@ class Built(metaclass = Meta):
 
     @classmethod
     def _custom_cls_fn(cls):
+        # designed to be overridden
         pass
 
     @staticmethod
@@ -226,23 +225,15 @@ class Built(metaclass = Meta):
         # designed to be overridden
         pass
 
-    # @staticmethod
-    # def _process_args_kwargs(*args, **kwargs, defaults):
-    #     outDict = dict()
-
     @classmethod
-    def get(cls, *args, **kwargs):
-        obj = cls.__new__(cls, **kwargs)
+    def build(cls, **inputs):
+        obj = cls.__new__(cls, **inputs)
         try:
             return _get_prebuilt(obj.hashID)
         except NoPreBuiltError:
             obj.__init__(**obj.inputs)
             cls._add_weakref(obj)
         return obj
-
-    @classmethod
-    def build(cls, *args, **kwargs):
-        return cls(*args, **kwargs)
 
     @staticmethod
     def _add_weakref(obj):
