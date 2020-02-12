@@ -226,14 +226,23 @@ class Built(metaclass = Meta):
         pass
 
     @classmethod
+    def _pre_build(cls):
+        # designed to be overridden
+        pass
+    @classmethod
     def build(cls, **inputs):
+        cls._pre_build()
         obj = cls.__new__(cls, **inputs)
         try:
             return _get_prebuilt(obj.hashID)
         except NoPreBuiltError:
             obj.__init__(**obj.inputs)
             cls._add_weakref(obj)
+        obj._post_build()
         return obj
+    def _post_build(self):
+        # designed to be overridden
+        pass
 
     @staticmethod
     def _add_weakref(obj):

@@ -6,8 +6,8 @@ from collections import OrderedDict
 
 from . import load
 from . import check_global_anchor
-from ._mutator import Mutator
 from ._unique import Unique
+from ._diskbased import DiskBased
 from ..exceptions import EverestException
 from .. import mpi
 from .. import disk
@@ -59,7 +59,7 @@ class ContainerNotInitialisedError(EverestException):
 class NoCheckedBacks(EverestException):
     pass
 
-class Container(Mutator, Unique):
+class Container(Unique, DiskBased):
 
     script = '''_script_from everest.builts.container import Container as CLASS'''
 
