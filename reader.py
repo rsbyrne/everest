@@ -154,7 +154,6 @@ class Reader:
         return processed
 
     def _seekresolve(self, inp, hard = False, **kwargs):
-        print("Processing", "hard =", hard)
         if type(inp) is dict:
             out = dict()
             for key, sub in sorted(inp.items()):
