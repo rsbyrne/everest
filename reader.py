@@ -153,11 +153,11 @@ class Reader:
         assert len(processed) > 0, "Len(processed) not greater than zero!"
         return processed
 
-    def _seekresolve(self, inp):
+    def _seekresolve(self, inp, hard = False, **kwargs):
         if type(inp) is dict:
             out = dict()
             for key, sub in sorted(inp.items()):
-                out[key] = self._seekresolve(sub)
+                out[key] = self._seekresolve(sub, hard = hard)
         elif type(inp) is np.ndarray:
             out = inp
         elif type(inp) is str:
@@ -166,10 +166,20 @@ class Reader:
                 _BYTESTAG_, _STRINGTAG_, _EVALTAG_
             if inp.startswith(_BUILTTAG_):
                 processed = self._process_tag(inp, _BUILTTAG_)
-                out = self._builtsModule.load(processed, self.name, self.path)
+                if hard:
+                    out = self._builtsModule.load(
+                        processed,
+                        self.name,
+                        self.path
+                        )
+                else:
+                    out = processed
             elif inp.startswith(_CLASSTAG_):
                 processed = self._process_tag(inp, _CLASSTAG_)
-                out = disk.local_import_from_str(processed).CLASS
+                if hard:
+                    out = disk.local_import_from_str(processed).CLASS
+                else:
+                    out = self._builtsModule.make_hash(processed)
             elif inp.startswith(_ADDRESSTAG_):
                 processed = self._process_tag(inp, _ADDRESSTAG_)
                 splitAddr = [*processed.split('/'), '*']
@@ -185,7 +195,7 @@ class Reader:
                 if type(out) in {list, tuple, frozenset}:
                     procOut = list()
                     for item in out:
-                        procOut.append(self._seekresolve(item))
+                        procOut.append(self._seekresolve(item, hard = hard))
                     out = type(out)(procOut)
             elif inp.startswith(_STRINGTAG_):
                 processed = self._process_tag(inp, _STRINGTAG_)
@@ -195,7 +205,7 @@ class Reader:
         return out
 
     @staticmethod
-    def _process_fetch(inFetch, context):
+    def _process_fetch(inFetch, context, **kwargs):
         inDict = inFetch(context)
         outs = set()
         for key, result in inDict.items():
@@ -222,7 +232,7 @@ class Reader:
                 outs.add((superkey, indices))
         return outs
 
-    def _gettuple(self, inp):
+    def _gettuple(self, inp, **kwargs):
         if len(set([type(subInp) for subInp in inp])) == 1:
             inpType = type(inp[0])
             if not inpType in self._getmethods:
@@ -233,16 +243,16 @@ class Reader:
             raise TypeError
         method = self._getmethods[inpType]
         if inpType is str:
-            return method(self, '/'.join(inp))
+            return method(self, '/'.join(inp), **kwargs)
         else:
-            outs = tuple([method(self, subInp) for subInp in inp])
+            outs = tuple([method(self, subInp, **kwargs) for subInp in inp])
             if inpType is Fetch:
                 return reduce(operator.__and__, outs, 1)
             else:
                 return outs
 
-    def _getstr(self, key):
-        resolved = self._seekresolve(self._seek(key))
+    def _getstr(self, key, **kwargs):
+        resolved = self._seekresolve(self._seek(key), **kwargs)
         if type(resolved) is dict:
             out = utilities.flatten(resolved, sep = '/')
         else:
@@ -250,23 +260,23 @@ class Reader:
         return out
 
     def _getfetch(self, fetch):
-        processed = self._process_fetch(fetch, self.__getitem__)
+        processed = self._process_fetch(fetch, self._getitem, **kwargs)
         sources = ('Scope', (fetch,))
         return Scope(processed, sources = sources)
 
-    def _getslice(self, inp):
+    def _getslice(self, inp, **kwargs):
         if type(inp.start) is Scope:
             inScope = inp.start
         elif type(inp.start) is Fetch:
-            inScope = self.__getitem__(inp.start)
+            inScope = self._getitem(inp.start, **kwargs)
         else:
             raise TypeError
         if not type(inp.stop) in {str, tuple}:
             raise TypeError
-        return self.pull(inScope, inp.stop)
+        return self.pull(inScope, inp.stop, **kwargs)
 
-    def _getellipsis(self, inp):
-        return self._getfetch(Fetch('**'))
+    def _getellipsis(self, inp, **kwargs):
+        return self._getfetch(Fetch('**'), **kwargs)
 
     _getmethods = {
         tuple: _gettuple,
@@ -276,14 +286,20 @@ class Reader:
         type(Ellipsis): _getellipsis
         }
 
-    def __getitem__(self, inp):
+    def _getitem(self, inp, hard = False):
         if type(inp) in self._getmethods:
-            return self._getmethods[type(inp)](self, inp)
+            return self._getmethods[type(inp)](self, inp, hard = hard)
         else:
             if type(inp) is Scope:
                 raise ValueError(
                     "Must provide a key to pull data from a scope"
                     )
             raise TypeError("Input not recognised: ", inp)
+
+    def __getitem__(self, inp):
+        self._getitem(inp, hard = False)
+
+    def __call__(self, inp):
+        self._getitem(inp, hard = True)
 
     context = __getitem__

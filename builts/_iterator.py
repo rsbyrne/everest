@@ -123,13 +123,13 @@ class Iterator(Counter, Cycler, Stampable, Unique):
     def _load_dataDict_saved(self, count):
         if not self.anchored:
             raise LoadDiskFail
-        counts = self.reader[self.hashID, 'outputs', self.indexKey]
+        counts = self.reader(self.hashID, 'outputs', self.indexKey)
         matches = np.where(counts == count)[0]
         assert len(matches) <= 1, "Duplicates found in loaded counts!"
         if len(matches) == 0: raise LoadDiskFail
         else: index = matches[0]
         datas = [
-            self.reader[self.hashID, 'outputs', key] \
+            self.reader(self.hashID, 'outputs', key) \
                 for key in self.dataKeys
             ]
         return dict(zip(self.dataKeys, [data[index] for data in datas]))

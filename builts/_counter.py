@@ -41,9 +41,9 @@ class Counter(Producer):
             self.counts_stored = []
             self.counts_disk = list(set(self.counts_disk))
     def _counter_post_anchor_fn(self):
-        try: self.counts_disk = list(set(self.reader[
+        try: self.counts_disk = list(set(self.reader(
             self.hashID, 'outputs', 'count'
-            ]))
+            )))
         except KeyError: pass
         self.counts.extend(self.counts_disk)
         self.counts = list(set(self.counts))

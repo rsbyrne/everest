@@ -22,7 +22,7 @@ class Stampable(Mutator):
         self._post_anchor_fns.append(self._stampable_update_stamps)
 
     def _stampable_update_stamps(self):
-        loaded = self.reader[self.hashID, 'stamps']
+        loaded = self.reader(self.hashID, 'stamps')
         self.stamps = sorted(set(self.stamps))
 
     def _stampable_update_mutateDict(self):

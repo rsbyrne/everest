@@ -83,8 +83,8 @@ def load(hashID, name = None, path = '.'):
         "Loaded hashID does not match derived hashID!"
     except KeyError: raise NotInFrameError
     except OSError: raise NotOnDiskError
-    cls = reader[hashID, 'class']
-    inputs = reader[hashID, 'inputs']
+    cls = reader(hashID, 'class')
+    inputs = reader(hashID, 'inputs')
     obj = cls(**inputs)
     obj.anchor(name, path)
     return obj
@@ -147,19 +147,6 @@ def buffersize_exceeded():
             nbytes += built.nbytes
     return nbytes > BUFFERSIZE
 
-_PRECLASSES = dict()
-def _get_preclass(typeHash):
-    try:
-        outclass = _PRECLASSES[typeHash]
-        assert not outclass is None
-        return outclass
-    except AssertionError:
-        del _PRECLASSES[typeHash]
-    except KeyError:
-        pass
-    finally:
-        raise NoPreClassError
-
 def _get_default_inputs(func):
     import inspect
     from collections import OrderedDict
@@ -182,6 +169,19 @@ def _get_default_inputs(func):
     out = OrderedDict(out)
     return out
 
+# _PRECLASSES = dict()
+# def _get_preclass(typeHash):
+#     try:
+#         outclass = _PRECLASSES[typeHash]
+#         assert not outclass is None
+#         return outclass
+#     except AssertionError:
+#         del _PRECLASSES[typeHash]
+#     except KeyError:
+#         pass
+#     finally:
+#         raise NoPreClassError
+
 class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
@@ -192,10 +192,10 @@ class Meta(type):
             else:
                 outCls.script = disk.ToOpen(outCls.script)()
             outCls.typeHash = make_hash(outCls.script)
-            try:
-                return _get_preclass(outCls.typeHash)
-            except NoPreClassError:
-                _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
+            # try:
+            #     return _get_preclass(outCls.typeHash)
+            # except NoPreClassError:
+            #     _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
         else:
             outCls.mobile = False
         outCls.defaultInps =_get_default_inputs(outCls.__init__)
