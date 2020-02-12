@@ -101,9 +101,11 @@ class Container(Unique, DiskBased):
         checkedBack.append(ticket)
         self._write('checkedBack', checkedBack)
 
-    def checkFail(self, ticket):
+    def checkFail(self, ticket, exception = None):
+        if not exception is None:
+            ticket.exception = exception
         self._checkFail(ticket)
-        mpi.message("Failed ticket:", ticket)
+        mpi.message("Failed ticket:", ticket, exception)
     @disk.h5filewrap
     def _checkFail(self, ticket):
         self._check_initialised()

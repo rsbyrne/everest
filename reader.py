@@ -154,6 +154,7 @@ class Reader:
         return processed
 
     def _seekresolve(self, inp, hard = False, **kwargs):
+        print("Processing", "hard =", hard)
         if type(inp) is dict:
             out = dict()
             for key, sub in sorted(inp.items()):
@@ -184,7 +185,7 @@ class Reader:
                 processed = self._process_tag(inp, _ADDRESSTAG_)
                 splitAddr = [*processed.split('/'), '*']
                 if splitAddr[0] == '': splitAddr.pop(0)
-                out = self[tuple(splitAddr)]
+                out = self._getitem(tuple(splitAddr), hard = hard)
             elif inp.startswith(_BYTESTAG_):
                 processed = self._process_tag(inp, _BYTESTAG_)
                 bytesStr = ast.literal_eval(processed)
@@ -251,16 +252,16 @@ class Reader:
             else:
                 return outs
 
-    def _getstr(self, key, **kwargs):
-        resolved = self._seekresolve(self._seek(key), **kwargs)
+    def _getstr(self, key, hard = False, **kwargs):
+        resolved = self._seekresolve(self._seek(key), hard = hard)
         if type(resolved) is dict:
             out = utilities.flatten(resolved, sep = '/')
         else:
             out = resolved
         return out
 
-    def _getfetch(self, fetch):
-        processed = self._process_fetch(fetch, self._getitem, **kwargs)
+    def _getfetch(self, fetch, **kwargs):
+        processed = self._process_fetch(fetch, self.__getitem__)
         sources = ('Scope', (fetch,))
         return Scope(processed, sources = sources)
 
@@ -268,15 +269,15 @@ class Reader:
         if type(inp.start) is Scope:
             inScope = inp.start
         elif type(inp.start) is Fetch:
-            inScope = self._getitem(inp.start, **kwargs)
+            inScope = self[inp.start]
         else:
             raise TypeError
         if not type(inp.stop) in {str, tuple}:
             raise TypeError
-        return self.pull(inScope, inp.stop, **kwargs)
+        return self.pull(inScope, inp.stop)
 
     def _getellipsis(self, inp, **kwargs):
-        return self._getfetch(Fetch('**'), **kwargs)
+        return self._getfetch(Fetch('**'))
 
     _getmethods = {
         tuple: _gettuple,
@@ -287,6 +288,9 @@ class Reader:
         }
 
     def _getitem(self, inp, hard = False):
+        if type(inp) is tuple:
+            if len(inp) == 1:
+                inp = inp[0]
         if type(inp) in self._getmethods:
             return self._getmethods[type(inp)](self, inp, hard = hard)
         else:
@@ -297,9 +301,9 @@ class Reader:
             raise TypeError("Input not recognised: ", inp)
 
     def __getitem__(self, inp):
-        self._getitem(inp, hard = False)
+        return self._getitem(inp, hard = False)
 
-    def __call__(self, inp):
-        self._getitem(inp, hard = True)
+    def __call__(self, *inp):
+        return self._getitem(inp, hard = True)
 
     context = __getitem__

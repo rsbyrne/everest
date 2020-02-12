@@ -79,7 +79,7 @@ def _load_namepath_process(name, path):
 def load(hashID, name = None, path = '.'):
     name, path = _load_namepath_process(name, path)
     reader = Reader(name, path)
-    try: assert hashID == reader[hashID, 'hashID'], \
+    try: assert hashID == reader(hashID, 'hashID'), \
         "Loaded hashID does not match derived hashID!"
     except KeyError: raise NotInFrameError
     except OSError: raise NotOnDiskError

@@ -95,7 +95,7 @@ class Task(Boolean, Cycler):
                     stderr = errorFile
                     )
             except subprocess.CalledProcessError as e:
-                raise TaskSubrunFailed
+                raise TaskSubrunFailed(e)
             finally:
                 try:
                     clipsh = os.path.join(_DIRECTORY_, 'linux', 'cliplogs.sh')
