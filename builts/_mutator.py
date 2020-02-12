@@ -5,7 +5,7 @@ from ._diskbased import DiskBased
 from ..writer import Writer
 from ..weaklist import WeakList
 
-class Mutator(Built, DiskBased):
+class Mutator(DiskBased):
     def __init__(
             self,
             **kwargs
