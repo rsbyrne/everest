@@ -127,8 +127,6 @@ class H5Access:
         self.h5file.close()
         self.busyfile.close()
         os.remove(self.busyname)
-        assert not os.path.exists(self.busyname), \
-            "Busyfile did not get removed!"
 
 class ToOpen:
     def __init__(self, filepath):
