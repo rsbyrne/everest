@@ -15,35 +15,6 @@ from .globevars import \
     _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
     _BYTESTAG_, _STRINGTAG_, _EVALTAG_
 
-# class ReadWriteAgent:
-#
-#     _BUILTTAG_ = '_built_'
-#     _CLASSTAG_ = '_class_'
-#     _ADDRESSTAG_ = '_address_'
-#     _BYTESTAG_ = '_bytes_'
-#     _STRINGTAG_ = '_string_'
-#     _EVALTAG_ = '_eval_'
-#
-#     def __init__(self,
-#             name,
-#             path
-#             ):
-#         self.name, self.path = name, path
-#         from . import builts as builtsModule
-#         self.builtsModule = builtsModule
-#
-#     def process(self, inp, mode):
-#         pass
-#
-#     def _process_str(self, inp, mode):
-#         if mode == 'w':
-#             return inp
-#         elif mode == 'r':
-#             return self.process()
-#
-#     def _process_built(self, inp, mode):
-
-
 class Reader:
 
     def __init__(
@@ -58,7 +29,7 @@ class Reader:
         from . import builts as builtsmodule
         self._builtsModule = builtsmodule
 
-    @disk.h5filewrap
+    @disk.h5readwrap
     def pull(self, scope, keys):
         if type(keys) is str:
             keys = (keys,)
@@ -98,7 +69,7 @@ class Reader:
             return allTuple
 
     def _recursive_seek(self, key, searchArea = None):
-        # expects h5filewrap
+        # expects h5readwrap
         if searchArea is None:
             searchArea = self.h5file
         splitkey = key.split('/')
@@ -130,7 +101,7 @@ class Reader:
         return found
 
     def _pre_seekresolve(self, inp):
-        # expects h5filewrap
+        # expects h5readwrap
         if type(inp) is h5py.Group:
             out = _ADDRESSTAG_ + inp.name
         elif type(inp) is h5py.Dataset:
@@ -143,7 +114,7 @@ class Reader:
             out = inp
         return out
 
-    @disk.h5filewrap
+    @disk.h5readwrap
     def _seek(self, key):
         return self._pre_seekresolve(self._recursive_seek(key))
 

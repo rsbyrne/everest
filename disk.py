@@ -86,10 +86,23 @@ def remove_file(filePath):
         os.remove(filePath)
     assert not os.path.exists(filePath), "File did not get removed!"
 
-def h5filewrap(func):
+def h5writewrap(func):
     @mpi.dowrap
     def wrapper(self, *args, **kwargs):
-        with H5Access(self.h5filename) as h5file:
+        with H5WriteAccess(self.h5filename) as h5file:
+            self.h5file = h5file
+            return func(self, *args, **kwargs)
+    return wrapper
+
+def h5readwrap(func):
+    @mpi.dowrap
+    def wrapper(self, *args, **kwargs):
+        with h5py.File(
+                self.h5filename,
+                'r',
+                libver = 'latest',
+                swmr = True
+                ) as h5file:
             self.h5file = h5file
             return func(self, *args, **kwargs)
     return wrapper
@@ -103,7 +116,7 @@ class SetMask:
     def __exit__(self, *args):
         ignoreMe = os.umask(self.prevMask)
 
-class H5Access:
+class H5WriteAccess:
     # expects @mpi.dowrap
     def __init__(self, h5filename):
         self.h5filename = h5filename
@@ -121,7 +134,8 @@ class H5Access:
                     break
                 except FileExistsError:
                     pass
-        self.h5file = h5py.File(self.h5filename, mode = 'a')
+        self.h5file = h5py.File(self.h5filename, 'a', libver = 'latest')
+        self.h5file.swmr_mode = True
         return self.h5file
     def __exit__(self, exc_type, exc_val, traceback):
         self.h5file.close()

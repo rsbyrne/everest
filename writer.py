@@ -87,7 +87,7 @@ class Writer:
                 self._add_attr(item, name, *names)
 
     def _addwrap(func):
-        @disk.h5filewrap
+        @disk.h5writewrap
         def wrapper(self, item, name, *names):
             group = self.h5file.require_group('/' + '/'.join(names))
             func(self, item, name, group)

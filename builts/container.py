@@ -73,19 +73,19 @@ class Container(Unique, DiskBased):
         super().__init__(**kwargs)
 
     def _read(self, key):
-        # expects @disk.h5filewrap
+        # expects @disk.h5writewrap
         try:
             raw = self.h5file[self.hashID].attrs[key]
             return [pickle.loads(ast.literal_eval(inp)) for inp in raw]
         except KeyError:
             return []
     def _write(self, key, content):
-        # expects @disk.h5filewrap
+        # expects @disk.h5writewrap
         out = [str(pickle.dumps(inp)) for inp in content]
         self.h5file[self.hashID].attrs[key] = out
 
     def _remove_from_checkedOut(self, ticket):
-        # expects @disk.h5filewrap
+        # expects @disk.h5writewrap
         checkedOut = self._read('checkedOut')
         checkedOut.remove(ticket)
         self._write('checkedOut', checkedOut)
@@ -93,7 +93,7 @@ class Container(Unique, DiskBased):
     def checkBack(self, ticket):
         self._checkBack(ticket)
         mpi.message("Relinquished ticket:", ticket)
-    @disk.h5filewrap
+    @disk.h5writewrap
     def _checkBack(self, ticket):
         self._check_initialised()
         self._remove_from_checkedOut(ticket)
@@ -106,7 +106,7 @@ class Container(Unique, DiskBased):
             ticket.exception = exception
         self._checkFail(ticket)
         mpi.message("Failed ticket:", ticket, exception)
-    @disk.h5filewrap
+    @disk.h5writewrap
     def _checkFail(self, ticket):
         self._check_initialised()
         self._remove_from_checkedOut(ticket)
@@ -117,7 +117,7 @@ class Container(Unique, DiskBased):
     def complete(self, ticket):
         self._complete(ticket)
         mpi.message("Completed ticket:", ticket)
-    @disk.h5filewrap
+    @disk.h5writewrap
     def _complete(self, ticket):
         self._check_initialised()
         self._remove_from_checkedOut(ticket)
@@ -137,11 +137,11 @@ class Container(Unique, DiskBased):
     def _check_initialised(self):
         if not self.initialised: raise ContainerNotInitialisedError
 
-    @disk.h5filewrap
+    @disk.h5writewrap
     def _check_ticket(ticket):
         self._container_update_from_disk()
 
-    @disk.h5filewrap
+    @disk.h5writewrap
     def _get_checkedBack(self):
         checkedBack = self._read('checkedBack')
         if len(checkedBack):
@@ -151,7 +151,7 @@ class Container(Unique, DiskBased):
         else:
             raise NoCheckedBacks
 
-    @disk.h5filewrap
+    @disk.h5writewrap
     def _check_available(self, ticket):
         checkedOut = self._read('checkedOut')
         checkedBack = self._read('checkedBack')
