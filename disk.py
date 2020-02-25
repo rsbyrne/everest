@@ -94,18 +94,20 @@ def h5writewrap(func):
             return func(self, *args, **kwargs)
     return wrapper
 
-def h5readwrap(func):
-    @mpi.dowrap
-    def wrapper(self, *args, **kwargs):
-        with h5py.File(
-                self.h5filename,
-                'r',
-                libver = 'latest',
-                swmr = True
-                ) as h5file:
-            self.h5file = h5file
-            return func(self, *args, **kwargs)
-    return wrapper
+h5readwrap = h5writewrap
+
+# def h5readwrap(func):
+#     @mpi.dowrap
+#     def wrapper(self, *args, **kwargs):
+#         with h5py.File(
+#                 self.h5filename,
+#                 'r',
+#                 libver = 'latest',
+#                 swmr = True
+#                 ) as h5file:
+#             self.h5file = h5file
+#             return func(self, *args, **kwargs)
+#     return wrapper
 
 class SetMask:
     # expects @mpi.dowrap
@@ -134,8 +136,9 @@ class H5WriteAccess:
                     break
                 except FileExistsError:
                     pass
-        self.h5file = h5py.File(self.h5filename, 'a', libver = 'latest')
-        self.h5file.swmr_mode = True
+        self.h5file = h5py.File(self.h5filename, 'a')
+        # self.h5file = h5py.File(self.h5filename, 'a', libver = 'latest')
+        # self.h5file.swmr_mode = True
         return self.h5file
     def __exit__(self, exc_type, exc_val, traceback):
         self.h5file.close()
