@@ -130,18 +130,15 @@ class H5WriteAccess:
         self.h5filename = h5filename
         self.busyname = self.h5filename + '.busy'
     def __enter__(self):
-        while True:
-            gocondition = not any([
-                os.path.exists(self.busyname),
-                check_readers(self.h5filename)
-                ])
-            if gocondition:
-                with SetMask(0000):
-                    self.busyfile = open(self.busyname, mode = 'x') # FileExistsError
-                break
-            else:
-                print("File busy! Waiting...")
-                random_sleep(0.1, 5.)
+        with SetMask(0000):
+            while True:
+                try:
+                    assert not check_readers(self.h5filename)
+                    self.busyfile = open(self.busyname, mode = 'x')
+                    break
+                except (AssertionError, FileExistsError):
+                    print("File busy! Waiting...")
+                    random_sleep(0.1, 5.)
         self.h5file = h5py.File(self.h5filename, 'a', libver = 'latest')
         if not self.h5file.swmr_mode:
             self.h5file.swmr_mode = True
@@ -158,14 +155,18 @@ class H5ReadAccess:
         self.busyname = self.h5filename + '.busy'
         self.readname = self.h5filename + tempreadname + '.read'
     def __enter__(self):
-        while True:
-            if not os.path.exists(self.busyname):
-                with SetMask(0000):
+        with SetMask(0000):
+            while True:
+                try:
+                    assert not os.path.exists(self.busyname)
                     self.readfile = open(self.readname, mode = 'x')
-                break
-            else:
-                print("File busy! Waiting...")
-                random_sleep(0.1, 5.)
+                    while os.path.exists(self.busyname):
+                        # in the off chance the file became busy along the way!
+                        random_sleep(0.1, 5.)
+                    break
+                except AssertionError:
+                    print("File busy! Waiting...")
+                    random_sleep(0.1, 5.)
         self.h5file = h5py.File(self.h5filename, 'r', libver = 'latest')
         return self.h5file
     def __exit__(self, exc_type, exc_val, traceback):
