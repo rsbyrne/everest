@@ -10,7 +10,7 @@ import time
 from .utilities import message
 from . import mpi
 
-PYTEMP = '/workspace'
+PYTEMP = '/home/jovyan/workspace'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
 
 class RandomSeeder:

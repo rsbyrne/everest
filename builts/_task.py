@@ -68,7 +68,7 @@ class Task(Boolean, Cycler):
         script = '' \
             + '''import sys \n''' \
             + '''import os \n''' \
-            + '''workPath = '/workspace' \n''' \
+            + '''workPath = '/home/jovyan/workspace' \n''' \
             + '''if not workPath in sys.path: \n''' \
             + '''    sys.path.append(workPath) \n''' \
             + '''from everest.builts import set_global_anchor \n''' \
