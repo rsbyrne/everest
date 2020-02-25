@@ -10,7 +10,7 @@ import time
 from .utilities import message
 from . import mpi
 
-PYTEMP = '/home/jovyan/workspace'
+PYTEMP = '/home/jovyan'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
 
 class RandomSeeder:
@@ -94,20 +94,15 @@ def h5writewrap(func):
             return func(self, *args, **kwargs)
     return wrapper
 
-h5readwrap = h5writewrap
-
-# def h5readwrap(func):
-#     @mpi.dowrap
-#     def wrapper(self, *args, **kwargs):
-#         with h5py.File(
-#                 self.h5filename,
-#                 'r',
-#                 libver = 'latest',
-#                 swmr = True
-#                 ) as h5file:
-#             self.h5file = h5file
-#             return func(self, *args, **kwargs)
-#     return wrapper
+def h5readwrap(func):
+    tempreadname = tempname()
+    @mpi.dowrap
+    def wrapper(self, *args, **kwargs):
+        nonlocal tempreadname
+        with H5ReadAccess(self.h5filename, tempreadname) as h5file:
+            self.h5file = h5file
+            return func(self, *args, **kwargs)
+    return wrapper
 
 class SetMask:
     # expects @mpi.dowrap
@@ -118,6 +113,13 @@ class SetMask:
     def __exit__(self, *args):
         ignoreMe = os.umask(self.prevMask)
 
+def check_readers(h5filename):
+    h5path = os.path.dirname(h5filename)
+    h5name = os.path.basename(h5filename)
+    allitems = [item for item in os.listdir(h5path) if h5name in item]
+    readers = [item for item in allitems if '.read' in item]
+    return len(readers)
+
 class H5WriteAccess:
     # expects @mpi.dowrap
     def __init__(self, h5filename):
@@ -125,25 +127,52 @@ class H5WriteAccess:
         self.busyname = self.h5filename + '.busy'
     def __enter__(self):
         while True:
-            if os.path.exists(self.busyname):
-                print("File busy! Waiting...")
-                with RandomSeeder(time.time()):
-                    time.sleep((random.random() * 9. + 1.) / 10.)
-            else:
+            gocondition = not any([
+                os.path.exists(self.busyname),
+                check_readers(self.h5filename)
+                ])
+            if gocondition:
                 try:
                     with SetMask(0000):
                         self.busyfile = open(self.busyname, mode = 'x')
                     break
                 except FileExistsError:
                     pass
-        self.h5file = h5py.File(self.h5filename, 'a')
-        # self.h5file = h5py.File(self.h5filename, 'a', libver = 'latest')
-        # self.h5file.swmr_mode = True
+            else:
+                print("File busy! Waiting...")
+                with RandomSeeder(time.time()):
+                    time.sleep((random.random() * 9. + 1.) / 10.)
+        self.h5file = h5py.File(self.h5filename, 'a', libver = 'latest')
+        if not self.h5file.swmr_mode:
+            self.h5file.swmr_mode = True
         return self.h5file
     def __exit__(self, exc_type, exc_val, traceback):
         self.h5file.close()
         self.busyfile.close()
         os.remove(self.busyname)
+
+class H5ReadAccess:
+    # expects @mpi.dowrap
+    def __init__(self, h5filename, tempreadname):
+        self.h5filename = h5filename
+        self.busyname = self.h5filename + '.busy'
+        self.readname = self.h5filename + tempreadname + '.read'
+    def __enter__(self):
+        while True:
+            if not os.path.exists(self.busyname):
+                with SetMask(0000):
+                    self.readfile = open(self.readname, mode = 'x')
+                break
+            else:
+                print("File busy! Waiting...")
+                with RandomSeeder(time.time()):
+                    time.sleep((random.random() * 9. + 1.) / 10.)
+        self.h5file = h5py.File(self.h5filename, 'r', libver = 'latest')
+        return self.h5file
+    def __exit__(self, exc_type, exc_val, traceback):
+        self.h5file.close()
+        self.readfile.close()
+        os.remove(self.readname)
 
 class ToOpen:
     def __init__(self, filepath):
