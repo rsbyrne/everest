@@ -136,8 +136,8 @@ class H5WriteAccess:
                 check_readers(self.h5filename)
                 ])
             if gocondition:
-                # with SetMask(0000):
-                self.busyfile = open(self.busyname, mode = 'x') # FileExistsError
+                with SetMask(0000):
+                    self.busyfile = open(self.busyname, mode = 'x') # FileExistsError
                 break
             else:
                 print("File busy! Waiting...")
@@ -160,8 +160,8 @@ class H5ReadAccess:
     def __enter__(self):
         while True:
             if not os.path.exists(self.busyname):
-                # with SetMask(0000):
-                self.readfile = open(self.readname, mode = 'x')
+                with SetMask(0000):
+                    self.readfile = open(self.readname, mode = 'x')
                 break
             else:
                 print("File busy! Waiting...")
