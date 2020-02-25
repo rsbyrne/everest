@@ -18,7 +18,7 @@ class MPIPlaceholderError(EverestException):
 def message(*args, **kwargs):
     comm.barrier()
     if rank == 0:
-        print(*args, **kwargs)
+        print(*[*args, *kwargs.items()])
     comm.barrier()
 
 def share(obj):

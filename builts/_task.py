@@ -68,7 +68,7 @@ class Task(Boolean, Cycler):
         script = '' \
             + '''import sys \n''' \
             + '''import os \n''' \
-            + '''workPath = '/home/jovyan/workspace' \n''' \
+            + '''workPath = '/workspace' \n''' \
             + '''if not workPath in sys.path: \n''' \
             + '''    sys.path.append(workPath) \n''' \
             + '''from everest.builts import set_global_anchor \n''' \
@@ -86,7 +86,7 @@ class Task(Boolean, Cycler):
                 open(outFilePath, 'a') as outFile, \
                 open(errorFilePath, 'a') as errorFile, \
                 TempFile(script, extension = 'py') as filePath:
-            cmd = ['mpirun', '-np', str(cores), 'python', filePath]
+            cmd = ['mpirun', '-np', str(cores), 'python3', filePath]
             global _DIRECTORY_
             try:
                 subprocess.check_call(
