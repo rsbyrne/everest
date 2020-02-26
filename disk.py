@@ -139,7 +139,11 @@ class H5WriteAccess:
                 except (AssertionError, FileExistsError):
                     print("File busy! Waiting...")
                     random_sleep(0.1, 5.)
-        self.h5file = h5py.File(self.h5filename, 'a', libver = 'latest')
+        self.h5file = h5py.File(
+            self.h5filename,
+            'a',
+            libver = 'latest'
+            )
         if not self.h5file.swmr_mode:
             self.h5file.swmr_mode = True
         return self.h5file
@@ -167,7 +171,12 @@ class H5ReadAccess:
                 except AssertionError:
                     print("File busy! Waiting...")
                     random_sleep(0.1, 5.)
-        self.h5file = h5py.File(self.h5filename, 'r', libver = 'latest')
+        self.h5file = h5py.File(
+            self.h5filename,
+            'r',
+            libver = 'latest',
+            swmr = True
+            )
         return self.h5file
     def __exit__(self, exc_type, exc_val, traceback):
         self.h5file.close()
