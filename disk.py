@@ -88,25 +88,20 @@ def remove_file(filePath):
 
 def h5writewrap(func):
     @mpi.dowrap
-    def wrapper(self, *args, _wrapperOverride = False, **kwargs):
-        if _wrapperOverride:
+    def wrapper(self, *args, **kwargs):
+        with H5WriteAccess(self.h5filename) as h5file:
+            self.h5file = h5file
             return func(self, *args, **kwargs)
-        else:
-            with H5WriteAccess(self.h5filename) as h5file:
-                self.h5file = h5file
-                return func(self, *args, **kwargs)
     return wrapper
 
 def h5readwrap(func):
+    tempreadname = tempname()
     @mpi.dowrap
-    def wrapper(self, *args, _wrapperOverride = False, **kwargs):
-        if _wrapperOverride:
+    def wrapper(self, *args, **kwargs):
+        nonlocal tempreadname
+        with H5ReadAccess(self.h5filename, tempreadname) as h5file:
+            self.h5file = h5file
             return func(self, *args, **kwargs)
-        else:
-            tempreadname = tempname(_wrapperOverride = _wrapperOverride)
-            with H5ReadAccess(self.h5filename, tempreadname) as h5file:
-                self.h5file = h5file
-                return func(self, *args, **kwargs)
     return wrapper
 
 class SetMask:

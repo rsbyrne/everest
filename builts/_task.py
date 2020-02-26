@@ -2,6 +2,7 @@ import weakref
 import subprocess
 import os
 import warnings
+import atexit
 
 from ._cycler import Cycler
 from ._boolean import Boolean
@@ -14,6 +15,7 @@ from ..globevars import _DIRECTORY_
 from ..exceptions import EverestException
 class TaskSubrunFailed(EverestException):
     pass
+CalledProcessError = subprocess.CalledProcessError
 
 class Task(Boolean, Cycler):
 
@@ -92,10 +94,13 @@ class Task(Boolean, Cycler):
                 process = subprocess.Popen(
                     cmd,
                     stdout = outFile,
-                    stderr = errorFile
+                    stderr = errorFile,
                     )
-                process.communicate()
-            except subprocess.CalledProcessError as e:
+                atexit.register(process.terminate)
+                process.wait()
+                if process.returncode:
+                    raise CalledProcessError
+            except CalledProcessError as e:
                 raise TaskSubrunFailed(e)
             finally:
                 process.terminate()

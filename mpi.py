@@ -31,22 +31,19 @@ def share(obj):
     return shareObj
 
 def dowrap(func):
-    def wrapper(*args, _wrapperOverride = False, **kwargs):
-        if _wrapperOverride:
-            return func(*args, _wrapperOverride = _wrapperOverride, **kwargs)
+    def wrapper(*args, **kwargs):
+        comm.barrier()
+        output = MPIPlaceholderError()
+        if rank == 0:
+            try:
+                output = func(*args, **kwargs)
+            except:
+                exc_type, exc_val = sys.exc_info()[:2]
+                output = exc_type(exc_val)
+        output = share(output)
+        comm.barrier()
+        if isinstance(output, Exception):
+            raise output
         else:
-            comm.barrier()
-            output = MPIPlaceholderError()
-            if rank == 0:
-                try:
-                    output = func(*args, **kwargs)
-                except:
-                    exc_type, exc_val = sys.exc_info()[:2]
-                    output = exc_type(exc_val)
-            output = share(output)
-            comm.barrier()
-            if isinstance(output, Exception):
-                raise output
-            else:
-                return output
+            return output
     return wrapper

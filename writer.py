@@ -76,17 +76,20 @@ class Writer:
 
     def add(self, item, name):
         processed = self._process_inp(item)
-        self._add(processed, name)
+        self._add_wrapped(processed, name)
 
     @disk.h5writewrap
-    def _add(self, item, name = '/', *names, **kwargs):
+    def _add_wrapped(self, item, name):
+        self._add(item, name)
+
+    def _add(self, item, name = '/', *names):
+        # expects h5writewrap
         if isinstance(item, Mapping):
             for key, val in sorted(item.items()):
                 self._add(
                     val,
                     key,
                     *[*names, name],
-                    _wrapperOverride = True
                     )
         else:
             group = self.h5file.require_group('/' + '/'.join(names))
