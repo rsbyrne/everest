@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 import string
 import time
+from contextlib import contextmanager
 
 from .utilities import message
 from . import mpi
@@ -21,6 +22,10 @@ class RandomSeeder:
     def __exit__(self, *args):
         random.seed()
 
+def random_sleep(base = 0., factor = 1.):
+    with RandomSeeder(time.time()):
+        time.sleep(random.random() * factor + base)
+
 @mpi.dowrap
 def tempname(length = 16, extension = None):
     letters = string.ascii_lowercase
@@ -30,108 +35,46 @@ def tempname(length = 16, extension = None):
         name += '.' + extension
     return name
 
-# def h5writewrap(func):
-#     @mpi.dowrap
-#     def wrapper(self, *args, **kwargs):
-#         with H5WriteAccess(self.h5filename) as h5file:
-#             self.h5file = h5file
-#             return func(self, *args, **kwargs)
-#     return wrapper
-#
-# def h5readwrap(func):
-#     tempreadname = tempname()
-#     @mpi.dowrap
-#     def wrapper(self, *args, **kwargs):
-#         nonlocal tempreadname
-#         with H5ReadAccess(self.h5filename, tempreadname) as h5file:
-#             self.h5file = h5file
-#             return func(self, *args, **kwargs)
-#     return wrapper
-#
-# class SetMask:
-#     # expects @mpi.dowrap
-#     def __init__(self, maskNo):
-#         self.maskNo = maskNo
-#     def __enter__(self):
-#         self.prevMask = os.umask(0000)
-#     def __exit__(self, *args):
-#         ignoreMe = os.umask(self.prevMask)
-#
-# def check_readers(h5filename):
-#     readers = [
-#         item for item in os.listdir(os.path.dirname(h5filename)) \
-#             if os.path.basename(h5filename) in item and '.read' in item
-#         ]
-#     return len(readers)
-#
-# def random_sleep(base = 0., factor = 1.):
-#     with RandomSeeder(time.time()):
-#         time.sleep(random.random() * factor + base)
-#
-# class H5WriteAccess:
-#     # expects @mpi.dowrap
-#     def __init__(self, h5filename):
-#         self.h5filename = h5filename
-#         self.busyname = self.h5filename + '.busy'
-#     def __enter__(self):
-#         with SetMask(0000):
-#             while True:
-#                 try:
-#                     assert not check_readers(self.h5filename)
-#                     self.busyfile = open(self.busyname, mode = 'x')
-#                     break
-#                 except (AssertionError, FileExistsError):
-#                     print("File busy! Waiting...")
-#                     random_sleep(0.1, 5.)
-#         try:
-#             self.h5file = h5py.File(
-#                 self.h5filename,
-#                 'a',
-#                 libver = 'latest'
-#                 )
-#             if not self.h5file.swmr_mode:
-#                 self.h5file.swmr_mode = True
-#             return self.h5file
-#         except OSError:
-#             self.busyfile.close()
-#             os.remove(self.busyname)
-#             random_sleep(0.1, 5.)
-#             return self.__enter__()
-#     def __exit__(self, exc_type, exc_val, traceback):
-#         self.h5file.close()
-#         self.busyfile.close()
-#         os.remove(self.busyname)
-#
-# class H5ReadAccess:
-#     # expects @mpi.dowrap
-#     def __init__(self, h5filename, tempreadname):
-#         self.h5filename = h5filename
-#         self.busyname = self.h5filename + '.busy'
-#         self.readname = self.h5filename + tempreadname + '.read'
-#     def __enter__(self):
-#         with SetMask(0000):
-#             self.readfile = open(self.readname, mode = 'x')
-#             while os.path.exists(self.busyname):
-#                 # in the off chance the file became busy along the way!
-#                 print("File busy! Waiting...")
-#                 random_sleep(0.1, 5.)
-#         try:
-#             self.h5file = h5py.File(
-#                 self.h5filename,
-#                 'r',
-#                 libver = 'latest',
-#                 swmr = True
-#                 )
-#             return self.h5file
-#         except OSError:
-#             self.readfile.close()
-#             os.remove(self.readname)
-#             random_sleep(0.1, 5.)
-#             return self.__enter__()
-#     def __exit__(self, exc_type, exc_val, traceback):
-#         self.h5file.close()
-#         self.readfile.close()
-#         os.remove(self.readname)
+def h5writewrap(func):
+    def wrapper(self, *args, **kwargs):
+        with H5Write(self):
+            return func(self, *args, **kwargs)
+    return wrapper
+
+h5readwrap = h5writewrap
+
+class H5Write:
+    def __init__(self, arg):
+        self.lockfilename = arg.h5filename + '.lock'
+        self.arg = arg
+    @mpi.dowrap
+    def _enter_wrap(self):
+        while True:
+            try:
+                self.lockfile = open(self.lockfilename, 'x')
+                break
+            except FileExistsError:
+                random_sleep(0.1, 5.)
+        self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
+    def __enter__(self):
+        self._enter_wrap()
+        return None
+    @mpi.dowrap
+    def _exit_wrap(self):
+        self.arg.h5file.close()
+        self.lockfile.close()
+        os.remove(self.lockfilename)
+    def __exit__(self, *args):
+        self._exit_wrap()
+
+class SetMask:
+    # expects @mpi.dowrap
+    def __init__(self, maskNo):
+        self.maskNo = maskNo
+    def __enter__(self):
+        self.prevMask = os.umask(0000)
+    def __exit__(self, *args):
+        ignoreMe = os.umask(self.prevMask)
 
 class ToOpen:
     def __init__(self, filepath):
@@ -140,6 +83,16 @@ class ToOpen:
     def __call__(self):
         with open(self.filepath) as file:
             return file.read()
+
+@mpi.dowrap
+def write_file(filename, content, mode = 'w'):
+    with open(filename, mode) as file:
+        file.write(content)
+
+@mpi.dowrap
+def remove_file(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
 
 class TempFile:
 

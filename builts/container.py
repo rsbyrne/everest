@@ -94,6 +94,7 @@ class Container(Unique, DiskBased):
         self._checkBack(ticket)
         mpi.message("Relinquished ticket:", ticket)
     @disk.h5writewrap
+    @mpi.dowrap
     def _checkBack(self, ticket):
         self._check_initialised()
         self._remove_from_checkedOut(ticket)
@@ -107,6 +108,7 @@ class Container(Unique, DiskBased):
         self._checkFail(ticket)
         mpi.message("Failed ticket:", ticket, exception)
     @disk.h5writewrap
+    @mpi.dowrap
     def _checkFail(self, ticket):
         self._check_initialised()
         self._remove_from_checkedOut(ticket)
@@ -118,6 +120,7 @@ class Container(Unique, DiskBased):
         self._complete(ticket)
         mpi.message("Completed ticket:", ticket)
     @disk.h5writewrap
+    @mpi.dowrap
     def _complete(self, ticket):
         self._check_initialised()
         self._remove_from_checkedOut(ticket)
@@ -138,10 +141,12 @@ class Container(Unique, DiskBased):
         if not self.initialised: raise ContainerNotInitialisedError
 
     @disk.h5writewrap
+    @mpi.dowrap
     def _check_ticket(ticket):
         self._container_update_from_disk()
 
     @disk.h5writewrap
+    @mpi.dowrap
     def _get_checkedBack(self):
         checkedBack = self._read('checkedBack')
         if len(checkedBack):
@@ -152,6 +157,7 @@ class Container(Unique, DiskBased):
             raise NoCheckedBacks
 
     @disk.h5writewrap
+    @mpi.dowrap
     def _check_available(self, ticket):
         checkedOut = self._read('checkedOut')
         checkedBack = self._read('checkedBack')

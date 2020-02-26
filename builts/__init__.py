@@ -53,8 +53,8 @@ def set_global_anchor(name, path, purge = False):
         if mpi.rank == 0:
             if os.path.exists(fullPath):
                 os.remove(fullPath)
-            if os.path.exists(fullPath + '.busy'):
-                os.remove(fullPath + '.busy')
+            if os.path.exists(fullPath + '.lock'):
+                os.remove(fullPath + '.lock')
     GLOBALANCHOR = True
     GLOBALREADER, GLOBALWRITER = Reader(name, path), Writer(name, path)
 def release_global_anchor():

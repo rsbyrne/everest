@@ -8,6 +8,7 @@ import ast
 import pickle
 
 from . import disk
+from . import mpi
 from . import utilities
 from .fetch import Fetch
 from .scope import Scope
@@ -30,6 +31,7 @@ class Reader:
         self._builtsModule = builtsmodule
 
     @disk.h5readwrap
+    @mpi.dowrap
     def pull(self, scope, keys):
         if type(keys) is str:
             keys = (keys,)
@@ -115,6 +117,7 @@ class Reader:
         return out
 
     @disk.h5readwrap
+    @mpi.dowrap
     def _seek(self, key):
         return self._pre_seekresolve(self._recursive_seek(key))
 

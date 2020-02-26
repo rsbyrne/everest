@@ -79,6 +79,7 @@ class Writer:
         self._add_wrapped(processed, name)
 
     @disk.h5writewrap
+    @mpi.dowrap
     def _add_wrapped(self, item, name):
         self._add(item, name)
 
