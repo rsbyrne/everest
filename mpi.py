@@ -1,4 +1,5 @@
 import sys
+from functools import wraps
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -31,6 +32,7 @@ def share(obj):
     return shareObj
 
 def dowrap(func):
+    @wraps(func)
     def wrapper(*args, **kwargs):
         comm.barrier()
         output = MPIPlaceholderError()

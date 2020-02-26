@@ -7,6 +7,7 @@ import numpy as np
 import string
 import time
 from contextlib import contextmanager
+from functools import wraps
 
 from .utilities import message
 from . import mpi
@@ -36,6 +37,7 @@ def tempname(length = 16, extension = None):
     return name
 
 def h5writewrap(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
         with H5Write(self):
             return func(self, *args, **kwargs)

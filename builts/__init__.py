@@ -6,6 +6,7 @@ import weakref
 import os
 from functools import partial
 from collections.abc import Mapping
+from collections import OrderedDict
 import inspect
 
 from .. import mpi
@@ -149,8 +150,6 @@ def buffersize_exceeded():
     return nbytes > BUFFERSIZE
 
 def _get_default_inputs(func):
-    import inspect
-    from collections import OrderedDict
     parameters = inspect.signature(func).parameters
     out = parameters.copy()
     if 'self' in out: del out['self']
@@ -187,6 +186,8 @@ class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
         if hasattr(outCls, 'script'):
+            # update this to use inspect.getsource(object)
+            # or inspect.getfile(object)
             outCls.mobile = True
             if outCls.script.startswith('_script_'):
                 outCls.script = outCls.script[len('_script_'):]
