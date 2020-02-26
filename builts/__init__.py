@@ -9,6 +9,7 @@ from collections.abc import Mapping
 import inspect
 
 from .. import mpi
+message = mpi.message
 
 from .. import utilities
 from .. import disk

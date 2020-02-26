@@ -88,20 +88,25 @@ def remove_file(filePath):
 
 def h5writewrap(func):
     @mpi.dowrap
-    def wrapper(self, *args, **kwargs):
-        with H5WriteAccess(self.h5filename) as h5file:
-            self.h5file = h5file
+    def wrapper(self, *args, _wrapperOverride = False, **kwargs):
+        if _wrapperOverride:
             return func(self, *args, **kwargs)
+        else:
+            with H5WriteAccess(self.h5filename) as h5file:
+                self.h5file = h5file
+                return func(self, *args, **kwargs)
     return wrapper
 
 def h5readwrap(func):
-    tempreadname = tempname()
     @mpi.dowrap
-    def wrapper(self, *args, **kwargs):
-        nonlocal tempreadname
-        with H5ReadAccess(self.h5filename, tempreadname) as h5file:
-            self.h5file = h5file
+    def wrapper(self, *args, _wrapperOverride = False, **kwargs):
+        if _wrapperOverride:
             return func(self, *args, **kwargs)
+        else:
+            tempreadname = tempname(_wrapperOverride = _wrapperOverride)
+            with H5ReadAccess(self.h5filename, tempreadname) as h5file:
+                self.h5file = h5file
+                return func(self, *args, **kwargs)
     return wrapper
 
 class SetMask:
@@ -114,10 +119,10 @@ class SetMask:
         ignoreMe = os.umask(self.prevMask)
 
 def check_readers(h5filename):
-    h5path = os.path.dirname(h5filename)
-    h5name = os.path.basename(h5filename)
-    allitems = [item for item in os.listdir(h5path) if h5name in item]
-    readers = [item for item in allitems if '.read' in item]
+    readers = [
+        item for item in os.listdir(os.path.dirname(h5filename)) \
+            if os.path.basename(h5filename) in item and '.read' in item
+        ]
     return len(readers)
 
 def random_sleep(base = 0., factor = 1.):

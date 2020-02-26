@@ -89,17 +89,20 @@ class Task(Boolean, Cycler):
             cmd = ['mpirun', '-np', str(cores), 'python3', filePath]
             global _DIRECTORY_
             try:
-                subprocess.check_call(
+                process = subprocess.Popen(
                     cmd,
                     stdout = outFile,
                     stderr = errorFile
                     )
+                process.communicate()
             except subprocess.CalledProcessError as e:
                 raise TaskSubrunFailed(e)
             finally:
+                process.terminate()
+                process.kill()
                 try:
                     clipsh = os.path.join(_DIRECTORY_, 'linux', 'cliplogs.sh')
                     subprocess.call(['sh', clipsh, errorFilePath])
                     subprocess.call(['sh', clipsh, outFilePath])
                 except:
-                        pass
+                    pass
