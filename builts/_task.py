@@ -99,7 +99,7 @@ class Task(Boolean, Cycler):
                 atexit.register(process.terminate)
                 process.wait()
                 if process.returncode:
-                    raise CalledProcessError
+                    raise CalledProcessError(process.returncode, cmd)
             except CalledProcessError as e:
                 raise TaskSubrunFailed(e)
             finally:
