@@ -30,46 +30,6 @@ class Reader:
         from . import builts as builtsmodule
         self._builtsModule = builtsmodule
 
-    @disk.h5readwrap
-    @mpi.dowrap
-    def pull(self, scope, keys):
-        if type(keys) is str:
-            keys = (keys,)
-        outs = []
-        for key in keys:
-            outs.append(self._pull(scope, key))
-        if len(outs) == 1:
-            return outs[0]
-        else:
-            return tuple(outs)
-
-    def _pull(self, scope, key):
-        arrList = []
-        for superkey, scopeCounts in scope:
-            thisGroup = self.h5file[superkey]
-            thisTargetDataset = thisGroup[key]
-            if scopeCounts == '...':
-                arr = thisTargetDataset[...]
-            else:
-                thisCountsDataset = thisGroup['outputs']['count']
-                maskArr = np.isin(
-                    thisCountsDataset,
-                    scopeCounts,
-                    assume_unique = True
-                    )
-                slicer = (
-                    maskArr,
-                    *[slice(None) for i in range(1, len(thisTargetDataset.shape))]
-                    )
-                arr = thisTargetDataset[slicer]
-            arrList.append(arr)
-        try:
-            allArr = np.concatenate(arrList)
-            return allArr
-        except ValueError:
-            allTuple = tuple(arrList)
-            return allTuple
-
     def _recursive_seek(self, key, searchArea = None):
         # expects h5readwrap
         if searchArea is None:
@@ -245,9 +205,73 @@ class Reader:
             inScope = self[inp.start]
         else:
             raise TypeError
-        if not type(inp.stop) in {str, tuple}:
+        if type(inp.stop) in {str, tuple}:
+            supp = inp.stop
+        else:
             raise TypeError
-        return self.pull(inScope, inp.stop)
+        arrList = []
+        for hashID, counts in inScope:
+            data = self[hashID, supp]
+            if counts == '...':
+                arrList.append(data)
+            else:
+                if not type(data) is np.ndarray:
+                    raise TypeError
+                maskArr = np.isin(
+                    data,
+                    counts,
+                    assume_unique = True
+                    )
+                slicer = (
+                    maskArr,
+                    *[slice(None) for i in range(1, len(data.shape))]
+                    )
+                arr = data[slicer]
+                arrList.append(arr)
+        allTuple = tuple(arrList)
+        return allTuple
+
+    # @disk.h5readwrap
+    # @mpi.dowrap
+    # def pull(self, scope, keys):
+    #     if type(keys) is str:
+    #         keys = (keys,)
+    #     outs = []
+    #     for key in keys:
+    #         outs.append(self._pull(scope, key))
+    #     if len(outs) == 1:
+    #         return outs[0]
+    #     else:
+    #         return tuple(outs)
+    #
+    # def _pull(self, scope, key):
+    #     arrList = []
+    #     for superkey, scopeCounts in scope:
+    #         thisGroup = self.h5file[superkey]
+    #         thisTargetDataset = thisGroup[key]
+    #         if scopeCounts == '...':
+    #             arr = thisTargetDataset[...]
+    #         else:
+    #             thisCountsDataset = thisGroup['outputs']['count']
+    #             maskArr = np.isin(
+    #                 thisCountsDataset,
+    #                 scopeCounts,
+    #                 assume_unique = True
+    #                 )
+    #             slicer = (
+    #                 maskArr,
+    #                 *[slice(None) for i in range(1, len(thisTargetDataset.shape))]
+    #                 )
+    #             arr = thisTargetDataset[slicer]
+    #         arrList.append(arr)
+    #     try:
+    #         allArr = np.concatenate(arrList)
+    #         return allArr
+    #     except ValueError:
+    #         allTuple = tuple(arrList)
+    #         return allTuple
+
+
 
     def _getellipsis(self, inp, **kwargs):
         return self._getfetch(Fetch('**'))
