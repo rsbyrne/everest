@@ -139,31 +139,40 @@ class Reader:
         return out
 
     @staticmethod
-    def _process_fetch(inFetch, context, **kwargs):
+    def _process_fetch(inFetch, context, scope = None, **kwargs):
         inDict = inFetch(context)
         outs = set()
-        for key, result in inDict.items():
+        if scope is None:
+            checkkey = lambda key: True
+        elif type(scope) is Scope:
+            checkkey = lambda key: key in scope.keys()
+        else:
+            raise TypeError
+        for key, result in sorted(inDict.items()):
             superkey = key.split('/')[0]
-            indices = None
-            try:
-                if result:
-                    indices = '...'
-            except ValueError:
-                if np.all(result):
-                    indices = '...'
-                elif np.any(result):
-                    countsPath = '/' + '/'.join((
-                        superkey,
-                        'outputs',
-                        'count'
-                        ))
-                    counts = context(countsPath)
-                    indices = counts[result.flatten()]
-                    indices = tuple(indices)
-            except:
-                raise TypeError
-            if not indices is None:
-                outs.add((superkey, indices))
+            if checkkey(superkey):
+                indices = None
+                try:
+                    if result:
+                        indices = '...'
+                except ValueError:
+                    if np.all(result):
+                        indices = '...'
+                    elif np.any(result):
+                        countsPath = '/' + '/'.join((
+                            superkey,
+                            'outputs',
+                            'count'
+                            ))
+                        counts = context(countsPath)
+                        indices = counts[result.flatten()]
+                        indices = tuple(indices)
+                except:
+                    raise TypeError
+                if not indices is None:
+                    outs.add((superkey, indices))
+            else:
+                pass
         return outs
 
     def _gettuple(self, inp, **kwargs):
@@ -193,10 +202,14 @@ class Reader:
             out = resolved
         return out
 
-    def _getfetch(self, fetch, **kwargs):
-        processed = self._process_fetch(fetch, self.__getitem__)
+    def _getfetch(self, fetch, scope = None, **kwargs):
+        processed = self._process_fetch(fetch, self.__getitem__, scope = scope)
         sources = ('Scope', (fetch,))
-        return Scope(processed, sources = sources)
+        newScope = Scope(processed, sources = sources)
+        if scope is None:
+            return newScope
+        else:
+            return scope & newScope
 
     def _getslice(self, inp, **kwargs):
         if type(inp.start) is Scope:
@@ -205,73 +218,39 @@ class Reader:
             inScope = self[inp.start]
         else:
             raise TypeError
-        if type(inp.stop) in {str, tuple}:
+        if type(inp.stop) is Fetch:
+            newScope = self._getfetch(inp.stop, scope = inScope, **kwargs)
+            if inp.step is None:
+                return newScope
+            else:
+                return self._getslice(slice(newScope, inp.step))
+        elif type(inp.stop) in {str, tuple}:
+            if not inp.step is None:
+                raise TypeError
             supp = inp.stop
+            arrList = []
+            for hashID, counts in inScope:
+                data = self[hashID, supp]
+                if counts == '...':
+                    arrList.append(data)
+                else:
+                    if not type(data) is np.ndarray:
+                        raise TypeError
+                    maskArr = np.isin(
+                        data,
+                        counts,
+                        assume_unique = True
+                        )
+                    slicer = (
+                        maskArr,
+                        *[slice(None) for i in range(1, len(data.shape))]
+                        )
+                    arr = data[slicer]
+                    arrList.append(arr)
+            allTuple = tuple(arrList)
+            return allTuple
         else:
             raise TypeError
-        arrList = []
-        for hashID, counts in inScope:
-            data = self[hashID, supp]
-            if counts == '...':
-                arrList.append(data)
-            else:
-                if not type(data) is np.ndarray:
-                    raise TypeError
-                maskArr = np.isin(
-                    data,
-                    counts,
-                    assume_unique = True
-                    )
-                slicer = (
-                    maskArr,
-                    *[slice(None) for i in range(1, len(data.shape))]
-                    )
-                arr = data[slicer]
-                arrList.append(arr)
-        allTuple = tuple(arrList)
-        return allTuple
-
-    # @disk.h5readwrap
-    # @mpi.dowrap
-    # def pull(self, scope, keys):
-    #     if type(keys) is str:
-    #         keys = (keys,)
-    #     outs = []
-    #     for key in keys:
-    #         outs.append(self._pull(scope, key))
-    #     if len(outs) == 1:
-    #         return outs[0]
-    #     else:
-    #         return tuple(outs)
-    #
-    # def _pull(self, scope, key):
-    #     arrList = []
-    #     for superkey, scopeCounts in scope:
-    #         thisGroup = self.h5file[superkey]
-    #         thisTargetDataset = thisGroup[key]
-    #         if scopeCounts == '...':
-    #             arr = thisTargetDataset[...]
-    #         else:
-    #             thisCountsDataset = thisGroup['outputs']['count']
-    #             maskArr = np.isin(
-    #                 thisCountsDataset,
-    #                 scopeCounts,
-    #                 assume_unique = True
-    #                 )
-    #             slicer = (
-    #                 maskArr,
-    #                 *[slice(None) for i in range(1, len(thisTargetDataset.shape))]
-    #                 )
-    #             arr = thisTargetDataset[slicer]
-    #         arrList.append(arr)
-    #     try:
-    #         allArr = np.concatenate(arrList)
-    #         return allArr
-    #     except ValueError:
-    #         allTuple = tuple(arrList)
-    #         return allTuple
-
-
 
     def _getellipsis(self, inp, **kwargs):
         return self._getfetch(Fetch('**'))
