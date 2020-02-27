@@ -3,6 +3,7 @@ import h5py
 import numpy as np
 import pickle
 import ast
+import inspect
 
 from collections.abc import Mapping
 from collections import OrderedDict

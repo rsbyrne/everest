@@ -3,7 +3,7 @@ from types import FunctionType
 from ._boolean import Boolean
 
 class Condition(Boolean):
-    script = '''from everest.builts.condition import Condition as CLASS'''
+    _swapscript = '''from everest.builts.condition import Condition as CLASS'''
     def __init__(
             self,
             inquirer = None,

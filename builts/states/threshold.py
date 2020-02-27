@@ -3,7 +3,7 @@ import operator
 from . import State
 
 class Threshold(State):
-    script = '''from everest.builts.states.threshold import Threshold as CLASS'''
+    _swapscript = '''from everest.builts.states.threshold import Threshold as CLASS'''
     def __init__(
             self,
             prop : str = 'count',

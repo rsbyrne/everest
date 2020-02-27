@@ -60,7 +60,7 @@ class NoCheckedBacks(EverestException):
 
 class Container(Unique, DiskBased):
 
-    script = '''from everest.builts.container import Container as CLASS'''
+    _swapscript = '''from everest.builts.container import Container as CLASS'''
 
     def __init__(self,
             iterable,

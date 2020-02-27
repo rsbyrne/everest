@@ -5,6 +5,7 @@ import hashlib
 import weakref
 import os
 from functools import partial
+from functools import wraps
 from collections.abc import Mapping
 from collections import OrderedDict
 import inspect
@@ -185,9 +186,10 @@ def _get_default_inputs(func):
 class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
-        if not hasattr(outCls, 'script'):
-            outCls.script = disk.ToOpen(inspect.getfile(outCls))()
-        outCls.typeHash = make_hash(outCls.script)
+        if hasattr(outCls, '_swapscript'): script = outCls._swapscript
+        else: script = disk.ToOpen(inspect.getfile(outCls))()
+        outCls.typeHash = make_hash(script)
+        outCls.script = script
         outCls.defaultInps =_get_default_inputs(outCls.__init__)
         outCls._custom_cls_fn()
         return outCls
