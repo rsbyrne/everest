@@ -2,7 +2,7 @@ from ._callable import Callable
 
 class Partial(Callable):
 
-    script = '''_script_from everest.builts.partial import Partial as CLASS'''
+    script = '''from everest.builts.partial import Partial as CLASS'''
 
     def __init__(self, partialClass, **partialInputs):
 

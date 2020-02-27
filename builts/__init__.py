@@ -185,21 +185,9 @@ def _get_default_inputs(func):
 class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
-        if hasattr(outCls, 'script'):
-            # update this to use inspect.getsource(object)
-            # or inspect.getfile(object)
-            outCls.mobile = True
-            if outCls.script.startswith('_script_'):
-                outCls.script = outCls.script[len('_script_'):]
-            else:
-                outCls.script = disk.ToOpen(outCls.script)()
-            outCls.typeHash = make_hash(outCls.script)
-            # try:
-            #     return _get_preclass(outCls.typeHash)
-            # except NoPreClassError:
-            #     _PRECLASSES[outCls.typeHash] = weakref.ref(outCls)
-        else:
-            outCls.mobile = False
+        if not hasattr(outCls, 'script'):
+            outCls.script = disk.ToOpen(inspect.getfile(outCls))()
+        outCls.typeHash = make_hash(outCls.script)
         outCls.defaultInps =_get_default_inputs(outCls.__init__)
         outCls._custom_cls_fn()
         return outCls

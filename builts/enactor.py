@@ -2,7 +2,7 @@ from ._cycler import Cycler
 
 class Enactor(Cycler):
 
-    script = '''_script_from everest.builts.enactor import Enactor as CLASS'''
+    script = '''from everest.builts.enactor import Enactor as CLASS'''
 
     def __init__(self,
             callable = None,
