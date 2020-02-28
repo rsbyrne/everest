@@ -159,7 +159,7 @@ class Reader:
                     if np.all(result):
                         indices = '...'
                     elif np.any(result):
-                        countsPath = '/' + '/'.join((
+                        countsPath = '/'.join((
                             superkey,
                             'outputs',
                             'count'
@@ -229,23 +229,20 @@ class Reader:
                 raise TypeError
             supp = inp.stop
             arrList = []
-            for hashID, counts in inScope:
+            for hashID, retrieveCounts in inScope:
                 data = self[hashID, supp]
-                if counts == '...':
+                if retrieveCounts == '...':
                     arrList.append(data)
                 else:
                     if not type(data) is np.ndarray:
                         raise TypeError
+                    counts = self[hashID, 'outputs', 'count']
                     maskArr = np.isin(
-                        data,
                         counts,
+                        retrieveCounts,
                         assume_unique = True
                         )
-                    slicer = (
-                        maskArr,
-                        *[slice(None) for i in range(1, len(data.shape))]
-                        )
-                    arr = data[slicer]
+                    arr = data[maskArr]
                     arrList.append(arr)
             allTuple = tuple(arrList)
             return allTuple
