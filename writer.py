@@ -19,6 +19,11 @@ class ExtendableDataset:
 class FixedDataset:
     def __init__(self, arg):
         self.arg = arg
+class LinkTo:
+    def __init__(self, arg):
+        self.arg = arg
+
+WRITERTYPES = set([ExtendableDataset, FixedDataset, LinkTo])
 
 class Writer:
 
@@ -46,34 +51,34 @@ class Writer:
                     for key, val in sorted(inp.items())
                 }
             raise TypeError
-        elif isinstance(inp, ExtendableDataset):
+        elif type(inp) is LinkTo:
+            inp.arg.anchor(self.name, self.path)
             return inp
-        elif isinstance(inp, FixedDataset):
+        elif type(inp) in {ExtendableDataset, FixedDataset}:
             return inp
         elif type(inp) is str:
-            out = _STRINGTAG_ + inp
+            return _STRINGTAG_ + inp
         elif isinstance(inp, self.builtsmodule.Built):
             inp.anchor(self.name, self.path)
-            out = _BUILTTAG_ + inp.hashID
+            return _BUILTTAG_ + inp.hashID
         elif type(inp) is self.builtsmodule.Meta:
-            out = _CLASSTAG_ + inp.script
+            return _CLASSTAG_ + inp.script
         elif type(inp) in {list, tuple, frozenset}:
             out = list()
             for sub in inp: out.append(self._process_inp(sub))
             assert len(out) == len(inp), "Mismatch in eval lengths!"
-            out = _EVALTAG_ + str(type(inp)(out))
+            return _EVALTAG_ + str(type(inp)(out))
         else:
             try:
                 out = str(inp)
                 if not inp == ast.literal_eval(out):
                     raise TypeError
-                out = _EVALTAG_ + out
+                return _EVALTAG_ + out
             except:
                 out = pickle.dumps(inp)
                 if not type(inp) == type(pickle.loads(out)):
                     raise TypeError
-                out = _BYTESTAG_ + str(out)
-        return out
+                return _BYTESTAG_ + str(out)
 
     def add(self, item, name):
         processed = self._process_inp(item)
@@ -95,22 +100,25 @@ class Writer:
                     )
         else:
             group = self.h5file.require_group('/' + '/'.join(names))
-            if isinstance(item, ExtendableDataset):
+            if type(item) is LinkTo:
+                self._add_link(item.arg.hashID, name, group)
+            elif type(item) is ExtendableDataset:
                 try: self._extend_dataset(item.arg, name, group)
                 except KeyError: self._add_dataset(item.arg, name, group)
-            elif isinstance(item, FixedDataset):
+            elif type(item) is FixedDataset:
                 self._add_dataset(item.arg, name, group)
             else:
                 self._add_attr(item, name, group)
-
-    # def _add_link(self, item, name, group):
-    #     group[name] = self.h5file[item]
 
     # def _add_ref(self, address, name, group):
     #     group.attrs[name] = self.h5file[address].ref
 
     # def _add_group(self, item, name, group):
     #     pass
+
+    def _add_link(self, item, name, group):
+        if not name in group:
+            group[name] = self.h5file[item]
 
     def _add_attr(self, item, name, group):
         # expects h5writewrap
