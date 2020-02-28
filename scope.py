@@ -53,8 +53,11 @@ class Scope(Set, Hashable):
     def rekey(self, mapAttr, context):
         newlist = []
         for hashID, counts in list(self):
-            newID = list(context(Fetch(mapAttr) == hashID))[0][0]
-            newlist.append((newID, counts))
+            queried = context(Fetch(mapAttr) == hashID)
+            if len(queried):
+                newlist.append((list(queried)[0][0], counts))
+            else:
+                raise ValueError
         return Scope(newlist, ('rekey_' + mapAttr, [self,]))
 
     @classmethod
