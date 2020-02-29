@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import importlib
 import random
 import h5py
@@ -14,6 +15,11 @@ from . import mpi
 
 PYTEMP = '/home/jovyan'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
+
+@mpi.dowrap
+def purge_logs(path = '.'):
+    try: shutil.rmtree(os.path.join(path, 'logs'))
+    except FileNotFoundError: pass
 
 class RandomSeeder:
     def __init__(self, seed):
