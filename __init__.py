@@ -16,3 +16,5 @@
 # plugh
 # xyzzy
 # thud
+
+from .builts import set_global_anchor
