@@ -31,7 +31,7 @@ class Reader:
         self._builtsModule = builtsmodule
 
     def _recursive_seek(self, key, searchArea = None):
-        # expects h5readwrap
+        # expects h5filewrap
         if searchArea is None:
             searchArea = self.h5file
         splitkey = key.split('/')
@@ -63,7 +63,7 @@ class Reader:
         return found
 
     def _pre_seekresolve(self, inp):
-        # expects h5readwrap
+        # expects h5filewrap
         if type(inp) is h5py.Group:
             out = _ADDRESSTAG_ + inp.name
         elif type(inp) is h5py.Dataset:
@@ -76,7 +76,7 @@ class Reader:
             out = inp
         return out
 
-    @disk.h5readwrap
+    @disk.h5filewrap
     @mpi.dowrap
     def _seek(self, key):
         return self._pre_seekresolve(self._recursive_seek(key))

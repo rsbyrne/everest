@@ -84,13 +84,13 @@ class Writer:
         processed = self._process_inp(item)
         self._add_wrapped(processed, name)
 
-    @disk.h5writewrap
+    @disk.h5filewrap
     @mpi.dowrap
     def _add_wrapped(self, item, name):
         self._add(item, name)
 
     def _add(self, item, name = '/', *names):
-        # expects h5writewrap
+        # expects h5filewrap
         if isinstance(item, Mapping):
             for key, val in sorted(item.items()):
                 self._add(
@@ -121,11 +121,11 @@ class Writer:
             group[name] = self.h5file[item]
 
     def _add_attr(self, item, name, group):
-        # expects h5writewrap
+        # expects h5filewrap
         group.attrs[name] = item
 
     def _add_dataset(self, data, name, group):
-        # expects h5writewrap
+        # expects h5filewrap
         # shape = [0, *data.shape[1:]]
         maxshape = [None, *data.shape[1:]]
         group.require_dataset(
@@ -137,7 +137,7 @@ class Writer:
             )
 
     def _extend_dataset(self, data, name, group):
-        # expects h5writewrap
+        # expects h5filewrap
         dataset = group[name]
         priorlen = dataset.shape[0]
         dataset.resize(priorlen + len(data), axis = 0)

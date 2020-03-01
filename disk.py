@@ -13,6 +13,8 @@ from functools import wraps
 from .utilities import message
 from . import mpi
 
+LOCKCODE = None
+
 PYTEMP = '/home/jovyan'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
 
@@ -42,36 +44,49 @@ def tempname(length = 16, extension = None):
         name += '.' + extension
     return name
 
-def h5writewrap(func):
+def h5filewrap(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        with H5Write(self):
+        with H5Wrap(self):
             return func(self, *args, **kwargs)
     return wrapper
 
-h5readwrap = h5writewrap
-
-class H5Write:
+class H5Wrap:
     def __init__(self, arg):
+        global LOCKCODE
+        LOCKCODE = tempname()
         self.lockfilename = arg.h5filename + '.lock'
         self.arg = arg
     @mpi.dowrap
     def _enter_wrap(self):
+        global LOCKCODE
         while True:
             try:
                 self.lockfile = open(self.lockfilename, 'x')
+                self.hardlock = True
+                self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
                 break
             except FileExistsError:
+                try:
+                    with open(self.lockfile, 'r') as f:
+                        lockcode = f.read()
+                    if lockcode == LOCKCODE:
+                        self.hardlock = False
+                        break
+                    else:
+                        pass
+                except:
+                    pass
                 random_sleep(0.1, 5.)
-        self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
     def __enter__(self):
         self._enter_wrap()
         return None
     @mpi.dowrap
     def _exit_wrap(self):
-        self.arg.h5file.close()
-        self.lockfile.close()
-        os.remove(self.lockfilename)
+        if self.hardlock:
+            self.arg.h5file.close()
+            self.lockfile.close()
+            os.remove(self.lockfilename)
     def __exit__(self, *args):
         self._exit_wrap()
 
