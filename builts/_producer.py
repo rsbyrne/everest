@@ -57,7 +57,6 @@ class Producer(Built):
     def store(self):
         for fn in self._pre_store_fns: fn()
         self.stored.append(self.out())
-        self.stored = sorted(self.stored)
         for fn in self._post_store_fns: fn()
         self.nbytes = self.get_stored_nbytes()
         if self.autosave:
