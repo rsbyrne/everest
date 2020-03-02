@@ -13,7 +13,7 @@ class Stampable(Producer):
 
         self.stamps = [(self.hashID, 0),]
 
-        super().__init__(stamps = self.stamps, **kwargs)
+        super().__init__(**kwargs)
 
         # Producer attributes:
         self._post_save_fns.append(self._stampable_update)
@@ -27,8 +27,11 @@ class Stampable(Producer):
         self.stamps.append((stamper.hashID, self.count()))
         self.stamps = sorted(set(self.stamps))
 
-    @h5filewrap
+    # @h5filewrap
     def _stampable_update(self):
-        loaded = self.reader(self.hashID, 'stamps')
+        try:
+            loaded = self.reader(self.hashID, 'stamps')
+        except KeyError:
+            loaded = []
         self.stamps = sorted(set([*self.stamps, *loaded]))
-        self.writer.add(self.stamps, 'stamps')
+        self.writer.add(self.stamps, 'stamps', self.hashID)

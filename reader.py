@@ -91,8 +91,9 @@ class Reader:
             out = dict()
             for key, sub in sorted(inp.items()):
                 out[key] = self._seekresolve(sub, hard = hard)
+            return out
         elif type(inp) is np.ndarray:
-            out = inp
+            return inp
         elif type(inp) is str:
             global \
                 _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
@@ -100,28 +101,28 @@ class Reader:
             if inp.startswith(_BUILTTAG_):
                 processed = self._process_tag(inp, _BUILTTAG_)
                 if hard:
-                    out = self._builtsModule.load(
+                    return self._builtsModule.load(
                         processed,
                         self.name,
                         self.path
                         )
                 else:
-                    out = processed
+                    return processed
             elif inp.startswith(_CLASSTAG_):
                 processed = self._process_tag(inp, _CLASSTAG_)
                 if hard:
-                    out = disk.local_import_from_str(processed).CLASS
+                    return disk.local_import_from_str(processed).CLASS
                 else:
-                    out = self._builtsModule.make_hash(processed)
+                    return self._builtsModule.make_hash(processed)
             elif inp.startswith(_ADDRESSTAG_):
                 processed = self._process_tag(inp, _ADDRESSTAG_)
                 splitAddr = [*processed.split('/'), '*']
                 if splitAddr[0] == '': splitAddr.pop(0)
-                out = self._getitem(tuple(splitAddr), hard = hard)
+                return self._getitem(tuple(splitAddr), hard = hard)
             elif inp.startswith(_BYTESTAG_):
                 processed = self._process_tag(inp, _BYTESTAG_)
                 bytesStr = ast.literal_eval(processed)
-                out = pickle.loads(bytesStr)
+                return pickle.loads(bytesStr)
             elif inp.startswith(_EVALTAG_):
                 processed = self._process_tag(inp, _EVALTAG_)
                 out = ast.literal_eval(processed)
@@ -130,12 +131,13 @@ class Reader:
                     for item in out:
                         procOut.append(self._seekresolve(item, hard = hard))
                     out = type(out)(procOut)
+                return out
             elif inp.startswith(_STRINGTAG_):
-                processed = self._process_tag(inp, _STRINGTAG_)
-                out = processed
+                return self._process_tag(inp, _STRINGTAG_)
             else:
-                raise TypeError
-        return out
+                raise ValueError(inp)
+        else:
+            raise TypeError(type(inp))
 
     @staticmethod
     def _process_fetch(inFetch, context, scope = None, **kwargs):

@@ -79,14 +79,14 @@ class Writer:
                     raise TypeError
                 return _BYTESTAG_ + str(out)
 
-    def add(self, item, name):
+    def add(self, item, name, *names):
         processed = self._process_inp(item)
-        self._add_wrapped(processed, name)
+        self._add_wrapped(processed, name, *names)
 
     @disk.h5filewrap
     @mpi.dowrap
-    def _add_wrapped(self, item, name):
-        self._add(item, name)
+    def _add_wrapped(self, item, name, *names):
+        self._add(item, name, *names)
 
     def _add(self, item, name = '/', *names):
         # expects h5filewrap

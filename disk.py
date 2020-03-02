@@ -42,19 +42,25 @@ def tempname(length = 16, extension = None):
         name += '.' + extension
     return name
 
-LOCKCODE = tempname()
 H5FILES = dict()
+
+# def h5filewrap(func):
+#     @wraps(func)
+#     def wrapper(self, *args, **kwargs):
+#         global H5FILES
+#         if self.h5filename in H5FILES:
+#             self.h5file = H5FILES[self.h5filename]
+#             return func(self, *args, **kwargs)
+#         else:
+#             with H5Wrap(self):
+#                 return func(self, *args, **kwargs)
+#     return wrapper
 
 def h5filewrap(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        global H5FILES
-        if self.h5filename in H5FILES:
-            self.h5file = H5FILES[self.h5filename]
+        with H5Wrap(self):
             return func(self, *args, **kwargs)
-        else:
-            with H5Wrap(self):
-                return func(self, *args, **kwargs)
     return wrapper
 
 class H5Wrap:
@@ -63,17 +69,15 @@ class H5Wrap:
         self.arg = arg
     @mpi.dowrap
     def _enter_wrap(self):
-        global LOCKCODE
         global H5FILES
         while True:
             try:
-                with open(self.lockfilename, 'x') as lockfile:
-                    lockfile.write(LOCKCODE)
-                self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
-                H5FILES[self.arg.h5filename] = self.arg.h5file
+                self.lockfile = open(self.lockfilename, 'x')
                 break
             except FileExistsError:
                 random_sleep(0.1, 5.)
+        self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
+        H5FILES[self.arg.h5filename] = self.arg.h5file
     def __enter__(self):
         self._enter_wrap()
         return None
@@ -83,6 +87,7 @@ class H5Wrap:
         self.arg.h5file.close()
         del self.arg.h5file
         del H5FILES[self.arg.h5filename]
+        self.lockfile.close()
         os.remove(self.lockfilename)
     def __exit__(self, *args):
         self._exit_wrap()

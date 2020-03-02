@@ -24,13 +24,7 @@ class Counter(Producer):
 
     def _counter_post_store_fn(self):
         if self.count() in self.counts:
-            discardedDatas = self.stored.pop()
-            discardedCount = {
-                key: val \
-                    for key, val in zip(self.outkeys, discardedDatas)
-                }['count']
-            assert discardedCount == self.count(), \
-                "Discarded count does not match current count!"
+            ignoreme = self.stored.pop()
         else:
             self.counts.append(self.count())
             self.counts_stored.append(self.count())
