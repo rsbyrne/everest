@@ -38,7 +38,6 @@ class Writer:
         self.name = name
         self.path = path
         self.h5filename = disk.get_framePath(name, path)
-        self.h5file = None
         mpi.dowrap(os.makedirs)(path, exist_ok = True)
 
         self.builtsmodule = builtsmodule

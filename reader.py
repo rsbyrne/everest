@@ -24,7 +24,6 @@ class Reader:
             path
             ):
         self.name, self.path = name, path
-        self.h5file = None
         self.h5filename = os.path.join(os.path.abspath(path), name + '.frm')
         self.file = partial(h5py.File, self.h5filename, 'r')
         from . import builts as builtsmodule

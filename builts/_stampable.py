@@ -13,7 +13,7 @@ class Stampable(Producer):
 
         self.stamps = [(self.hashID, 0),]
 
-        super().__init__(**kwargs)
+        super().__init__(stamps = self.stamps, **kwargs)
 
         # Producer attributes:
         self._post_save_fns.append(self._stampable_update)
