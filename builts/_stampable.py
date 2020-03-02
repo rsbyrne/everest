@@ -1,6 +1,6 @@
 import ast
 
-from ..disk import h5filewrap
+from .. import disk
 from ._producer import Producer
 from ._inquirer import Inquirer
 
@@ -27,7 +27,6 @@ class Stampable(Producer):
         self.stamps.append((stamper.hashID, self.count()))
         self.stamps = sorted(set(self.stamps))
 
-    # @h5filewrap
     def _stampable_update(self):
         try:
             loaded = self.reader(self.hashID, 'stamps')

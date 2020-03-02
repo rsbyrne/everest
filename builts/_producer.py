@@ -9,6 +9,10 @@ from . import buffersize_exceeded
 from . import Built
 from ..weaklist import WeakList
 from ..writer import ExtendableDataset
+from ..exceptions import EverestException
+
+class AbortStore(EverestException):
+    pass
 
 def make_dataDict(outkeys, stored):
     return dict(zip(outkeys, list(map(list, zip(*stored)))))
@@ -55,6 +59,12 @@ class Producer(Built):
         return outs
 
     def store(self):
+        try:
+            self._store()
+        except AbortStore:
+            pass
+
+    def _store(self):
         for fn in self._pre_store_fns: fn()
         self.stored.append(self.out())
         for fn in self._post_store_fns: fn()

@@ -9,6 +9,6 @@ touch $OUTFILE
 touch $ERRORFILE
 INTERPRETER=python3
 for i in $(seq 1 $N)
-do $INTERPRETER $SCRIPT 1> $OUTFILE 2> $ERRORFILE &
+do $INTERPRETER -u $SCRIPT 1> $OUTFILE 2> $ERRORFILE &
 sleep 1
 done

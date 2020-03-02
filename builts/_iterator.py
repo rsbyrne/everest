@@ -99,6 +99,8 @@ class Iterator(Counter, Cycler, Stampable, Unique):
 
     def _load_count(self, count, **kwargs):
         if not self.count() == count:
+
+            if not count in self.counts: raise LoadDiskFail
             loadDict = self._load_dataDict(count)
             self._load(loadDict)
             self.count.value = count
@@ -112,8 +114,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         except LoadStoredFail: return self._load_dataDict_saved(count)
 
     def _load_dataDict_stored(self, count):
-        if not count in self.counts_stored:
-            raise LoadStoredFail
+        if not count in self.counts_stored: raise LoadStoredFail
         dataDict = self.make_dataDict()
         counts = dataDict[self.indexKey]
         index = np.where(counts == count)[0][0]
@@ -121,8 +122,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
     def _load_dataDict_saved(self, count):
-        if not self.anchored:
-            raise LoadDiskFail
+        if not self.anchored: raise LoadDiskFail
         counts = self.reader(self.hashID, 'outputs', self.indexKey)
         matches = np.where(counts == count)[0]
         assert len(matches) <= 1, "Duplicates found in loaded counts!"

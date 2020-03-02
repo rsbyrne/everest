@@ -44,23 +44,17 @@ def tempname(length = 16, extension = None):
 
 H5FILES = dict()
 
-# def h5filewrap(func):
-#     @wraps(func)
-#     def wrapper(self, *args, **kwargs):
-#         global H5FILES
-#         if self.h5filename in H5FILES:
-#             self.h5file = H5FILES[self.h5filename]
-#             return func(self, *args, **kwargs)
-#         else:
-#             with H5Wrap(self):
-#                 return func(self, *args, **kwargs)
-#     return wrapper
-
 def h5filewrap(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        with H5Wrap(self):
-            return func(self, *args, **kwargs)
+        global H5FILES
+        if self.h5filename in H5FILES:
+            self.h5file = H5FILES[self.h5filename]
+            out = func(self, *args, **kwargs)
+        else:
+            with H5Wrap(self):
+                out = func(self, *args, **kwargs)
+        return out
     return wrapper
 
 class H5Wrap:
@@ -91,49 +85,6 @@ class H5Wrap:
         os.remove(self.lockfilename)
     def __exit__(self, *args):
         self._exit_wrap()
-
-# class H5Wrap:
-#     def __init__(self, arg):
-#         self.lockfilename = arg.h5filename + '.lock'
-#         self.arg = arg
-#     @mpi.dowrap
-#     def _enter_wrap(self):
-#         global LOCKCODE
-#         while True:
-#             print("Attempting to access...")
-#             try:
-#                 with open(self.lockfilename, 'x') as lockfile:
-#                     lockfile.write(LOCKCODE)
-#                 self.rmlockfile = True
-#                 break
-#             except FileExistsError:
-#                 try:
-#                     with open(self.lockfilename, 'r') as f:
-#                         lockcode = f.read()
-#                     if lockcode == LOCKCODE:
-#                         self.rmlockfile = False
-#                         break
-#                 except FileNotFoundError:
-#                     pass
-#                 random_sleep(0.1, 5.)
-#         if hasattr(self.arg, 'h5file'):
-#             self.closeh5 = False
-#         else:
-#             self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
-#             self.closeh5 = True
-#         print("Accessed.")
-#     def __enter__(self):
-#         self._enter_wrap()
-#         return None
-#     @mpi.dowrap
-#     def _exit_wrap(self):
-#         if self.closeh5:
-#             self.arg.h5file.close()
-#             del self.arg.h5file
-#         if self.rmlockfile:
-#             os.remove(self.lockfilename)
-#     def __exit__(self, *args):
-#         self._exit_wrap()
 
 class SetMask:
     # expects @mpi.dowrap

@@ -47,16 +47,19 @@ class GlobalAnchorRequired(EverestException):
 GLOBALREADER, GLOBALWRITER = None, None
 NAME, PATH = None, None
 GLOBALANCHOR = False
+def purge_address(name, path):
+    fullPath = os.path.join(path, name + '.frm')
+    if mpi.rank == 0:
+        if os.path.exists(fullPath):
+            os.remove(fullPath)
+        if os.path.exists(fullPath + '.lock'):
+            os.remove(fullPath + '.lock')
 def set_global_anchor(name, path, purge = False):
     global GLOBALANCHOR, NAME, PATH, GLOBALREADER, GLOBALWRITER
+    global purge_address
     NAME, PATH = name, os.path.abspath(path)
     fullPath = os.path.join(PATH, NAME + '.frm')
-    if purge:
-        if mpi.rank == 0:
-            if os.path.exists(fullPath):
-                os.remove(fullPath)
-            if os.path.exists(fullPath + '.lock'):
-                os.remove(fullPath + '.lock')
+    if purge: purge_address(NAME, PATH)
     GLOBALANCHOR = True
     GLOBALREADER, GLOBALWRITER = Reader(name, path), Writer(name, path)
 def release_global_anchor():
@@ -300,9 +303,11 @@ class Built(metaclass = Meta):
     def _check_anchored(self):
         if not self.anchored: raise NotYetAnchoredError
 
-    def anchor(self, name = None, path = None):
+    def anchor(self, name = None, path = None, purge = False):
         if not name is None: self.name = name
         if not path is None: self.path = os.path.abspath(path)
+        global purge_address
+        if purge: purge_address(name, path)
         self.h5filename = disk.get_framePath(self.name, self.path)
         self._anchor()
 
