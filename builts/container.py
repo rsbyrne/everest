@@ -57,6 +57,8 @@ class ContainerNotInitialisedError(EverestException):
     pass
 class NoCheckedBacks(EverestException):
     pass
+class TicketUnavailable(EverestException):
+    pass
 
 class Container(Unique, DiskBased):
 
@@ -69,64 +71,14 @@ class Container(Unique, DiskBased):
 
         self.iterable = iterable
         self.initialised = False
+        initTickets = {
+            'out': [],
+            'failed': [],
+            'relinquished': [],
+            'completed': []
+            }
 
-        super().__init__(**kwargs)
-
-    def _read(self, key):
-        # expects @disk.h5filewrap
-        try:
-            raw = self.h5file[self.hashID].attrs[key]
-            return [pickle.loads(ast.literal_eval(inp)) for inp in raw]
-        except KeyError:
-            return []
-    def _write(self, key, content):
-        # expects @disk.h5filewrap
-        out = [str(pickle.dumps(inp)) for inp in content]
-        self.h5file[self.hashID].attrs[key] = out
-
-    def _remove_from_checkedOut(self, ticket):
-        # expects @disk.h5filewrap
-        checkedOut = self._read('checkedOut')
-        checkedOut.remove(ticket)
-        self._write('checkedOut', checkedOut)
-
-    def checkBack(self, ticket):
-        self._checkBack(ticket)
-        mpi.message("Relinquished ticket:", ticket)
-    @disk.h5filewrap
-    @mpi.dowrap
-    def _checkBack(self, ticket):
-        self._check_initialised()
-        self._remove_from_checkedOut(ticket)
-        checkedBack = self._read('checkedBack')
-        checkedBack.append(ticket)
-        self._write('checkedBack', checkedBack)
-
-    def checkFail(self, ticket, exception = None):
-        if not exception is None:
-            ticket.exception = exception
-        self._checkFail(ticket)
-        mpi.message("Failed ticket:", ticket, exception)
-    @disk.h5filewrap
-    @mpi.dowrap
-    def _checkFail(self, ticket):
-        self._check_initialised()
-        self._remove_from_checkedOut(ticket)
-        checkedFail = self._read('checkedFail')
-        checkedFail.append(ticket)
-        self._write('checkedFail', checkedFail)
-
-    def complete(self, ticket):
-        self._complete(ticket)
-        mpi.message("Completed ticket:", ticket)
-    @disk.h5filewrap
-    @mpi.dowrap
-    def _complete(self, ticket):
-        self._check_initialised()
-        self._remove_from_checkedOut(ticket)
-        checkedComplete = self._read('checkedComplete')
-        checkedComplete.append(ticket)
-        self._write('checkedComplete', checkedComplete)
+        super().__init__(tickets = initTickets, **kwargs)
 
     def initialise(self):
         self.iter = iter(self.iterable)
@@ -140,49 +92,61 @@ class Container(Unique, DiskBased):
     def _check_initialised(self):
         if not self.initialised: raise ContainerNotInitialisedError
 
-    @disk.h5filewrap
-    @mpi.dowrap
-    def _check_ticket(ticket):
-        self._container_update_from_disk()
+    def _container_modify(self, ticket, name, op):
+        x = self.reader[self.hashID, 'tickets', name]
+        if op == 'append': x.append(ticket)
+        elif op == 'remove': x.remove(ticket)
+        self.writer.add(x, name, self.hashID, 'tickets')
 
-    @disk.h5filewrap
-    @mpi.dowrap
-    def _get_checkedBack(self):
-        checkedBack = self._read('checkedBack')
-        if len(checkedBack):
-            ticket = checkedBack.pop(0)
-            self._write('checkedBack', checkedBack)
+    def relinquish(self, ticket):
+        self._check_initialised()
+        self._container_modify(ticket, 'relinquished', 'append')
+        self._container_modify(ticket, 'out', 'remove')
+        mpi.message("Relinquished ticket:", ticket)
+
+    def fail(self, ticket, exception = None):
+        self._check_initialised()
+        self._container_modify(ticket, 'failed', 'append')
+        self._container_modify(ticket, 'out', 'remove')
+        mpi.message("Failed ticket:", ticket, exception)
+
+    def complete(self, ticket):
+        self._check_initialised()
+        self._container_modify(ticket, 'completed', 'append')
+        self._container_modify(ticket, 'out', 'remove')
+        mpi.message("Completed ticket:", ticket)
+
+    def get_relinquished(self):
+        relinquished = self.reader[self.hashID, 'tickets', 'relinquished']
+        if len(relinquished):
+            ticket = relinquished[-1]
+            self._container_modify(ticket, 'relinquished', 'remove')
+            self._container_modify(ticket, 'out', 'append')
             return ticket
         else:
             raise NoCheckedBacks
 
-    @disk.h5filewrap
-    @mpi.dowrap
-    def _check_available(self, ticket):
-        checkedOut = self._read('checkedOut')
-        checkedBack = self._read('checkedBack')
-        checkedFail = self._read('checkedFail')
-        checkedComplete = self._read('checkedComplete')
-        checked = [*checkedOut, *checkedBack, *checkedFail, *checkedComplete]
-        if ticket in checked:
-            return False
+    def checkout(self):
+        ticket = Ticket(next(self.iter))
+        tickets = self.reader[self.hashID, 'tickets']
+        if not any([ticket in ts for tn, ts in sorted(tickets.items())]):
+            self._container_modify(ticket, 'out', 'append')
+            return ticket
         else:
-            checkedOut.append(ticket)
-            self._write('checkedOut', checkedOut)
-            return True
+            raise TicketUnavailable
 
     def __next__(self):
         self._check_initialised()
         while True:
-            ticket = None
             try:
-                ticket = self._get_checkedBack()
+                ticket = self.get_relinquished()
                 break
             except NoCheckedBacks:
                 try:
-                    ticket = Ticket(next(self.iter))
-                    if self._check_available(ticket):
-                        break
+                    ticket = self.checkout()
+                    break
+                except TicketUnavailable:
+                    pass
                 except StopIteration:
                     self._container_iter_finalise()
         mpi.message("Checking out ticket:", ticket)
