@@ -71,17 +71,22 @@ class Container(Unique, DiskBased):
 
         self.iterable = iterable
         self.initialised = False
-        initTickets = {
-            'out': [],
-            'failed': [],
-            'relinquished': [],
-            'completed': []
-            }
 
-        super().__init__(tickets = initTickets, **kwargs)
+        super().__init__(**kwargs)
 
+    @disk.h5filewrap
     def initialise(self):
         self.iter = iter(self.iterable)
+        try:
+            tickets = self.reader[self.hashID, 'tickets']
+        except KeyError:
+            initDict = {
+                'out': [],
+                'relinquished': [],
+                'failed': [],
+                'completed': []
+                }
+            self.writer.add(initDict, 'tickets', self.hashID)
         self.initialised = True
 
     def _container_iter_finalise(self):
@@ -120,7 +125,7 @@ class Container(Unique, DiskBased):
         mpi.message("Completed ticket:", ticket)
 
     def get_relinquished(self):
-        relinquished = self.reader[self.hashID, 'tickets', 'relinquished']
+        relinquished = self.tickets['relinquished']
         if len(relinquished):
             ticket = relinquished[-1]
             self._container_modify(ticket, 'relinquished', 'remove')
@@ -132,27 +137,26 @@ class Container(Unique, DiskBased):
 
     def checkout(self):
         ticket = Ticket(next(self.iter))
-        tickets = self.reader[self.hashID, 'tickets']
-        if not any([ticket in ts for tn, ts in sorted(tickets.items())]):
+        if not any([ticket in ts for tn, ts in sorted(self.tickets.items())]):
             self._container_modify(ticket, 'out', 'append')
             mpi.message("Checking out ticket:", ticket)
             return ticket
         else:
             raise TicketUnavailable
 
-    @disk.h5filewrap
     def _get_ticket(self):
-        import time
-        time.sleep(5)
-        try: return self.get_relinquished()
-        except NoCheckedBacks:
-            return self.checkout()
+        try: ticket = self.get_relinquished()
+        except NoCheckedBacks: ticket = self.checkout()
+        del self.tickets
+        return ticket
 
+    @disk.h5filewrap
     def __next__(self):
+        self.tickets = self.reader[self.hashID, 'tickets']
         self._check_initialised()
         while True:
             try: return self._get_ticket()
-            except TicketUnavailable: pass
+            except TicketUnavailable: disk.random_sleep(0.1, 5.)
             except StopIteration: self._container_iter_finalise()
 
     def __len__(self):

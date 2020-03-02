@@ -86,6 +86,7 @@ def release(filename, password = ''):
         pass
 
 LOCKCODE = tempname()
+H5FILES = dict()
 
 class H5Wrap:
     def __init__(self, arg):
@@ -95,27 +96,38 @@ class H5Wrap:
         self.lockcode = LOCKCODE
     @mpi.dowrap
     def _open_h5file(self):
+        global H5FILES
         if hasattr(self, 'h5file'):
-            return True
+            return False
+        elif self.filename in H5FILES:
+            self.arg.h5file = H5FILES[self.filename]
+            return False
         else:
             self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
+            H5FILES[self.filename] = self.arg.h5file
+            return True
     def __enter__(self):
         while True:
             try:
                 self.master = lock(self.filename, self.lockcode)
                 break
             except AccessForbidden:
-                pass
+                random_sleep(0.1, 5.)
         self.opener = self._open_h5file()
+        if self.master:
+            mpi.message("Logging in at", time.time())
         return None
     @mpi.dowrap
     def _close_h5file(self):
+        global H5FILES
         if self.opener:
             self.arg.h5file.close()
             del self.arg.h5file
+            del H5FILES[self.filename]
     def __exit__(self, *args):
         self._close_h5file()
         if self.master:
+            mpi.message("Logging out at", time.time())
             release(self.filename, self.lockcode)
 
 class SetMask:
