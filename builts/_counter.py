@@ -28,7 +28,6 @@ class Counter(Producer):
         else:
             self.counts.append(self.count())
             self.counts_stored.append(self.count())
-        self.stored.sort()
     def _counter_post_save_fn(self):
         if len(self.stored) == 0:
             self.counts_disk.extend(self.counts_stored)
