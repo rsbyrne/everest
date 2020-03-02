@@ -75,6 +75,7 @@ class Producer(Built):
     def clear(self):
         self.stored = []
 
+    @disk.h5filewrap
     def save(self):
         for fn in self._pre_save_fns: fn()
         self._check_anchored()

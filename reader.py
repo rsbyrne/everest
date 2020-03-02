@@ -78,7 +78,8 @@ class Reader:
     @disk.h5filewrap
     @mpi.dowrap
     def _seek(self, key):
-        return self._pre_seekresolve(self._recursive_seek(key))
+        sought = self._pre_seekresolve(self._recursive_seek(key))
+        return sought
 
     @staticmethod
     def _process_tag(inp, tag):
@@ -196,7 +197,8 @@ class Reader:
                 return outs
 
     def _getstr(self, key, hard = False, **kwargs):
-        resolved = self._seekresolve(self._seek(key), hard = hard)
+        sought = self._seek(key)
+        resolved = self._seekresolve(sought, hard = hard)
         if type(resolved) is dict:
             out = utilities.flatten(resolved, sep = '/')
         else:

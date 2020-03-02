@@ -48,7 +48,7 @@ GLOBALREADER, GLOBALWRITER = None, None
 NAME, PATH = None, None
 GLOBALANCHOR = False
 def purge_address(name, path):
-    fullPath = os.path.join(path, name + '.frm')
+    fullPath = os.path.join(os.path.abspath(path), name + '.frm')
     if mpi.rank == 0:
         if os.path.exists(fullPath):
             os.remove(fullPath)
@@ -84,16 +84,26 @@ def _load_namepath_process(name, path):
 
 def load(hashID, name = None, path = '.'):
     name, path = _load_namepath_process(name, path)
-    reader = Reader(name, path)
-    try: assert hashID == reader(hashID, 'hashID'), \
-        "Loaded hashID does not match derived hashID!"
-    except KeyError: raise NotInFrameError
-    except OSError: raise NotOnDiskError
-    cls = reader(hashID, 'class')
-    inputs = reader(hashID, 'inputs')
-    obj = cls(**inputs)
-    obj.anchor(name, path)
-    return obj
+    loader = Loader(name, path)
+    return loader.load(hashID)
+
+class Loader:
+    def __init__(self, name, path):
+        self.h5filename = os.path.join(os.path.abspath(path), name + '.frm')
+        self.name, self.path = name, path
+    @disk.h5filewrap
+    def load(self, hashID):
+        name, path = self.name, self.path
+        reader = Reader(name, path)
+        try: assert hashID == reader(hashID, 'hashID'), \
+            "Loaded hashID does not match derived hashID!"
+        except KeyError: raise NotInFrameError
+        except OSError: raise NotOnDiskError
+        cls = reader(hashID, 'class')
+        inputs = reader(hashID, 'inputs')
+        obj = cls(**inputs)
+        obj.anchor(name, path)
+        return obj
 
 def _get_inputs(cls, inputs = dict()):
     inputs = {**cls.defaultInps, **inputs}
@@ -311,6 +321,7 @@ class Built(metaclass = Meta):
         self.h5filename = disk.get_framePath(self.name, self.path)
         self._anchor()
 
+    @disk.h5filewrap
     def _anchor(self):
         name, path = self.name, self.path
         for fn in self._pre_anchor_fns: fn()

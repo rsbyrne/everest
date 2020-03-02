@@ -79,11 +79,11 @@ class Writer:
                     raise TypeError
                 return _BYTESTAG_ + str(out)
 
+    @disk.h5filewrap
     def add(self, item, name, *names):
         processed = self._process_inp(item)
         self._add_wrapped(processed, name, *names)
 
-    @disk.h5filewrap
     @mpi.dowrap
     def _add_wrapped(self, item, name, *names):
         self._add(item, name, *names)

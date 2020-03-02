@@ -12,6 +12,7 @@ from functools import wraps
 
 from .utilities import message
 from . import mpi
+from .exceptions import EverestException
 
 PYTEMP = '/home/jovyan'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
@@ -42,49 +43,80 @@ def tempname(length = 16, extension = None):
         name += '.' + extension
     return name
 
-H5FILES = dict()
-
 def h5filewrap(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        global H5FILES
-        if self.h5filename in H5FILES:
-            self.h5file = H5FILES[self.h5filename]
-            out = func(self, *args, **kwargs)
-        else:
-            with H5Wrap(self):
-                out = func(self, *args, **kwargs)
-        return out
+        with H5Wrap(self):
+            return func(self, *args, **kwargs)
     return wrapper
+
+class AccessForbidden(EverestException):
+    pass
+
+@mpi.dowrap
+def lock(filename, password = None):
+    lockfilename = filename + '.lock'
+    while True:
+        try:
+            with open(lockfilename, 'x') as f:
+                if not password is None:
+                    f.write(password)
+                return True
+        except FileExistsError:
+            if not password is None:
+                try:
+                    with open(lockfilename, 'r') as f:
+                        if f.read() == password:
+                            return False
+                        else:
+                            raise AccessForbidden
+                except FileNotFoundError:
+                    pass
+        random_sleep(0.1, 5.)
+@mpi.dowrap
+def release(filename, password = ''):
+    lockfilename = filename + '.lock'
+    try:
+        with open(lockfilename, 'r') as f:
+            if f.read() == password:
+                os.remove(lockfilename)
+            else:
+                raise AccessForbidden
+    except FileNotFoundError:
+        pass
+
+LOCKCODE = tempname()
 
 class H5Wrap:
     def __init__(self, arg):
-        self.lockfilename = arg.h5filename + '.lock'
         self.arg = arg
+        self.filename = self.arg.h5filename
+        global LOCKCODE
+        self.lockcode = LOCKCODE
     @mpi.dowrap
-    def _enter_wrap(self):
-        global H5FILES
+    def _open_h5file(self):
+        if hasattr(self, 'h5file'):
+            return True
+        else:
+            self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
+    def __enter__(self):
         while True:
             try:
-                self.lockfile = open(self.lockfilename, 'x')
+                self.master = lock(self.filename, self.lockcode)
                 break
-            except FileExistsError:
-                random_sleep(0.1, 5.)
-        self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
-        H5FILES[self.arg.h5filename] = self.arg.h5file
-    def __enter__(self):
-        self._enter_wrap()
+            except AccessForbidden:
+                pass
+        self.opener = self._open_h5file()
         return None
     @mpi.dowrap
-    def _exit_wrap(self):
-        global H5FILES
-        self.arg.h5file.close()
-        del self.arg.h5file
-        del H5FILES[self.arg.h5filename]
-        self.lockfile.close()
-        os.remove(self.lockfilename)
+    def _close_h5file(self):
+        if self.opener:
+            self.arg.h5file.close()
+            del self.arg.h5file
     def __exit__(self, *args):
-        self._exit_wrap()
+        self._close_h5file()
+        if self.master:
+            release(self.filename, self.lockcode)
 
 class SetMask:
     # expects @mpi.dowrap

@@ -98,18 +98,21 @@ class Container(Unique, DiskBased):
         elif op == 'remove': x.remove(ticket)
         self.writer.add(x, name, self.hashID, 'tickets')
 
+    @disk.h5filewrap
     def relinquish(self, ticket):
         self._check_initialised()
         self._container_modify(ticket, 'relinquished', 'append')
         self._container_modify(ticket, 'out', 'remove')
         mpi.message("Relinquished ticket:", ticket)
 
+    @disk.h5filewrap
     def fail(self, ticket, exception = None):
         self._check_initialised()
         self._container_modify(ticket, 'failed', 'append')
         self._container_modify(ticket, 'out', 'remove')
         mpi.message("Failed ticket:", ticket, exception)
 
+    @disk.h5filewrap
     def complete(self, ticket):
         self._check_initialised()
         self._container_modify(ticket, 'completed', 'append')
@@ -122,6 +125,7 @@ class Container(Unique, DiskBased):
             ticket = relinquished[-1]
             self._container_modify(ticket, 'relinquished', 'remove')
             self._container_modify(ticket, 'out', 'append')
+            mpi.message("Resuming ticket:", ticket)
             return ticket
         else:
             raise NoCheckedBacks
@@ -131,26 +135,25 @@ class Container(Unique, DiskBased):
         tickets = self.reader[self.hashID, 'tickets']
         if not any([ticket in ts for tn, ts in sorted(tickets.items())]):
             self._container_modify(ticket, 'out', 'append')
+            mpi.message("Checking out ticket:", ticket)
             return ticket
         else:
             raise TicketUnavailable
 
+    @disk.h5filewrap
+    def _get_ticket(self):
+        import time
+        time.sleep(5)
+        try: return self.get_relinquished()
+        except NoCheckedBacks:
+            return self.checkout()
+
     def __next__(self):
         self._check_initialised()
         while True:
-            try:
-                ticket = self.get_relinquished()
-                break
-            except NoCheckedBacks:
-                try:
-                    ticket = self.checkout()
-                    break
-                except TicketUnavailable:
-                    pass
-                except StopIteration:
-                    self._container_iter_finalise()
-        mpi.message("Checking out ticket:", ticket)
-        return ticket
+            try: return self._get_ticket()
+            except TicketUnavailable: pass
+            except StopIteration: self._container_iter_finalise()
 
     def __len__(self):
         try: return len(self.iter) + len(self.checkedBack)
