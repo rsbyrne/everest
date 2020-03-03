@@ -1,9 +1,20 @@
-from . import built
-Built = built.Built
+# #
+# class MyClass:
+#     def __init__(self):
+#         print('Hello world!')
 
-from . import value
-# from . import examples
-# from . import disk
-# from . import paths
-from . import window
-# from . import wordhash as _wordhash
+# foo
+# bar
+# baz
+# qux
+# quux
+# corge
+# grault
+# garply
+# waldo
+# fred
+# plugh
+# xyzzy
+# thud
+
+from .builts import set_global_anchor
