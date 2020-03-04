@@ -10,8 +10,8 @@ class Cycler(Callable):
         super().__init__(**kwargs)
         self._call_fns.append(self.cycle)
     def cycle(self):
-        message("Cycling...", self.__class__, self.hashID)
+        # message("Cycling...", self.__class__, self.hashID)
         for fn in self._pre_cycle_fns: fn()
         for fn in self._cycle_fns: fn()
         for fn in self._post_cycle_fns: fn()
-        message("Cycled", self.__class__, self.hashID)
+        # message("Cycled", self.__class__, self.hashID)

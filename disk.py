@@ -114,8 +114,8 @@ class H5Wrap:
             except AccessForbidden:
                 random_sleep(0.1, 5.)
         self.opener = self._open_h5file()
-        if self.master:
-            mpi.message("Logging in at", time.time())
+        # if self.master:
+        #     mpi.message("Logging in at", time.time())
         return None
     @mpi.dowrap
     def _close_h5file(self):
@@ -127,7 +127,7 @@ class H5Wrap:
     def __exit__(self, *args):
         self._close_h5file()
         if self.master:
-            mpi.message("Logging out at", time.time())
+            # mpi.message("Logging out at", time.time())
             release(self.filename, self.lockcode)
 
 class SetMask:
