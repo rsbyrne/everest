@@ -16,12 +16,15 @@ from .globevars import \
 class ExtendableDataset:
     def __init__(self, arg):
         self.arg = arg
+        self.data = arg
 class FixedDataset:
     def __init__(self, arg):
         self.arg = arg
+        self.data = arg
 class LinkTo:
     def __init__(self, arg):
         self.arg = arg
+        self.data = arg
 
 WRITERTYPES = set([ExtendableDataset, FixedDataset, LinkTo])
 
