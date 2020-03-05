@@ -27,7 +27,9 @@ class Producer(Built):
             **kwargs
             ):
 
+        self._pre_out_fns = WeakList()
         self._outFns = WeakList()
+        self._post_out_fns = WeakList()
         self._pre_store_fns = WeakList()
         self._post_store_fns = WeakList()
         self._pre_save_fns = WeakList()
@@ -53,9 +55,11 @@ class Producer(Built):
         return dict(zip(self.outkeys, processed))
 
     def out(self):
+        for fn in self._pre_out_fns: fn()
         outs = tuple([item for fn in self._outFns for item in fn()])
         assert len(outs) == len(self.outkeys), \
             "Outkeys do not match outputs!"
+        for fn in self._post_out_fns: fn()
         return outs
 
     def store(self):
