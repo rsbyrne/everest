@@ -99,7 +99,7 @@ class Loader:
             "Loaded hashID does not match derived hashID!"
         except KeyError: raise NotInFrameError
         except OSError: raise NotOnDiskError
-        cls = reader(hashID, 'class')
+        cls = reader('_globals_', 'classes', reader[hashID, 'typeHash'])
         inputs = reader(hashID, 'inputs')
         obj = cls(**inputs)
         obj.anchor(name, path)
@@ -138,7 +138,7 @@ def make_hash(obj):
         strObj = str(obj)
         hexID = hashlib.md5(strObj.encode()).hexdigest()
         hashVal = int(hexID, 16)
-    return hashVal
+    return str(hashVal)
 
 _PREBUILTS = dict()
 def _get_prebuilt(hashID):
@@ -271,10 +271,12 @@ class Built(metaclass = Meta):
             'instanceHash': obj.instanceHash,
             'hashID': obj.hashID,
             'inputs': obj.inputs,
-            'class': cls
+            # 'class': cls
             }
 
-        obj.globalObjects = {}
+        obj.globalObjects = {
+            'classes': {obj.typeHash: cls}
+            }
 
         obj.name, obj.path = name, path
         global GLOBALANCHOR
