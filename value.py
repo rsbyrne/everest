@@ -24,7 +24,7 @@ class Value:
             dict.__setattr__(self, item, value)
 
     def evaluate(self):
-        return np.array([[self.value]])
+        return np.array(self.value)
     def __array__(self):
         return np.array(self.value)
     def __call__(self):
