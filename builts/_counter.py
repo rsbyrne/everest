@@ -3,10 +3,12 @@ import numpy as np
 from ._producer import Producer
 from ._producer import AbortStore
 from ..value import Value
+from ..weaklist import WeakList
 
 class Counter(Producer):
 
     def __init__(self, **kwargs):
+        self._count_update_fns = WeakList()
         self.count = Value(0)
         self.counts = []
         self.counts_stored = []
@@ -22,10 +24,15 @@ class Counter(Producer):
         # Built attributes:
         self._post_anchor_fns.append(self._update_counts)
 
+    def _count_update_fn(self):
+        for fn in self._count_update_fns: fn()
+
     def countoutFn(self):
+        self._count_update_fn()
         yield np.array(self.count(), dtype = np.int32)
 
     def _counter_pre_store_fn(self):
+        self._count_update_fn()
         if self.count() in self.counts: raise AbortStore
 
     def _counter_post_store_fn(self):
