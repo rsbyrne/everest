@@ -154,7 +154,7 @@ def _get_prebuilt(hashID):
         del _PREBUILTS[hashID]
         raise NoPreBuiltError
 
-BUFFERSIZE = 2 ** 30
+BUFFERSIZE = 5 * 2 ** 30 # i.e. 5 GiB
 def buffersize_exceeded():
     nbytes = 0
     for builtID, builtRef in sorted(_PREBUILTS.items()):
