@@ -87,22 +87,36 @@ class Iterator(Counter, Cycler, Stampable, Unique):
             if type(arg) is int: self._load_count(arg, **kwargs)
             elif isinstance(arg, State): self._load_state(arg, **kwargs)
             else: raise TypeError
-        except (LoadDiskFail, LoadStoredFail, LoadStampFail):
+        except (LoadDiskFail, LoadStampFail, LoadStoredFail, LoadFail):
             raise LoadFail
 
-    def _load_state(self, state, earliest = True):
+    def _load_state(self, state, earliest = True, _updated = False):
         if earliest: stamps = self.stamps[::-1]
         else: stamps = self.stamps
-        try: count = dict(stamps)[state.hashID]
-        except KeyError: raise LoadStampFail
-        self._load_count(count)
+        try:
+            count = dict(stamps)[state.hashID]
+            self._load_count(count)
+        except KeyError:
+            if _updated:
+                raise LoadStampFail
+            elif self.anchored:
+                self._stampable_update()
+                self._load_state(state, earliest = earliest, _updated = True)
+            else:
+                raise LoadStampFail
 
-    def _load_count(self, count, **kwargs):
+    def _load_count(self, count, _updated = False):
         if not self.count() == count:
-            if not count in self.counts: raise LoadDiskFail
-            loadDict = self._load_dataDict(count)
-            self._load(loadDict)
-            self.count.value = count
+            if not count in self.counts:
+                if _updated:
+                    raise LoadFail
+                else:
+                    self._update_counts()
+                    self._load_count(count, _updated = True)
+            else:
+                loadDict = self._load_dataDict(count)
+                self._load(loadDict)
+                self.count.value = count
 
     def _load(self, loadDict):
         # expects to be overridden:
@@ -110,7 +124,11 @@ class Iterator(Counter, Cycler, Stampable, Unique):
 
     def _load_dataDict(self, count):
         try: return self._load_dataDict_stored(count)
-        except LoadStoredFail: return self._load_dataDict_saved(count)
+        except LoadStoredFail:
+            if self.anchored:
+                return self._load_dataDict_saved(count)
+            else:
+                raise LoadStoredFail
 
     def _load_dataDict_stored(self, count):
         if not count in self.counts_stored: raise LoadStoredFail
@@ -121,7 +139,6 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
     def _load_dataDict_saved(self, count):
-        if not self.anchored: raise LoadDiskFail
         counts = self.reader(self.hashID, 'outputs', self.indexKey)
         matches = np.where(counts == count)[0]
         assert len(matches) <= 1, "Duplicates found in loaded counts!"
