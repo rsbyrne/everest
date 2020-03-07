@@ -99,7 +99,6 @@ class Iterator(Counter, Cycler, Stampable, Unique):
 
     def _load_count(self, count, **kwargs):
         if not self.count() == count:
-
             if not count in self.counts: raise LoadDiskFail
             loadDict = self._load_dataDict(count)
             self._load(loadDict)
