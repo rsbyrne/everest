@@ -19,6 +19,7 @@ from .. import wordhash
 from ..writer import Writer
 from ..reader import Reader
 from ..weaklist import WeakList
+from .. import globevars
 
 from ..exceptions import EverestException
 class NoPreBuiltError(EverestException):
@@ -105,11 +106,23 @@ class Loader:
         obj.anchor(name, path)
         return obj
 
+def _get_ghostInps(inputs):
+    ghostInps = dict()
+    ordinaryInps = dict()
+    tag = globevars._GHOSTTAG_
+    for key, val in sorted(inputs.items()):
+        if key.startswith(tag):
+            ghostInps[key[len(tag):]] = val
+        else:
+            ordinaryInps[key] = val
+    return ordinaryInps, ghostInps
+
 def _get_inputs(cls, inputs = dict()):
     inputs = {**cls.defaultInps, **inputs}
     cls._deep_process_inputs(inputs)
     cls._process_inputs(inputs)
-    return inputs
+    inputs, ghosts = _get_ghostInps(inputs)
+    return inputs, ghosts
 
 def _get_hashes(cls, inputs):
     inputsHash = make_hash(inputs)
@@ -118,9 +131,9 @@ def _get_hashes(cls, inputs):
     return inputsHash, instanceHash, hashID
 
 def _get_info(cls, inputs = dict()):
-    inputs = _get_inputs(cls, inputs)
+    inputs, ghosts = _get_inputs(cls, inputs)
     inputsHash, instanceHash, hashID = _get_hashes(cls, inputs)
-    return inputs, inputsHash, instanceHash, hashID
+    return inputs, ghosts, inputsHash, instanceHash, hashID
 
 def make_hash(obj):
     if hasattr(obj, 'instanceHash'):
@@ -256,10 +269,11 @@ class Built(metaclass = Meta):
 
     def __new__(cls, name = None, path = None, **inputs):
 
-        inputs, inputsHash, instanceHash, hashID = \
+        inputs, ghosts, inputsHash, instanceHash, hashID = \
             _get_info(cls, inputs)
         obj = super().__new__(cls)
         obj.inputs = inputs
+        obj.ghosts = ghosts
         obj.inputsHash = inputsHash
         obj.instanceHash = instanceHash
         obj.hashID = hashID
