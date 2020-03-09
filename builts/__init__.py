@@ -84,7 +84,8 @@ def _load_namepath_process(name, path):
     return name, path
 
 def load(hashID, name = None, path = '.'):
-    name, path = _load_namepath_process(name, path)
+    try: name, path = _load_namepath_process(name, path)
+    except TypeError: raise NotOnDiskError
     loader = Loader(name, path)
     return loader.load(hashID)
 

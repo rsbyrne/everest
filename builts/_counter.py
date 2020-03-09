@@ -62,5 +62,6 @@ class Counter(Producer):
         except KeyError: return []
 
     def _update_counts(self):
-        self.counts.extend(self._get_disk_counts())
+        if self.anchored:
+            self.counts.extend(self._get_disk_counts())
         self.counts = sorted(set(self.counts))

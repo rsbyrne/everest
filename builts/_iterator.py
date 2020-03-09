@@ -110,9 +110,11 @@ class Iterator(Counter, Cycler, Stampable, Unique):
             if not count in self.counts:
                 if _updated:
                     raise LoadFail
-                else:
+                elif self.anchored:
                     self._update_counts()
                     self._load_count(count, _updated = True)
+                else:
+                    raise LoadFail
             else:
                 loadDict = self._load_dataDict(count)
                 self._load(loadDict)
