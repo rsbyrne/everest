@@ -10,6 +10,7 @@ from collections import OrderedDict
 
 from . import disk
 from . import mpi
+from .pyklet import Pyklet
 from .globevars import \
     _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
 
