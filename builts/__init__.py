@@ -141,6 +141,8 @@ def make_hash(obj):
         hashVal = obj.instanceHash
     elif hasattr(obj, 'typeHash'):
         hashVal = obj.typeHash
+    elif hasattr(obj, '_hashObjects'):
+        hashVal = make_hash(obj._hashObjects)
     elif type(obj) is dict:
         hashVal = make_hash(sorted(obj.items()))
     elif type(obj) is list or type(obj) is tuple:

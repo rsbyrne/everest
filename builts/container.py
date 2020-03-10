@@ -10,8 +10,9 @@ from ._diskbased import DiskBased
 from ..exceptions import EverestException
 from .. import mpi
 from .. import disk
+from ..pyklet import Pyklet
 
-class Ticket:
+class Ticket(Pyklet):
     def __init__(self, obj, spice = 0, timestamp = None):
         from . import Built
         if timestamp is None:
@@ -28,6 +29,7 @@ class Ticket:
         self.hashID = hashID
         self.number = hashVal
         self.timestamp = timestamp
+        super().__init__(hashID, spice)
     def __repr__(self):
         return '<' + self.hashID + ';' + str(self.timestamp) + '>'
     def __reduce__(self):
