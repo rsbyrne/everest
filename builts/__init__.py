@@ -219,7 +219,7 @@ class Builder(Pyklet):
         super().__init__(cls, **inputs)
         self.cls, self.inputs = cls, inputs
     def __call__(self, *args, **kwargs):
-        newInputs = type(self.cls)._align_inputs(*args, **kwargs)
+        newInputs = type(self.cls)._align_inputs(self.cls, *args, **kwargs)
         allInputs = {**self.inputs, **newInputs}
         return self.cls(**allInputs)
 
