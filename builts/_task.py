@@ -61,8 +61,7 @@ class Task(Boolean, Cycler):
     def prompt_promptees(self):
         for hashID, ref in sorted(self.promptees.items()):
             promptee = ref()
-            try: promptee()
-            except: pass
+            promptee()
 
     @mpi.dowrap
     def subrun(self, cores = 1):
