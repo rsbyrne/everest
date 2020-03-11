@@ -355,12 +355,15 @@ class Built(metaclass = Meta):
         if not self.anchored: raise NotYetAnchoredError
 
     def anchor(self, name = None, path = None, purge = False):
-        if not name is None: self.name = name
-        if not path is None: self.path = os.path.abspath(path)
-        global purge_address
-        if purge: purge_address(name, path)
-        self.h5filename = disk.get_framePath(self.name, self.path)
-        self._anchor()
+        if self.anchored and (self.name, self.path) == (name, path):
+            pass
+        else:
+            if not name is None: self.name = name
+            if not path is None: self.path = os.path.abspath(path)
+            global purge_address
+            if purge: purge_address(name, path)
+            self.h5filename = disk.get_framePath(self.name, self.path)
+            self._anchor()
 
     @disk.h5filewrap
     def _anchor(self):
