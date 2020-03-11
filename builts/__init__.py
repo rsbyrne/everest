@@ -213,15 +213,26 @@ def _get_default_inputs(func):
 #     finally:
 #         raise NoPreClassError
 
-class Builder(Pyklet):
-    def __init__(self, cls, *args, **kwargs):
-        inputs = type(cls)._align_inputs(cls, *args, **kwargs)
-        super().__init__(cls, **inputs)
-        self.cls, self.inputs = cls, inputs
-    def __call__(self, *args, **kwargs):
-        newInputs = type(self.cls)._align_inputs(self.cls, *args, **kwargs)
-        allInputs = {**self.inputs, **newInputs}
-        return self.cls(**allInputs)
+# class Builder(Pyklet):
+#     def __init__(self, cls, **inputs):
+#         inputs, ghosts, inputsHash, instanceHash, hashID = \
+#             _get_info(cls, inputs)
+#         inputs = type(cls)._align_inputs(cls, *args, **kwargs)
+#         super().__init__(cls, **inputs)
+#         self.cls, self.inputs = cls, inputs
+#         self.
+#     def __call__(self, *args, **kwargs):
+#         newInputs = type(self.cls)._align_inputs(self.cls, *args, **kwargs)
+#         allInputs = {**self.inputs, **newInputs}
+#         return self.cls(**allInputs)
+
+class Builder:
+    def __init__(self, cls, **inputs):
+        ignoreme, ignoreme, inputsHash, instanceHash, hashID = \
+            _get_info(cls, inputs)
+        self.cls, self.inputs, self.hashID = cls, inputs, hashID
+    def __call__(self):
+        return self.cls(**self.inputs)
 
 class Meta(type):
     def __new__(cls, name, bases, dic):
@@ -324,8 +335,6 @@ class Built(metaclass = Meta):
         self.anchored = False
         self._pre_anchor_fns = WeakList()
         self._post_anchor_fns = WeakList()
-
-        self.Builder = Builder(self.__class__, **self.inputs)
 
         super().__init__()
 

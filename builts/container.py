@@ -14,21 +14,27 @@ from ..pyklet import Pyklet
 
 class Ticket(Pyklet):
     def __init__(self, obj, spice = 0, timestamp = None):
-        from . import Built
+        from . import Builder
         if timestamp is None:
             timestamp = mpi.share(time.time())
-        if isinstance(obj, Built): hashID = obj.hashID
-        elif type(obj) is str: hashID = obj
-        else: raise TypeError
-        if spice is None: spice = timestamp
+        if isinstance(obj, Builder):
+            hashID = obj.hashID
+            getBuilt = obj
+        elif type(obj) is str:
+            hashID = obj
+            getBuilt = lambda: load(hashID)
+        else:
+            raise TypeError
+        if spice is None:
+            spice = timestamp
         hashInp = hashID + str(spice)
         hexID = hashlib.md5(hashInp.encode()).hexdigest()
-        hashVal = int(hexID, 16)
         self.spice = spice
         self.obj = obj
         self.hashID = hashID
-        self.number = hashVal
+        self.number = int(hexID, 16)
         self.timestamp = timestamp
+        self.getBuilt = getBuilt
         super().__init__(hashID, spice, timestamp)
     def __repr__(self):
         return '<' + self.hashID + ';' + str(self.timestamp) + '>'
@@ -41,12 +47,7 @@ class Ticket(Pyklet):
         if not isinstance(arg, Ticket): raise TypeError
         return self.timestamp < arg.timestamp
     def __call__(self):
-        if type(self.obj) is str:
-            obj = load(self.obj)
-        else:
-            obj = self.obj
-            self.obj = obj.hashID
-        return obj
+        return self.getBuilt()
 
 class ContainerError(EverestException):
     pass
