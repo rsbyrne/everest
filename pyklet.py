@@ -9,7 +9,6 @@ class Pyklet:
         self._pickleClass = pickle.dumps(self.__class__)
         self._args, self._kwargs = args, kwargs
     def __reduce__(self):
-        print("Reducing")
         return (self._unpickle, (self._args, self._kwargs))
     @classmethod
     def _unpickle(cls, args, kwargs):

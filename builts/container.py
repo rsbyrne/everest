@@ -29,14 +29,9 @@ class Ticket(Pyklet):
         self.hashID = hashID
         self.number = hashVal
         self.timestamp = timestamp
-        super().__init__(hashID, spice)
+        super().__init__(hashID, spice, timestamp)
     def __repr__(self):
         return '<' + self.hashID + ';' + str(self.timestamp) + '>'
-    def __reduce__(self):
-        return (
-            self.__class__,
-            (self.hashID, self.spice, self.timestamp)
-            )
     def __hash__(self):
         return self.number
     def __eq__(self, arg):
