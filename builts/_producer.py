@@ -7,6 +7,7 @@ from .. import disk
 
 from . import buffersize_exceeded
 from . import Built
+from . import anchorwrap
 from ..weaklist import WeakList
 from ..writer import ExtendableDataset
 from ..exceptions import EverestException
@@ -18,9 +19,6 @@ def make_dataDict(outkeys, stored):
     return dict(zip(outkeys, list(map(list, zip(*stored)))))
 
 class Producer(Built):
-
-    autosave = True
-    saveinterval = 3600. # seconds
 
     def __init__(
             self,
@@ -40,6 +38,9 @@ class Producer(Built):
         super().__init__(**kwargs)
 
         self._post_anchor_fns.append(self.save)
+
+        self.set_autosave(True)
+        self.set_saveinterval(3600.)
 
     def set_autosave(self, val: bool):
         self.autosave = val
@@ -81,10 +82,10 @@ class Producer(Built):
     def clear(self):
         self.stored = []
 
+    @anchorwrap
     @disk.h5filewrap
     def save(self):
         for fn in self._pre_save_fns: fn()
-        self._check_anchored()
         self._save()
         self.clear()
         self.lastsaved = time.time()
@@ -97,17 +98,10 @@ class Producer(Built):
             }
         self.writer.add(wrappedDict, 'outputs', self.hashID)
 
+    @anchorwrap
     def _autosave(self):
         if buffersize_exceeded():
-            if self.anchored:
-                self.save()
-            else:
-                raise Exception(
-                    "Buffersize has been exceeded, \n\
-                    but no save destination has been provided \n\
-                    to dump the data."
-                    )
+            self.save()
         elif hasattr(self, 'lastsaved'):
             if time.time() - self.lastsaved > self.saveinterval:
-                self._check_anchored()
                 self.save()

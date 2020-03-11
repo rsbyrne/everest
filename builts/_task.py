@@ -4,6 +4,7 @@ import os
 import warnings
 import atexit
 
+from . import anchorwrap
 from ._cycler import Cycler
 from ._boolean import Boolean
 from ..weaklist import WeakList
@@ -63,10 +64,9 @@ class Task(Boolean, Cycler):
             promptee = ref()
             promptee()
 
+    @anchorwrap
     @mpi.dowrap
     def subrun(self, cores = 1):
-
-        self._check_anchored()
 
         script = '' \
             + '''import sys \n''' \

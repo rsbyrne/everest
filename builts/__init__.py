@@ -234,6 +234,15 @@ class Builder:
     def __call__(self):
         return self.cls(**self.inputs)
 
+def anchorwrap(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self.anchored:
+            return func(self, *args, **kwargs)
+        else:
+            raise NotYetAnchoredError
+    return wrapper
+
 class Meta(type):
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
@@ -350,9 +359,6 @@ class Built(metaclass = Meta):
         if not isinstance(arg, Built):
             raise TypeError
         return self.hashID < arg.hashID
-
-    def _check_anchored(self):
-        if not self.anchored: raise NotYetAnchoredError
 
     def anchor(self, name = None, path = None, purge = False):
         if self.anchored and (self.name, self.path) == (name, path):
