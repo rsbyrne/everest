@@ -39,6 +39,8 @@ class Producer(Built):
 
         super().__init__(**kwargs)
 
+        self._post_anchor_fns.append(self.save)
+
     def set_autosave(self, val: bool):
         self.autosave = val
     def set_saveinterval(self, val: float):

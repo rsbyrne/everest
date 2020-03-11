@@ -361,8 +361,8 @@ class Built(metaclass = Meta):
         self.writer.add(self.localObjects, self.hashID)
         self.writer.add(self.globalObjects, '_globals_')
         self.reader = Reader(self.name, self.path)
-        for fn in self._post_anchor_fns: fn()
         self.anchored = True
+        for fn in self._post_anchor_fns: fn()
 
     def _coanchored(self, coBuilt):
         if hasattr(self, 'h5filename') and hasattr(coBuilt, 'h5filename'):
