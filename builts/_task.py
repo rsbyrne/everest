@@ -47,7 +47,9 @@ class Task(Boolean, Cycler):
         while not self:
             for fn in self._task_cycler_fns: fn()
             self.prompt_promptees()
-        for fn in self._task_finalise_fns: fn()
+        outs = []
+        for fn in self._task_finalise_fns: outs.append(fn())
+        return self._flatten_products(outs)
 
     def _task_boolFn(self):
         return self._task_stop_metaFn([fn() for fn in self._task_stop_fns])

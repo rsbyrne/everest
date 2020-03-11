@@ -12,6 +12,8 @@ class Cycler(Callable):
     def cycle(self):
         # message("Cycling...", self.__class__, self.hashID)
         for fn in self._pre_cycle_fns: fn()
-        for fn in self._cycle_fns: fn()
+        outs = []
+        for fn in self._cycle_fns: outs.append(fn())
         for fn in self._post_cycle_fns: fn()
+        return self._flatten_products(outs)
         # message("Cycled", self.__class__, self.hashID)
