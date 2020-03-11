@@ -9,8 +9,5 @@ for i in $(seq 1 $N)
 do
   OUTFILE=$LOGSDIR"/"$BASENAME"_"$i".out"
   ERRORFILE=$LOGSDIR"/"$BASENAME"_"$i".error"
-  # touch $OUTFILE
-  # touch $ERRORFILE
   $INTERPRETER -u $SCRIPT 1> $OUTFILE 2> $ERRORFILE &
-  sleep 1
 done
