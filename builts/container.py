@@ -11,6 +11,7 @@ from ..exceptions import EverestException
 from .. import mpi
 from .. import disk
 from ..pyklet import Pyklet
+from . import anchorwrap
 
 class Ticket(Pyklet):
     def __init__(self, obj, spice = 0, timestamp = None):
@@ -148,13 +149,14 @@ class Container(Unique, DiskBased):
         del self.tickets
         return ticket
 
+    @anchorwrap
     @disk.h5filewrap
     def __next__(self):
-        self.tickets = self.reader[self.hashID, 'tickets']
         self._check_initialised()
+        self.tickets = self.reader[self.hashID, 'tickets']
         while True:
             try: return self._get_ticket()
-            except TicketUnavailable: disk.random_sleep(0.1, 5.)
+            except TicketUnavailable: pass
             except StopIteration: self._container_iter_finalise()
 
     def __len__(self):
