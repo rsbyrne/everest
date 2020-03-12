@@ -44,12 +44,14 @@ class Task(Boolean, Cycler):
         self._bool_fns.append(self._task_boolFn)
 
     def _task_cycleFn(self):
+        mpi.message('>')
         for fn in self._task_initialise_fns: fn()
         while not self:
             for fn in self._task_cycler_fns: fn()
             self.prompt_promptees()
         outs = []
         for fn in self._task_finalise_fns: outs.append(fn())
+        mpi.message('..')
         return self._flatten_products(outs)
 
     def _task_boolFn(self):

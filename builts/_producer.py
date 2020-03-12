@@ -11,6 +11,7 @@ from . import anchorwrap
 from ..weaklist import WeakList
 from ..writer import ExtendableDataset
 from ..exceptions import EverestException
+from .. import mpi
 
 class AbortStore(EverestException):
     pass
@@ -75,8 +76,9 @@ class Producer(Built):
         for fn in self._pre_store_fns: fn()
         self.stored.append(self.out())
         for fn in self._post_store_fns: fn()
+        mpi.message(';')
         self.nbytes = self.get_stored_nbytes()
-        if self.autosave:
+        if self.anchored and self.autosave:
             self._autosave()
 
     def clear(self):
@@ -90,6 +92,7 @@ class Producer(Built):
         self.clear()
         self.lastsaved = time.time()
         for fn in self._post_save_fns: fn()
+        mpi.message(':')
 
     def _save(self):
         wrappedDict = {

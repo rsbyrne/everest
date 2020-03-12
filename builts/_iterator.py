@@ -10,6 +10,7 @@ from ._stampable import Stampable
 from .states import State
 from ._unique import Unique
 from ..exceptions import EverestException
+from .. import mpi
 
 class LoadFail(EverestException):
     pass
@@ -81,6 +82,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         for i in range(n):
             self.count += 1
             self._iterate()
+            mpi.message('.')
 
     def load(self, arg, **kwargs):
         try:
