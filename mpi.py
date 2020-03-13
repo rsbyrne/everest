@@ -1,4 +1,6 @@
 import sys
+import time
+import pickle
 from functools import wraps
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -23,17 +25,31 @@ def message(*args, **kwargs):
     comm.barrier()
 
 def share(obj):
-    comm.barrier()
-    shareObj = comm.bcast(obj, root = 0)
-    allTypes = comm.allgather(type(shareObj))
-    if not len(set(allTypes)) == 1:
-        raise MPIError
-    comm.barrier()
-    return shareObj
+    try:
+        shareObj = comm.bcast(obj, root = 0)
+        allTypes = comm.allgather(type(shareObj))
+        if not len(set(allTypes)) == 1:
+            raise MPIError
+        return shareObj
+    except OverflowError:
+        from disk import tempname
+        tempfilename = tempname(16, '.pkl')
+        if rank == 0:
+            with open(tempfilename, 'w') as file:
+                pickle.dump(obj, file)
+            shareObj = obj
+        if not rank == 0:
+            with open(tempfilename, 'r') as file:
+                shareObj = pickle.load(file)
+        if rank == 0:
+            os.remove(tempfilename)
+        return shareObj
 
 def dowrap(func):
     @wraps(func)
     def wrapper(*args, _mpiignore_ = False, **kwargs):
+        if size == 1:
+            _mpiignore_ = True
         if _mpiignore_:
             return func(*args, **kwargs)
         else:
