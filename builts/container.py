@@ -77,7 +77,7 @@ class Container(Unique, DiskBased):
     def initialise(self):
         self.iter = iter(self.iterable)
         try:
-            tickets = self.reader[self.hashID, 'tickets']
+            tickets = self.reader(self.hashID, 'tickets')
         except KeyError:
             initDict = {
                 'out': [],
@@ -97,7 +97,7 @@ class Container(Unique, DiskBased):
         if not self.initialised: raise ContainerNotInitialisedError
 
     def _container_modify(self, ticket, name, op):
-        x = self.reader[self.hashID, 'tickets', name]
+        x = self.reader(self.hashID, 'tickets', name)
         if op == 'append': x.append(ticket)
         elif op == 'remove': x.remove(ticket)
         self.writer.add(x, name, self.hashID, 'tickets')
@@ -153,7 +153,7 @@ class Container(Unique, DiskBased):
     @disk.h5filewrap
     def __next__(self):
         self._check_initialised()
-        self.tickets = self.reader[self.hashID, 'tickets']
+        self.tickets = self.reader(self.hashID, 'tickets')
         while True:
             try: return self._get_ticket()
             except TicketUnavailable: pass
