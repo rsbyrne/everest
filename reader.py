@@ -50,12 +50,12 @@ class Reader:
                 try:
                     found[searchkey.split('/')[0]] = \
                         self._recursive_seek(searchkey, searchArea)
-                except:
+                except KeyError:
                     pass
         else:
             try:
                 found = searchArea[primekey]
-            except:
+            except KeyError:
                 found = searchArea.attrs[primekey]
             if not remkey == '':
                 found = self._recursive_seek(remkey, found)

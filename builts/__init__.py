@@ -104,7 +104,7 @@ class Loader:
         cls = reader('_globals_', 'classes', reader[hashID, 'typeHash'])
         inputs = reader(hashID, 'inputs')
         obj = cls(**inputs)
-        # assert obj.hashID == hashID
+        assert obj.hashID == hashID
         obj.anchor(name, path)
         return obj
 
@@ -121,8 +121,8 @@ def _get_ghostInps(inputs):
 
 def _get_inputs(cls, inputs = dict()):
     inputs = {**cls.defaultInps, **inputs}
-    cls._deep_process_inputs(inputs)
-    cls._process_inputs(inputs)
+    inputs = cls._deep_process_inputs(inputs)
+    inputs = cls._process_inputs(inputs)
     inputs, ghosts = _get_ghostInps(inputs)
     return inputs, ghosts
 
@@ -278,12 +278,24 @@ class Built(metaclass = Meta):
 
     @staticmethod
     def _deep_process_inputs(inputs):
-        pass
+        def process_dict(host, key, val):
+            splitkey = key.split('/')
+            if len(splitkey) == 1:
+                host[key] = val
+            else:
+                primekey, remkey = splitkey[0], '/'.join(splitkey[1:])
+                if not primekey in host:
+                    host[primekey] = dict()
+                process_dict(host[primekey], remkey, val)
+        processed = dict()
+        for key, val in sorted(inputs.items()):
+            process_dict(processed, key, val)
+        return processed
 
     @staticmethod
     def _process_inputs(inputs):
         # designed to be overridden
-        pass
+        return inputs
 
     @classmethod
     def build(cls, **inputs):
