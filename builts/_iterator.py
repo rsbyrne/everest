@@ -1,5 +1,6 @@
 import numpy as np
 from types import FunctionType
+from functools import wraps
 
 from .. import disk
 from ._counter import Counter
@@ -32,6 +33,14 @@ class Bounce:
     def __exit__(self, *args):
         self.iterator.load(self.returnStep)
 
+def _initialised(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if not self.initialised:
+            self.initialise()
+        return func(self, *args, **kwargs)
+    return wrapper
+
 class Iterator(Counter, Cycler, Stampable, Unique):
 
     def __init__(
@@ -47,11 +56,14 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         # self._outkeys
         # self._load
 
+        self.initialised = False
+
         super().__init__(**kwargs)
 
         # Producer attributes:
-        if hasattr(self, '_out'): self._outFns.append(self._out)
-        if hasattr(self, '_outkeys'): self.outkeys.extend(self._outkeys)
+        self._outFns.insert(0, self._iterator_out_fn)
+        if hasattr(self, '_outkeys'):
+            self.outkeys[:] = [*self._outkeys, *self.outkeys]
 
         # Cycler attributes:
         self._cycle_fns.append(self.iterate)
@@ -67,16 +79,25 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         if _iterator_initialise:
             self.initialise()
 
+    @_initialised
+    def _iterator_out_fn(self):
+        if hasattr(self, '_out'):
+            return self._out()
+        else:
+            pass
+
     def _iterator_post_anchor(self):
         self.h5filename = self.writer.h5filename
 
     def initialise(self):
         self.count.value = 0
         self._initialise()
+        self.initialised = True
 
     def reset(self):
         self.initialise()
 
+    @_initialised
     def iterate(self, n = 1):
         for i in range(n):
             self.count += 1

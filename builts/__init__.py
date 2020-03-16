@@ -98,13 +98,13 @@ class Loader:
     def load(self, hashID):
         name, path = self.name, self.path
         reader = Reader(name, path)
-        try: assert hashID == reader(hashID, 'hashID'), \
-            "Loaded hashID does not match derived hashID!"
+        try: assert hashID == reader(hashID, 'hashID')
         except KeyError: raise NotInFrameError
         except OSError: raise NotOnDiskError
         cls = reader('_globals_', 'classes', reader[hashID, 'typeHash'])
         inputs = reader(hashID, 'inputs')
         obj = cls(**inputs)
+        # assert obj.hashID == hashID
         obj.anchor(name, path)
         return obj
 

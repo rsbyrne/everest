@@ -9,7 +9,7 @@ class Counter(Producer):
 
     def __init__(self, **kwargs):
         self._count_update_fns = WeakList()
-        self.count = Value(0)
+        self.count = Value(-1)
         self.counts = []
         self.counts_stored = []
         self.indexKey = 'count'
