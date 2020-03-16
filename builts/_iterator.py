@@ -5,7 +5,6 @@ from .. import disk
 from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import Producer
-from ._producer import make_dataDict
 from ._stampable import Stampable
 from .states import State
 from ._unique import Unique
@@ -136,10 +135,9 @@ class Iterator(Counter, Cycler, Stampable, Unique):
 
     def _load_dataDict_stored(self, count):
         if not count in self.counts_stored: raise LoadStoredFail
-        dataDict = self.make_dataDict()
-        counts = dataDict[self.indexKey]
+        counts = self.dataDict[self.indexKey]
         index = np.where(counts == count)[0][0]
-        datas = [dataDict[key] for key in self.dataKeys]
+        datas = [self.dataDict[key] for key in self.dataKeys]
         return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
     def _load_dataDict_saved(self, count):

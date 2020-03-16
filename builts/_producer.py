@@ -16,9 +16,6 @@ from .. import mpi
 class AbortStore(EverestException):
     pass
 
-def make_dataDict(outkeys, stored):
-    return dict(zip(outkeys, list(map(list, zip(*stored)))))
-
 class Producer(Built):
 
     def __init__(
@@ -54,7 +51,8 @@ class Producer(Built):
                 nbytes += np.array(data).nbytes
         return nbytes
 
-    def make_dataDict(self):
+    @property
+    def dataDict(self):
         processed = list(map(np.stack, (list(map(list, zip(*self.stored))))))
         return dict(zip(self.outkeys, processed))
 
@@ -97,7 +95,7 @@ class Producer(Built):
     def _save(self):
         wrappedDict = {
             key: ExtendableDataset(val) \
-                for key, val in self.make_dataDict().items()
+                for key, val in self.dataDict.items()
             }
         self.writer.add(wrappedDict, 'outputs', self.hashID)
 
