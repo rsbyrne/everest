@@ -38,11 +38,11 @@ class Producer(Built):
         self._post_anchor_fns.append(self.save)
 
         self.set_autosave(True)
-        self.set_saveinterval(3600.)
+        self.set_save_interval(3600.)
 
     def set_autosave(self, val: bool):
         self.autosave = val
-    def set_saveinterval(self, val: float):
+    def set_save_interval(self, val: float):
         self.saveinterval = val
     def get_stored_nbytes(self):
         nbytes = 0
