@@ -26,7 +26,7 @@ class Bounce:
         self.iterator = iterator
         self.arg = arg
     def __enter__(self):
-        self.returnStep = self.iterator.count()
+        self.returnStep = self.iterator.count.value
         self.iterator.store()
         if self.arg == 0: self.iterator.reset()
         else: self.iterator.load(self.arg)
@@ -128,7 +128,11 @@ class Iterator(Counter, Cycler, Stampable, Unique):
                 raise LoadStampFail
 
     def _load_count(self, count, _updated = False):
-        if not self.count() == count:
+        if count == self.count:
+            pass
+        elif count == 0:
+            self.reset()
+        else:
             if not count in self.counts:
                 if _updated:
                     raise LoadFail

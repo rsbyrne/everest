@@ -24,7 +24,7 @@ class Stampable(Producer):
     def stamp(self, stamper):
         if not isinstance(stamper, Inquirer):
             raise TypeError("Input must be Inquirer class.")
-        self.stamps.append((stamper.hashID, self.count()))
+        self.stamps.append((stamper.hashID, self.count.value))
         self.stamps = sorted(set(self.stamps))
 
     def _stampable_update(self):

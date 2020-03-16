@@ -27,7 +27,7 @@ class PiMachine(Iterator):
     def _initialise(self):
         self.state = self.kth(0)
     def _iterate(self):
-        kthVal = self.kth(self.count())
+        kthVal = self.kth(self.count.value)
         self.state += kthVal
     def _load(self, loadDict):
         self.state = loadDict['pi']

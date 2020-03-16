@@ -29,15 +29,15 @@ class Counter(Producer):
 
     def countoutFn(self):
         self._count_update_fn()
-        yield np.array(self.count(), dtype = np.int32)
+        yield np.array(self.count, dtype = np.int32)
 
     def _counter_pre_store_fn(self):
         self._count_update_fn()
-        if self.count() in self.counts: raise AbortStore
+        if self.count in self.counts: raise AbortStore
 
     def _counter_post_store_fn(self):
-        self.counts.append(self.count())
-        self.counts_stored.append(self.count())
+        self.counts.append(self.count.value)
+        self.counts_stored.append(self.count.value)
 
     def _counter_pre_save_fn(self):
         self.counts = self._get_disk_counts()
