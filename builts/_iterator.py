@@ -11,6 +11,7 @@ from .states import State
 from ._unique import Unique
 from ..exceptions import EverestException
 from .. import mpi
+from ..value import Value
 
 class LoadFail(EverestException):
     pass
@@ -106,6 +107,8 @@ class Iterator(Counter, Cycler, Stampable, Unique):
 
     def load(self, arg, **kwargs):
         try:
+            if type(arg) is Value:
+                self.load(arg.plain)
             if type(arg) is int:
                 self._load_count(arg, **kwargs)
             elif type(arg) is float:

@@ -3,31 +3,33 @@ import operator
 
 class Value:
 
-    def __init__(self, val):
-        self.value = val
-        self.type = type(val)
+    def __init__(self, value):
+        if np.issubdtype(type(value), np.integer):
+            self.plain = int(value)
+            self.type = np.int32
+        else:
+            self.plain = float(value)
+            self.type = np.float64
+        self.value = self.type(value)
 
     def __setattr__(self, item, value):
         if item in self.__dict__:
             if item == 'type':
                 raise Exception("Forbidden to manually set 'type'.")
             elif item == 'value':
-                if not type(value) == self.type:
-                    try:
-                        value = self.type(value)
-                    except:
-                        raise Exception("Couldn't mangle value to proper type.")
-                dict.__setattr__(self, item, value)
+                if np.issubdtype(type(value), np.integer):
+                    plain = int(value)
+                else:
+                    plain = float(value)
+                value = self.type(value)
+                dict.__setattr__(self, 'plain', plain)
+                dict.__setattr__(self, 'value', value)
             else:
                 dict.__setattr__(self, item, value)
         else:
             dict.__setattr__(self, item, value)
 
     def evaluate(self):
-        return np.array(self.value)
-    def __array__(self):
-        return np.array(self.value)
-    def __call__(self):
         return self.value
 
     def _operate(self, arg, opkey):

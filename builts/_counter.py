@@ -29,7 +29,7 @@ class Counter(Producer):
 
     def countoutFn(self):
         self._count_update_fn()
-        yield np.array(self.count.value).astype(np.int32)
+        yield self.count.value
 
     def _counter_pre_store_fn(self):
         self._count_update_fn()
