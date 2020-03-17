@@ -6,7 +6,7 @@ from .. import utilities
 from .. import disk
 
 from . import buffersize_exceeded
-from . import Built
+from ._getter import Getter
 from . import anchorwrap
 from ..weaklist import WeakList
 from ..writer import ExtendableDataset
@@ -16,7 +16,7 @@ from .. import mpi
 class AbortStore(EverestException):
     pass
 
-class Producer(Built):
+class Producer(Getter):
 
     def __init__(
             self,
@@ -35,6 +35,10 @@ class Producer(Built):
 
         super().__init__(**kwargs)
 
+        # Getter attributes:
+        self._get_fns.append(self._producer_get)
+
+        # Built attributes:
         self._post_anchor_fns.append(self.save)
 
         self.set_autosave(True)
@@ -106,3 +110,19 @@ class Producer(Built):
         elif hasattr(self, 'lastsaved'):
             if time.time() - self.lastsaved > self.saveinterval:
                 self.save()
+
+    def _producer_get(self, arg):
+        if type(arg) is str:
+            return self._producer_get_str(arg)
+        else:
+            return None
+
+    def _producer_get_str(self, key):
+        if not key in self.outkeys:
+            raise ValueError("That key is not valid for this producer.")
+        if self.anchored:
+            self.save()
+            out = self.reader[self.hashID, 'outputs', key]
+        else:
+            out = self.dataDict[key]
+        return out[0]
