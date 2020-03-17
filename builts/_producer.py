@@ -125,4 +125,4 @@ class Producer(Getter):
             out = self.reader[self.hashID, 'outputs', key]
         else:
             out = self.dataDict[key]
-        return out[0]
+        return out
