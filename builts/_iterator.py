@@ -106,9 +106,14 @@ class Iterator(Counter, Cycler, Stampable, Unique):
 
     def load(self, arg, **kwargs):
         try:
-            if type(arg) is int: self._load_count(arg, **kwargs)
-            elif isinstance(arg, State): self._load_state(arg, **kwargs)
-            else: raise TypeError
+            if type(arg) is int:
+                self._load_count(arg, **kwargs)
+            elif type(arg) is float:
+                self._load_chron(arg, **kwargs)
+            elif isinstance(arg, State):
+                self._load_state(arg, **kwargs)
+            else:
+                raise TypeError
         except (LoadDiskFail, LoadStampFail, LoadStoredFail, LoadFail):
             raise LoadFail
 
@@ -127,11 +132,41 @@ class Iterator(Counter, Cycler, Stampable, Unique):
             else:
                 raise LoadStampFail
 
+    def _load_chron(self, inChron):
+        if not hasattr(self, 'chron'):
+            raise Exception("Iterator has no provided chron.")
+        if inChron < 0.:
+            inChron += self.chron
+        counts, chrons = [], []
+        if self.anchored:
+            counts.extend(self.reader[self.hashID, 'outputs', 'count'])
+            chrons.extend(self.reader[self.hashID, 'outputs', 'chron'])
+        dataDict = self.dataDict
+        if len(dataDict):
+            counts.extend(dataDict['count'])
+            chrons.extend(dataDict['chron'])
+        counts.sort()
+        chrons.sort()
+        inCount = None
+        for chron, count in zip(chrons, counts):
+            if chron >= inChron:
+                inCount = count
+                break
+        if inCount is None:
+            raise LoadFail
+        else:
+            self._load_count(inCount)
+
     def _load_count(self, count, _updated = False):
-        if count == self.count:
-            pass
+        if count < 0:
+            if self.initialised:
+                count += self.count
+            else:
+                pass
         elif count == 0:
             self.reset()
+        elif count == self.count:
+            pass
         else:
             if not count in self.counts:
                 if _updated:
