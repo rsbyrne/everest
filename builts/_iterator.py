@@ -109,14 +109,28 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         try:
             if type(arg) is Value:
                 self.load(arg.plain)
-            if type(arg) is int:
+            elif type(arg) == 'str':
+                if arg == 'max':
+                    self.load(max(self.counts))
+                elif arg == 'min':
+                    self.load(min(self.counts))
+                else:
+                    raise ValueError("String input must be 'max' or 'min'.")
+            elif type(arg) is int:
                 self._load_count(arg, **kwargs)
             elif type(arg) is float:
                 self._load_chron(arg, **kwargs)
             elif isinstance(arg, State):
                 self._load_state(arg, **kwargs)
             else:
-                raise TypeError
+                try:
+                    num = float(arg)
+                    if num % 1.:
+                        self.load(float(arg))
+                    else:
+                        self.load(int(arg))
+                except ValueError:
+                    raise TypeError("Unacceptable type", type(arg))
         except (LoadDiskFail, LoadStampFail, LoadStoredFail, LoadFail):
             raise LoadFail
 
