@@ -91,8 +91,11 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         self.h5filename = self.writer.h5filename
 
     def initialise(self):
-        self.count.value = 0
-        self._initialise()
+        try:
+            self.load(0)
+        except LoadFail:
+            self.count.value = 0
+            self._initialise()
         self.initialised = True
 
     def reset(self):
@@ -109,7 +112,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         try:
             if type(arg) is Value:
                 self.load(arg.plain)
-            elif type(arg) == 'str':
+            elif type(arg) is str:
                 if arg == 'max':
                     self.load(max(self.counts))
                 elif arg == 'min':
@@ -180,8 +183,6 @@ class Iterator(Counter, Cycler, Stampable, Unique):
                 count += self.count
             else:
                 pass
-        elif count == 0:
-            self.reset()
         elif count == self.count:
             pass
         else:
