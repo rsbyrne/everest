@@ -134,6 +134,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
                         self.load(int(arg))
                 except ValueError:
                     raise TypeError("Unacceptable type", type(arg))
+            self.initialised = True
         except (LoadDiskFail, LoadStampFail, LoadStoredFail, LoadFail):
             raise LoadFail
 
