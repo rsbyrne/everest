@@ -2,6 +2,7 @@ import operator
 import numpy as np
 
 from .utilities import flatten_dict
+from .scope import Scope
 
 class Fetch:
 
@@ -84,6 +85,7 @@ class Fetch:
     @staticmethod
     def _process(inDict, context, scope = None):
         assert type(inDict) is dict, inDict
+        inDict = flatten_dict(inDict, sep = '/')
         outs = set()
         if scope is None:
             checkkey = lambda key: True
@@ -129,6 +131,7 @@ class Fetch:
                 )
         if _process:
             out = self._process(out, context, scope)
+        out = Scope(out)
         return out
 
     # def rekey(self):

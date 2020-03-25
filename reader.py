@@ -22,6 +22,8 @@ from .exceptions import EverestException, InDevelopmentError
 
 class PathNotInFrameError(EverestException, KeyError):
     pass
+class NotGroupError(EverestException, KeyError):
+    pass
 
 class Proxy:
     def __init__(self):
@@ -63,7 +65,7 @@ class Reader(H5Manager):
         # expects h5filewrap
         if searchArea is None:
             searchArea = self.h5file
-        print("Seeking", key, "from", searchArea)
+        # print("Seeking", key, "from", searchArea)
         splitkey = key.split('/')
         try:
             if splitkey[0] == '':
@@ -100,11 +102,10 @@ class Reader(H5Manager):
                         found = searchArea.attrs[primekey]
                     except KeyError:
                         raise PathNotInFrameError(
-                            "Path '" \
+                            "Path " \
                             + primekey \
-                            + "' does not exist in search area '" \
+                            + " does not exist in search area " \
                             + str(searchArea) \
-                            + "'."
                             )
             except ValueError:
                 raise Exception("Value error???", primekey, type(primekey))
@@ -112,13 +113,7 @@ class Reader(H5Manager):
                 if type(found) is h5py.Group:
                     found = self._recursive_seek(remkey, found)
                 else:
-                    raise PathNotInFrameError(
-                        "Path '" \
-                        + primekey \
-                        + "' does not exist in search area '" \
-                        + str(searchArea) \
-                        + "'."
-                        )
+                    raise NotGroupError()
         return found
 
     def _pre_seekresolve(self, inp):
@@ -149,10 +144,10 @@ class Reader(H5Manager):
 
     @disk.h5filewrap
     def load(self, hashID):
-        inputs = self.__getitem__(self.join(hashID, 'inputs'))
-        typeHash = self.__getitem__(self.join(hashID, 'typeHash'))
+        inputs = self.__getitem__('/' + self.join(hashID, 'inputs'))
+        typeHash = self.__getitem__('/' + self.join(hashID, 'typeHash'))
         cls = self.__getitem__(
-            self.join('/_globals_', 'classes', typeHash)
+            '/' + self.join('_globals_', 'classes', typeHash)
             )
         return BuiltProxy(cls, **inputs)
 
@@ -250,13 +245,7 @@ class Reader(H5Manager):
         return resolved
 
     def _getfetch(self, fetch, scope = None):
-        processed = fetch(self.__getitem__, scope)
-        sources = ('Scope', (fetch,))
-        newScope = Scope(processed, sources = sources)
-        if scope is None:
-            return newScope
-        else:
-            return scope & newScope
+        return fetch(self.__getitem__, scope)
 
     def _getslice(self, inp):
         if type(inp.start) is Scope:

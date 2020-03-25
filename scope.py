@@ -3,8 +3,6 @@ from functools import reduce
 from collections.abc import Set
 from collections.abc import Hashable
 
-from .fetch import Fetch
-
 class Scope(Set, Hashable):
 
     __hash__ = Set._hash
@@ -50,15 +48,15 @@ class Scope(Set, Hashable):
     def __iter__(self):
         return iter(self._set)
 
-    def rekey(self, mapAttr, context):
-        newlist = []
-        for hashID, counts in list(self):
-            queried = context(Fetch(mapAttr) == hashID)
-            if len(queried):
-                newlist.append((list(queried)[0][0], counts))
-            else:
-                raise ValueError
-        return Scope(newlist, ('rekey_' + mapAttr, [self,]))
+    # def rekey(self, mapAttr, context):
+    #     newlist = []
+    #     for hashID, counts in list(self):
+    #         queried = context(Fetch(mapAttr) == hashID)
+    #         if len(queried):
+    #             newlist.append((list(queried)[0][0], counts))
+    #         else:
+    #             raise ValueError
+    #     return Scope(newlist, ('rekey_' + mapAttr, [self,]))
 
     @classmethod
     def _process_args(cls, *args):
