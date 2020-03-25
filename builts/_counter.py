@@ -56,6 +56,7 @@ class Counter(Producer):
         try:
             counts = list(set(self.readouts['count']))
             counts = [int(x) for x in counts]
+            counts.sort()
             return counts
         except KeyError: return []
 
