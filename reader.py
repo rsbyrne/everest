@@ -8,32 +8,68 @@ import ast
 import pickle
 
 from . import disk
+H5Manager = disk.H5Manager
 from . import mpi
 from . import utilities
+make_hash = utilities.make_hash
 from .fetch import Fetch
 from .scope import Scope
 from .globevars import \
     _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
     _BYTESTAG_, _STRINGTAG_, _EVALTAG_
+from .exceptions import EverestException
 
-class Reader:
+class PathNotInFrameError(EverestException, KeyError):
+    pass
+
+class Proxy:
+    def __init__(self):
+        pass
+
+class ClassProxy(Proxy):
+    def __init__(self, script):
+        self.script = script
+        super().__init__()
+    def __call__(self):
+        return disk.local_import_from_str(self.script).CLASS
+
+class BuiltProxy(Proxy):
+    def __init__(self, cls, **inputs):
+        if type(cls) is ClassProxy:
+            cls = cls()
+        from .builts import _get_info
+        ignoreme, ignoreme, inputsHash, instanceHash, hashID = \
+            _get_info(cls, inputs)
+        self.cls, self.inputs, self.hashID = cls, inputs, hashID
+        super().__init__()
+    def __call__(self):
+        return self.cls(**self.inputs)
+
+class Reader(H5Manager):
 
     def __init__(
             self,
             name,
-            path
+            path,
+            *cwd
             ):
         self.name, self.path = name, path
         self.h5filename = os.path.join(os.path.abspath(path), name + '.frm')
         self.file = partial(h5py.File, self.h5filename, 'r')
-        from . import builts as builtsmodule
-        self._builtsModule = builtsmodule
+        super().__init__(*cwd)
 
     def _recursive_seek(self, key, searchArea = None):
         # expects h5filewrap
         if searchArea is None:
             searchArea = self.h5file
         splitkey = key.split('/')
+        try:
+            if splitkey[0] == '':
+                splitkey = splitkey[1:]
+            if splitkey[-1] == '':
+                splitkey = splitkey[:-1]
+        except IndexError:
+            raise Exception("Bad key: " + str(key) +  ', ' + str(type(key)))
         primekey = splitkey[0]
         remkey = '/'.join(splitkey[1:])
         if primekey == '**':
@@ -54,9 +90,21 @@ class Reader:
                     pass
         else:
             try:
-                found = searchArea[primekey]
-            except KeyError:
-                found = searchArea.attrs[primekey]
+                try:
+                    found = searchArea[primekey]
+                except KeyError:
+                    try:
+                        found = searchArea.attrs[primekey]
+                    except KeyError:
+                        raise PathNotInFrameError(
+                            "Path '" \
+                            + primekey \
+                            + "' does not exist in search area '" \
+                            + str(searchArea) \
+                            + "'."
+                            )
+            except ValueError:
+                raise Exception("Value error???", primekey, type(primekey))
             if not remkey == '':
                 found = self._recursive_seek(remkey, found)
         return found
@@ -75,10 +123,10 @@ class Reader:
             out = inp
         return out
 
-    @disk.h5filewrap
     @mpi.dowrap
     def _seek(self, key):
-        sought = self._pre_seekresolve(self._recursive_seek(key))
+        presought = self._recursive_seek(key)
+        sought = self._pre_seekresolve(presought)
         return sought
 
     @staticmethod
@@ -87,11 +135,20 @@ class Reader:
         assert len(processed) > 0, "Len(processed) not greater than zero!"
         return processed
 
-    def _seekresolve(self, inp, hard = False, **kwargs):
+    @disk.h5filewrap
+    def load(self, hashID):
+        inputs = self.__getitem__(self.join(hashID, 'inputs'))
+        typeHash = self.__getitem__(self.join(hashID, 'typeHash'))
+        cls = self.__getitem__(
+            self.join('/_globals_', 'classes', typeHash)
+            )
+        return BuiltProxy(cls, **inputs)
+
+    def _seekresolve(self, inp):
         if type(inp) is dict:
             out = dict()
             for key, sub in sorted(inp.items()):
-                out[key] = self._seekresolve(sub, hard = hard)
+                out[key] = self._seekresolve(sub)
             return out
         elif type(inp) is np.ndarray:
             return inp
@@ -100,26 +157,16 @@ class Reader:
                 _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
                 _BYTESTAG_, _STRINGTAG_, _EVALTAG_
             if inp.startswith(_BUILTTAG_):
-                processed = self._process_tag(inp, _BUILTTAG_)
-                if hard:
-                    return self._builtsModule.load(
-                        processed,
-                        self.name,
-                        self.path
-                        )
-                else:
-                    return processed
+                hashID = self._process_tag(inp, _BUILTTAG_)
+                return self.load(hashID)
             elif inp.startswith(_CLASSTAG_):
-                processed = self._process_tag(inp, _CLASSTAG_)
-                if hard:
-                    return disk.local_import_from_str(processed).CLASS
-                else:
-                    return self._builtsModule.make_hash(processed)
+                script = self._process_tag(inp, _CLASSTAG_)
+                return ClassProxy(script)
             elif inp.startswith(_ADDRESSTAG_):
                 processed = self._process_tag(inp, _ADDRESSTAG_)
                 splitAddr = [*processed.split('/'), '*']
                 if splitAddr[0] == '': splitAddr.pop(0)
-                return self._getitem(tuple(splitAddr), hard = hard)
+                return self._getstr(splitAddr)
             elif inp.startswith(_BYTESTAG_):
                 processed = self._process_tag(inp, _BYTESTAG_)
                 bytesStr = ast.literal_eval(processed)
@@ -130,7 +177,7 @@ class Reader:
                 if type(out) in {list, tuple, frozenset}:
                     procOut = list()
                     for item in out:
-                        procOut.append(self._seekresolve(item, hard = hard))
+                        procOut.append(self._seekresolve(item))
                     out = type(out)(procOut)
                 return out
             elif inp.startswith(_STRINGTAG_):
@@ -141,7 +188,7 @@ class Reader:
             raise TypeError(type(inp))
 
     @staticmethod
-    def _process_fetch(inFetch, context, scope = None, **kwargs):
+    def _process_fetch(inFetch, context, scope = None):
         inDict = inFetch(context)
         outs = set()
         if scope is None:
@@ -166,7 +213,7 @@ class Reader:
                             'outputs',
                             'count'
                             ))
-                        counts = context(countsPath)
+                        counts = context[countsPath]
                         indices = counts[result.flatten()]
                         indices = tuple(indices)
                 except:
@@ -177,36 +224,19 @@ class Reader:
                 pass
         return outs
 
-    def _gettuple(self, inp, **kwargs):
-        if len(set([type(subInp) for subInp in inp])) == 1:
-            inpType = type(inp[0])
-            if not inpType in self._getmethods:
-                raise TypeError
-            if inpType is type(Ellipsis):
-                raise TypeError
-        else:
-            raise TypeError
-        method = self._getmethods[inpType]
-        if inpType is str:
-            return method(self, '/'.join(inp), **kwargs)
-        else:
-            outs = tuple([method(self, subInp, **kwargs) for subInp in inp])
-            if inpType is Fetch:
-                return reduce(operator.__and__, outs, 1)
-            else:
-                return outs
+    def getfrom(self, *keys):
+        return self.__getitem__(self.join(keys))
 
-    def _getstr(self, key, hard = False, **kwargs):
+    def _getstr(self, key):
+        if type(key) in {tuple, list}:
+            key = self.join(*key)
+        key = os.path.abspath(os.path.join(self.cwd, key))
         sought = self._seek(key)
-        resolved = self._seekresolve(sought, hard = hard)
-        if type(resolved) is dict:
-            out = utilities.flatten(resolved, sep = '/')
-        else:
-            out = resolved
-        return out
+        resolved = self._seekresolve(sought)
+        return resolved
 
-    def _getfetch(self, fetch, scope = None, **kwargs):
-        processed = self._process_fetch(fetch, self.__getitem__, scope = scope)
+    def _getfetch(self, fetch, scope = None):
+        processed = fetch(self.__getitem__, scope)
         sources = ('Scope', (fetch,))
         newScope = Scope(processed, sources = sources)
         if scope is None:
@@ -214,7 +244,7 @@ class Reader:
         else:
             return scope & newScope
 
-    def _getslice(self, inp, **kwargs):
+    def _getslice(self, inp):
         if type(inp.start) is Scope:
             inScope = inp.start
         elif type(inp.start) is Fetch:
@@ -222,7 +252,7 @@ class Reader:
         else:
             raise TypeError
         if type(inp.stop) is Fetch:
-            newScope = self._getfetch(inp.stop, scope = inScope, **kwargs)
+            newScope = self._getfetch(inp.stop, scope = inScope)
             if inp.step is None:
                 return newScope
             else:
@@ -252,34 +282,30 @@ class Reader:
         else:
             raise TypeError
 
-    def _getellipsis(self, inp, **kwargs):
+    def _getellipsis(self, inp):
         return self._getfetch(Fetch('**'))
 
+    def _getscope(self, inp):
+        raise ValueError(
+            "Must provide a key to pull data from a scope"
+            )
+
     _getmethods = {
-        tuple: _gettuple,
         str: _getstr,
         Fetch: _getfetch,
         slice: _getslice,
+        Scope: _getscope,
         type(Ellipsis): _getellipsis
         }
 
-    def _getitem(self, inp, hard = False):
-        if type(inp) is tuple:
-            if len(inp) == 1:
-                inp = inp[0]
-        if type(inp) in self._getmethods:
-            return self._getmethods[type(inp)](self, inp, hard = hard)
-        else:
-            if type(inp) is Scope:
-                raise ValueError(
-                    "Must provide a key to pull data from a scope"
-                    )
+    def _getitem(self, inp):
+        if not type(inp) in self._getmethods:
             raise TypeError("Input not recognised: ", inp)
+        return self._getmethods[type(inp)](self, inp)
 
+    @disk.h5filewrap
     def __getitem__(self, inp):
-        return self._getitem(inp, hard = False)
-
-    def __call__(self, *inp):
-        return self._getitem(inp, hard = True)
-
-    context = __getitem__
+        if type(inp) is tuple:
+            return (self._getitem(sub) for sub in inp)
+        else:
+            return self._getitem(inp)

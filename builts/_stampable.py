@@ -29,7 +29,7 @@ class Stampable(Producer):
 
     def _stampable_update(self):
         try:
-            loaded = self.reader(self.hashID, 'stamps')
+            loaded = self.reader['stamps']
         except KeyError:
             loaded = []
         self.stamps = sorted(set([*self.stamps, *loaded]))

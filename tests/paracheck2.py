@@ -64,31 +64,28 @@ while True:
     mpi.message(
         'Out:',
         len(
-            container.reader[
-                container.hashID,
+            container.reader.getfrom(
                 container.projName,
                 'checkedOut'
-                ]
+                )]
             )
         )
     mpi.message(
         'Returned:',
         len(
-            container.reader[
-                container.hashID,
+            container.reader.getfrom(
                 container.projName,
                 'checkedBack'
-                ]
+                )]
             )
         )
     mpi.message(
         'Completed:',
         len(
-            container.reader[
-                container.hashID,
+            container.reader.getfrom(
                 container.projName,
                 'checkedComplete'
-                ]
+                )]
             )
         )
 

@@ -160,8 +160,8 @@ class Iterator(Counter, Cycler, Stampable, Unique):
             inChron += self.chron
         counts, chrons = [], []
         if self.anchored:
-            counts.extend(self.reader[self.hashID, 'outputs', 'count'])
-            chrons.extend(self.reader[self.hashID, 'outputs', 'chron'])
+            counts.extend(self.readouts['count'])
+            chrons.extend(self.readouts['chron'])
         dataDict = self.dataDict
         if len(dataDict):
             counts.extend(dataDict['count'])
@@ -220,15 +220,12 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
     def _load_dataDict_saved(self, count):
-        counts = self.reader(self.hashID, 'outputs', self.indexKey)
+        counts = self.readouts[self.indexKey]
         matches = np.where(counts == count)[0]
         assert len(matches) <= 1, "Duplicates found in loaded counts!"
         if len(matches) == 0: raise LoadDiskFail
         else: index = matches[0]
-        datas = [
-            self.reader(self.hashID, 'outputs', key) \
-                for key in self.dataKeys
-            ]
+        datas = [self.readouts[key] for key in self.dataKeys]
         return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
     def bounce(self, count):

@@ -1,6 +1,8 @@
 import operator
 import numpy as np
 
+from .utilities import flatten_dict
+
 class Fetch:
 
     _fnDict = {}
@@ -36,11 +38,11 @@ class Fetch:
         return (Fetch, (self.args, self.operation, self.opTag))
 
     @classmethod
-    def _operate(cls, *args, operation = None, context = None):
+    def _operate(cls, *args, operation = None, context = None, scope = None):
         operands = []
         for arg in args:
             if type(arg) is Fetch:
-                opVals = arg(context)
+                opVals = arg(context, scope)
             else:
                 opVals = np.array(arg)
             operands.append(opVals)
@@ -75,7 +77,43 @@ class Fetch:
             outDict[key] = evalVal
         return outDict
 
-    def __call__(self, context):
+    @staticmethod
+    def _process(inDict, context, scope = None):
+        outs = set()
+        if scope is None:
+            checkkey = lambda key: True
+        elif type(scope) is Scope:
+            checkkey = lambda key: key in scope.keys()
+        else:
+            raise TypeError
+        for key, result in sorted(inDict.items()):
+            superkey = key.split('/')[0]
+            if checkkey(superkey):
+                indices = None
+                try:
+                    if result:
+                        indices = '...'
+                except ValueError:
+                    if np.all(result):
+                        indices = '...'
+                    elif np.any(result):
+                        countsPath = '/'.join((
+                            superkey,
+                            'outputs',
+                            'count'
+                            ))
+                        counts = context(countsPath)
+                        indices = counts[result.flatten()]
+                        indices = tuple(indices)
+                except:
+                    raise TypeError
+                if not indices is None:
+                    outs.add((superkey, indices))
+            else:
+                pass
+        return outs
+
+    def __call__(self, context, scope = None):
         if self.operation is None:
             out = context(self.args)
         else:
@@ -84,6 +122,7 @@ class Fetch:
                 operation = self.operation,
                 context = context
                 )
+        processed = self._process(out, context, scope)
         return out
 
     # def rekey(self):

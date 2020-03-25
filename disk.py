@@ -17,6 +17,19 @@ from .exceptions import EverestException
 PYTEMP = '/home/jovyan'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
 
+class H5Manager:
+    def __init__(self, *cwd):
+        self.cwd = '/'
+        if len(cwd):
+            self.cd(cwd)
+    def cd(self, key):
+        if type(key) in {tuple, list}:
+            key = self.join(*key)
+        self.cwd = os.path.abspath(os.path.join(self.cwd, key))
+    @staticmethod
+    def join(*keys):
+        return os.path.join(*keys)
+
 @mpi.dowrap
 def purge_logs(path = '.'):
     try: shutil.rmtree(os.path.join(path, 'logs'))

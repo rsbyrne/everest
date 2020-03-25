@@ -14,10 +14,12 @@ from .. import mpi
 message = mpi.message
 
 from .. import utilities
+make_hash = utilities.make_hash
 from .. import disk
 from .. import wordhash
 from ..writer import Writer
 from ..reader import Reader
+from ..reader import Proxy
 from ..weaklist import WeakList
 from .. import globevars
 from ..pyklet import Pyklet
@@ -87,26 +89,11 @@ def _load_namepath_process(name, path):
 def load(hashID, name = None, path = '.'):
     try: name, path = _load_namepath_process(name, path)
     except TypeError: raise NotOnDiskError
-    loader = Loader(name, path)
-    return loader.load(hashID)
-
-class Loader:
-    def __init__(self, name, path):
-        self.h5filename = os.path.join(os.path.abspath(path), name + '.frm')
-        self.name, self.path = name, path
-    @disk.h5filewrap
-    def load(self, hashID):
-        name, path = self.name, self.path
-        reader = Reader(name, path)
-        try: assert hashID == reader(hashID, 'hashID')
-        except KeyError: raise NotInFrameError
-        except OSError: raise NotOnDiskError
-        cls = reader('_globals_', 'classes', reader[hashID, 'typeHash'])
-        inputs = reader(hashID, 'inputs')
-        obj = cls(**inputs)
-        assert obj.hashID == hashID
-        obj.anchor(name, path)
-        return obj
+    reader = Reader(name, path)
+    proxy = reader.load(hashID)
+    built = proxy()
+    assert built.hashID == proxy.hashID == hashID
+    return proxy()
 
 def _get_ghostInps(inputs):
     ghostInps = dict()
@@ -136,26 +123,6 @@ def _get_info(cls, inputs = dict()):
     inputs, ghosts = _get_inputs(cls, inputs)
     inputsHash, instanceHash, hashID = _get_hashes(cls, inputs)
     return inputs, ghosts, inputsHash, instanceHash, hashID
-
-def make_hash(obj):
-    if hasattr(obj, 'instanceHash'):
-        hashVal = obj.instanceHash
-    elif hasattr(obj, 'typeHash'):
-        hashVal = obj.typeHash
-    elif hasattr(obj, '_hashObjects'):
-        hashVal = make_hash(obj._hashObjects)
-    elif type(obj) is dict:
-        hashVal = make_hash(sorted(obj.items()))
-    elif type(obj) is list or type(obj) is tuple:
-        hashList = [make_hash(subObj) for subObj in obj]
-        hashVal = make_hash(str(hashList))
-    elif isinstance(obj, np.generic):
-        hashVal = make_hash(np.asscalar(obj))
-    else:
-        strObj = str(obj)
-        hexID = hashlib.md5(strObj.encode()).hexdigest()
-        hashVal = int(hexID, 16)
-    return str(hashVal)
 
 _PREBUILTS = dict()
 def _get_prebuilt(hashID):
@@ -213,27 +180,6 @@ def _get_default_inputs(func):
 #     finally:
 #         raise NoPreClassError
 
-# class Builder(Pyklet):
-#     def __init__(self, cls, **inputs):
-#         inputs, ghosts, inputsHash, instanceHash, hashID = \
-#             _get_info(cls, inputs)
-#         inputs = type(cls)._align_inputs(cls, *args, **kwargs)
-#         super().__init__(cls, **inputs)
-#         self.cls, self.inputs = cls, inputs
-#         self.
-#     def __call__(self, *args, **kwargs):
-#         newInputs = type(self.cls)._align_inputs(self.cls, *args, **kwargs)
-#         allInputs = {**self.inputs, **newInputs}
-#         return self.cls(**allInputs)
-
-class Builder:
-    def __init__(self, cls, **inputs):
-        ignoreme, ignoreme, inputsHash, instanceHash, hashID = \
-            _get_info(cls, inputs)
-        self.cls, self.inputs, self.hashID = cls, inputs, hashID
-    def __call__(self):
-        return self.cls(**self.inputs)
-
 def anchorwrap(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -278,18 +224,11 @@ class Built(metaclass = Meta):
 
     @staticmethod
     def _deep_process_inputs(inputs):
-        def process_dict(host, key, val):
-            splitkey = key.split('/')
-            if len(splitkey) == 1:
-                host[key] = val
-            else:
-                primekey, remkey = splitkey[0], '/'.join(splitkey[1:])
-                if not primekey in host:
-                    host[primekey] = dict()
-                process_dict(host[primekey], remkey, val)
         processed = dict()
         for key, val in sorted(inputs.items()):
-            process_dict(processed, key, val)
+            if isinstance(val, Proxy):
+                val = val()
+            processed[key] = val
         return processed
 
     @staticmethod
@@ -387,11 +326,13 @@ class Built(metaclass = Meta):
     def _anchor(self):
         name, path = self.name, self.path
         for fn in self._pre_anchor_fns: fn()
-        self.writer = Writer(name, path)
-        self.writer.add(self.localObjects, self.hashID)
-        self.writer.add(self.globalObjects, '_globals_')
-        self.reader = Reader(self.name, self.path)
-        self.anchored = True
+        writer = Writer(name, path, self.hashID)
+        writer.add_dict(self.localObjects)
+        globalwriter = Writer(name, path, '_globals_')
+        globalwriter.add_dict(self.globalObjects)
+        reader = Reader(self.name, self.path, self.hashID)
+        anchored = True
+        self.writer, self.reader, self.anchored = writer, reader, anchored
         for fn in self._post_anchor_fns: fn()
 
     def _coanchored(self, coBuilt):

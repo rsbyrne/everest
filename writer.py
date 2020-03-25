@@ -9,6 +9,7 @@ from collections.abc import Mapping
 from collections import OrderedDict
 
 from . import disk
+H5Manager = disk.H5Manager
 from . import mpi
 from .pyklet import Pyklet
 from .globevars import \
@@ -29,12 +30,13 @@ class LinkTo:
 
 WRITERTYPES = set([ExtendableDataset, FixedDataset, LinkTo])
 
-class Writer:
+class Writer(H5Manager):
 
     def __init__(
             self,
             name,
             path,
+            *cwd
             ):
 
         from . import builts as builtsmodule
@@ -45,6 +47,8 @@ class Writer:
         mpi.dowrap(os.makedirs)(path, exist_ok = True)
 
         self.builtsmodule = builtsmodule
+
+        super().__init__(*cwd)
 
     def _process_inp(self, inp):
         global _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
@@ -84,7 +88,13 @@ class Writer:
                 return _BYTESTAG_ + str(out)
 
     @disk.h5filewrap
+    def add_dict(self, inDict, *names):
+        for name, item in sorted(inDict.items()):
+            self.add(item, name, *names)
+
+    @disk.h5filewrap
     def add(self, item, name, *names):
+        names = [self.cwd, *names]
         processed = self._process_inp(item)
         self._add_wrapped(processed, name, *names)
 
@@ -92,7 +102,7 @@ class Writer:
     def _add_wrapped(self, item, name, *names):
         self._add(item, name, *names)
 
-    def _add(self, item, name = '/', *names):
+    def _add(self, item, name, *names):
         # expects h5filewrap
         if isinstance(item, Mapping):
             for key, val in sorted(item.items()):
@@ -102,7 +112,7 @@ class Writer:
                     *[*names, name],
                     )
         else:
-            group = self.h5file.require_group('/' + '/'.join(names))
+            group = self.h5file.require_group(os.path.abspath(os.path.join(*names)))
             if type(item) is LinkTo:
                 self._add_link(item.arg.hashID, name, group)
             elif type(item) is ExtendableDataset:

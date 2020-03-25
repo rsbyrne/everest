@@ -4,6 +4,7 @@ from types import FunctionType
 
 from .. import utilities
 from .. import disk
+from ..reader import Reader
 
 from . import buffersize_exceeded
 from ._getter import Getter
@@ -39,7 +40,8 @@ class Producer(Getter):
         self._get_fns.append(self._producer_get)
 
         # Built attributes:
-        self._post_anchor_fns.append(self.save)
+        self._post_anchor_fns.append(self._producer_post_anchor)
+        # self.localObjects['outputs'] = dict()
 
         self.set_autosave(True)
         self.set_save_interval(3600.)
@@ -96,6 +98,10 @@ class Producer(Getter):
         for fn in self._post_save_fns: fn()
         mpi.message(':')
 
+    def _producer_post_anchor(self):
+        self.readouts = Reader(self.name, self.path, self.hashID, 'outputs')
+        self.save()
+
     def _save(self):
         wrappedDict = {
             key: ExtendableDataset(val) \
@@ -122,7 +128,7 @@ class Producer(Getter):
             raise ValueError("That key is not valid for this producer.")
         if self.anchored:
             self.save()
-            out = self.reader[self.hashID, 'outputs', key]
+            out = self.readouts[key]
         else:
             out = self.dataDict[key]
         return out

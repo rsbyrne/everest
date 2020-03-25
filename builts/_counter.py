@@ -54,9 +54,7 @@ class Counter(Producer):
 
     def _get_disk_counts(self):
         try:
-            counts = list(set(self.reader(
-                self.hashID, 'outputs', 'count'
-                )))
+            counts = list(set(self.readouts['count']))
             counts = [int(x) for x in counts]
             return counts
         except KeyError: return []
