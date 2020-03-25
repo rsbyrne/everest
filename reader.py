@@ -16,8 +16,9 @@ from .fetch import Fetch
 from .scope import Scope
 from .globevars import \
     _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
-    _BYTESTAG_, _STRINGTAG_, _EVALTAG_
-from .exceptions import EverestException
+    _BYTESTAG_, _STRINGTAG_, _EVALTAG_, \
+    _GROUPTAG_
+from .exceptions import EverestException, InDevelopmentError
 
 class PathNotInFrameError(EverestException, KeyError):
     pass
@@ -62,6 +63,7 @@ class Reader(H5Manager):
         # expects h5filewrap
         if searchArea is None:
             searchArea = self.h5file
+        print("Seeking", key, "from", searchArea)
         splitkey = key.split('/')
         try:
             if splitkey[0] == '':
@@ -73,8 +75,9 @@ class Reader(H5Manager):
         primekey = splitkey[0]
         remkey = '/'.join(splitkey[1:])
         if primekey == '**':
-            found = self._recursive_seek('*/' + remkey, searchArea)
-            found[''] = self._recursive_seek('*/' + key, searchArea)
+            raise InDevelopmentError
+            # found = self._recursive_seek('*/' + remkey, searchArea)
+            # found[''] = self._recursive_seek('*/' + key, searchArea)
         elif primekey == '*':
             localkeys = {*searchArea, *searchArea.attrs}
             searchkeys = [
@@ -106,13 +109,22 @@ class Reader(H5Manager):
             except ValueError:
                 raise Exception("Value error???", primekey, type(primekey))
             if not remkey == '':
-                found = self._recursive_seek(remkey, found)
+                if type(found) is h5py.Group:
+                    found = self._recursive_seek(remkey, found)
+                else:
+                    raise PathNotInFrameError(
+                        "Path '" \
+                        + primekey \
+                        + "' does not exist in search area '" \
+                        + str(searchArea) \
+                        + "'."
+                        )
         return found
 
     def _pre_seekresolve(self, inp):
         # expects h5filewrap
         if type(inp) is h5py.Group:
-            out = _ADDRESSTAG_ + inp.name
+            out = _GROUPTAG_ + inp.name
         elif type(inp) is h5py.Dataset:
             out = inp[...]
         elif type(inp) is dict:
@@ -163,10 +175,11 @@ class Reader(H5Manager):
                 script = self._process_tag(inp, _CLASSTAG_)
                 return ClassProxy(script)
             elif inp.startswith(_ADDRESSTAG_):
-                processed = self._process_tag(inp, _ADDRESSTAG_)
-                splitAddr = [*processed.split('/'), '*']
-                if splitAddr[0] == '': splitAddr.pop(0)
-                return self._getstr(splitAddr)
+                address = self._process_tag(inp, _ADDRESSTAG_)
+                return self._getstr(address)
+            elif inp.startswith(_GROUPTAG_):
+                groupname = self._process_tag(inp, _GROUPTAG_)
+                return self._getstr(os.path.join(groupname, '*'))
             elif inp.startswith(_BYTESTAG_):
                 processed = self._process_tag(inp, _BYTESTAG_)
                 bytesStr = ast.literal_eval(processed)
@@ -225,12 +238,13 @@ class Reader(H5Manager):
         return outs
 
     def getfrom(self, *keys):
-        return self.__getitem__(self.join(keys))
+        return self.__getitem__(os.path.join(*keys))
 
     def _getstr(self, key):
         if type(key) in {tuple, list}:
             key = self.join(*key)
         key = os.path.abspath(os.path.join(self.cwd, key))
+        # print("Getting string:", key)
         sought = self._seek(key)
         resolved = self._seekresolve(sought)
         return resolved
@@ -305,6 +319,7 @@ class Reader(H5Manager):
 
     @disk.h5filewrap
     def __getitem__(self, inp):
+        # print("Getting", inp)
         if type(inp) is tuple:
             return (self._getitem(sub) for sub in inp)
         else:

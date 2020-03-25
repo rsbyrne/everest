@@ -9,3 +9,6 @@ class NotTypicalBuilt(EverestException):
 class CountNotOnDiskError(EverestException):
     '''That count could not be found at the target location.'''
     pass
+
+class InDevelopmentError(EverestException):
+    pass
