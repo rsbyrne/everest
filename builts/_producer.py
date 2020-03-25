@@ -5,6 +5,7 @@ from types import FunctionType
 from .. import utilities
 from .. import disk
 from ..reader import Reader
+from ..writer import Writer
 
 from . import buffersize_exceeded
 from ._getter import Getter
@@ -100,6 +101,7 @@ class Producer(Getter):
 
     def _producer_post_anchor(self):
         self.readouts = Reader(self.name, self.path, self.hashID, 'outputs')
+        self.writeouts = Writer(self.name, self.path, self.hashID, 'outputs')
         self.save()
 
     def _save(self):
@@ -107,7 +109,7 @@ class Producer(Getter):
             key: ExtendableDataset(val) \
                 for key, val in self.dataDict.items()
             }
-        self.writer.add(wrappedDict, 'outputs', self.hashID)
+        self.writeouts.add_dict(wrappedDict)
 
     @anchorwrap
     def _autosave(self):
