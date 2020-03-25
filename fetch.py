@@ -118,7 +118,8 @@ class Fetch:
                     outs.add((superkey, indices))
             else:
                 pass
-        return outs
+        outScope = Scope(outs)
+        return outScope
 
     def __call__(self, context, scope = None, _process = True):
         if self.operation is None:
@@ -131,7 +132,6 @@ class Fetch:
                 )
         if _process:
             out = self._process(out, context, scope)
-        out = Scope(out)
         return out
 
     # def rekey(self):
