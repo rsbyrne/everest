@@ -35,18 +35,22 @@ class ClassProxy(Proxy):
         super().__init__()
     def __call__(self):
         return disk.local_import_from_str(self.script).CLASS
+    def __repr__(self):
+        return _CLASSTAG_ + make_hash(self.script)
 
-class BuiltProxy(Proxy):
-    def __init__(self, cls, **inputs):
-        if type(cls) is ClassProxy:
-            cls = cls()
-        from .builts import _get_info
-        ignoreme, ignoreme, inputsHash, instanceHash, hashID = \
-            _get_info(cls, inputs)
-        self.cls, self.inputs, self.hashID = cls, inputs, hashID
-        super().__init__()
-    def __call__(self):
-        return self.cls(**self.inputs)
+# class BuiltProxy(Proxy):
+#     def __init__(self, cls, **inputs):
+#         if type(cls) is ClassProxy:
+#             cls = cls()
+#         from .builts import _get_info
+#         ignoreme, ignoreme, inputsHash, instanceHash, hashID = \
+#             _get_info(cls, inputs)
+#         self.cls, self.inputs, self.hashID = cls, inputs, hashID
+#         super().__init__()
+#     def __call__(self):
+#         return self.cls(**self.inputs)
+#     def __repr__(self):
+#         return _BUILTTAG_ + self.hashID
 
 class Reader(H5Manager):
 
@@ -149,7 +153,9 @@ class Reader(H5Manager):
         cls = self.__getitem__(
             '/' + self.join('_globals_', 'classes', typeHash)
             )
-        return BuiltProxy(cls, **inputs)
+        built = cls(**inputs)
+        assert built.hashID == hashID
+        return built
 
     def _seekresolve(self, inp):
         if type(inp) is dict:
@@ -168,7 +174,9 @@ class Reader(H5Manager):
                 return self.load(hashID)
             elif inp.startswith(_CLASSTAG_):
                 script = self._process_tag(inp, _CLASSTAG_)
-                return ClassProxy(script)
+                proxy = ClassProxy(script)
+                cls = proxy()
+                return cls
             elif inp.startswith(_ADDRESSTAG_):
                 address = self._process_tag(inp, _ADDRESSTAG_)
                 return self._getstr(address)
@@ -308,8 +316,7 @@ class Reader(H5Manager):
 
     @disk.h5filewrap
     def __getitem__(self, inp):
-        # print("Getting", inp)
         if type(inp) is tuple:
-            return (self._getitem(sub) for sub in inp)
+            return [self._getitem(sub) for sub in inp]
         else:
             return self._getitem(inp)

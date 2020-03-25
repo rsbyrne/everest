@@ -89,11 +89,7 @@ def _load_namepath_process(name, path):
 def load(hashID, name = None, path = '.'):
     try: name, path = _load_namepath_process(name, path)
     except TypeError: raise NotOnDiskError
-    reader = Reader(name, path)
-    proxy = reader.load(hashID)
-    built = proxy()
-    assert built.hashID == proxy.hashID == hashID
-    return proxy()
+    return Reader(name, path).load(hashID)
 
 def _get_ghostInps(inputs):
     ghostInps = dict()
