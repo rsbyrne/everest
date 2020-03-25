@@ -20,6 +20,10 @@ class Fetch:
         elif opTag is None:
             opTag = 'Fetch'
 
+        if operation is None:
+            if len(args) > 1:
+                raise ValueError
+
         self.args = args
         self.operation = operation
         self.opTag = opTag
@@ -42,7 +46,7 @@ class Fetch:
         operands = []
         for arg in args:
             if type(arg) is Fetch:
-                opVals = arg(context, scope)
+                opVals = arg(context, scope, _process = False)
             else:
                 opVals = np.array(arg)
             operands.append(opVals)
@@ -79,6 +83,7 @@ class Fetch:
 
     @staticmethod
     def _process(inDict, context, scope = None):
+        assert type(inDict) is dict, inDict
         outs = set()
         if scope is None:
             checkkey = lambda key: True
@@ -113,16 +118,17 @@ class Fetch:
                 pass
         return outs
 
-    def __call__(self, context, scope = None):
+    def __call__(self, context, scope = None, _process = True):
         if self.operation is None:
-            out = context(self.args)
+            out = context(self.args[0])
         else:
             out = self._operate(
                 *self.args,
                 operation = self.operation,
                 context = context
                 )
-        processed = self._process(out, context, scope)
+        if _process:
+            out = self._process(out, context, scope)
         return out
 
     # def rekey(self):
