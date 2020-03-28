@@ -204,43 +204,6 @@ class Reader(H5Manager):
         else:
             raise TypeError(type(inp))
 
-    @staticmethod
-    def _process_fetch(inFetch, context, scope = None):
-        inDict = inFetch(context)
-        outs = set()
-        if scope is None:
-            checkkey = lambda key: True
-        elif type(scope) is Scope:
-            checkkey = lambda key: key in scope.keys()
-        else:
-            raise TypeError
-        for key, result in sorted(inDict.items()):
-            superkey = key.split('/')[0]
-            if checkkey(superkey):
-                indices = None
-                try:
-                    if result:
-                        indices = '...'
-                except ValueError:
-                    if np.all(result):
-                        indices = '...'
-                    elif np.any(result):
-                        countsPath = '/'.join((
-                            superkey,
-                            'outputs',
-                            'count'
-                            ))
-                        counts = context[countsPath]
-                        indices = counts[result.flatten()]
-                        indices = tuple(indices)
-                except:
-                    raise TypeError
-                if not indices is None:
-                    outs.add((superkey, indices))
-            else:
-                pass
-        return outs
-
     def getfrom(self, *keys):
         return self.__getitem__(os.path.join(*keys))
 
