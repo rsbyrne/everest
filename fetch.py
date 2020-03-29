@@ -1,5 +1,6 @@
 import operator
 import numpy as np
+import os
 
 from .utilities import flatten_dict
 from .scope import Scope
@@ -15,18 +16,29 @@ class Fetch:
             operation = None,
             opTag = None
             ):
+
         if type(operation) is str:
             opTag = operation
             operation = self._fnDict[operation]
         elif opTag is None:
             opTag = 'Fetch'
 
-        if operation is None:
-            if len(args) > 1:
+        self._retrieve = self._nontrivial_retrieve
+        self._operate = self._nontrivial_operate
+        self.operation = operation
+        self.args = args
+        if len(args) == 1:
+            self.arg = args[0]
+            self.args = args
+            if operation is None:
+                if not type(self.arg) is str:
+                    raise ValueError
+                self._retrieve = self._trivial_retrieve
+                self._operate = lambda *a, **kw: a[0]
+        else:
+            if operation is None:
                 raise ValueError
 
-        self.args = args
-        self.operation = operation
         self.opTag = opTag
         self.ID = str(self)
 
@@ -42,15 +54,32 @@ class Fetch:
     def __reduce__(self):
         return (Fetch, (self.args, self.operation, self.opTag))
 
-    @classmethod
-    def _operate(cls, *args, operation = None, context = None, scope = None):
-        operands = []
-        for arg in args:
+    def _trivial_retrieve(self, context, scope = None, path = '/'):
+        arg = self.arg
+        modArg = os.path.abspath(os.path.join(path, arg))
+        if scope is None:
+            out = context(modArg)
+        else:
+            out = context(slice(scope, modArg))
+        if not type(out) is dict:
+            splitkeys = modArg.split('/')[1:]
+            for key in splitkeys[::-1]:
+                out = {key: out}
+        out = flatten_dict(out, sep = '/')
+        return [out,]
+
+    def _nontrivial_retrieve(self, context, scope = None, path = '/'):
+        outs = []
+        for arg in self.args:
             if type(arg) is Fetch:
-                opVals = arg(context, scope, _process = False)
+                out = arg(context, scope, path, _process = False)
             else:
-                opVals = np.array(arg)
-            operands.append(opVals)
+                out = arg
+            outs.append(out)
+        return outs
+
+    def _nontrivial_operate(self, *operands):
+        operation = self.operation
         dictOperands = [
             operand for operand in operands if type(operand) is dict
             ]
@@ -84,8 +113,6 @@ class Fetch:
 
     @staticmethod
     def _process(inDict, context, scope = None):
-        assert type(inDict) is dict, inDict
-        inDict = flatten_dict(inDict, sep = '/')
         outs = set()
         if scope is None:
             checkkey = lambda key: True
@@ -97,23 +124,21 @@ class Fetch:
             superkey = key.split('/')[0]
             if checkkey(superkey):
                 indices = None
-                try:
-                    if result:
-                        indices = '...'
-                except ValueError:
+                if type(result) is np.ndarray:
+                    if not result.dtype is bool:
+                        result = np.array(result.shape, dtype = bool)
                     if np.all(result):
                         indices = '...'
                     elif np.any(result):
-                        countsPath = '/'.join((
-                            superkey,
-                            'outputs',
-                            'count'
+                        countsPath = os.path.abspath(os.path.join(
+                            [superkey, 'outputs', 'count']
                             ))
                         counts = context(countsPath)
                         indices = counts[result.flatten()]
                         indices = tuple(indices)
-                except:
-                    raise TypeError
+                else:
+                    if result:
+                        indices = '...'
                 if not indices is None:
                     outs.add((superkey, indices))
             else:
@@ -121,21 +146,17 @@ class Fetch:
         outScope = Scope(outs)
         return outScope
 
-    def __call__(self, context, scope = None, _process = True):
-        if self.operation is None:
-            out = context(self.args[0])
-        else:
-            out = self._operate(
-                *self.args,
-                operation = self.operation,
-                context = context
-                )
+    def __call__(self,
+            context,
+            scope = None,
+            path = '/',
+            _process = True
+            ):
+        outs = self._retrieve(context, scope, path)
+        out = self._operate(*outs)
         if _process:
             out = self._process(out, context, scope)
         return out
-
-    # def rekey(self):
-    #     return Fetch(self, operation = 'rekey')
 
     def fn(self, operation, args):
         return Fetch(

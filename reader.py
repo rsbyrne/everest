@@ -217,7 +217,7 @@ class Reader(H5Manager):
         return resolved
 
     def _getfetch(self, fetch, scope = None):
-        return fetch(self.__getitem__, scope)
+        return fetch(self.__getitem__, scope, path = self.cwd)
 
     def _getslice(self, inp):
         if type(inp.start) is Scope:
