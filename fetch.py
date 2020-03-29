@@ -4,6 +4,10 @@ import os
 
 from .utilities import flatten_dict
 from .scope import Scope
+from .exceptions import EverestException
+
+class MismatchingFetchKeys(EverestException):
+    pass
 
 class Fetch:
 
@@ -79,36 +83,19 @@ class Fetch:
         return outs
 
     def _nontrivial_operate(self, *operands):
-        operation = self.operation
-        dictOperands = [
-            operand for operand in operands if type(operand) is dict
-            ]
-        allkeys = list()
-        for dictOperand in dictOperands:
-            allkeys.extend(list(dictOperand.keys()))
-        allkeys = set(allkeys)
-        filteredOperands = []
+        allkeys = []
         for operand in operands:
             if type(operand) is dict:
-                missingKeys = [
-                    key \
-                        for key in allkeys \
-                            if not key in operand
-                    ]
-                for key in missingKeys:
-                    operand[key] = np.nan
-            else:
-                operand = {key: operand for key in allkeys}
-            filteredOperands.append(operand)
-        operands = filteredOperands
+                allkeys.append(tuple(sorted(operand.keys())))
+        allkeys = set(allkeys)
+        assert len(allkeys) > 0
+        if not len(allkeys) == 1:
+            raise MismatchingFetchKeys
+        keys = list(allkeys)[0]
         outDict = dict()
-        for key in allkeys:
-            keyops = [operand[key] for operand in operands]
-            try:
-                evalVal = operation(*keyops)
-            except TypeError:
-                evalVal = None
-            outDict[key] = evalVal
+        for key in keys:
+            subOperands = [o[key] if type(o) is dict else o for o in operands]
+            outDict[key] = self.operation(*subOperands)
         return outDict
 
     @staticmethod
@@ -125,14 +112,14 @@ class Fetch:
             if checkkey(superkey):
                 indices = None
                 if type(result) is np.ndarray:
-                    if not result.dtype is bool:
+                    if not result.dtype == 'bool':
                         result = np.array(result.shape, dtype = bool)
                     if np.all(result):
                         indices = '...'
                     elif np.any(result):
-                        countsPath = os.path.abspath(os.path.join(
-                            [superkey, 'outputs', 'count']
-                            ))
+                        countsPath = '/'.join(
+                            ['', superkey, 'outputs', 'count']
+                            )
                         counts = context(countsPath)
                         indices = counts[result.flatten()]
                         indices = tuple(indices)
