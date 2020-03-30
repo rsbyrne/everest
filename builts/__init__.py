@@ -286,6 +286,7 @@ class Built(metaclass = Meta):
     def __init__(self, **customAttributes):
 
         self.localObjects.update(customAttributes)
+        self.localObjects['type'] = type(self).__name__
 
         self.nbytes = 0
 
