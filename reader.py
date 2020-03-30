@@ -221,24 +221,25 @@ class Reader(H5Manager):
         return fetch(self.__getitem__, scope, path = self.cwd)
 
     def _getslice(self, inp):
-        if type(inp.start) is Scope:
-            inScope = inp.start
-        elif type(inp.start) is Fetch:
-            inScope = self._getfetch(inp.start)
+        start, stop, step = inp.start, inp.stop, inp.step
+        if type(start) is Scope:
+            inScope = start
+        elif type(start) is Fetch:
+            inScope = self._getfetch(start)
         else:
             raise TypeError
-        if type(inp.stop) is Fetch:
-            return self._getfetch(inp.stop, scope = inScope)
-        elif type(inp.stop) is str:
-            if inp.start[0] == '/':
-                raise Exception("Can't mix absolute and relative paths.")
+        if type(stop) is Fetch:
+            return self._getfetch(stop, scope = inScope)
+        elif type(stop) is str:
+            stop = stop.lstrip('/')
             outDict = dict()
-            for superkey, indices in sorted(inScope.items()):
-                result = self._getstr([superkey, inp.stop])
+            for superkey, indices in inScope:
+                result = self._getstr([superkey, stop])
+                # print("Foobar!", (superkey, indices, stop), result)
                 if type(result) is EverestArray:
-                    if 'indices' in result.metadata:
+                    if 'indices' in result.metadata and not indices == '...':
                         counts = self._getstr(
-                            [hashID, result.metadata['indices']]
+                            [superkey, result.metadata['indices']]
                             )
                         maskArr = np.isin(
                             counts,

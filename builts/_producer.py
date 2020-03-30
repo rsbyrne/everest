@@ -8,7 +8,7 @@ from ..reader import Reader
 from ..writer import Writer
 
 from . import buffersize_exceeded
-from ._getter import Getter
+from . import Built
 from . import anchorwrap
 from ..weaklist import WeakList
 from ..array import EverestArray
@@ -18,7 +18,13 @@ from .. import mpi
 class AbortStore(EverestException):
     pass
 
-class Producer(Getter):
+class _DataProxy:
+    def __init__(self, method):
+        self._method = method
+    def __getitem__(self, inp):
+        return self._method(inp)
+
+class Producer(Built):
 
     _outputKey = 'outputs'
 
@@ -43,9 +49,6 @@ class Producer(Getter):
         self.stored = []
 
         super().__init__(baselines = self.baselines, **kwargs)
-
-        # Getter attributes:
-        self._get_fns.append(self._producer_get)
 
         # Built attributes:
         self._post_anchor_fns.append(self._producer_post_anchor)
@@ -140,16 +143,21 @@ class Producer(Getter):
 
     def _producer_get(self, arg):
         if type(arg) is str:
-            return self._producer_get_str(arg)
+            key = arg
+            if not key in self.outkeys:
+                raise ValueError("That key is not valid for this producer.")
+            if self.anchored:
+                self.save()
+                out = self.readouts[key]
+            else:
+                out = self.dataDict[key]
+            return out
+        elif type(arg) is tuple:
+            tup = arg
+            return [self._producer_get(k) for k in tup]
         else:
-            return None
+            raise TypeError("Input must be string or tuple.")
 
-    def _producer_get_str(self, key):
-        if not key in self.outkeys:
-            raise ValueError("That key is not valid for this producer.")
-        if self.anchored:
-            self.save()
-            out = self.readouts[key]
-        else:
-            out = self.dataDict[key]
-        return out
+    @property
+    def data(self):
+        return _DataProxy(self._producer_get)

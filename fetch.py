@@ -5,6 +5,7 @@ import os
 from .utilities import flatten_dict
 from .scope import Scope
 from .exceptions import EverestException
+from .array import EverestArray
 
 class MismatchingFetchKeys(EverestException):
     pass
@@ -109,21 +110,20 @@ class Fetch:
             superkey = key.split('/')[0]
             if checkkey(superkey):
                 indices = None
-                if type(result) is np.ndarray:
+                if isinstance(result, EverestArray):
                     if not result.dtype == 'bool':
                         result = np.array(result.shape, dtype = bool)
                     if np.all(result):
                         indices = '...'
                     elif np.any(result):
                         countsPath = '/'.join(
-                            ['', superkey, 'outputs', 'count']
+                            ['', superkey, result.metadata['indices']]
                             )
                         counts = context(countsPath)
                         indices = counts[result.flatten()]
                         indices = tuple(indices)
-                else:
-                    if result:
-                        indices = '...'
+                elif result:
+                    indices = '...'
                 if not indices is None:
                     outs.add((superkey, indices))
             else:
