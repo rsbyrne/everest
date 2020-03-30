@@ -103,10 +103,8 @@ class Fetch:
         outs = set()
         if scope is None:
             checkkey = lambda key: True
-        elif type(scope) is Scope:
-            checkkey = lambda key: key in scope.keys()
         else:
-            raise TypeError
+            checkkey = lambda key: key in scope.keys()
         for key, result in sorted(inDict.items()):
             superkey = key.split('/')[0]
             if checkkey(superkey):

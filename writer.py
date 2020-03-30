@@ -14,21 +14,14 @@ from . import mpi
 from .pyklet import Pyklet
 from .globevars import \
     _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
+from .array import EverestArray
 
-class ExtendableDataset:
-    def __init__(self, arg):
-        self.arg = arg
-        self.data = arg
-class FixedDataset:
-    def __init__(self, arg):
-        self.arg = arg
-        self.data = arg
 class LinkTo:
     def __init__(self, arg):
         self.arg = arg
         self.data = arg
 
-WRITERTYPES = set([ExtendableDataset, FixedDataset, LinkTo])
+WRITERTYPES = set([LinkTo,])
 
 class Writer(H5Manager):
 
@@ -61,7 +54,7 @@ class Writer(H5Manager):
         elif type(inp) is LinkTo:
             inp.arg.anchor(self.name, self.path)
             return inp
-        elif type(inp) in {ExtendableDataset, FixedDataset}:
+        elif type(inp) is EverestArray:
             return inp
         elif type(inp) is str:
             return _STRINGTAG_ + inp
@@ -115,11 +108,12 @@ class Writer(H5Manager):
             group = self.h5file.require_group(os.path.abspath(os.path.join(*names)))
             if type(item) is LinkTo:
                 self._add_link(item.arg.hashID, name, group)
-            elif type(item) is ExtendableDataset:
-                try: self._extend_dataset(item.arg, name, group)
-                except KeyError: self._add_dataset(item.arg, name, group)
-            elif type(item) is FixedDataset:
-                self._add_dataset(item.arg, name, group)
+            elif type(item) is EverestArray:
+                if item.metadata['extendable']:
+                    try: self._extend_dataset(item, name, group)
+                    except KeyError: self._add_dataset(item, name, group)
+                else:
+                    self._add_dataset(item, name, group)
             else:
                 self._add_attr(item, name, group)
 
@@ -148,6 +142,7 @@ class Writer(H5Manager):
             maxshape = maxshape,
             dtype = data.dtype
             )
+        group[name].attrs.update(data.metadata)
 
     def _extend_dataset(self, data, name, group):
         # expects h5filewrap

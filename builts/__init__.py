@@ -53,11 +53,12 @@ NAME, PATH = None, None
 GLOBALANCHOR = False
 def purge_address(name, path):
     fullPath = os.path.join(os.path.abspath(path), name + '.frm')
+    lockPath = '/' + name + '.frm' + '.lock'
     if mpi.rank == 0:
         if os.path.exists(fullPath):
             os.remove(fullPath)
-        if os.path.exists(fullPath + '.lock'):
-            os.remove(fullPath + '.lock')
+        if os.path.exists(lockPath):
+            os.remove(lockPath)
 def set_global_anchor(name, path, purge = False):
     global GLOBALANCHOR, NAME, PATH, GLOBALREADER, GLOBALWRITER
     global purge_address

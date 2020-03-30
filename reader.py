@@ -19,6 +19,7 @@ from .globevars import \
     _BYTESTAG_, _STRINGTAG_, _EVALTAG_, \
     _GROUPTAG_
 from .exceptions import EverestException, InDevelopmentError
+from .array import EverestArray
 
 class PathNotInFrameError(EverestException, KeyError):
     pass
@@ -120,12 +121,12 @@ class Reader(H5Manager):
                     raise NotGroupError()
         return found
 
-    def _pre_seekresolve(self, inp):
+    def _pre_seekresolve(self, inp, _indices = Ellipsis):
         # expects h5filewrap
         if type(inp) is h5py.Group:
             out = _GROUPTAG_ + inp.name
         elif type(inp) is h5py.Dataset:
-            out = inp[...]
+            out = EverestArray(inp[_indices], **dict(inp.attrs))
         elif type(inp) is dict:
             out = dict()
             for key, sub in sorted(inp.items()):
@@ -164,7 +165,7 @@ class Reader(H5Manager):
             for key, sub in sorted(inp.items()):
                 out[key] = self._seekresolve(sub)
             return out
-        elif type(inp) is np.ndarray:
+        elif isinstance(inp, np.ndarray):
             return inp
         elif type(inp) is str:
             global \
@@ -223,37 +224,33 @@ class Reader(H5Manager):
         if type(inp.start) is Scope:
             inScope = inp.start
         elif type(inp.start) is Fetch:
-            inScope = self[inp.start]
+            inScope = self._getfetch(inp.start)
         else:
             raise TypeError
         if type(inp.stop) is Fetch:
-            newScope = self._getfetch(inp.stop, scope = inScope)
-            if inp.step is None:
-                return newScope
-            else:
-                return self._getslice(slice(newScope, inp.step))
-        elif type(inp.stop) in {str, tuple}:
-            if not inp.step is None:
-                raise TypeError
-            supp = inp.stop
-            arrList = []
-            for hashID, retrieveCounts in inScope:
-                data = self[hashID, supp]
-                if retrieveCounts == '...':
-                    arrList.append(data)
-                else:
-                    if not type(data) is np.ndarray:
-                        raise TypeError
-                    counts = self[hashID, 'outputs', 'count']
-                    maskArr = np.isin(
-                        counts,
-                        retrieveCounts,
-                        assume_unique = True
-                        )
-                    arr = data[maskArr]
-                    arrList.append(arr)
-            allTuple = tuple(arrList)
-            return allTuple
+            return self._getfetch(inp.stop, scope = inScope)
+        elif type(inp.stop) is str:
+            if inp.start[0] == '/':
+                raise Exception("Can't mix absolute and relative paths.")
+            outDict = dict()
+            for superkey, indices in sorted(inScope.items()):
+                result = self._getstr([superkey, inp.stop])
+                if type(result) is EverestArray:
+                    if 'indices' in result.metadata:
+                        counts = self._getstr(
+                            [hashID, result.metadata['indices']]
+                            )
+                        maskArr = np.isin(
+                            counts,
+                            indices,
+                            assume_unique = True
+                            )
+                        result = EverestArray(
+                            result[maskArr],
+                            **result.metadata
+                            )
+                outDict[superkey] = result
+            return outDict
         else:
             raise TypeError
 

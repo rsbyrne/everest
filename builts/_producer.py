@@ -11,7 +11,7 @@ from . import buffersize_exceeded
 from ._getter import Getter
 from . import anchorwrap
 from ..weaklist import WeakList
-from ..writer import ExtendableDataset
+from ..array import EverestArray
 from ..exceptions import EverestException
 from .. import mpi
 
@@ -20,10 +20,17 @@ class AbortStore(EverestException):
 
 class Producer(Getter):
 
+    _outputKey = 'outputs'
+
     def __init__(
             self,
+            baselines = dict(),
             **kwargs
             ):
+
+        self.baselines = dict()
+        for key, val in sorted(baselines.items()):
+            self.baselines[key] = EverestArray(val, extendable = False)
 
         self._pre_out_fns = WeakList()
         self._outFns = WeakList()
@@ -35,14 +42,13 @@ class Producer(Getter):
         self.outkeys = []
         self.stored = []
 
-        super().__init__(**kwargs)
+        super().__init__(baselines = self.baselines, **kwargs)
 
         # Getter attributes:
         self._get_fns.append(self._producer_get)
 
         # Built attributes:
         self._post_anchor_fns.append(self._producer_post_anchor)
-        # self.localObjects['outputs'] = dict()
 
         self.set_autosave(True)
         self.set_save_interval(3600.)
@@ -100,15 +106,28 @@ class Producer(Getter):
         mpi.message(':')
 
     def _producer_post_anchor(self):
-        self.readouts = Reader(self.name, self.path, self.hashID, 'outputs')
-        self.writeouts = Writer(self.name, self.path, self.hashID, 'outputs')
+        self.readouts = Reader(
+            self.name,
+            self.path,
+            self.hashID,
+            self._outputKey
+            )
+        self.writeouts = Writer(
+            self.name,
+            self.path,
+            self.hashID,
+            self._outputKey
+            )
         self.save()
 
     def _save(self):
-        wrappedDict = {
-            key: ExtendableDataset(val) \
-                for key, val in self.dataDict.items()
-            }
+        wrappedDict = dict()
+        for key, val in sorted(self.dataDict.items()):
+            wrappedDict[key] = EverestArray(
+                val,
+                extendable = True,
+                indices = '/'.join([self._outputKey, self.indexKey])
+                )
         self.writeouts.add_dict(wrappedDict)
 
     @anchorwrap
