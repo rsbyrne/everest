@@ -121,11 +121,13 @@ class Reader(H5Manager):
                     raise NotGroupError()
         return found
 
-    def _pre_seekresolve(self, inp, _indices = Ellipsis):
+    def _pre_seekresolve(self, inp, _indices = None):
         # expects h5filewrap
         if type(inp) is h5py.Group:
             out = _GROUPTAG_ + inp.name
         elif type(inp) is h5py.Dataset:
+            if _indices is None:
+                _indices = Ellipsis
             out = EverestArray(inp[_indices], **dict(inp.attrs))
         elif type(inp) is dict:
             out = dict()
@@ -136,9 +138,9 @@ class Reader(H5Manager):
         return out
 
     @mpi.dowrap
-    def _seek(self, key):
+    def _seek(self, key, _indices = None):
         presought = self._recursive_seek(key)
-        sought = self._pre_seekresolve(presought)
+        sought = self._pre_seekresolve(presought, _indices = _indices)
         return sought
 
     @staticmethod
@@ -208,12 +210,12 @@ class Reader(H5Manager):
     def getfrom(self, *keys):
         return self.__getitem__(os.path.join(*keys))
 
-    def _getstr(self, key):
+    def _getstr(self, key, _indices = None):
         if type(key) in {tuple, list}:
             key = self.join(*key)
         key = os.path.abspath(os.path.join(self.cwd, key))
         # print("Getting string:", key)
-        sought = self._seek(key)
+        sought = self._seek(key, _indices = _indices)
         resolved = self._seekresolve(sought)
         return resolved
 
@@ -222,20 +224,23 @@ class Reader(H5Manager):
 
     def _getslice(self, inp):
         start, stop, step = inp.start, inp.stop, inp.step
+        if not step is None:
+            raise InDevelopmentError
         if type(start) is Scope:
             inScope = start
         elif type(start) is Fetch:
             inScope = self._getfetch(start)
         else:
-            raise TypeError
+            inScope = self.__getitem__(start)
+            if not type(inScope) is Scope:
+                raise TypeError('Slice start must evaluate to Scope type.')
         if type(stop) is Fetch:
-            return self._getfetch(stop, scope = inScope)
+            out = self._getfetch(stop, scope = inScope)
         elif type(stop) is str:
             stop = stop.lstrip('/')
-            outDict = dict()
+            out = dict()
             for superkey, indices in inScope:
                 result = self._getstr([superkey, stop])
-                # print("Foobar!", (superkey, indices, stop), result)
                 if type(result) is EverestArray:
                     if 'indices' in result.metadata and not indices == '...':
                         counts = self._getstr(
@@ -250,10 +255,12 @@ class Reader(H5Manager):
                             result[maskArr],
                             **result.metadata
                             )
-                outDict[superkey] = result
-            return outDict
+                out[superkey] = result
+        elif type(stop) is tuple:
+            raise InDevelopmentError
         else:
             raise TypeError
+        return out
 
     def _getellipsis(self, inp):
         return self._getfetch(Fetch('**'))
