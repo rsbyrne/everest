@@ -12,13 +12,13 @@ from .. import mpi
 from .. import disk
 from ..pyklet import Pyklet
 from . import anchorwrap
-from ..reader import BuiltProxy
+from . import Builder
 
 class Ticket(Pyklet):
     def __init__(self, obj, spice = 0, timestamp = None):
         if timestamp is None:
             timestamp = mpi.share(time.time())
-        if isinstance(obj, BuiltProxy):
+        if isinstance(obj, Builder):
             hashID = obj.hashID
             getBuilt = obj
         elif type(obj) is str:

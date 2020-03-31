@@ -212,6 +212,17 @@ class Meta(type):
             obj.anchor(obj.name, obj.path)
         return obj
 
+class Builder:
+    def __init__(self, cls, **inputs):
+        self.obj = cls.__new__(**inputs)
+        self.cls = cls
+        self.hashID = self.obj.hashID
+        self.typeHash = self.obj.typeHash
+        self.inputsHash = self.obj.inputsHash
+        self.instanceHash = self.obj.instanceHash
+    def __call__(self):
+        return self.cls.build(self.obj)
+
 class Built(metaclass = Meta):
 
     @classmethod
@@ -234,14 +245,19 @@ class Built(metaclass = Meta):
         return inputs
 
     @classmethod
-    def build(cls, **inputs):
-        obj = cls.__new__(cls, **inputs)
+    def build(cls, obj = None, **inputs):
+        if obj is None:
+            obj = cls.__new__(cls, **inputs)
         try:
             obj = _get_prebuilt(obj.hashID)
         except NoPreBuiltError:
             obj.__init__(**obj.inputs)
             cls._add_weakref(obj)
         return obj
+
+    @classmethod
+    def partial_build(cls, **inputs):
+
 
     @staticmethod
     def _add_weakref(obj):
