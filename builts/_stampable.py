@@ -2,7 +2,6 @@ import ast
 
 from .. import disk
 from ._producer import Producer
-from ._inquirer import Inquirer
 
 class Stampable(Producer):
 
@@ -22,8 +21,6 @@ class Stampable(Producer):
         self._post_anchor_fns.append(self._stampable_update)
 
     def stamp(self, stamper):
-        if not isinstance(stamper, Inquirer):
-            raise TypeError("Input must be Inquirer class.")
         self.stamps.append((stamper.hashID, self.count.value))
         self.stamps = sorted(set(self.stamps))
 

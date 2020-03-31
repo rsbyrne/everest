@@ -309,7 +309,7 @@ class Built(metaclass = Meta):
         super().__init__()
 
     def __hash__(self):
-        return self.instanceHash
+        return int(self.instanceHash)
 
     def __eq__(self, arg):
         if not isinstance(arg, Built):

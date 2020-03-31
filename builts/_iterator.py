@@ -7,7 +7,7 @@ from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import Producer
 from ._stampable import Stampable
-from .states import State
+from ._state import State
 from ._unique import Unique
 from ..exceptions import EverestException
 from .. import mpi
