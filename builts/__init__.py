@@ -255,10 +255,6 @@ class Built(metaclass = Meta):
             cls._add_weakref(obj)
         return obj
 
-    @classmethod
-    def partial_build(cls, **inputs):
-
-
     @staticmethod
     def _add_weakref(obj):
         if not obj.hashID in _PREBUILTS:
