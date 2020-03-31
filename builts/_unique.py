@@ -1,6 +1,7 @@
 from . import Built
 
 class Unique(Built):
+
     @classmethod
     def build(cls, **inputs):
         # overrides standard build method to prevent getting prebuilt:
