@@ -172,6 +172,7 @@ class H5Wrap:
     def _close_h5file(self):
         global H5FILES
         if self.opener:
+            self.arg.h5file.flush()
             self.arg.h5file.close()
             del self.arg.h5file
             del H5FILES[self.filename]
