@@ -59,12 +59,11 @@ class Reader(H5Manager):
             self,
             name,
             path,
-            *cwd
+            *cwd,
+            **kwargs
             ):
-        self.name, self.path = name, path
-        self.h5filename = os.path.join(os.path.abspath(path), name + '.frm')
-        self.file = partial(h5py.File, self.h5filename, 'r')
-        super().__init__(*cwd)
+
+        super().__init__(name, path, *cwd, **kwargs)
 
     def _recursive_seek(self, key, searchArea = None):
         # expects h5filewrap

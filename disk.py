@@ -13,12 +13,32 @@ from functools import wraps
 from .utilities import message
 from . import mpi
 from .exceptions import EverestException
+from .exceptions import InDevelopmentError
 
 PYTEMP = '/home/jovyan'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
 
+@mpi.dowrap
+def purge_address(name, path):
+    fullPath = os.path.join(os.path.abspath(path), name + '.frm')
+    lockPath = '/' + name + '.frm' + '.lock'
+    if mpi.rank == 0:
+        if os.path.exists(fullPath):
+            os.remove(fullPath)
+        if os.path.exists(lockPath):
+            os.remove(lockPath)
+
+@mpi.dowrap
+def purge_logs(path = '.'):
+    try: shutil.rmtree(os.path.join(path, 'logs'))
+    except FileNotFoundError: pass
+
 class H5Manager:
-    def __init__(self, *cwd):
+    def __init__(self, name, path, *cwd, purge = False):
+        if purge:
+            purge_address(name, path)
+        self.name, self.path = name, path
+        self.h5filename = get_framePath(self.name, self.path)
         self.cwd = '/'
         if len(cwd):
             self.cd(cwd)
@@ -29,11 +49,28 @@ class H5Manager:
     @staticmethod
     def join(*keys):
         return os.path.join(*keys)
+    def open(self):
+        return H5Wrap(self)
+    def merge_from(self, file2):
+        merge(self, file2)
 
-@mpi.dowrap
-def purge_logs(path = '.'):
-    try: shutil.rmtree(os.path.join(path, 'logs'))
-    except FileNotFoundError: pass
+def merge(file1, file2):
+    with file1.open(), file2.open():
+        file2dict = {}
+        def visitfunc(k, v):
+            file2dict[k] = v
+        file2.h5file.visititems(visitfunc)
+        for key, val in sorted(file2dict.items()):
+            if type(val) is h5py.Group:
+                file1.h5file.require_group(key)
+            elif type(val) is h5py.Dataset:
+                if key in file1.h5file:
+                    # del file1.h5file[key]
+                    raise InDevelopmentError(
+                        "Merging datasets not yet supported."
+                        )
+                file1.h5file[key] = val[...]
+            file1.h5file[key].attrs.update(file2.h5file[key].attrs)
 
 class RandomSeeder:
     def __init__(self, seed):

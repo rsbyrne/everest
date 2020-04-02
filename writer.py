@@ -29,19 +29,16 @@ class Writer(H5Manager):
             self,
             name,
             path,
-            *cwd
+            *cwd,
+            **kwargs
             ):
 
-        from . import builts as builtsmodule
+        super().__init__(name, path, *cwd, **kwargs)
 
-        self.name = name
-        self.path = path
-        self.h5filename = disk.get_framePath(name, path)
         mpi.dowrap(os.makedirs)(path, exist_ok = True)
 
+        from . import builts as builtsmodule
         self.builtsmodule = builtsmodule
-
-        super().__init__(*cwd)
 
     def _process_inp(self, inp):
         global _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_

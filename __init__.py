@@ -18,6 +18,7 @@
 # thud
 
 from .builts import set_global_anchor, load
+from .disk import H5Manager
 from .reader import Reader
 from .writer import Writer
 from .scope import Scope
