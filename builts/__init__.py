@@ -313,6 +313,7 @@ class Built(metaclass = Meta):
         return self.hashID < arg.hashID
 
     def anchor(self, name = None, path = None, purge = False):
+        print(f"Anchoring to name {name} and path {path}")
         if self.anchored and (self.name, self.path) == (name, path):
             pass
         else:
