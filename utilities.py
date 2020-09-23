@@ -7,6 +7,12 @@ from . import mpi
 
 message = mpi.message
 
+class Grouper:
+    def __init__(self, grouperDict):
+        self.__dict__.update(grouperDict)
+    def __getitem__(self, key):
+        return getattr(self, key)
+
 def make_hash(obj):
     if hasattr(obj, 'instanceHash'):
         hashVal = obj.instanceHash
