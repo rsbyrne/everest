@@ -106,6 +106,8 @@ class AccessForbidden(EverestException):
 @mpi.dowrap
 def lock(filename, password = None):
     lockfilename = filename + '.lock'
+    if not os.path.isdir(os.path.dirname(lockfilename)):
+        raise FileNotFoundError(f"Director {os.path.dirname(lockfilename)} could not be found.")
     while True:
         try:
             with open(lockfilename, 'x') as f:
@@ -122,6 +124,8 @@ def lock(filename, password = None):
                             raise AccessForbidden
                 except FileNotFoundError:
                     pass
+        except FileNotFoundError:
+            raise FileNotFoundError("Something went wrong and we don't know what!")
         random_sleep(0.1, 5.)
 @mpi.dowrap
 def release(filename, password = ''):
@@ -142,7 +146,8 @@ class H5Wrap:
     def __init__(self, arg):
         self.arg = arg
         self.filename = self.arg.h5filename
-        self.lockfilename = '/' + os.path.basename(self.filename)
+        # self.lockfilename = '/' + os.path.basename(self.filename)
+        self.lockfilename = self.filename
         global LOCKCODE
         self.lockcode = LOCKCODE
     @mpi.dowrap
