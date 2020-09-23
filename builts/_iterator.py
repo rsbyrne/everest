@@ -106,7 +106,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         for i in range(n):
             self.count += 1
             self._iterate()
-            mpi.message('.')
+            # mpi.message('.')
 
     def load(self, arg, **kwargs):
         try:
