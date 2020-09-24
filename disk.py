@@ -110,7 +110,7 @@ class AccessForbidden(EverestException):
 def lock(filename, password = None):
     lockfilename = filename + '.lock'
     if not os.path.isdir(os.path.dirname(lockfilename)):
-        raise FileNotFoundError(f"Director {os.path.dirname(lockfilename)} could not be found.")
+        raise FileNotFoundError("Directory '" + os.path.dirname(lockfilename) + "' could not be found.")
     while True:
         try:
             with open(lockfilename, 'x') as f:
