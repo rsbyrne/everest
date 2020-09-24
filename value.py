@@ -17,13 +17,16 @@ class Value:
             if item == 'type':
                 raise Exception("Forbidden to manually set 'type'.")
             elif item == 'value':
-                if np.issubdtype(type(value), np.integer):
-                    plain = int(value)
-                else:
-                    plain = float(value)
-                value = self.type(value)
-                dict.__setattr__(self, 'plain', plain)
-                dict.__setattr__(self, 'value', value)
+                try:
+                    if np.issubdtype(type(value), np.integer):
+                        plain = int(value)
+                    else:
+                        plain = float(value)
+                    value = self.type(value)
+                    dict.__setattr__(self, 'plain', plain)
+                    dict.__setattr__(self, 'value', value)
+                except TypeError:
+                    raise TypeError((value, type(value)))
             else:
                 dict.__setattr__(self, item, value)
         else:
