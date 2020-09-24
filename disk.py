@@ -15,7 +15,10 @@ from . import mpi
 from .exceptions import EverestException
 from .exceptions import InDevelopmentError
 
-PYTEMP = '/home/jovyan'
+try:
+    PYTEMP = os.environ['WORKSPACE']
+except KeyError:
+    PYTEMP = '.'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
 
 @mpi.dowrap
