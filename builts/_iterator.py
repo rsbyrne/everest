@@ -197,8 +197,8 @@ class Iterator(Counter, Cycler, Stampable, Unique):
                     raise LoadFail
             else:
                 loadDict = self._load_dataDict(count)
-                self._load(loadDict)
                 self.count.value = count
+                self._load(loadDict)
 
     def _load(self, loadDict):
         # expects to be overridden:
