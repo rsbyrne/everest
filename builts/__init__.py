@@ -19,7 +19,6 @@ from .. import disk
 from .. import wordhash
 from ..writer import Writer
 from ..reader import Reader
-from ..reader import Proxy
 from ..weaklist import WeakList
 from .. import globevars
 from ..pyklet import Pyklet
@@ -203,6 +202,9 @@ class Meta(type):
             obj.anchor(obj.name, obj.path)
         return obj
 
+class NotBuilderTuple(EverestException):
+    pass
+
 class Builder:
     def __init__(self, cls, **inputs):
         self.obj = cls.__new__(**inputs)
@@ -213,6 +215,13 @@ class Builder:
         self.instanceHash = self.obj.instanceHash
     def __call__(self):
         return self.cls.build(self.obj)
+    @classmethod
+    def make_from_tuple(cls, inp):
+        if type(inp) is tuple:
+            if len(inp) == 2:
+                if type(inp[0]) is Meta and type(inp[1]) is dict:
+                    return cls(inp[0], **inp[1])
+        raise NotBuilderTuple
 
 class Built(metaclass = Meta):
 
@@ -225,9 +234,10 @@ class Built(metaclass = Meta):
     def _deep_process_inputs(inputs):
         processed = dict()
         for key, val in sorted(inputs.items()):
-            if isinstance(val, Proxy):
-                val = val()
-            processed[key] = val
+            try:
+                processed[key] = Builder.make_from_tuple(val)
+            except NotBuilderTuple:
+                processed[key] = val
         return processed
 
     @staticmethod

@@ -26,10 +26,6 @@ class PathNotInFrameError(EverestException, KeyError):
 class NotGroupError(EverestException, KeyError):
     pass
 
-class Proxy:
-    def __init__(self):
-        pass
-
 class ClassProxy(Proxy):
     def __init__(self, script):
         self.script = script
@@ -38,20 +34,6 @@ class ClassProxy(Proxy):
         return disk.local_import_from_str(self.script).CLASS
     def __repr__(self):
         return _CLASSTAG_ + make_hash(self.script)
-
-# class BuiltProxy(Proxy):
-#     def __init__(self, cls, **inputs):
-#         if type(cls) is ClassProxy:
-#             cls = cls()
-#         from .builts import _get_info
-#         ignoreme, ignoreme, inputsHash, instanceHash, hashID = \
-#             _get_info(cls, inputs)
-#         self.cls, self.inputs, self.hashID = cls, inputs, hashID
-#         super().__init__()
-#     def __call__(self):
-#         return self.cls(**self.inputs)
-#     def __repr__(self):
-#         return _BUILTTAG_ + self.hashID
 
 class Reader(H5Manager):
 
