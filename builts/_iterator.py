@@ -12,6 +12,7 @@ from ._unique import Unique
 from ..exceptions import EverestException
 from .. import mpi
 from ..value import Value
+from ..weaklist import WeakList
 
 class LoadFail(EverestException):
     pass
@@ -42,6 +43,17 @@ def _initialised(func):
         return func(self, *args, **kwargs)
     return wrapper
 
+def _changed_state(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        prevCount = self.count.value
+        out = func(self, *args, **kwargs)
+        if not self.count.value == prevCount:
+            for fn in self._changed_state_fns:
+                fn()
+        return out
+    return wrapper
+
 class Iterator(Counter, Cycler, Stampable, Unique):
 
     def __init__(
@@ -58,6 +70,8 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         # self._load
 
         self.initialised = False
+
+        self._changed_state_fns = WeakList()
 
         super().__init__(**kwargs)
 
@@ -90,6 +104,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
     def _iterator_post_anchor(self):
         self.h5filename = self.writer.h5filename
 
+    @_changed_state
     def initialise(self):
         try:
             self.load(0)
@@ -101,13 +116,18 @@ class Iterator(Counter, Cycler, Stampable, Unique):
     def reset(self):
         self.initialise()
 
+    @_changed_state
+    def _single_iterate(self):
+        self.count += 1
+        self._iterate()
+
     @_initialised
     def iterate(self, n = 1):
         for i in range(n):
-            self.count += 1
-            self._iterate()
+            self._single_iterate()
             # mpi.message('.')
 
+    @_changed_state
     def load(self, arg, **kwargs):
         try:
             if type(arg) is Value:
