@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import time
 from types import FunctionType
@@ -26,13 +27,16 @@ class _DataProxy:
 
 class Producer(Built):
 
-    _outputKey = 'outputs'
+    _outputMasterKey = 'outputs'
+    _outputSubKey = 'default'
 
     def __init__(
             self,
             baselines = dict(),
             **kwargs
             ):
+
+        self._outputKey = os.path.join(self._outputMasterKey, self._outputSubKey)
 
         self.baselines = dict()
         for key, val in sorted(baselines.items()):
@@ -45,8 +49,10 @@ class Producer(Built):
         self._post_store_fns = WeakList()
         self._pre_save_fns = WeakList()
         self._post_save_fns = WeakList()
+        self._pre_reroute_outputs_fns = WeakList()
+        self._post_reroute_outputs_fns = WeakList()
         self.outkeys = []
-        self.stored = []
+        self._stored = {self._outputSubKey: []}
 
         super().__init__(baselines = self.baselines, **kwargs)
 
@@ -67,10 +73,24 @@ class Producer(Built):
                 nbytes += np.array(data).nbytes
         return nbytes
 
+    def reroute_outputs(self, key):
+        for fn in self._pre_reroute_outputs_fns: fn()
+        self._outputSubKey = key
+        self._outputKey = os.path.join(self._outputMasterKey, self._outputSubKey)
+        if not key in self._stored:
+            self._stored[key] = []
+        if self.anchored:
+            self._update_outpaths()
+        for fn in self._post_reroute_outputs_fns: fn()
+
     @property
     def dataDict(self):
         processed = list(map(np.stack, (list(map(list, zip(*self.stored))))))
         return dict(zip(self.outkeys, processed))
+
+    @property
+    def stored(self):
+        return self._stored[self._outputSubKey]
 
     def out(self):
         for fn in self._pre_out_fns: fn()
@@ -96,7 +116,7 @@ class Producer(Built):
             self._autosave()
 
     def clear(self):
-        self.stored = []
+        self._stored[self._outputSubKey] = []
 
     @anchorwrap
     @disk.h5filewrap
@@ -108,7 +128,7 @@ class Producer(Built):
         for fn in self._post_save_fns: fn()
         mpi.message(':')
 
-    def _producer_post_anchor(self):
+    def _update_outpaths(self):
         self.readouts = Reader(
             self.name,
             self.path,
@@ -121,6 +141,9 @@ class Producer(Built):
             self.hashID,
             self._outputKey
             )
+
+    def _producer_post_anchor(self):
+        self._update_outpaths()
         self.save()
 
     def _save(self):
@@ -129,7 +152,7 @@ class Producer(Built):
             wrappedDict[key] = EverestArray(
                 val,
                 extendable = True,
-                indices = '/'.join([self._outputKey, self.indexKey])
+                indices = '/'.join([self._outputKey, self._countsKey])
                 )
         self.writeouts.add_dict(wrappedDict)
 

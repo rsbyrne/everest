@@ -26,6 +26,10 @@ class PathNotInFrameError(EverestException, KeyError):
 class NotGroupError(EverestException, KeyError):
     pass
 
+class Proxy:
+    def __init__(self):
+        pass
+
 class ClassProxy(Proxy):
     def __init__(self, script):
         self.script = script

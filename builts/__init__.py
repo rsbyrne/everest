@@ -176,14 +176,36 @@ def anchorwrap(func):
             raise NotYetAnchoredError
     return wrapper
 
+def sort_inputKeys(func):
+    initsource = inspect.getsource(func).split('\n')
+    initsource = [line.strip() for line in initsource]
+    initsource = initsource[1:initsource.index('):')]
+    keyDict = {None: []}
+    tag = None
+    for line in initsource:
+        if line[0] == '#':
+            tag = line[2:].lower()
+            if not tag in keyDict:
+                keyDict[tag] = []
+        else:
+            key = line.split('=')[0].strip()
+            keyDict[tag].append(key)
+    keyDict = {key: frozenset(val) for key, val in keyDict.items()}
+    return keyDict
+
 class Meta(type):
+
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
         if hasattr(outCls, '_swapscript'): script = outCls._swapscript
         else: script = disk.ToOpen(inspect.getfile(outCls))()
         outCls.typeHash = make_hash(script)
         outCls.script = script
-        outCls.defaultInps =_get_default_inputs(outCls.__init__)
+        outCls.defaultInps = _get_default_inputs(outCls.__init__)
+        try:
+            outCls._sortedInputKeys = sort_inputKeys(outCls.__init__)
+        except ValueError:
+            pass
         outCls._custom_cls_fn()
         return outCls
 
@@ -201,6 +223,8 @@ class Meta(type):
         if (not obj.name is None) and (not obj.path is None):
             obj.anchor(obj.name, obj.path)
         return obj
+
+#     def __getitem__(self, )
 
 class NotBuilderTuple(EverestException):
     pass

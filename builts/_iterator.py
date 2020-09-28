@@ -79,6 +79,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         self._outFns.insert(0, self._iterator_out_fn)
         if hasattr(self, '_outkeys'):
             self.outkeys[:] = [*self._outkeys, *self.outkeys]
+        self._post_reroute_outputs_fns.append(self._iterator_post_reroute_fn)
 
         # Cycler attributes:
         self._cycle_fns.append(self.iterate)
@@ -88,11 +89,15 @@ class Iterator(Counter, Cycler, Stampable, Unique):
 
         # Self attributes:
         self.dataKeys = [
-            key for key in self.outkeys if not key == self.indexKey
+            key for key in self.outkeys if not key == self._countsKey
             ]
 
         if _iterator_initialise:
             self.initialise()
+
+    def _iterator_post_reroute_fn(self):
+        if hasattr(self, 'chron'):
+            self.chron.value = float('NaN')
 
     @_initialised
     def _iterator_out_fn(self):
@@ -198,7 +203,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         else:
             self._load_count(inCount)
 
-    def _load_count(self, count, _updated = False):
+    def _load_count(self, count):
         if count < 0:
             if self.initialised:
                 count += self.count
@@ -207,46 +212,21 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         elif count == self.count:
             pass
         else:
-            if not count in self.counts:
-                if _updated:
-                    raise LoadFail
-                elif self.anchored:
-                    self._update_counts()
-                    self._load_count(count, _updated = True)
-                else:
-                    raise LoadFail
+            if count in self.counts_stored:
+                index = self.counts_stored.index(count)
+                datas = [self.dataDict[key] for key in self.dataKeys]
+            elif count in self.counts_disk:
+                index = self.counts_disk.index(count)
+                datas = [self.readouts[key] for key in self.dataKeys]
             else:
-                loadDict = self._load_dataDict(count)
-                self.count.value = count
-                self._load(loadDict)
+                raise LoadFail
+            loadDict = dict(zip(self.dataKeys, [data[index] for data in datas]))
+            self.count.value = count
+            self._load(loadDict)
 
     def _load(self, loadDict):
         # expects to be overridden:
         assert not len(loadDict), "No _load fn provided!"
-
-    def _load_dataDict(self, count):
-        try: return self._load_dataDict_stored(count)
-        except LoadStoredFail:
-            if self.anchored:
-                return self._load_dataDict_saved(count)
-            else:
-                raise LoadStoredFail
-
-    def _load_dataDict_stored(self, count):
-        if not count in self.counts_stored: raise LoadStoredFail
-        counts = self.dataDict[self.indexKey]
-        index = np.where(counts == count)[0][0]
-        datas = [self.dataDict[key] for key in self.dataKeys]
-        return dict(zip(self.dataKeys, [data[index] for data in datas]))
-
-    def _load_dataDict_saved(self, count):
-        counts = self.readouts[self.indexKey]
-        matches = np.where(counts == count)[0]
-        assert len(matches) <= 1, "Duplicates found in loaded counts!"
-        if len(matches) == 0: raise LoadDiskFail
-        else: index = matches[0]
-        datas = [self.readouts[key] for key in self.dataKeys]
-        return dict(zip(self.dataKeys, [data[index] for data in datas]))
 
     def bounce(self, count):
         return Bounce(self, count)
