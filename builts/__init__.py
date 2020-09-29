@@ -190,7 +190,7 @@ def sort_inputKeys(func):
         else:
             key = line.split('=')[0].strip()
             keyDict[tag].append(key)
-    keyDict = {key: frozenset(val) for key, val in keyDict.items()}
+    keyDict = {key: tuple(val) for key, val in keyDict.items()}
     return keyDict
 
 class Meta(type):

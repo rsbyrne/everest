@@ -14,7 +14,7 @@ class Counter(Producer):
         self.count = Value(-1)
         super().__init__(**kwargs)
         # Producer attributes:
-        self._outFns.append(self.countoutFn)
+        self._outFns.append(self._countoutFn)
         self.outkeys.append(self._countsKey)
         self._pre_store_fns.append(self._counter_pre_store_fn)
         self._pre_save_fns.append(self._counter_pre_save_fn)
@@ -50,7 +50,7 @@ class Counter(Producer):
     def _count_update_fn(self):
         for fn in self._count_update_fns: fn()
 
-    def countoutFn(self):
+    def _countoutFn(self):
         self._count_update_fn()
         yield self.count.value
 
@@ -58,5 +58,9 @@ class Counter(Producer):
         if self.count in self.counts_stored: raise AbortStore
 
     def _counter_pre_save_fn(self):
-        clashCounts = [i for i in self.counts_stored if i in self.counts_disk]
-        junkStoreds = [self.stored.pop[i] for i in clashCounts] # left for garbage coll.
+        keepCounts = [
+            self.counts_stored.index(i)
+                for i in self.counts_stored
+                    if not i in self.counts_disk
+            ]
+        self.stored[:] = [self.stored[i] for i in keepCounts]

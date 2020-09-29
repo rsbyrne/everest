@@ -27,16 +27,14 @@ class _DataProxy:
 
 class Producer(Built):
 
-    _outputMasterKey = 'outputs'
-    _outputSubKey = 'default'
-
     def __init__(
             self,
             baselines = dict(),
             **kwargs
             ):
 
-        self._outputKey = os.path.join(self._outputMasterKey, self._outputSubKey)
+        self._outputMasterKey = os.path.join(self.hashID, 'outputs')
+        self._outputSubKey = ''
 
         self.baselines = dict()
         for key, val in sorted(baselines.items()):
@@ -62,6 +60,13 @@ class Producer(Built):
         self.set_autosave(True)
         self.set_save_interval(3600.)
 
+    @property
+    def _outputKey(self):
+        if len(self._outputSubKey):
+            return os.path.join(self._outputMasterKey, self._outputSubKey)
+        else:
+            return self._outputMasterKey
+
     def set_autosave(self, val: bool):
         self.autosave = val
     def set_save_interval(self, val: float):
@@ -76,7 +81,6 @@ class Producer(Built):
     def reroute_outputs(self, key):
         for fn in self._pre_reroute_outputs_fns: fn()
         self._outputSubKey = key
-        self._outputKey = os.path.join(self._outputMasterKey, self._outputSubKey)
         if not key in self._stored:
             self._stored[key] = []
         if self.anchored:
@@ -99,6 +103,9 @@ class Producer(Built):
             "Outkeys do not match outputs!"
         for fn in self._post_out_fns: fn()
         return outs
+    @property
+    def outDict(self):
+        return dict(zip(self.outkeys, self.out()))
 
     def store(self):
         try:
@@ -132,13 +139,11 @@ class Producer(Built):
         self.readouts = Reader(
             self.name,
             self.path,
-            self.hashID,
             self._outputKey
             )
         self.writeouts = Writer(
             self.name,
             self.path,
-            self.hashID,
             self._outputKey
             )
 

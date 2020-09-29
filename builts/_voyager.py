@@ -97,7 +97,8 @@ class Voyager(Counter, Cycler, Stampable, Unique, Observable):
     @_initialised
     def _voyager_out_fn(self):
         if hasattr(self, '_out'):
-            return self._out()
+            for item in self._out():
+                yield item
         else:
             pass
 

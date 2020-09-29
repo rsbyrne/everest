@@ -71,3 +71,22 @@ class Wanderer(Voyager):
             out = self.__class__(**self.inputs)
             out.configure(arg)
             return out
+    def __setitem__(self, arg1, arg2):
+        assert len(self.configsKeys), "The configs keys dict is empty."
+        if not type(arg1) is tuple:
+            arg1 = arg1,
+        if not type(arg2) is tuple:
+            arg2 = arg2,
+        if len(arg2) > len(arg1):
+            raise ValueError(
+                "Too many configurations provided:\
+                there should be only " + str(len(arg1)) + '.'
+                )
+        elif len(arg1) > len(arg2):
+            if len(arg2) > 1:
+                raise ValueError(
+                    "Too many configurations provided:\
+                    there should be either 1 or " + str(len(arg1)) + '.'
+                    )
+            arg2 = tuple([arg2[0] for _ in arg1])
+        self.configure(dict(zip(arg1, arg2)))
