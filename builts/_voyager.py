@@ -79,7 +79,6 @@ class Voyager(Counter, Cycler, Stampable, Unique, Observable):
         self._outFns.insert(0, self._voyager_out_fn)
         if hasattr(self, '_outkeys'):
             self.outkeys[:] = [*self._outkeys, *self.outkeys]
-        self._post_reroute_outputs_fns.append(self._voyager_post_reroute_fn)
 
         # Cycler attributes:
         self._cycle_fns.append(self.iterate)
@@ -94,10 +93,6 @@ class Voyager(Counter, Cycler, Stampable, Unique, Observable):
 
         if _voyager_initialise:
             self.initialise()
-
-    def _voyager_post_reroute_fn(self):
-        if hasattr(self, 'chron'):
-            self.chron.value = float('NaN')
 
     @_initialised
     def _voyager_out_fn(self):

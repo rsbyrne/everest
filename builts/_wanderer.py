@@ -34,6 +34,7 @@ class Wanderer(Voyager):
         # Producer attributes:
         self._pre_save_fns.append(self._wanderer_pre_save_fn)
         self._post_save_fns.append(self._wanderer_post_save_fn)
+        self._post_reroute_outputs_fns.append(self._wanderer_post_reroute_fn)
 
     @_configured
     def _wanderer_pre_save_fn(self):
@@ -41,6 +42,10 @@ class Wanderer(Voyager):
 
     def _wanderer_post_save_fn(self):
         self.writeouts.add_dict({'configs': self.configs})
+
+    def _wanderer_post_reroute_fn(self):
+        if hasattr(self, 'chron'):
+            self.chron.value = float('NaN')
 
     def _process_configs(self, configs):
         # expects to be overridden:
