@@ -128,6 +128,11 @@ class Voyager(Counter, Cycler, Stampable, Unique, Observable):
             self._single_iterate()
             # mpi.message('.')
 
+    @_initialised
+    def go(self, stop = False):
+        while not stop:
+            self.iterate()
+
     @_changed_state
     def load(self, arg, **kwargs):
         try:
