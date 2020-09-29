@@ -40,8 +40,11 @@ def _obtain_dtype(object):
         dtype = type(object)
     return dtype
 
-def unique_list(inList):
-    return list(sorted(set(inList)))
+def unique_list(listlike, func = None):
+    if func is None: func = lambda e: True
+    return OrderedDict(
+        {e: None for e in listlike if func(e)}
+        ).keys()
 
 def flatten_dict(d, parent_key = '', sep = '_'):
     # by Imran@stackoverflow
