@@ -1,8 +1,8 @@
 import numpy as np
-from types import FunctionType
 from functools import wraps
 
 from .. import disk
+from ._observable import Observable
 from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import Producer
@@ -54,11 +54,11 @@ def _changed_state(func):
         return out
     return wrapper
 
-class Iterator(Counter, Cycler, Stampable, Unique):
+class Voyager(Counter, Cycler, Stampable, Unique, Observable):
 
     def __init__(
             self,
-            _iterator_initialise = True,
+            _voyager_initialise = True,
             **kwargs
             ):
 
@@ -76,46 +76,46 @@ class Iterator(Counter, Cycler, Stampable, Unique):
         super().__init__(**kwargs)
 
         # Producer attributes:
-        self._outFns.insert(0, self._iterator_out_fn)
+        self._outFns.insert(0, self._voyager_out_fn)
         if hasattr(self, '_outkeys'):
             self.outkeys[:] = [*self._outkeys, *self.outkeys]
-        self._post_reroute_outputs_fns.append(self._iterator_post_reroute_fn)
+        self._post_reroute_outputs_fns.append(self._voyager_post_reroute_fn)
 
         # Cycler attributes:
         self._cycle_fns.append(self.iterate)
 
         # Built attributes:
-        self._post_anchor_fns.append(self._iterator_post_anchor)
+        self._post_anchor_fns.append(self._voyager_post_anchor)
 
         # Self attributes:
         self.dataKeys = [
             key for key in self.outkeys if not key == self._countsKey
             ]
 
-        if _iterator_initialise:
+        if _voyager_initialise:
             self.initialise()
 
-    def _iterator_post_reroute_fn(self):
+    def _voyager_post_reroute_fn(self):
         if hasattr(self, 'chron'):
             self.chron.value = float('NaN')
 
     @_initialised
-    def _iterator_out_fn(self):
+    def _voyager_out_fn(self):
         if hasattr(self, '_out'):
             return self._out()
         else:
             pass
 
-    def _iterator_post_anchor(self):
+    def _voyager_post_anchor(self):
         self.h5filename = self.writer.h5filename
 
     @_changed_state
-    def initialise(self):
+    def initialise(self, *args, **kwargs):
         try:
             self.load(0)
         except LoadFail:
             self.count.value = 0
-            self._initialise()
+            self._initialise(*args, **kwargs)
         self.initialised = True
 
     def reset(self):
@@ -180,7 +180,7 @@ class Iterator(Counter, Cycler, Stampable, Unique):
 
     def _load_chron(self, inChron):
         if not hasattr(self, 'chron'):
-            raise Exception("Iterator has no provided chron.")
+            raise Exception("Voyager has no provided chron.")
         if inChron < 0.:
             inChron += self.chron
         counts, chrons = [], []

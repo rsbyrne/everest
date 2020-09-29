@@ -12,3 +12,6 @@ class CountNotOnDiskError(EverestException):
 
 class InDevelopmentError(EverestException):
     pass
+
+class NotYetImplemented(EverestException):
+    '''This feature has not been implemented yet.'''

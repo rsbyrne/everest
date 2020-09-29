@@ -30,4 +30,4 @@ class Stampable(Producer):
         except KeyError:
             loaded = []
         self.stamps = sorted(set([*self.stamps, *loaded]))
-        self.writer.add(self.stamps, 'stamps', self.hashID)
+        self.writeouts.add(self.stamps, 'stamps', self.hashID)

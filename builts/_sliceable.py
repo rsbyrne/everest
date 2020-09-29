@@ -14,6 +14,6 @@ class Sliceable(Built):
         super().__init__(**kwargs)
     def __getitem__(self, slicer):
         return reduce(
-        lambda x, y: y(x),
-        [slicer, *self._slice_fns]
-        )
+            lambda x, y: y(x),
+            [slicer, *self._slice_fns]
+            )
