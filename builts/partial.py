@@ -1,6 +1,6 @@
-from ._callable import Callable
+from . import Built
 
-class Partial(Callable):
+class Partial(Built):
 
     _swapscript = '''from everest.builts.partial import Partial as CLASS'''
 
@@ -10,8 +10,7 @@ class Partial(Callable):
 
         super().__init__()
 
-        # Callable attributes:
-        self._call_fns.append(self._partial_build)
+        self.__call__ = self._partial_build
 
     def _partial_build(self, *args, **kwargs):
         return self.partialClass(*args, **{**kwargs, **self.partialInputs})

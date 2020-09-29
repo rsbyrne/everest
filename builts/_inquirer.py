@@ -1,4 +1,4 @@
-from ._callable import Callable
+from . import Built
 from ..exceptions import EverestException
 from ..weaklist import WeakList
 
@@ -7,7 +7,7 @@ class InquirerError(EverestException):
 class ArgTypeError(InquirerError):
     pass
 
-class Inquirer(Callable):
+class Inquirer(Built):
     def __init__(
             self,
             _inquirer_meta_fn = all,
@@ -20,7 +20,7 @@ class Inquirer(Callable):
         self._inquirer_meta_fn = _inquirer_meta_fn
         self._inquirer_arg_typeCheck = _inquirer_arg_typeCheck
         super().__init__(**kwargs)
-        self._call_fns.append(self.inquire)
+        self.__call__ = self.inquire
     def inquire(self, arg):
         if not self._inquirer_arg_typeCheck(arg):
             raise ArgTypeError
