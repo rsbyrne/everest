@@ -28,13 +28,16 @@ class Pyklet:
         return cls(*args, **kwargs)
     @staticmethod
     def _process_input(inp):
-        if type(inp) is Meta:
-            raise NotYetImplemented
-            # return _CLASSTAG_ + inp.script
-        elif isinstance(inp, Built):
-            raise NotYetImplemented
-            # return _BUILTTAG_ + inp.hashID
-        else:
-            return inp
+        return inp
+    # def _process_input(inp):
+    #     if type(inp) is Meta:
+    #         raise NotYetImplemented
+    #         # return _CLASSTAG_ + inp.script
+    #     elif isinstance(inp, Built):
+    #         raise NotYetImplemented
+    #         # return _BUILTTAG_ + inp.hashID
+    #     else:
+    #         return inp
+    @staticmethod
     def _unprocess_input(inp):
         return inp
