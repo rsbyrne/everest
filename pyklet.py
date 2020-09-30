@@ -11,11 +11,11 @@ class Pyklet:
     def __init__(self, *args, **kwargs):
         self._source = inspect.getsource(self.__class__)
         args = [
-            self._process_inp(arg)
+            self._process_input(arg)
             for arg in args
             ]
         kwargs = {
-            process_inp(k): process_inp(v)
+            _process_input(k): _process_input(v)
                 for k, v in sorted(kwargs.items())
             }
         self._hashObjects = (args, kwargs, self._source)

@@ -3,10 +3,27 @@ import operator
 
 from .pyklet import Pyklet
 
+class Prop(Pyklet):
+
+    def __init__(self,
+            *props
+            ):
+
+        self.props = props
+
+        super().__init__(*props)
+
+    def __call__(self, obj):
+
+        for prop in self.props:
+            obj = getattr(obj, prop)
+
+        return obj
+
 class Comparator(Pyklet):
 
     def __init__(self,
-            *props,
+            *args,
             op : (str, FunctionType) = bool,
             asList = False,
             invert = False
@@ -15,42 +32,47 @@ class Comparator(Pyklet):
         if type(op) is str:
             op = operator.__dict__[op]
 
-        super().__init__(*props, op = op, asList = asList, invert = invert)
+        super().__init__(*args, op = op, asList = asList, invert = invert)
 
-        self.props, self.op, self.asList, self.invert = \
-            props, op, asList, invert
+        self.args, self.op, self.asList, self.invert = \
+            args, op, asList, invert
 
-    def __call__(self, *objs):
+    def __call__(self, *queryArgs):
 
-        props = self.props
-        if len(objs) > len(self.props):
-            props = self.pack_list(props, objs)
-
-        targets = [
-            self._expose_property(o, p)
-                for o, p in zip(objs, props)
-            ]
+        queryArgs = iter(queryArgs)
+        args = []
+        for arg in self.args:
+            if arg is None:
+                args.append(next(queryArgs))
+            elif type(arg) is Prop:
+                args.append(arg(next(queryArgs)))
+            else:
+                args.append(arg)
+        try:
+            next(queryArgs)
+            raise ValueError("Leftover args.")
+        except StopIteration:
+            pass
 
         if self.asList:
-            out = bool(self.op(targets))
+            out = bool(self.op(args))
         else:
-            out = bool(self.op(*targets))
+            out = bool(self.op(*args))
         if self.invert:
             out = not out
+
         return out
 
-    @staticmethod
-    def pack_list(list1, list2):
+    def close(self, *queryArgs):
 
-        return [*list1, *[None for i in range(len(list2) - len(list1))]]
+        return Nullary(lambda: self(*queryArgs))
 
-    @staticmethod
-    def _expose_property(obj, props):
+class Nullary:
 
-        if props is None:
-            return obj
-        else:
-            props = props.split('/')
-            for prop in props:
-                obj = getattr(obj, prop)
-            return obj
+    def __init__(self, fn):
+
+        self.fn = fn
+
+    def __bool__(self):
+
+        return bool(fn())
