@@ -14,6 +14,7 @@ from .. import mpi
 message = mpi.message
 
 from .. import utilities
+Grouper = utilities.Grouper
 make_hash = utilities.make_hash
 from .. import disk
 from .. import wordhash
@@ -330,6 +331,8 @@ class Built(metaclass = Meta):
         self.anchored = False
         self._pre_anchor_fns = WeakList()
         self._post_anchor_fns = WeakList()
+
+        self.inputs = Grouper(self.inputs) # <- may be problematic!
 
         super().__init__()
 
