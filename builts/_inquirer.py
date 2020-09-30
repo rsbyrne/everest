@@ -21,6 +21,8 @@ class Inquirer(Built):
         self._inquirer_arg_typeCheck = _inquirer_arg_typeCheck
         super().__init__(**kwargs)
         self.__call__ = self.inquire
+    def __call__(self, arg):
+        return self.inquire(arg)
     def inquire(self, arg):
         if not self._inquirer_arg_typeCheck(arg):
             raise ArgTypeError

@@ -8,7 +8,8 @@ class Cycler(Built):
         self._cycle_fns = WeakList()
         self._post_cycle_fns = WeakList()
         super().__init__(**kwargs)
-        self.__call__ = self.cycle
+    def __call__(self):
+        self.cycle()
     def cycle(self):
         # message("Cycling...", self.__class__, self.hashID)
         for fn in self._pre_cycle_fns: fn()

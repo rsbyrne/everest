@@ -46,10 +46,19 @@ class Observer(Producer):
 
         self.detach(silent = True)
 
+        self.requests = dict()
+
         super().__init__(**kwargs)
 
         # Producer attributes:
         self._outFns.append(self._master_observer_out)
+
+    def observe(self, subject):
+        try:
+            self.attach(subject)
+        except AlreadyAttachedError:
+            pass
+        self.store()
 
     @_attached
     def detach(self):
@@ -57,6 +66,10 @@ class Observer(Producer):
         self.locals = None
         self._observer_out = None
         self.observed = None
+        if isinstance(self.subject, Producer):
+            self.subject._post_store_fns.remove(self.store)
+            self.subject._post_anchor_fns.remove(self._anchor_to_subject)
+            self.subject._post_save_fns.remove(self.save)
 
     def attach(self, subject):
         if self.subject is subject:
@@ -66,6 +79,13 @@ class Observer(Producer):
         if not len(subject.observables):
             raise NoObservables
         self.subject = subject
+        if isinstance(self.subject, Producer):
+            self.subject._post_store_fns.append(self.store)
+            self.subject._post_anchor_fns.append(self._anchor_to_subject)
+            self.subject._post_save_fns.append(self.save)
+
+    def _anchor_to_subject(self):
+        self.anchor(self.subject.name, self.subject.path)
 
     @_changed
     def _master_observer_out(self):
