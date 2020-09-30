@@ -75,4 +75,4 @@ class Nullary:
 
     def __bool__(self):
 
-        return bool(fn())
+        return bool(self.fn())
