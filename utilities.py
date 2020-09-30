@@ -7,6 +7,12 @@ from . import mpi
 
 message = mpi.message
 
+from .exceptions import EverestExceptions
+class GrouperSetAttrForbidden(EverestExceptions):
+    '''
+    Cannot set attributes on Grouper objects after creation.
+    '''
+
 class Grouper:
     def __init__(self, grouperDict):
         self.grouperDict = grouperDict.copy()
@@ -21,6 +27,8 @@ class Grouper:
         return self.__dict__.keys(*args, **kwargs)
     def items(self, *args, **kwargs):
         return self.__dict__.items(*args, **kwargs)
+    def __setattr__(self, *args, **kwargs):
+        raise GrouperSetAttrForbidden
 
 def make_hash(obj):
     if hasattr(obj, 'instanceHash'):
