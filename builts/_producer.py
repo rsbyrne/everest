@@ -27,14 +27,26 @@ class _DataProxy:
 
 class Producer(Built):
 
+    _defaultOutputMasterKey = 'outputs'
+    _defaultOutputSubKey = ''
+
     def __init__(
             self,
             baselines = dict(),
             **kwargs
             ):
 
-        self._outputMasterKey = os.path.join(self.hashID, 'outputs')
-        self._outputSubKey = ''
+        try:
+            self._outputMasterKey = os.path.join(
+                self.hashID,
+                self._defaultOutputMasterKey
+                )
+        except AttributeError:
+            pass
+        try:
+            self._outputSubKey = self._defaultOutputSubKey
+        except AttributeError:
+            pass
 
         self.baselines = dict()
         for key, val in sorted(baselines.items()):
@@ -50,7 +62,7 @@ class Producer(Built):
         self._pre_reroute_outputs_fns = WeakList()
         self._post_reroute_outputs_fns = WeakList()
         self.outkeys = []
-        self._stored = {self._outputSubKey: []}
+        self._stored = {self._defaultOutputSubKey: []}
 
         super().__init__(baselines = self.baselines, **kwargs)
 
