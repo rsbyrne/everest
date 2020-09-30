@@ -10,14 +10,23 @@ message = mpi.message
 from .exceptions import EverestException
 class GrouperSetAttrForbidden(EverestException):
     '''
-    Cannot set attributes on Grouper objects after creation.
+    Cannot set attributes on Grouper objects after creation. \
+    Disable this lock by changing the 'lock' attribute to False.
     '''
 
 class Grouper:
     def __init__(self, grouperDict):
+        self.lock = False
         self.grouperDict = grouperDict.copy()
+        for key in grouperDict:
+            if ' ' in key:
+                val = grouperDict[key]
+                del grouperDict[key]
+                newKey = key.replace(' ', '_')
+                grouperDict[newKey] = val
         self.grouperDict['_isgrouper'] = True
         self.__dict__.update(grouperDict)
+        self.lock = True
     def __getitem__(self, key):
         return self.grouperDict[key]
     def __setitem__(self, key, arg):
@@ -27,8 +36,11 @@ class Grouper:
         return self.__dict__.keys(*args, **kwargs)
     def items(self, *args, **kwargs):
         return self.__dict__.items(*args, **kwargs)
-    def __setattr__(self, *args, **kwargs):
-        raise GrouperSetAttrForbidden
+    def __setattr__(self, name, value):
+        if hasattr(self, 'lock'):
+            if self.lock and not name == 'lock':
+                raise GrouperSetAttrForbidden
+        super().__setattr__(name, value)
 
 def make_hash(obj):
     if hasattr(obj, 'instanceHash'):
