@@ -19,21 +19,6 @@ class NotAttachedError(ObserverError):
     '''Observer is not attached to a subject yet.'''
 class NoObservables(ObserverError):
     '''Subject has no observables; it may need to be initialised first.'''
-class RequestAlreadyFiled(ObserverError):
-    '''
-    That request has already been filed. \
-    Silence this error with the 'silent' keyword.
-    '''
-class RequestNotFiled(ObserverError):
-    '''
-    That request does not appear to have been filed. \
-    Silence this error with the 'silent' keyword.
-    '''
-class PrompterNotFound(ObserverError):
-    '''
-    That prompter does not appear to have been registered \
-    with the Observer. Use the 'request' method.
-    '''
 
 def _attached(func):
     @wraps(func)
@@ -62,7 +47,6 @@ class Observer(Producer):
         self.subject = None
         self.observer = None
         self._observers = weakref.WeakKeyDictionary()
-        self._requests = weakref.WeakKeyDictionary()
 
         super().__init__(**kwargs)
 
@@ -97,28 +81,6 @@ class Observer(Producer):
                 subject._post_save_fns.remove(self.save)
             self.subject = None
             self.observer = None
-
-    def request(self, prompter, condition, silent = False):
-        if not prompter in self._requests:
-            self._requests[prompter] = []
-        conditions = self._requests[prompter]
-        if condition in conditions and not silent:
-            raise RequestAlreadyFiled
-        conditions.append(condition)
-    def unrequest(self, prompter, condition, silent = False):
-        try:
-            conditions = self._requests[prompter]
-            conditions.remove(condition)
-        except (KeyError, ValueError):
-            if not silent:
-                raise RequestNotFiled
-    def prompt(self, prompter):
-        if not prompter in self._requests:
-            raise PrompterNotFound
-        conditions = self._requests[prompter]
-        if any(conditions):
-            with self.attach(prompter):
-                self.store()
 
     @_attached
     def _anchor_to_subject(self):
@@ -155,3 +117,22 @@ class Observer(Producer):
             key += self.subject._outputSubKey + '/'
         key += '/'.join(['observations', self.hashID])
         return key
+
+    @_attached
+    def store(self):
+        # Overrides and calls Producer store method:
+        super().store()
+    @_attached
+    def save(self):
+        # Overrides and calls Producer save method:
+        super().store()
+
+    def _prompt(self, prompter):
+        # Overrides Promptable _prompt method:
+        if self.subject is None:
+            with self.attach(prompter):
+                super()._prompt(prompter)
+        elif prompter is self.subject:
+            super()._prompt(prompter)
+        else:
+            raise AlreadyAttachedError

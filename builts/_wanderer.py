@@ -92,3 +92,8 @@ class Wanderer(Voyager):
                     )
             arg2 = tuple([arg2[0] for _ in arg1])
         self.configure(dict(zip(arg1, arg2)))
+
+    @property
+    def _promptableKey(self):
+        # Overrides Promptable property:
+        return self.configsHash

@@ -9,7 +9,7 @@ from ..reader import Reader
 from ..writer import Writer
 
 from . import buffersize_exceeded
-from . import Built
+from ._promptable import Promptable
 from . import anchorwrap
 from ..weaklist import WeakList
 from ..array import EverestArray
@@ -25,7 +25,7 @@ class _DataProxy:
     def __getitem__(self, inp):
         return self._method(inp)
 
-class Producer(Built):
+class Producer(Promptable):
 
     _defaultOutputMasterKey = 'outputs'
     _defaultOutputSubKey = ''
@@ -66,11 +66,17 @@ class Producer(Built):
 
         super().__init__(baselines = self.baselines, **kwargs)
 
+        # Promptable attributes:
+        self._prompt_fns.append(self._producer_prompt)
+
         # Built attributes:
         self._post_anchor_fns.append(self._producer_post_anchor)
 
         self.set_autosave(True)
         self.set_save_interval(3600.)
+
+    def _producer_prompt(self, prompter):
+        self.store()
 
     @property
     def _outputKey(self):
