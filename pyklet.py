@@ -15,7 +15,7 @@ class Pyklet:
             for arg in args
             ]
         kwargs = {
-            _process_input(k): _process_input(v)
+            self._process_input(k): self._process_input(v)
                 for k, v in sorted(kwargs.items())
             }
         self._hashObjects = (args, kwargs, self._source)
