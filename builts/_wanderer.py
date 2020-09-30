@@ -73,7 +73,7 @@ class Wanderer(Voyager):
             return out
     def __setitem__(self, arg1, arg2):
         assert len(self.configsKeys), "The configs keys dict is empty."
-        if type(arg1) is Ellipsis:
+        if arg1 is Ellipsis:
             arg1 = self.configsKeys
         if not type(arg1) is tuple:
             arg1 = arg1,
