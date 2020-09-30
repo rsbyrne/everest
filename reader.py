@@ -20,6 +20,7 @@ from .globevars import \
     _GROUPTAG_
 from .exceptions import EverestException, InDevelopmentError
 from .array import EverestArray
+from .utilities import Grouper
 
 class PathNotInFrameError(EverestException, KeyError):
     pass
@@ -151,6 +152,8 @@ class Reader(H5Manager):
             out = dict()
             for key, sub in sorted(inp.items()):
                 out[key] = self._seekresolve(sub)
+            if '_isgrouper' in out:
+                out = Grouper(out)
             return out
         elif isinstance(inp, np.ndarray):
             return inp

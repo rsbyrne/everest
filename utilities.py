@@ -9,9 +9,18 @@ message = mpi.message
 
 class Grouper:
     def __init__(self, grouperDict):
+        self.grouperDict = grouperDict.copy()
+        self.grouperDict['_isgrouper'] = True
         self.__dict__.update(grouperDict)
     def __getitem__(self, key):
-        return getattr(self, key)
+        return self.grouperDict[key]
+    def __setitem__(self, key, arg):
+        self.grouperDict[key] = arg
+        self.__dict__.update(grouperDict)
+    def keys(self, *args, **kwargs):
+        return self.__dict__.keys(*args, **kwargs)
+    def items(self, *args, **kwargs):
+        return self.__dict__.items(*args, **kwargs)
 
 def make_hash(obj):
     if hasattr(obj, 'instanceHash'):
@@ -20,7 +29,7 @@ def make_hash(obj):
         hashVal = obj.typeHash
     elif hasattr(obj, '_hashObjects'):
         hashVal = make_hash(obj._hashObjects)
-    elif type(obj) is dict:
+    elif type(obj) is dict or isinstance(obj, Grouper):
         hashVal = make_hash(sorted(obj.items()))
     elif type(obj) is list or type(obj) is tuple:
         hashList = [make_hash(subObj) for subObj in obj]

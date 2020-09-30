@@ -15,6 +15,7 @@ from .pyklet import Pyklet
 from .globevars import \
     _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
 from .array import EverestArray
+from .utilities import Grouper
 
 class LinkTo:
     def __init__(self, arg):
@@ -42,7 +43,7 @@ class Writer(H5Manager):
 
     def _process_inp(self, inp):
         global _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
-        if isinstance(inp, Mapping):
+        if isinstance(inp, Mapping) or isinstance(inp, Grouper):
             return {
                 key: self._process_inp(val) \
                     for key, val in sorted(inp.items())
