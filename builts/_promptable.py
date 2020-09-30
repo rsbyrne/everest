@@ -42,8 +42,8 @@ class Promptable(Built):
         #     weakref.WeakKeyDictionary()
 
         self._pre_prompt_fns = WeakList()
-        self._prompt_fns = Weaklist()
-        self._post_prompt_fns = Weaklist()
+        self._prompt_fns = WeakList()
+        self._post_prompt_fns = WeakList()
 
         super().__init__(**kwargs)
 
@@ -73,9 +73,14 @@ class Promptable(Built):
         requests = self._get_requests()
         if not prompter in requests:
             raise PrompterNotFound
-        conditions = self._requests[prompter]
+        conditions = requests[prompter]
         if any(conditions):
             self._prompt(prompter)
+
+    def advertise(self):
+        requests = self._get_requests(make = True)
+        for prompter in requests:
+            self.prompt(prompter)
 
     def _get_requests(self, make = False):
         key = self._promptableKey
@@ -87,6 +92,6 @@ class Promptable(Built):
         return self._requests[key]
 
     def _prompt(self, prompter):
-        for fn in self._pre_prompt_fns: fn()
-        for fn in self._prompt_fns: fn()
-        for fn in self._post_prompt_fns: fn()
+        for fn in self._pre_prompt_fns: fn(prompter)
+        for fn in self._prompt_fns: fn(prompter)
+        for fn in self._post_prompt_fns: fn(prompter)

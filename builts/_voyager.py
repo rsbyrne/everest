@@ -75,6 +75,9 @@ class Voyager(Counter, Cycler, Stampable, Unique, Observable):
 
         super().__init__(**kwargs)
 
+        # Prompter attributes:
+        self._changed_state_fns.append(self.advertise)
+
         # Producer attributes:
         self._outFns.insert(0, self._voyager_out_fn)
         if hasattr(self, '_outkeys'):

@@ -8,15 +8,17 @@ class Comparator(Pyklet):
     def __init__(self,
             *props,
             op : (str, FunctionType) = bool,
-            asList = False
+            asList = False,
+            invert = False
             ):
 
         if type(op) is str:
             op = operator.__dict__[op]
 
-        super().__init__(*props, op = op, asList = asList)
+        super().__init__(*props, op = op, asList = asList, invert = invert)
 
-        self.props, self.op, self.asList = props, op, asList
+        self.props, self.op, self.asList, self.invert = \
+            props, op, asList, invert
 
     def __call__(self, *objs):
 
@@ -30,9 +32,12 @@ class Comparator(Pyklet):
             ]
 
         if self.asList:
-            return self.op(targets)
+            out = bool(self.op(targets))
         else:
-            return self.op(*targets)
+            out = bool(self.op(*targets))
+        if self.invert:
+            out = not out
+        return out
 
     @staticmethod
     def pack_list(list1, list2):
