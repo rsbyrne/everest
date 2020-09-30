@@ -7,8 +7,8 @@ from . import mpi
 
 message = mpi.message
 
-from .exceptions import EverestExceptions
-class GrouperSetAttrForbidden(EverestExceptions):
+from .exceptions import EverestException
+class GrouperSetAttrForbidden(EverestException):
     '''
     Cannot set attributes on Grouper objects after creation.
     '''
