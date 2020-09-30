@@ -187,23 +187,23 @@ class Producer(Promptable):
             if time.time() - self.lastsaved > self.saveinterval:
                 self.save()
 
-    def _producer_get(self, arg):
-        if type(arg) is str:
-            key = arg
-            if not key in self.outkeys:
-                raise ValueError("That key is not valid for this producer.")
-            if self.anchored:
-                self.save()
-                out = self.readouts[key]
-            else:
-                out = self.dataDict[key]
-            return out
-        elif type(arg) is tuple:
-            tup = arg
-            return [self._producer_get(k) for k in tup]
-        else:
-            raise TypeError("Input must be string or tuple.")
-
-    @property
-    def data(self):
-        return _DataProxy(self._producer_get)
+    # def _producer_get(self, arg):
+    #     if type(arg) is str:
+    #         key = arg
+    #         if not key in self.outkeys:
+    #             raise ValueError("That key is not valid for this producer.")
+    #         if self.anchored:
+    #             self.save()
+    #             out = self.readouts[key]
+    #         else:
+    #             out = self.dataDict[key]
+    #         return out
+    #     elif type(arg) is tuple:
+    #         tup = arg
+    #         return [self._producer_get(k) for k in tup]
+    #     else:
+    #         raise TypeError("Input must be string or tuple.")
+    #
+    # @property
+    # def data(self):
+    #     return _DataProxy(self._producer_get)
