@@ -136,3 +136,8 @@ class Observer(Producer):
             super()._prompt(prompter)
         else:
             raise AlreadyAttachedError
+
+    def _producer_post_anchor(self):
+        # Wraps Producer method
+        if not self.subject is None:
+            super()._producer_post_anchor()
