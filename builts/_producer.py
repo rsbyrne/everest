@@ -155,21 +155,24 @@ class Producer(Promptable):
         for fn in self._post_save_fns: fn()
         mpi.message(':')
 
+    @property
     @anchorwrap
-    def _update_outpaths(self):
-        self.readouts = Reader(
+    def readouts(self):
+        return Reader(
             self.name,
             self.path,
             self._outputKey
             )
-        self.writeouts = Writer(
+    @property
+    @anchorwrap
+    def writeouts(self):
+        return Writer(
             self.name,
             self.path,
             self._outputKey
             )
 
     def _producer_post_anchor(self):
-        self._update_outpaths()
         self.save()
 
     def _save(self):

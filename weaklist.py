@@ -74,6 +74,9 @@ class WeakList(list):
             if x == obj:
                 del self[i]
 
+    def clear(self):
+        self._refs.clear()
+
     def reverse(self):
         self._refs.reverse()
 

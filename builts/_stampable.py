@@ -3,6 +3,8 @@ import ast
 from .. import disk
 from ._producer import Producer
 
+# In development.
+
 class Stampable(Producer):
 
     def __init__(
@@ -15,10 +17,10 @@ class Stampable(Producer):
         super().__init__(**kwargs)
 
         # Producer attributes:
-        self._post_save_fns.append(self._stampable_update)
+        # self._post_save_fns.append(self._stampable_update)
 
         # Built attributes:
-        self._post_anchor_fns.append(self._stampable_update)
+        # self._post_anchor_fns.append(self._stampable_update)
 
     def stamp(self, stamper):
         self.stamps.append((stamper.hashID, self.count.value))

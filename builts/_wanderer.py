@@ -46,7 +46,8 @@ class Wanderer(Voyager):
         pass
 
     def _wanderer_post_save_fn(self):
-        self.writeouts.add_dict({'configs': self.configs})
+        if not self._observation_mode_active:
+            self.writeouts.add_dict({'configs': self.configs})
 
     def _process_configs(self, configs):
         # expects to be overridden:
@@ -67,8 +68,6 @@ class Wanderer(Voyager):
         self.configs = self._process_configs(configs)
         self.configsHash = wHash(self.configs)
         self.initialised = False
-        if self.anchored:
-            self._update_outpaths()
         self._configure()
 
     def __getitem__(self, arg):

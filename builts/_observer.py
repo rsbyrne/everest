@@ -4,8 +4,6 @@ import weakref
 
 from . import Built
 from ._observable import Observable
-from ._producer import Producer
-from ._counter import Counter
 
 from ..utilities import Grouper
 
@@ -35,6 +33,18 @@ def _unattached(func):
             raise AlreadyAttachedError
         return func(self, *args, **kwargs)
     return wrapper
+def _observation_mode(func):
+    @_attached
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        with self.subject._observation_mode():
+            self.subject._outFns.append(self.observer.out)
+            self.subject._producer_outkeys.append(self.observer.outkeys)
+            self.subject._outputSubKeys.append(self._key)
+            out = func(self, *args, **kwargs)
+            self.subject._outputSubKeys.remove(self._key)
+            return out
+    return wrapper
 
 class Observer(Built):
 
@@ -51,16 +61,16 @@ class Observer(Built):
 
         super().__init__(**kwargs)
 
-        # Producer attributes:
-        self._outFns.append(self._master_observer_out)
-        self._producer_outkeys.append(self._observer_outkeys)
-
     @contextmanager
     @_unattached
-    def attach(self, subject):
+    def observe(self, subject):
         try:
+            if not isinstance(subject, Observable):
+                raise TypeError(
+                    "Observee must be an instance of the Observable class."
+                    )
             try:
-                observer = self._observers[self]
+                observer = self._observers[subject]
             except KeyError:
                 observer = self.master_build_observer(subject.observables)
                 self._observers[subject] = observer
@@ -71,59 +81,33 @@ class Observer(Built):
             self.subject = None
             self.observer = None
 
-    @_attached
-    def _master_observer_out(self):
-        if isinstance(self.subject, Counter):
-            for item in self.subject._countoutFn():
-                yield item
-        for item in self.observer.out():
-            yield item
+    @_observation_mode
+    def out(self, *args, **kwargs):
+        return self.subject.out(*args, **kwargs)
+    @_observation_mode
+    def store(self, *args, **kwargs):
+        self.subject.store(*args, **kwargs)
+    @_observation_mode
+    def save(self, *args, **kwargs):
+        self.subject.save(*args, **kwargs)
+        self.subject.writer.add(
+            self,
+            'observer',
+            self.subject._outputMasterKey,
+            self.subject._outputSubKey,
+            )
 
-    @_attached
-    def _observer_outkeys(self):
-        if isinstance(self.subject, Counter):
-            for key in self.subject._countsKeyFn():
-                yield key
-        for key in self.observer.outkeys:
-            yield key
+    def _key(self):
+        return '/'.join(['observations', self.hashID])
+    @property
+    def key(self):
+        return self._key()
 
     def master_build_observer(self, observables):
         observerDict = self.build_observer(observables)
         if 'self' in observerDict:
             del observerDict['self']
         return Grouper(observerDict)
-
-    @property
-    @_attached
-    def _outputMasterKey(self):
-        # Overrides Producer attribute
-        if isinstance(self.subject, Producer):
-            return self.subject._outputMasterKey
-        else:
-            return self.subject.hashID
-    @property
-    @_attached
-    def _outputSubKey(self):
-        # Overrides Producer attribute
-        key = ''
-        if isinstance(self.subject, Producer):
-            key += self.subject._outputSubKey + '/'
-        key += '/'.join(['observations', self.hashID])
-        return key
-
-    @_attached
-    def store(self):
-        with self.subject._observation_mode():
-            self.subject._outFns.append(self.observer.out)
-
-    # @_attached
-    # def store(self):
-    #     # Overrides and calls Producer store method:
-    #     super().store()
-    # @_attached
-    # def save(self):
-    #     # Overrides and calls Producer save method:
-    #     super().store()
 
     def _prompt(self, prompter):
         # Overrides Promptable _prompt method:
@@ -134,8 +118,3 @@ class Observer(Built):
             super()._prompt(prompter)
         else:
             raise AlreadyAttachedError
-
-    def _producer_post_anchor(self):
-        # Wraps Producer method
-        if not self.subject is None:
-            super()._producer_post_anchor()
