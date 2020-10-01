@@ -111,9 +111,9 @@ class Producer(Promptable):
                 nbytes += np.array(data).nbytes
         return nbytes
 
-    def reroute_outputs(self, key):
+    def reroute_outputs(self):
         for fn in self._pre_reroute_outputs_fns: fn()
-        self._outputSubKey = key
+        key = self._outputSubKey
         if not key in self._stored:
             self._stored[key] = []
         if self.anchored:
@@ -127,8 +127,6 @@ class Producer(Promptable):
 
     @property
     def stored(self):
-        if not self._outputSubKey in self._stored:
-            self._stored[self._outputSubKey] = []
         return self._stored[self._outputSubKey]
 
     def out(self):

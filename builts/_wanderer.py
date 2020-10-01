@@ -8,7 +8,10 @@ from .. import wordhash
 wHash = lambda x: wordhash.get_random_phrase(make_hash(x))
 
 class NotConfigured(EverestException):
-    '''Objects inheriting from Wanderer must be configured before use - see the 'configure' method.'''
+    '''
+    Objects inheriting from Wanderer must be configured before use \
+    - see the 'configure' method.
+    '''
 
 def _configured(func):
     @wraps(func)
@@ -55,10 +58,14 @@ class Wanderer(Voyager):
         # expects to be overridden:
         pass
 
+    @property
+    def _outputSubKey(self):
+        return self.configsHash
+
     def configure(self, configs):
         self.configs = self._process_configs(configs)
         self.configsHash = wHash(self.configs)
-        self.reroute_outputs(self.configsHash)
+        self.reroute_outputs()
         self.initialised = False
         self._configure()
 

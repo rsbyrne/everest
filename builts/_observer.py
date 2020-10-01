@@ -74,6 +74,7 @@ class Observer(Producer):
                 subject._post_save_fns.append(self.save)
             self.subject = subject
             self.observer = observer
+            self.reroute_outputs()
             yield observer
         finally:
             if wasAnchored:
@@ -86,6 +87,16 @@ class Observer(Producer):
                 subject._post_save_fns.remove(self.save)
             self.subject = None
             self.observer = None
+
+    # @contextmanager
+    # @_attached
+    # def store(self):
+    #     try:
+    #         outputSubKey = self._outputSubKey
+    #         outputMasterKey = self._outputMasterKey
+    #         former_outputSubKey = self.subject._outputSubKey
+    #         former_outputMasterKey = self.subject._outputMasterKey
+    #         self.subject.
 
     @_attached
     def _anchor_to_subject(self):
