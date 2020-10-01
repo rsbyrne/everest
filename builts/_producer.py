@@ -27,26 +27,15 @@ class _DataProxy:
 
 class Producer(Promptable):
 
-    _defaultOutputMasterKey = 'outputs'
-    _defaultOutputSubKey = ''
-
     def __init__(
             self,
             baselines = dict(),
             **kwargs
             ):
 
-        try:
-            self._outputMasterKey = os.path.join(
-                self.hashID,
-                self._defaultOutputMasterKey
-                )
-        except AttributeError:
-            pass
-        try:
-            self._outputSubKey = self._defaultOutputSubKey
-        except AttributeError:
-            pass
+        self._outputRootKey = self.hashID
+        self._outputMasterKeys = WeakList([self._producer_outputMasterKey,])
+        self._outputSubKeys = WeakList()
 
         self.baselines = dict()
         for key, val in sorted(baselines.items()):
@@ -59,10 +48,8 @@ class Producer(Promptable):
         self._post_store_fns = WeakList()
         self._pre_save_fns = WeakList()
         self._post_save_fns = WeakList()
-        self._pre_reroute_outputs_fns = WeakList()
-        self._post_reroute_outputs_fns = WeakList()
         self._producer_outkeys = WeakList()
-        self._stored = {self._defaultOutputSubKey: []}
+        self._stored = dict()
 
         super().__init__(baselines = self.baselines, **kwargs)
 
@@ -74,6 +61,19 @@ class Producer(Promptable):
 
         self.set_autosave(True)
         self.set_save_interval(3600.)
+
+    def _producer_outputMasterKey(self):
+        return 'outputs'
+    @property
+    def _outputMasterKey(self):
+        return '/'.join([fn() for fn in self._outputMasterKeys])
+    @property
+    def _outputSubKey(self):
+        return '/'.join([fn() for fn in self._outputSubKeys])
+    @property
+    def _outputKey(self):
+        keys = [self._outputRootKey, self._outputMasterKey, self._outputSubKey]
+        return '/'.join([k for k in keys if len(k)])
 
     @property
     def outkeys(self):
@@ -93,13 +93,6 @@ class Producer(Promptable):
     def _producer_prompt(self, prompter):
         self.store()
 
-    @property
-    def _outputKey(self):
-        if len(self._outputSubKey):
-            return os.path.join(self._outputMasterKey, self._outputSubKey)
-        else:
-            return self._outputMasterKey
-
     def set_autosave(self, val: bool):
         self.autosave = val
     def set_save_interval(self, val: float):
@@ -111,15 +104,6 @@ class Producer(Promptable):
                 nbytes += np.array(data).nbytes
         return nbytes
 
-    def reroute_outputs(self):
-        for fn in self._pre_reroute_outputs_fns: fn()
-        key = self._outputSubKey
-        if not key in self._stored:
-            self._stored[key] = []
-        if self.anchored:
-            self._update_outpaths()
-        for fn in self._post_reroute_outputs_fns: fn()
-
     @property
     def dataDict(self):
         processed = list(map(np.stack, (list(map(list, zip(*self.stored))))))
@@ -127,7 +111,10 @@ class Producer(Promptable):
 
     @property
     def stored(self):
-        return self._stored[self._outputSubKey]
+        key = self._outputSubKey
+        if not key in self._stored:
+            self._stored[key] = []
+        return self._stored[key]
 
     def out(self):
         for fn in self._pre_out_fns: fn()
@@ -168,6 +155,7 @@ class Producer(Promptable):
         for fn in self._post_save_fns: fn()
         mpi.message(':')
 
+    @anchorwrap
     def _update_outpaths(self):
         self.readouts = Reader(
             self.name,

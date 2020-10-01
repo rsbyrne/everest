@@ -37,7 +37,9 @@ class Wanderer(Voyager):
         # Producer attributes:
         self._pre_save_fns.append(self._wanderer_pre_save_fn)
         self._post_save_fns.append(self._wanderer_post_save_fn)
-        self._post_reroute_outputs_fns.append(self._wanderer_post_reroute_fn)
+        self._outputSubKeys.append(self._wanderer_outputSubKey_fn)
+
+        # Observable attributes:
 
     @_configured
     def _wanderer_pre_save_fn(self):
@@ -45,10 +47,6 @@ class Wanderer(Voyager):
 
     def _wanderer_post_save_fn(self):
         self.writeouts.add_dict({'configs': self.configs})
-
-    def _wanderer_post_reroute_fn(self):
-        if hasattr(self, 'chron'):
-            self.chron.value = float('NaN')
 
     def _process_configs(self, configs):
         # expects to be overridden:
@@ -58,15 +56,19 @@ class Wanderer(Voyager):
         # expects to be overridden:
         pass
 
-    @property
-    def _outputSubKey(self):
+    @_configured
+    def _wanderer_outputSubKey_fn(self):
         return self.configsHash
 
     def configure(self, configs):
+        if hasattr(self, 'chron'):
+            self.chron.value = float('NaN')
+        self.count.value = -1
         self.configs = self._process_configs(configs)
         self.configsHash = wHash(self.configs)
-        self.reroute_outputs()
         self.initialised = False
+        if self.anchored:
+            self._update_outpaths()
         self._configure()
 
     def __getitem__(self, arg):

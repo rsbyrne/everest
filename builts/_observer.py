@@ -2,6 +2,7 @@ from functools import wraps
 from contextlib import contextmanager
 import weakref
 
+from . import Built
 from ._observable import Observable
 from ._producer import Producer
 from ._counter import Counter
@@ -35,7 +36,7 @@ def _unattached(func):
         return func(self, *args, **kwargs)
     return wrapper
 
-class Observer(Producer):
+class Observer(Built):
 
     def __init__(self,
             **kwargs
@@ -58,49 +59,17 @@ class Observer(Producer):
     @_unattached
     def attach(self, subject):
         try:
-            wasAnchored = self.anchored
-            if wasAnchored:
-                wasName, wasPath = self.name, self.path
             try:
                 observer = self._observers[self]
             except KeyError:
                 observer = self.master_build_observer(subject.observables)
                 self._observers[subject] = observer
-            if isinstance(subject, Producer):
-                # subject._post_store_fns.append(self.store)
-                # subject._outFns.append(self.out)
-                # subject._producer_outkey.append(self._observer_outkeys)
-                subject._post_anchor_fns.append(self._anchor_to_subject)
-                subject._post_save_fns.append(self.save)
             self.subject = subject
             self.observer = observer
-            self.reroute_outputs()
             yield observer
         finally:
-            if wasAnchored:
-                self.anchor(wasName, wasPath)
-            if isinstance(subject, Producer):
-                # subject._post_store_fns.remove(self.store)
-                # subject._outFns.remove(self.out)
-                # subject._producer_outkey.remove(self._observer_outkeys)
-                subject._post_anchor_fns.remove(self._anchor_to_subject)
-                subject._post_save_fns.remove(self.save)
             self.subject = None
             self.observer = None
-
-    # @contextmanager
-    # @_attached
-    # def store(self):
-    #     try:
-    #         outputSubKey = self._outputSubKey
-    #         outputMasterKey = self._outputMasterKey
-    #         former_outputSubKey = self.subject._outputSubKey
-    #         former_outputMasterKey = self.subject._outputMasterKey
-    #         self.subject.
-
-    @_attached
-    def _anchor_to_subject(self):
-        self.anchor(self.subject.name, self.subject.path)
 
     @_attached
     def _master_observer_out(self):
@@ -144,12 +113,17 @@ class Observer(Producer):
 
     @_attached
     def store(self):
-        # Overrides and calls Producer store method:
-        super().store()
-    @_attached
-    def save(self):
-        # Overrides and calls Producer save method:
-        super().store()
+        with self.subject._observation_mode():
+            self.subject._outFns.append(self.observer.out)
+
+    # @_attached
+    # def store(self):
+    #     # Overrides and calls Producer store method:
+    #     super().store()
+    # @_attached
+    # def save(self):
+    #     # Overrides and calls Producer save method:
+    #     super().store()
 
     def _prompt(self, prompter):
         # Overrides Promptable _prompt method:

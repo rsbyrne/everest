@@ -18,12 +18,8 @@ class Counter(Producer):
         self._producer_outkeys.append(self._countsKeyFn)
         self._pre_store_fns.append(self._counter_pre_store_fn)
         self._pre_save_fns.append(self._counter_pre_save_fn)
-        self._post_reroute_outputs_fns.append(self._counter_post_reroute_fn)
         # Built attributes:
 #         self._post_anchor_fns.append(self._update_counts)
-
-    def _counter_post_reroute_fn(self):
-        self.count.value = -1
 
     def _countsKeyFn(self):
         return [self._defaultCountsKey,]

@@ -65,34 +65,69 @@ class Voyager(Counter, Cycler, Stampable, Unique, Observable):
         # Expects:
         # self._initialise
         # self._iterate
-        # self._out
-        # self._outkeys
+        # self._voyager_out
+        # self._voyager_outkeys
         # self._load
 
         self.initialised = False
 
         self._changed_state_fns = WeakList()
 
+        self.baselines = dict()
+
         super().__init__(**kwargs)
 
         # Prompter attributes:
         self._changed_state_fns.append(self.advertise)
-        self._producer_outkeys.append(self._outkeys)
+        self._producer_outkeys.append(self._voyager_outkeys)
 
         # Producer attributes:
-        self._outFns.append(self._voyager_out_fn)
+        self._outFns.append(self._voyager_master_out_fn)
+        self._pre_save_fns.append(self._voyager_pre_save_fn)
 
         # Cycler attributes:
         self._cycle_fns.append(self.iterate)
 
-        # Built attributes:
-        self._post_anchor_fns.append(self._voyager_post_anchor)
+        # Observable attributes:
+        self._activate_observation_mode_fns.append(
+            self._voyager_activate_observation_mode_fn
+            )
+        self._deactivate_observation_mode_fns.append(
+            self._voyager_deactivate_observation_mode_fn
+            )
 
         if _voyager_initialise:
             self.initialise()
 
+                # oldOutFns = [*subject._outFns]
+                # oldOutKeys = [*subject._producer_outkeys]
+                # subject._outFns.clear()
+                # subject._producer_outkeys.clear()
+                # if isinstance(subject, Counter):
+                #     subject._outFns.append([subject.])
+                # subject._outFns.remove(subject.)
+
+    def _voyager_activate_observation_mode_fn(self):
+        temp = []
+        for key in ('_outFns', '_producer_outkeys'):
+            attr = getattr(self, key)
+            temp.append([*attr])
+            attr.clear()
+        self._outFns.append(self._countoutFn)
+        self._producer_outkeys.append(self._countsKeyFn)
+        return temp
+    def _voyager_deactivate_observation_mode_fn(self, temp):
+        for val, key in zip(temp, ('_outFns', '_producer_outkeys')):
+            attr = getattr(self, key)
+            attr.clear()
+            attr.extend(val)
+
+    @_initialised
+    def _voyager_pre_save_fn(self):
+        self.writer.add_dict(self.baselines, 'baselines')
+
     @property
-    def _outkeys(self):
+    def _voyager_outkeys(self):
         # Expects to be overridden.
         return []
 
@@ -103,24 +138,26 @@ class Voyager(Counter, Cycler, Stampable, Unique, Observable):
             ]
 
     @_initialised
-    def _voyager_out_fn(self):
-        if hasattr(self, '_out'):
-            for item in self._out():
+    def _voyager_master_out_fn(self):
+        if hasattr(self, '_voyager_out'):
+            for item in self._voyager_out():
                 yield item
         else:
             pass
-
-    def _voyager_post_anchor(self):
-        self.h5filename = self.writer.h5filename
 
     @_changed_state
     def initialise(self, *args, **kwargs):
         try:
             self.load(0)
         except LoadFail:
-            self.count.value = 0
             self._initialise(*args, **kwargs)
+        self.count.value = 0
         self.initialised = True
+
+    @_initialised
+    def out(self):
+        # Wraps parent (Producer) method:
+        return super().out()
 
     def reset(self):
         self.initialise()
