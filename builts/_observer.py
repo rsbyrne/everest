@@ -67,7 +67,9 @@ class Observer(Producer):
                 observer = self.master_build_observer(subject.observables)
                 self._observers[subject] = observer
             if isinstance(subject, Producer):
-                subject._post_store_fns.append(self.store)
+                # subject._post_store_fns.append(self.store)
+                # subject._outFns.append(self.out)
+                # subject._producer_outkey.append(self._observer_outkeys)
                 subject._post_anchor_fns.append(self._anchor_to_subject)
                 subject._post_save_fns.append(self.save)
             self.subject = subject
@@ -77,7 +79,9 @@ class Observer(Producer):
             if wasAnchored:
                 self.anchor(wasName, wasPath)
             if isinstance(subject, Producer):
-                subject._post_store_fns.remove(self.store)
+                # subject._post_store_fns.remove(self.store)
+                # subject._outFns.remove(self.out)
+                # subject._producer_outkey.remove(self._observer_outkeys)
                 subject._post_anchor_fns.remove(self._anchor_to_subject)
                 subject._post_save_fns.remove(self.save)
             self.subject = None

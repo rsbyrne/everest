@@ -63,6 +63,9 @@ class Comparator(Pyklet):
 
         return out
 
+    def __bool__(self):
+        return bool(self())
+
     def close(self, *queryArgs):
 
         return Nullary(lambda: self(*queryArgs))

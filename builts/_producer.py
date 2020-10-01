@@ -127,6 +127,8 @@ class Producer(Promptable):
 
     @property
     def stored(self):
+        if not self._outputSubKey in self._stored:
+            self._stored[self._outputSubKey] = []
         return self._stored[self._outputSubKey]
 
     def out(self):
@@ -156,7 +158,7 @@ class Producer(Promptable):
             self._autosave()
 
     def clear(self):
-        self._stored[self._outputSubKey] = []
+        self._stored[self._outputSubKey].clear()
 
     @anchorwrap
     @disk.h5filewrap
