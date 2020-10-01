@@ -77,11 +77,10 @@ class Voyager(Counter, Cycler, Stampable, Unique, Observable):
 
         # Prompter attributes:
         self._changed_state_fns.append(self.advertise)
+        self._producer_outkeys.append(self._outkeys)
 
         # Producer attributes:
-        self._outFns.insert(0, self._voyager_out_fn)
-        if hasattr(self, '_outkeys'):
-            self.outkeys[:] = [*self._outkeys, *self.outkeys]
+        self._outFns.append(self._voyager_out_fn)
 
         # Cycler attributes:
         self._cycle_fns.append(self.iterate)
@@ -89,13 +88,19 @@ class Voyager(Counter, Cycler, Stampable, Unique, Observable):
         # Built attributes:
         self._post_anchor_fns.append(self._voyager_post_anchor)
 
-        # Self attributes:
-        self.dataKeys = [
-            key for key in self.outkeys if not key == self._countsKey
-            ]
-
         if _voyager_initialise:
             self.initialise()
+
+    @property
+    def _outkeys(self):
+        # Expects to be overridden.
+        return []
+
+    @property
+    def dataKeys(self):
+        return [
+            key for key in self.outkeys if not key == self._countsKey
+            ]
 
     @_initialised
     def _voyager_out_fn(self):

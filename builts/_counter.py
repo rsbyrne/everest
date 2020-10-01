@@ -7,7 +7,7 @@ from ..weaklist import WeakList
 
 class Counter(Producer):
 
-    _countsKey = 'count'
+    _defaultCountsKey = 'count'
 
     def __init__(self, **kwargs):
         self._count_update_fns = WeakList()
@@ -15,7 +15,7 @@ class Counter(Producer):
         super().__init__(**kwargs)
         # Producer attributes:
         self._outFns.append(self._countoutFn)
-        self.outkeys.append(self._countsKey)
+        self._producer_outkeys.append(self._countsKeyFn)
         self._pre_store_fns.append(self._counter_pre_store_fn)
         self._pre_save_fns.append(self._counter_pre_save_fn)
         self._post_reroute_outputs_fns.append(self._counter_post_reroute_fn)
@@ -24,6 +24,12 @@ class Counter(Producer):
 
     def _counter_post_reroute_fn(self):
         self.count.value = -1
+
+    def _countsKeyFn(self):
+        return [self._defaultCountsKey,]
+    @property
+    def _countsKey(self):
+        return self._countsKeyFn()[0]
 
     @property
     def counts_stored(self):

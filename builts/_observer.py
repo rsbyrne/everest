@@ -42,7 +42,7 @@ class Observer(Producer):
             ):
 
         # Expects:
-        # self._make_observer
+        # self.build_observer
 
         self.subject = None
         self.observer = None
@@ -52,6 +52,7 @@ class Observer(Producer):
 
         # Producer attributes:
         self._outFns.append(self._master_observer_out)
+        self._producer_outkeys.append(self._observer_outkeys)
 
     @contextmanager
     @_unattached
@@ -63,7 +64,7 @@ class Observer(Producer):
             try:
                 observer = self._observers[self]
             except KeyError:
-                observer = self.make_observer(subject.observables)
+                observer = self.master_build_observer(subject.observables)
                 self._observers[subject] = observer
             if isinstance(subject, Producer):
                 subject._post_store_fns.append(self.store)
@@ -94,8 +95,16 @@ class Observer(Producer):
         for item in self.observer.out():
             yield item
 
-    def make_observer(self, observables):
-        observerDict = self._make_observer(observables)
+    @_attached
+    def _observer_outkeys(self):
+        if isinstance(self.subject, Counter):
+            for key in self.subject._countsKeyFn():
+                yield key
+        for key in self.observer.outkeys:
+            yield key
+
+    def master_build_observer(self, observables):
+        observerDict = self.build_observer(observables)
         if 'self' in observerDict:
             del observerDict['self']
         return Grouper(observerDict)

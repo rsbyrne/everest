@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import time
-from types import FunctionType
+from types import FunctionType, MethodType
 
 from .. import utilities
 from .. import disk
@@ -61,7 +61,7 @@ class Producer(Promptable):
         self._post_save_fns = WeakList()
         self._pre_reroute_outputs_fns = WeakList()
         self._post_reroute_outputs_fns = WeakList()
-        self.outkeys = []
+        self._producer_outkeys = WeakList()
         self._stored = {self._defaultOutputSubKey: []}
 
         super().__init__(baselines = self.baselines, **kwargs)
@@ -74,6 +74,21 @@ class Producer(Promptable):
 
         self.set_autosave(True)
         self.set_save_interval(3600.)
+
+    @property
+    def outkeys(self):
+        out = []
+        for item in self._producer_outkeys:
+            if callable(item):
+                item = item()
+            if type(item) is str:
+                out.append(item)
+            else:
+                try:
+                    out.extend(item)
+                except TypeError:
+                    out.append(item)
+        return out
 
     def _producer_prompt(self, prompter):
         self.store()
@@ -118,7 +133,7 @@ class Producer(Promptable):
         for fn in self._pre_out_fns: fn()
         outs = tuple([item for fn in self._outFns for item in fn()])
         assert len(outs) == len(self.outkeys), \
-            "Outkeys do not match outputs!"
+            ("Outkeys do not match outputs!", (len(outs), len(self.outkeys)))
         for fn in self._post_out_fns: fn()
         return outs
     @property
