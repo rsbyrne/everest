@@ -86,7 +86,7 @@ class Anchor:
         if self.open:
             raise AlreadyAnchoredError
         self.open = True
-        self._active = self.active
+        self._active = self._activeAnchor
         self.active = self
         if self.purge or self.test:
             self.purge()
