@@ -10,8 +10,8 @@ class Observable(Mutable):
             ):
 
         self.observables = dict()
-        self._activate_observation_mode_fns = []
-        self._deactivate_observation_mode_fns = []
+        self._activate_observation_mode_fns = WeakList()
+        self._deactivate_observation_mode_fns = WeakList()
         self._observation_mode_active = False
 
         super().__init__(**kwargs)
