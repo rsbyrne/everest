@@ -1,8 +1,6 @@
 from functools import wraps
 import os
 
-from .writer import Writer
-from .reader import Reader
 from .disk import get_framePath, purge_address
 from .exceptions import EverestException
 
@@ -100,3 +98,8 @@ class Anchor:
         del self.name, self.path, self.writer, self.reader, \
             self.globalwriter, self.globalreader, self.h5filename, \
             self.test, self.purge, self._formerActive
+
+
+# At bottom to avoid circular reference:
+from .writer import Writer
+from .reader import Reader

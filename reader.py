@@ -131,20 +131,30 @@ class Reader(H5Manager):
 
     @staticmethod
     def _process_tag(inp, tag):
-        processed = inp[len(tag):]
-        assert len(processed) > 0, "Len(processed) not greater than zero!"
-        return processed
+        if inp.startswith(tag):
+            processed = inp[len(tag):]
+            assert len(processed) > 0, "Len(processed) not greater than zero!"
+            return processed
+        else:
+            return inp
 
-    @disk.h5filewrap
-    def load(self, hashID):
-        inputs = self.__getitem__('/' + self.join(hashID, 'inputs'))
-        typeHash = self.__getitem__('/' + self.join(hashID, 'typeHash'))
-        cls = self.__getitem__(
+    def load_class(self, inp):
+        typeHash = self._process_tag(inp, _CLASSTAG_)
+        return self.__getitem__(
             '/' + self.join('_globals_', 'classes', typeHash)
             )
+
+    @disk.h5filewrap
+    def load(self, inp):
+        hashID = self._process_tag(inp, _BUILTTAG_)
+        inputs = self.__getitem__('/' + self.join(hashID, 'inputs'))
+        typeHash = self.__getitem__('/' + self.join(hashID, 'typeHash'))
+        cls = self.load_class(typeHash)
         built = cls(**inputs)
         assert built.hashID == hashID
         return built
+    def load_built(self, *args, **kwargs):
+        return self.load(*args, **kwargs)
 
     def _seekresolve(self, inp):
         if type(inp) is dict:

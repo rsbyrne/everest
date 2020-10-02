@@ -15,6 +15,8 @@ from ..weaklist import WeakList
 from .. import globevars
 from ..anchor import Anchor, _namepath_process
 
+# from ..globevars import _BUILTTAG_, _CLASSTAG_
+
 
 from ..exceptions import EverestException
 class NoPreBuiltError(EverestException):
@@ -259,7 +261,7 @@ class Built(metaclass = Meta):
             }
 
         obj.globalObjects = {
-            'classes': {obj.typeHash: cls}
+            'classes': {cls.typeHash: cls}
             }
 
         obj._anchorManager = Anchor
@@ -288,7 +290,7 @@ class Built(metaclass = Meta):
             with Anchor(name, path) as anchor:
                 self._touch()
         else:
-            self.touch()
+            self._touch()
     @disk.h5filewrap
     def _touch(self):
         for fn in self._pre_anchor_fns: fn()
@@ -337,3 +339,16 @@ class Built(metaclass = Meta):
         if not isinstance(arg, Built):
             raise TypeError
         return self.hashID < arg.hashID
+
+
+from ..pyklet import Pyklet
+class Loader(Pyklet):
+    def __init__(self, hashID, _anchorManager = Anchor):
+        self._anchorManager = _anchorManager
+        self.hashID = hashID
+        super().__init__(hashID, _anchorManager)
+    def __call__(self):
+        man = self._anchorManager.get_active()
+        out = man.reader.load(self.hashID)
+        assert out.hashID == self.hashID
+        return out
