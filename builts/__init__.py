@@ -323,8 +323,7 @@ class Built(metaclass = Meta):
         return man.h5filename
     @property
     def anchored(self):
-        man = self._anchorManager.get_active()
-        return man.open
+        return not self._anchorManager is None
 
     def __hash__(self):
         return int(self.instanceHash)

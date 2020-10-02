@@ -55,9 +55,6 @@ class Producer(Promptable):
         # Promptable attributes:
         self._prompt_fns.append(self._producer_prompt)
 
-        # Built attributes:
-        self._post_anchor_fns.append(self._producer_post_anchor)
-
         self.set_autosave(True)
         self.set_save_interval(3600.)
 
@@ -149,6 +146,7 @@ class Producer(Promptable):
         for fn in self._pre_save_fns: fn()
         self._save()
         self.clear()
+        self.writeouts.add(self, 'producer')
         self.lastsaved = time.time()
         for fn in self._post_save_fns: fn()
         mpi.message(':')
@@ -167,9 +165,6 @@ class Producer(Promptable):
             self.path,
             self._outputKey
             )
-
-    def _producer_post_anchor(self):
-        self.save()
 
     def _save(self):
         wrappedDict = dict()
