@@ -1,4 +1,5 @@
 from functools import wraps
+import os
 
 from .writer import Writer
 from .reader import Reader
@@ -54,14 +55,6 @@ def _namepath_process(name, path):
     return name, os.path.abspath(path)
 
 
-def _anchored_wrap(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if Anchor._activeAnchor is None:
-            raise NoActiveAnchorError
-        return func(*args, **kwargs)
-    return wrapper
-
 class Anchor:
 
     _activeAnchor = None
@@ -70,7 +63,7 @@ class Anchor:
     def active(self):
         activeAnchor = self.__class__._activeAnchor
         if activeAnchor is None:
-            raise NotAnchoredError
+            raise NoActiveAnchorError
         return activeAnchor
     @active.setter
     def active(self, value):

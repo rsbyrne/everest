@@ -13,7 +13,7 @@ from ..writer import Writer
 from ..reader import Reader
 from ..weaklist import WeakList
 from .. import globevars
-from ..anchor import Anchor, _namepath_process, _anchored_wrap
+from ..anchor import Anchor, _namepath_process
 
 
 from ..exceptions import EverestException
@@ -289,7 +289,6 @@ class Built(metaclass = Meta):
                 self._touch()
         else:
             self.touch()
-    @_anchored_wrap
     @disk.h5filewrap
     def _touch(self):
         for fn in self.built._pre_anchor_fns: fn()
@@ -297,35 +296,27 @@ class Built(metaclass = Meta):
         self.globalwriter.add_dict(self.globalObjects)
         for fn in self.built._post_anchor_fns: fn()
     @property
-    @_anchored_wrap
     def name(self):
         return _anchorManager.name
     @property
-    @_anchored_wrap
     def path(self):
         return _anchorManager.path
     @property
-    @_anchored_wrap
     def writer(self):
         return Writer(self.name, self.path, self.hashID)
     @property
-    @_anchored_wrap
     def reader(self):
         return Reader(self.name, self.path, self.hashID)
     @property
-    @_anchored_wrap
     def globalwriter(self):
         return _anchorManager.globalwriter
     @property
-    @_anchored_wrap
     def globalreader(self):
         return _anchorManager.globalreader
     @property
-    @_anchored_wrap
     def h5filename(self):
         return _anchorManager.h5filename
     @property
-    @_anchored_wrap
     def anchored(self):
         return _anchorManager.open
 

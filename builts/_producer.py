@@ -14,7 +14,6 @@ from ..weaklist import WeakList
 from ..array import EverestArray
 from ..exceptions import EverestException
 from .. import mpi
-from . import _anchored_wrap
 
 class AbortStore(EverestException):
     pass
@@ -145,7 +144,6 @@ class Producer(Promptable):
     def clear(self):
         self._stored[self._outputSubKey].clear()
 
-    @_anchored_wrap
     @disk.h5filewrap
     def save(self):
         for fn in self._pre_save_fns: fn()
@@ -156,7 +154,6 @@ class Producer(Promptable):
         mpi.message(':')
 
     @property
-    @_anchored_wrap
     def readouts(self):
         return Reader(
             self.name,
@@ -164,7 +161,6 @@ class Producer(Promptable):
             self._outputKey
             )
     @property
-    @_anchored_wrap
     def writeouts(self):
         return Writer(
             self.name,
@@ -185,7 +181,6 @@ class Producer(Promptable):
                 )
         self.writeouts.add_dict(wrappedDict)
 
-    @_anchored_wrap
     def _autosave(self):
         if buffersize_exceeded():
             self.save()

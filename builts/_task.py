@@ -11,7 +11,6 @@ from .. import mpi
 from .. import disk
 from ..disk import TempFile
 from ..globevars import _DIRECTORY_
-from . import _anchored_wrap
 
 from ..exceptions import EverestException
 class TaskSubrunFailed(EverestException):
@@ -66,7 +65,6 @@ class Task(Boolean, Cycler):
             promptee = ref()
             promptee()
 
-    @_anchored_wrap
     @mpi.dowrap
     def subrun(self, cores = 1):
 

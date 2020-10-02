@@ -12,7 +12,6 @@ from .. import mpi
 from .. import disk
 from ..pyklet import Pyklet
 from . import Builder
-from . import _anchored_wrap
 
 
 class Ticket(Pyklet):
@@ -150,7 +149,6 @@ class Container(Unique, DiskBased):
         del self.tickets
         return ticket
 
-    @_anchored_wrap
     @disk.h5filewrap
     def __next__(self):
         self._check_initialised()
