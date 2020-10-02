@@ -89,7 +89,6 @@ class Wanderer(Voyager):
         self.count.value = -1
         self.configs.clear()
         self.configs.update(self._process_configs(**configs))
-        self.configs.hashID = wHash(self.configs)
         self.initialised = False
         self._configure()
         for fn in self._wanderer_configure_post_fns: fn()
