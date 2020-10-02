@@ -2,9 +2,12 @@ import numpy as np
 from functools import wraps
 
 from . import Built, Meta, make_hash
+from ._applier import Applier
 from ._voyager import Voyager, LoadFail, _initialised
 from ..exceptions import EverestException, NotYetImplemented
 from .. import wordhash
+from ..weaklist import WeakList
+from ..pyklet import Pyklet
 wHash = lambda x: wordhash.get_random_phrase(make_hash(x))
 
 class NotConfigured(EverestException):
@@ -21,16 +24,29 @@ def _configured(func):
         return func(self, *args, **kwargs)
     return wrapper
 
+# class Express(Pyklet):
+#     def __init__(self,
+#             wanderer,
+#             start,
+#             stop,
+#             ):
+#         _wanderer = wanderer.hashID
+#         if type()
+#         super().__init__()
+#     def __call__(self):
+
+class Configs(dict):
+    @property
+    def hashID(self):
+        return wHash(self)
+
 class Wanderer(Voyager):
 
     def __init__(self, **kwargs):
 
-        # Expects:
-        # self._process_configs
-        # self._configure
-        # self.configsKeys
-
-        self.configs = dict()
+        self.configs = Configs()
+        self._wanderer_configure_pre_fns = WeakList()
+        self._wanderer_configure_post_fns = WeakList()
 
         super().__init__(**kwargs)
 
@@ -53,23 +69,30 @@ class Wanderer(Voyager):
         return configs
 
     def _configure(self):
-        # expects to be overridden:
-        for k in set(self.configs).intersection(set(self.mutables)):
-            self.mutables[k][...] = self.configs[k]
+        ms, cs = self.mutables, self.configs
+        for k in sorted(set(ms).intersection(set(cs))):
+            m, c = ms[k], cs[k]
+            if not c is None:
+                if isinstance(c, Applier):
+                    c.apply(m)
+                else:
+                    m[...] = c
 
     @_configured
     def _wanderer_outputSubKey_fn(self):
-        return self.configsHash
+        return self.configs.hashID
 
     def configure(self, configs):
+        for fn in self._wanderer_configure_pre_fns: fn()
         if hasattr(self, 'chron'):
             self.chron.value = float('NaN')
         self.count.value = -1
         self.configs.clear()
-        self.configs.update(self._process_configs(configs))
-        self.configsHash = wHash(self.configs)
+        self.configs.update(self._process_configs(**configs))
+        self.configs.hashID = wHash(self.configs)
         self.initialised = False
         self._configure()
+        for fn in self._wanderer_configure_post_fns: fn()
 
     @_configured
     def initialise(self):
@@ -77,7 +100,13 @@ class Wanderer(Voyager):
         super().initialise()
 
     def __getitem__(self, arg):
+        if type(arg) is slice:
+            if slice.step is None:
+                return self._get_express(arg)
         return self.configs[arg]
+    def _get_express(self, arg):
+        start, stop = slice.start, slice.stop
+        s
     def __setitem__(self, arg1, arg2):
         if type(arg1) is tuple:
             raise NotYetImplemented
@@ -93,7 +122,7 @@ class Wanderer(Voyager):
     @property
     def _promptableKey(self):
         # Overrides Promptable property:
-        return self.configsHash
+        return self.configs.hashID
 
 
     # def __getitem__(self, arg):
