@@ -16,7 +16,7 @@ class NotConfigured(EverestException):
 def _configured(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if self.configs is None:
+        if not hasattr(self, 'configs'):
             raise NotConfigured
         return func(self, *args, **kwargs)
     return wrapper
@@ -28,9 +28,9 @@ class Wanderer(Voyager):
         # Expects:
         # self._process_configs
         # self._configure
+        # self.configsKeys
 
-        if not hasattr(self, 'configs'):
-            self.configs = None
+        self.configs = dict()
 
         super().__init__(**kwargs)
 
@@ -46,8 +46,7 @@ class Wanderer(Voyager):
         pass
 
     def _wanderer_post_save_fn(self):
-        if not self._observation_mode_active:
-            self.writeouts.add_dict({'configs': self.configs})
+        self.writeouts.add_dict({'configs': self.configs})
 
     def _process_configs(self, configs):
         # expects to be overridden:
@@ -55,7 +54,8 @@ class Wanderer(Voyager):
 
     def _configure(self):
         # expects to be overridden:
-        pass
+        for k in set(self.configs).intersection(set(self.mutables)):
+            self.mutables[k][...] = self.configs[k]
 
     @_configured
     def _wanderer_outputSubKey_fn(self):
@@ -65,10 +65,16 @@ class Wanderer(Voyager):
         if hasattr(self, 'chron'):
             self.chron.value = float('NaN')
         self.count.value = -1
-        self.configs = self._process_configs(configs)
+        self.configs.clear()
+        self.configs.update(self._process_configs(configs))
         self.configsHash = wHash(self.configs)
         self.initialised = False
         self._configure()
+
+    @_configured
+    def initialise(self):
+        # Overrides Producer method:
+        super().initialise()
 
     def __getitem__(self, arg):
         return self.configs[arg]
