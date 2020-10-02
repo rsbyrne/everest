@@ -17,6 +17,7 @@ from .globevars import \
 from .array import EverestArray
 from .utilities import Grouper
 
+
 class LinkTo:
     def __init__(self, arg):
         self.arg = arg
@@ -50,14 +51,14 @@ class Writer(H5Manager):
                 }
             raise TypeError
         elif type(inp) is LinkTo:
-            inp.arg.anchor(self.name, self.path)
+            inp.arg.touch(name, path)
             return inp
         elif type(inp) is EverestArray:
             return inp
         elif type(inp) is str:
             return _STRINGTAG_ + inp
         elif isinstance(inp, self.builtsmodule.Built):
-            inp.anchor(self.name, self.path)
+            inp.touch(name, path)
             return _BUILTTAG_ + inp.hashID
         elif type(inp) is self.builtsmodule.Meta:
             return _CLASSTAG_ + inp.script

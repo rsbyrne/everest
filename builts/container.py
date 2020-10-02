@@ -11,8 +11,9 @@ from ..exceptions import EverestException
 from .. import mpi
 from .. import disk
 from ..pyklet import Pyklet
-from . import anchorwrap
 from . import Builder
+from . import _anchored_wrap
+
 
 class Ticket(Pyklet):
     def __init__(self, obj, spice = 0, timestamp = None):
@@ -149,7 +150,7 @@ class Container(Unique, DiskBased):
         del self.tickets
         return ticket
 
-    @anchorwrap
+    @_anchored_wrap
     @disk.h5filewrap
     def __next__(self):
         self._check_initialised()

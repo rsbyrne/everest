@@ -144,7 +144,6 @@ class Reader(H5Manager):
             )
         built = cls(**inputs)
         assert built.hashID == hashID
-        built.anchor(self.name, self.path)
         return built
 
     def _seekresolve(self, inp):
