@@ -45,6 +45,9 @@ class Writer(H5Manager):
     def _process_inp(self, inp):
         global _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
         if isinstance(inp, Mapping) or isinstance(inp, Grouper):
+            if isinstance(inp, Grouper):
+                inp = {**inp}
+                inp['_isgrouper'] = True
             return {
                 key: self._process_inp(val) \
                     for key, val in sorted(inp.items())

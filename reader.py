@@ -152,7 +152,9 @@ class Reader(H5Manager):
             for key, sub in sorted(inp.items()):
                 out[key] = self._seekresolve(sub)
             if '_isgrouper' in out:
-                out = Grouper(out)
+                out = Grouper(
+                    {k: v for k, v in out.items() if not k == '_isgrouper'}
+                    )
             return out
         elif isinstance(inp, np.ndarray):
             return inp

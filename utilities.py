@@ -24,18 +24,18 @@ class Grouper:
                 del grouperDict[key]
                 newKey = key.replace(' ', '_')
                 grouperDict[newKey] = val
-        self.grouperDict['_isgrouper'] = True
         self.__dict__.update(grouperDict)
         self.lock = True
     def __getitem__(self, key):
         return self.grouperDict[key]
     def __setitem__(self, key, arg):
-        self.grouperDict[key] = arg
-        self.__dict__.update(grouperDict)
+        raise GrouperSetAttrForbidden
+        # self.grouperDict[key] = arg
+        # self.__dict__.update(grouperDict)
     def keys(self, *args, **kwargs):
-        return self.__dict__.keys(*args, **kwargs)
+        return self.grouperDict.keys(*args, **kwargs)
     def items(self, *args, **kwargs):
-        return self.__dict__.items(*args, **kwargs)
+        return self.grouperDict.items(*args, **kwargs)
     def __setattr__(self, name, value):
         if hasattr(self, 'lock'):
             if self.lock and not name == 'lock':
