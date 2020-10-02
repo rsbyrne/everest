@@ -4,6 +4,7 @@ from ._producer import Producer
 from ._producer import AbortStore
 from ..value import Value
 from ..weaklist import WeakList
+from ..anchor import NoActiveAnchorError
 
 class Counter(Producer):
 
@@ -36,13 +37,11 @@ class Counter(Producer):
 
     @property
     def counts_disk(self):
-        if not self.anchored:
-            return []
         try:
             counts = list(set(self.readouts[self._countsKey]))
             counts = [int(x) for x in counts]
             return counts
-        except KeyError:
+        except (KeyError, NoActiveAnchorError):
             return []
 
     @property
