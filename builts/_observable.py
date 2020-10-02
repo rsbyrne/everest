@@ -1,9 +1,9 @@
 from contextlib import contextmanager
 
-from ._permutable import Permutable
+from ._mutable import Mutable
 from ..weaklist import WeakList
 
-class Observable(Permutable):
+class Observable(Mutable):
 
     def __init__(self,
             **kwargs

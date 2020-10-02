@@ -1,11 +1,11 @@
 from . import Built
 
-class Permutable(Built):
+class Mutable(Built):
 
     def __init__(self,
             **kwargs
             ):
 
-        self.permutables = dict()
+        self.mutables = dict()
 
         super().__init__(**kwargs)
