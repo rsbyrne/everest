@@ -57,17 +57,14 @@ def _namepath_process(name, path):
 
 class Anchor:
 
-    _activeAnchor = None
+    _active = None
 
-    @property
-    def active(self):
-        activeAnchor = self.__class__._activeAnchor
-        if activeAnchor is None:
+    @classmethod
+    def get_active(cls):
+        active = cls._active
+        if active is None:
             raise NoActiveAnchorError
-        return activeAnchor
-    @active.setter
-    def active(self, value):
-        self.__class__._activeAnchor = value
+        return active
 
     def __init__(self,
             name = None,
@@ -79,17 +76,14 @@ class Anchor:
         self.test, self.purge = test, purge
         self.open = False
 
-    def purge(self):
-        purge_address(self.name, self.path)
-
     def __enter__(self):
         if self.open:
             raise AlreadyAnchoredError
         self.open = True
-        self._active = self._activeAnchor
-        self.active = self
+        self._formerActive = self.__class__._active
+        self.__class__._active = self
         if self.purge or self.test:
-            self.purge()
+            purge_address(self.name, self.path)
         self.writer = Writer(self.name, self.path)
         self.reader = Reader(self.name, self.path)
         self.globalwriter = Writer(self.name, self.path, '_globals_')
@@ -100,9 +94,9 @@ class Anchor:
     def __exit__(self, *args):
         assert self.open
         self.open = False
-        self.active = self._active
+        self.__class__._active = self._formerActive
         if self.test:
-            self.purge()
+            purge_address(self.name, self.path)
         del self.name, self.path, self.writer, self.reader, \
             self.globalwriter, self.globalreader, self.h5filename, \
-            self.test, self.purge, self._active
+            self.test, self.purge, self._formerActive

@@ -51,14 +51,14 @@ class Writer(H5Manager):
                 }
             raise TypeError
         elif type(inp) is LinkTo:
-            inp.arg.touch(name, path)
+            inp.arg.touch(self.name, self.path)
             return inp
         elif type(inp) is EverestArray:
             return inp
         elif type(inp) is str:
             return _STRINGTAG_ + inp
         elif isinstance(inp, self.builtsmodule.Built):
-            inp.touch(name, path)
+            inp.touch(self.name, self.path)
             return _BUILTTAG_ + inp.hashID
         elif type(inp) is self.builtsmodule.Meta:
             return _CLASSTAG_ + inp.script

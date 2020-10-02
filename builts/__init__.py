@@ -262,7 +262,7 @@ class Built(metaclass = Meta):
             'classes': {obj.typeHash: cls}
             }
 
-        obj._anchorManager = property(lambda: Active._activeAnchor)
+        obj._anchorManager = Anchor
 
         return obj
 
@@ -291,16 +291,18 @@ class Built(metaclass = Meta):
             self.touch()
     @disk.h5filewrap
     def _touch(self):
-        for fn in self.built._pre_anchor_fns: fn()
+        for fn in self._pre_anchor_fns: fn()
         self.writer.add_dict(self.localObjects)
         self.globalwriter.add_dict(self.globalObjects)
-        for fn in self.built._post_anchor_fns: fn()
+        for fn in self._post_anchor_fns: fn()
     @property
     def name(self):
-        return _anchorManager.name
+        man = self._anchorManager.get_active()
+        return man.name
     @property
     def path(self):
-        return _anchorManager.path
+        man = self._anchorManager.get_active()
+        return man.path
     @property
     def writer(self):
         return Writer(self.name, self.path, self.hashID)
@@ -309,16 +311,20 @@ class Built(metaclass = Meta):
         return Reader(self.name, self.path, self.hashID)
     @property
     def globalwriter(self):
-        return _anchorManager.globalwriter
+        man = self._anchorManager.get_active()
+        return man.globalwriter
     @property
     def globalreader(self):
-        return _anchorManager.globalreader
+        man = self._anchorManager.get_active()
+        return man.globalreader
     @property
     def h5filename(self):
-        return _anchorManager.h5filename
+        man = self._anchorManager.get_active()
+        return man.h5filename
     @property
     def anchored(self):
-        return _anchorManager.open
+        man = self._anchorManager.get_active()
+        return man.open
 
     def __hash__(self):
         return int(self.instanceHash)
