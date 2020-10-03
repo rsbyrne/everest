@@ -10,12 +10,13 @@ class Prop(Pyklet):
             *props
             ):
 
-        self.target, self.props = target, props
         for prop in props:
             if not type(prop) is str:
                 raise TypeError
 
-        super().__init__(self.target, self.props)
+        super().__init__(target, *props)
+
+        self.target, self.props = target, props
 
     def __call__(self, obj = None):
 
