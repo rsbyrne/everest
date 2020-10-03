@@ -7,6 +7,7 @@ class Pyklet:
         self._source = inspect.getsource(self.__class__)
         self.args, self.kwargs = args, kwargs
     def __reduce__(self):
+        args, kwargs = self.args, self.kwargs
         self._hashObjects = (args, kwargs, self._source)
         self._pickleClass = pickle.dumps(self.__class__)
         return (self._unpickle, (args, kwargs))
