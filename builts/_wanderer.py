@@ -1,5 +1,6 @@
 import numpy as np
-from functools import wraps
+from functools import wraps, partial
+from contextlib import contextmanager
 
 from . import Built, Meta, make_hash
 from ._applier import Applier
@@ -24,16 +25,6 @@ def _configured(func):
         return func(self, *args, **kwargs)
     return wrapper
 
-# class Express(Pyklet):
-#     def __init__(self,
-#             wanderer,
-#             start,
-#             stop,
-#             ):
-#         _wanderer = wanderer.hashID
-#         if type()
-#         super().__init__()
-#     def __call__(self):
 
 class Configs(dict):
     @property
@@ -78,9 +69,18 @@ class Wanderer(Voyager):
                 else:
                     m[...] = c
 
-    @_configured
-    def _wanderer_outputSubKey_fn(self):
-        return self.configs.hashID
+    @contextmanager
+    def bounce(self, configs):
+        oldConfigs = self.configs.copy()
+        # oldCount = self.count.value
+        try:
+            # if self.initialised:
+            #     self.store()
+            self.configure(configs)
+            yield None
+        finally:
+            self.configure(oldConfigs)
+            # self.load(oldStep)
 
     def configure(self, configs):
         for fn in self._wanderer_configure_pre_fns: fn()
@@ -94,18 +94,28 @@ class Wanderer(Voyager):
         for fn in self._wanderer_configure_post_fns: fn()
 
     @_configured
+    def _wanderer_outputSubKey_fn(self):
+        return self.configs.hashID
+
+    @_configured
     def initialise(self):
         # Overrides Producer method:
         super().initialise()
 
     def __getitem__(self, arg):
-        if type(arg) is slice:
+        if type(arg) is tuple:
+            raise NotYetImplemented
+        elif type(arg) is int:
+            return self.bounce(arg)
+        elif type(arg) is dict:
+            return self.bounce(Configs(arg))
+        elif type(arg) is slice:
             if slice.step is None:
                 return self._get_express(arg)
         return self.configs[arg]
     def _get_express(self, arg):
         start, stop = slice.start, slice.stop
-        s
+        # sel
     def __setitem__(self, arg1, arg2):
         if type(arg1) is tuple:
             raise NotYetImplemented
@@ -168,3 +178,15 @@ class Wanderer(Voyager):
     #                 )
     #         arg2 = tuple([arg2[0] for _ in arg1])
     #     self.configure(dict(zip(arg1, arg2)))
+
+
+# class Express(Pyklet):
+#     def __init__(self,
+#             wanderer,
+#             start,
+#             stop,
+#             ):
+#         super().__init__(wanderer, start, stop)
+#         self.wanderer, self.start, self.stop = wanderer, start, stop
+#     def __call__(self):
+#         with self.wanderer.reconfigure(self.start)
