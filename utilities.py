@@ -16,8 +16,7 @@ class GrouperSetAttrForbidden(EverestException):
 
 class Grouper:
     def __init__(self, grouperDict):
-        self.lock = False
-        self.grouperDict = grouperDict.copy()
+        grouperDict = grouperDict.copy()
         for key in grouperDict:
             if ' ' in key:
                 val = grouperDict[key]
@@ -25,22 +24,30 @@ class Grouper:
                 newKey = key.replace(' ', '_')
                 grouperDict[newKey] = val
         self.__dict__.update(grouperDict)
-        self.lock = True
+        self.__dict__['grouperDict'] = grouperDict
+        self.__dict__['lock'] = False
     def __getitem__(self, key):
         return self.grouperDict[key]
     def __setitem__(self, key, arg):
-        raise GrouperSetAttrForbidden
-        # self.grouperDict[key] = arg
-        # self.__dict__.update(grouperDict)
+        setattr(self, key, arg)
+    def __delitem__(self, key):
+        delattr(self, key)
     def keys(self, *args, **kwargs):
         return self.grouperDict.keys(*args, **kwargs)
     def items(self, *args, **kwargs):
         return self.grouperDict.items(*args, **kwargs)
     def __setattr__(self, name, value):
+        self._lockcheck()
+        super().__setattr__(name, value)
+        self.grouperDict[name] = value
+    def __delattr__(self, name):
+        self._lockcheck()
+        super().__delattr__(name)
+        del self.grouperDict[name]
+    def _lockcheck(self):
         if hasattr(self, 'lock'):
             if self.lock and not name == 'lock':
                 raise GrouperSetAttrForbidden
-        super().__setattr__(name, value)
 
 def make_hash(obj):
     if hasattr(obj, 'instanceHash'):
