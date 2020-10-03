@@ -10,7 +10,7 @@ from ..utilities import Grouper, make_hash
 from .. import disk
 from .. import wordhash
 from ..writer import Writer
-from ..reader import Reader
+from ..reader import Reader, ClassProxy
 from ..weaklist import WeakList
 from .. import globevars
 from ..anchor import Anchor, _namepath_process
@@ -19,20 +19,8 @@ from ..anchor import Anchor, _namepath_process
 
 
 from ..exceptions import EverestException
-class NoPreBuiltError(EverestException):
-    '''That hashID does not correspond to a previously created Built.'''
-    pass
 class NotOnDiskError(EverestException):
     '''That hashID could not be found at the provided location.'''
-    pass
-class NotInFrameError(EverestException):
-    '''No frame by that name could be found.'''
-    pass
-class BuiltNotFoundError(EverestException):
-    '''A Built with those parameters could not be found.'''
-    pass
-class NoPreClassError(EverestException):
-    '''That typeHash is not associated with a class on file yet.'''
     pass
 
 
@@ -73,10 +61,8 @@ def _get_info(cls, inputs = dict()):
 BUFFERSIZE = 5 * 2 ** 30 # i.e. 5 GiB
 def buffersize_exceeded():
     nbytes = 0
-    for builtID, builtRef in sorted(_PREBUILTS.items()):
-        built = builtRef()
-        if not built is None:
-            nbytes += built.nbytes
+    for builtID, built in sorted(Meta._prebuilts.items()):
+        nbytes += built.nbytes
     return nbytes > BUFFERSIZE
 
 def _get_default_inputs(func):
@@ -98,19 +84,6 @@ def _get_default_inputs(func):
         #     argi += 1
     out = OrderedDict(out)
     return out
-
-# _PRECLASSES = dict()
-# def _get_preclass(typeHash):
-#     try:
-#         outclass = _PRECLASSES[typeHash]
-#         assert not outclass is None
-#         return outclass
-#     except AssertionError:
-#         del _PRECLASSES[typeHash]
-#     except KeyError:
-#         pass
-#     finally:
-#         raise NoPreClassError
 
 def sort_inputKeys(func):
     initsource = inspect.getsource(func).split('\n')
@@ -165,23 +138,30 @@ class Meta(type):
 
     def __call__(cls, *args, **kwargs):
         inputs = Meta._align_inputs(cls, *args, **kwargs)
-        inputsHash, instanceHash, hashID = _get_hashes(cls, inputs)
+        obj = cls.__new__(cls, **inputs)
         try:
-            return cls._prebuilts[hashID]
+            return Meta._prebuilts[obj.hashID]
         except KeyError:
-            return cls.build(**inputs)
+            obj.__init__(**obj.inputs)
+            Meta._prebuilts[obj.hashID] = obj
+            return obj
 
+    #
     # def __reduce__(cls):
-    #     args = (csl.typeHash, cls.script)
+    #     args = (cls.typeHash, cls.script)
     #     kwargs = dict()
+    #     print("using custom reduce")
     #     return (cls._unpickle, (args, kwargs))
     #
     # def _unpickle(cls, args, kwargs):
     #     assert not len(kwargs)
+    #     print("using custom unpickle")
     #     typeHash, script = args
     #     try:
+    #         return cls._preclasses[typeHash]
+    #     except KeyError:
+    #         return ClassProxy(script)()
 
-#     def __getitem__(self, )
 
 class NotBuilderTuple(EverestException):
     pass
@@ -198,7 +178,8 @@ class Builder:
         self.instanceHash = self.obj.instanceHash
 
     def __call__(self):
-        return self.cls.build(self.obj)
+        obj.__init__(**obj.inputs)
+        return obj
 
     @classmethod
     def make_from_tuple(cls, inp):
@@ -230,13 +211,6 @@ class Built(metaclass = Meta):
     def _process_inputs(inputs):
         # designed to be overridden
         return inputs
-
-    @classmethod
-    def build(cls, obj = None, **inputs):
-        if obj is None:
-            obj = cls.__new__(cls, **inputs)
-        obj.__init__(**obj.inputs)
-        return obj
 
     def __new__(cls, **inputs):
 
@@ -338,6 +312,23 @@ class Built(metaclass = Meta):
         if not isinstance(arg, Built):
             raise TypeError
         return self.hashID < arg.hashID
+
+    def __reduce__(self):
+        args = [self.hashID, self.typeHash]
+        kwargs = self.inputs
+        return (self._unpickle, (args, kwargs))
+    @classmethod
+    def _unpickle(cls, args, kwargs):
+        hashID, typeHash = args
+        inputs = kwargs
+        try:
+            return type(cls)._prebuilts[hashID]
+        except KeyError:
+            try:
+                outCls = type(cls)._preclasses[typeHash]
+            except KeyError:
+                raise Exception("Unpickling failed.")
+            return outCls(**inputs)
 
 
 from ..pyklet import Pyklet
