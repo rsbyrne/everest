@@ -327,7 +327,7 @@ class Built(metaclass = Meta):
             try:
                 outCls = type(cls)._preclasses[typeHash]
             except KeyError:
-                raise Exception("Unpickling failed.")
+                outCls = self.reader.load_class(typeHash)
             return outCls(**inputs)
 
 
