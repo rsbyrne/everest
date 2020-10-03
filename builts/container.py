@@ -5,7 +5,6 @@ import ast
 from collections import OrderedDict
 
 from . import load
-from ._unique import Unique
 from ._diskbased import DiskBased
 from ..exceptions import EverestException
 from .. import mpi
@@ -59,7 +58,7 @@ class NoCheckedBacks(EverestException):
 class TicketUnavailable(EverestException):
     pass
 
-class Container(Unique, DiskBased):
+class Container(DiskBased):
 
     _swapscript = '''from everest.builts.container import Container as CLASS'''
 

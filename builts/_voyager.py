@@ -8,7 +8,6 @@ from ._cycler import Cycler
 from ._producer import Producer
 from ._stampable import Stampable
 from ._state import State
-from ._unique import Unique
 from ..exceptions import EverestException
 from .. import mpi
 from ..value import Value
@@ -54,7 +53,7 @@ def _changed_state(func):
         return out
     return wrapper
 
-class Voyager(Counter, Cycler, Stampable, Unique, Observable):
+class Voyager(Counter, Cycler, Stampable, Observable):
 
     def __init__(
             self,

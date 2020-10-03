@@ -70,20 +70,6 @@ def _get_info(cls, inputs = dict()):
     inputsHash, instanceHash, hashID = _get_hashes(cls, inputs)
     return inputs, ghosts, inputsHash, instanceHash, hashID
 
-_PREBUILTS = dict()
-def _get_prebuilt(hashID):
-    if not type(hashID) is str:
-        raise TypeError(hashID, "is not type 'str'")
-    try:
-        gotbuilt = _PREBUILTS[hashID]()
-    except KeyError:
-        raise NoPreBuiltError
-    if isinstance(gotbuilt, Built):
-        return gotbuilt
-    else:
-        del _PREBUILTS[hashID]
-        raise NoPreBuiltError
-
 BUFFERSIZE = 5 * 2 ** 30 # i.e. 5 GiB
 def buffersize_exceeded():
     nbytes = 0
@@ -145,19 +131,29 @@ def sort_inputKeys(func):
 
 class Meta(type):
 
+    _preclasses = weakref.WeakValueDictionary()
+    _prebuilts = weakref.WeakValueDictionary()
+
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
-        if hasattr(outCls, '_swapscript'): script = outCls._swapscript
-        else: script = disk.ToOpen(inspect.getfile(outCls))()
-        outCls.typeHash = make_hash(script)
-        outCls.script = script
-        outCls.defaultInps = _get_default_inputs(outCls.__init__)
+        if hasattr(outCls, '_swapscript'):
+            script = outCls._swapscript
+        else:
+            script = disk.ToOpen(inspect.getfile(outCls))()
+        typeHash = make_hash(script)
         try:
-            outCls._sortedInputKeys = sort_inputKeys(outCls.__init__)
-        except ValueError:
-            pass
-        outCls._custom_cls_fn()
-        return outCls
+            return cls._preclasses[typeHash]
+        except KeyError:
+            outCls.typeHash = typeHash
+            outCls.script = script
+            outCls.defaultInps = _get_default_inputs(outCls.__init__)
+            try:
+                outCls._sortedInputKeys = sort_inputKeys(outCls.__init__)
+            except ValueError:
+                pass
+            outCls._custom_cls_fn()
+            cls._preclasses[outCls.typeHash] = outCls
+            return outCls
 
     @staticmethod
     def _align_inputs(cls, *args, **kwargs):
@@ -169,8 +165,21 @@ class Meta(type):
 
     def __call__(cls, *args, **kwargs):
         inputs = Meta._align_inputs(cls, *args, **kwargs)
-        obj = cls.build(**inputs)
-        return obj
+        inputsHash, instanceHash, hashID = _get_hashes(cls, inputs)
+        try:
+            return cls._prebuilts[hashID]
+        except KeyError:
+            return cls.build(**inputs)
+
+    # def __reduce__(cls):
+    #     args = (csl.typeHash, cls.script)
+    #     kwargs = dict()
+    #     return (cls._unpickle, (args, kwargs))
+    #
+    # def _unpickle(cls, args, kwargs):
+    #     assert not len(kwargs)
+    #     typeHash, script = args
+    #     try:
 
 #     def __getitem__(self, )
 
@@ -226,18 +235,8 @@ class Built(metaclass = Meta):
     def build(cls, obj = None, **inputs):
         if obj is None:
             obj = cls.__new__(cls, **inputs)
-        try:
-            obj = _get_prebuilt(obj.hashID)
-        except NoPreBuiltError:
-            obj.__init__(**obj.inputs)
-            cls._add_weakref(obj)
+        obj.__init__(**obj.inputs)
         return obj
-
-    @staticmethod
-    def _add_weakref(obj):
-        if not obj.hashID in _PREBUILTS:
-            obj.ref = weakref.ref(obj)
-            _PREBUILTS[obj.hashID] = obj.ref
 
     def __new__(cls, **inputs):
 
