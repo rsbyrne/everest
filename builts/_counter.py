@@ -11,13 +11,13 @@ class Counter(Producer):
     _defaultCountsKey = 'count'
 
     def __init__(self, **kwargs):
-        self._count_update_fns = WeakList()
         self.count = Value(-1)
         super().__init__(**kwargs)
         # Producer attributes:
         self._outFns.append(self._countoutFn)
         self._producer_outkeys.append(self._countsKeyFn)
         self._pre_store_fns.append(self._counter_pre_store_fn)
+        self._post_store_fns.append(self._counter_sort_stored_fn)
         self._pre_save_fns.append(self._counter_pre_save_fn)
         # Built attributes:
 #         self._post_anchor_fns.append(self._update_counts)
@@ -48,11 +48,7 @@ class Counter(Producer):
     def counts(self):
         return sorted(set([*self.counts_stored, *self.counts_disk]))
 
-    def _count_update_fn(self):
-        for fn in self._count_update_fns: fn()
-
     def _countoutFn(self):
-        self._count_update_fn()
         yield self.count.value
 
     def _counter_pre_store_fn(self):
