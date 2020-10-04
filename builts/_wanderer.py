@@ -1,17 +1,24 @@
 import numpy as np
 from functools import wraps, partial
 from contextlib import contextmanager
+from collections import OrderedDict
+from collections.abc import Mapping, Sequence
 
 from . import Built, Meta, w_hash
 from ._applier import Applier
 from ._voyager import Voyager
-from ..exceptions import EverestException, NotYetImplemented
+from ._counter import Counter
+from ._chroner import Chroner
+from .. import exceptions
 from ..weaklist import WeakList
 from ..pyklet import Pyklet
 from ..comparator import Comparator, Prop
 
-
-class NotConfigured(EverestException):
+class WandererException(exceptions.EverestException):
+    pass
+class WandererStateException(WandererException):
+    pass
+class NotConfigured(WandererException):
     '''
     Objects inheriting from Wanderer must be configured before use \
     - see the 'configure' method.
@@ -20,29 +27,32 @@ class NotConfigured(EverestException):
 def _configured(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if not hasattr(self, 'configs'):
+        if not len(self.configs):
             raise NotConfigured
         return func(self, *args, **kwargs)
     return wrapper
 
-class State:
-    def __init__(self, wanderer, *args):
+class State(Pyklet, Mapping):
+    def __init__(self, wanderer, *args, final = None, **kwargs):
+        if final is None:
+            try:
+                final = args.pop(-1)
+            except IndexError:
+                raise ValueError("No 'final' argument was provided.")
+        self.configs = Configs(wanderer.configs, *args, **kwargs)
         self.wanderer = wanderer
-        self.configs = {
-            **self.wanderer.configs,
-            **{k: v for k, v in zip(self.wanderer.configsKeys, args) if not v is None}
-            }
-        if len(args) > len(self.wanderer.configsKeys):
-            if len(args) == len(self.wanderer.configsKeys) + 1:
-                self.final, self.count = self._process_endpoint(args[-1])
-            else:
-                raise ValueError("Too many inputs.")
+        self.final = self._process_endpoint(final)
         self.hashID = w_hash((self.wanderer, self.configs, self.final))
+        super(self.wanderer, **configs)
     def _process_endpoint(self, arg):
-        if issubclass(type(arg), np.int):
-            count = arg
-            final = Comparator(Prop(self.wanderer, 'count'), count, op = 'ge')
-        return final, count
+        if isinstance(arg, Comparator):
+            return arg
+        elif issubclass(type(arg), np.number):
+            return self.wanderer._process_endpoint(arg)
+        else:
+            raise exceptions.NotYetImplemented
+    def __getitem__(self, key):
+        self.configs[key]
     def __enter__(self):
         self._oldConfigs = self.wanderer.configs.copy()
         if self.wanderer.initialised:
@@ -58,7 +68,44 @@ class State:
             self.wanderer.load_raw(self._reloadVals)
         del self._oldConfigs, self._reloadVals
 
-class Configs(dict):
+class Configs(Mapping, Sequence):
+    def __init__(self, defaults, *args, **kwargs):
+        self._contents = self._align_inputs(defaults, *args, **kwargs)
+    @staticmethod
+    def _align_inputs(defaults, *args, **kwargs):
+        ks = defaults.keys()
+        new = {
+            **defaults,
+            **{k: v for k, v in zip(ks, args) if not v is None},
+            **kwargs,
+            }
+        if not new.keys() == ks:
+            raise ValueError(
+                "Keys did not match up:",
+                (new.keys(), ks),
+                )
+        new = OrderedDict([(k, new[k]) for k in ks])
+        return new
+    def __getitem__(self, arg):
+        if type(arg) is str:
+            return self._contents[arg]
+        else:
+            return list(self._contents.values())[arg]
+    def __setitem__(self, arg1, arg2):
+        if type(arg1) is str:
+            self._contents[arg1] = arg2
+        elif issubclass(type(arg1), np.int):
+            self._contents[self.keys()[arg1]] = arg2
+        elif type(arg1) is slice:
+            rekeys = self.keys()[arg1]
+            for k in rekeys:
+                self._contents[k] = arg2
+        else:
+            raise ValueError
+    def keys(self):
+        return list(self._contents.keys())
+    def __len__(self):
+        return len(self._contents)
     @property
     def hashID(self):
         return w_hash(self)
@@ -73,14 +120,15 @@ class Wanderer(Voyager):
 
         super().__init__(**kwargs)
 
-    @_configured
-    def _save(self):
-        self.writeouts.add_dict({'configs': self.configs})
-        super()._save()
-
-    def _process_configs(self, configs):
-        # expects to be overridden:
-        return configs
+    def configure(self, *args, **kwargs):
+        configs = Configs(self.configs, *args, **kwargs)
+        for fn in self._wanderer_configure_pre_fns: fn()
+        self.count.value = -1
+        self.configs.clear()
+        self.configs.update(self._process_configs(**configs))
+        self.initialised = False
+        self._configure()
+        for fn in self._wanderer_configure_post_fns: fn()
 
     def _configure(self):
         ms, cs = self.mutables, self.configs
@@ -97,19 +145,14 @@ class Wanderer(Voyager):
                 else:
                     m[...] = c
 
-    def configure(self, *argConfigs, **kwargConfigs):
-        argConfigs = {
-            k: v for k, v in dict(zip(self.configsKeys, argConfigs))
-                if not v is None
-            }
-        configs = {**self.configs, **argConfigs, **kwargConfigs}
-        for fn in self._wanderer_configure_pre_fns: fn()
-        self.count.value = -1
-        self.configs.clear()
-        self.configs.update(self._process_configs(**configs))
-        self.initialised = False
-        self._configure()
-        for fn in self._wanderer_configure_post_fns: fn()
+    def _process_configs(self, configs):
+        # expects to be overridden:
+        return configs
+
+    @_configured
+    def initialise(self):
+        # Overrides Producer method:
+        super().initialise()
 
     @_configured
     def _outputSubKey(self):
@@ -117,38 +160,72 @@ class Wanderer(Voyager):
         yield self.configs.hashID
 
     @_configured
-    def initialise(self):
-        # Overrides Producer method:
-        super().initialise()
+    def _save(self):
+        self.writeouts.add_dict({'configs': self.configs})
+        super()._save()
 
+    @_configured
     def __getitem__(self, arg):
-        if type(arg) is tuple:
-            raise NotYetImplemented
-        elif type(arg) is int:
-            return self.bounce(arg)
-        elif type(arg) is dict:
-            return self.bounce(Configs(arg))
-        elif type(arg) is slice:
-            if slice.step is None:
-                return self._get_express(arg)
-        return self.configs[arg]
-    def _get_express(self, arg):
-        start, stop = slice.start, slice.stop
-        # sel
-    def __setitem__(self, arg1, arg2):
-        if type(arg1) is tuple:
-            raise NotYetImplemented
-        elif type(arg1) is slice:
-            raise NotYetImplemented
-        elif arg1 is Ellipsis:
-            if type(arg2) is dict:
-                self.configure(**arg2)
-            else:
-                self.configure(**dict(zip(self.configsKeys, arg2)))
-        elif type(arg1) is str:
-            self.configure(**{arg1: arg2})
+        assert len(self.configsKeys)
+        if len(self.configsKeys) == 1:
+            return self._wanderer_get_single(arg)
         else:
-            raise ValueError("Input type not supported.")
+            return self._wanderer_get_multi(arg)
+    def _wanderer_get_single(arg):
+        raise exceptions.NotYetImplemented
+    def _wanderer_get_multi(arg):
+        raise exceptions.NotYetImplemented
+
+    @_configured
+    def __setitem__(self, arg1, arg2):
+        assert len(self.configsKeys)
+        if len(self.configsKeys) == 1:
+            return self._wanderer_set_single(arg1, arg2)
+        else:
+            return self._wanderer_set_multi(arg1, arg2)
+    def _wanderer_set_single(arg):
+        raise exceptions.NotYetImplemented
+    def _wanderer_set_multi(arg):
+        raise exceptions.NotYetImplemented
+    #
+    # def __getitem__(self, arg):
+    #     if type(arg) is tuple:
+    #         raise exceptions.NotYetImplemented
+    #     elif type(arg) is int:
+    #         raise exceptions.NotYetImplemented
+    #     elif type(arg) is dict:
+    #         raise exceptions.NotYetImplemented
+    #     elif type(arg) is slice:
+    #         if slice.step is None:
+    #             return State(
+    #                 self,
+    #                 final = slice.stop,
+    #                 **Configs(slice.start)
+    #                 )
+    #         else:
+    #             raise exceptions.NotYetImplemented
+    #     else:
+    #         raise TypeError
+    # def __setitem__(self, arg1, arg2):
+    #     if type(arg1) is tuple:
+    #         if not type(arg2)
+    #         self.configure(dict(zip()))
+    #         raise exceptions.NotYetImplemented
+    #     elif type(arg1) is slice:
+    #         raise exceptions.NotYetImplemented
+    #     elif arg1 is Ellipsis:
+    #         if len(self.configsKeys) == 1:
+    #             raise
+    #         if isinstance(arg2, Mapping):
+    #             self.configure(**arg2)
+    #         elif isinstance(arg2, Sequence):
+    #             self.configure(*arg2)
+    #         else:
+    #             self.configure(arg2)
+    #     elif type(arg1) is str:
+    #         self.configure(**{arg1: arg2})
+    #     else:
+    #         raise ValueError("Input type not supported.")
 
     @property
     def _promptableKey(self):
