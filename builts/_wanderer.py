@@ -63,9 +63,14 @@ class Wanderer(Voyager):
         ms, cs = self.mutables, self.configs
         for k in sorted(set(ms).intersection(set(cs))):
             m, c = ms[k], cs[k]
+            if type(c) is float:
+                if not c < float('inf'):
+                    c = None
             if not c is None:
                 if isinstance(c, Applier):
                     c.apply(m)
+                elif hasattr(m, 'data'):
+                    m.data[...] = c
                 else:
                     m[...] = c
 
