@@ -67,6 +67,8 @@ class Indexer(Producer):
             op = 'ge'
             )
     def _process_index(self, arg):
+        if not issubclass(type(arg), (np.int, np.float)):
+            raise TypeError(arg, type(arg))
         i, ik, it, i0 = self._get_indexInfo(arg)
         if arg == i0 or not arg < np.inf: # hence is null:
             raise NullVal
