@@ -1,7 +1,8 @@
 import numpy as np
 from functools import wraps
 
-from ._producer import Producer, AbortStore, LoadFail
+from ._indexer import Indexer, _indexer_load_wrapper
+from ._producer import AbortStore, LoadFail
 from ..value import Value
 from ..anchor import NoActiveAnchorError
 
@@ -13,14 +14,29 @@ class CountAlreadyLoadedError(CounterException):
 class CounterLoadFail(CounterException, LoadFail):
     pass
 
-class Counter(Producer):
+class Counter(Indexer):
 
     _defaultCountsKey = 'count'
+    _defaultNullVal = -999999999
 
     def __init__(self, **kwargs):
-        self.count = Value(-1)
+        self._countNullVal = self._defaultNullVal
+        self.count = Value(self._countNullVal)
         self.countsKey = self._defaultCountsKey
         super().__init__(**kwargs)
+
+    def _indexers(self):
+        for o in super()._indexers(): yield o
+        yield self.count
+    def _indexerKeys(self):
+        for o in super()._indexerKeys(): yield o
+        yield self.countsKey
+    def _indexerTypes(self):
+        for o in super()._indexerTypes(): yield o
+        yield np.int
+    def _indexerNulls(self):
+        for o in super()._indexerNulls(): yield o
+        yield self._countNullVal
 
     def _outkeys(self):
         for o in super()._outkeys(): yield o
@@ -69,27 +85,10 @@ class Counter(Producer):
         self.stored[:] = [self.stored[i] for i in keepCounts]
         super()._save()
 
-    def _process_load_count_arg(self, count):
-        if count == self.count:
-            raise CountAlreadyLoadedError
-        elif count < 0:
-            if self.initialised:
-                count += self.count
-            else:
-                count = -count
-            return count
-        else:
-            return count
-    def _counter_load_wrapper(func):
-        @wraps(func)
-        def wrapper(self, count, *args, **kwargs):
-            count = self._process_load_count_arg(count)
-            return func(self, count, *args, **kwargs)
-        return wrapper
-    @_counter_load_wrapper
+    @_indexer_load_wrapper
     def load_count_stored(self, count):
         return self.load_index_stored(self.counts_stored.index(count))
-    @_counter_load_wrapper
+    @_indexer_load_wrapper
     def load_count_disk(self, count):
         return self.load_index_disk(self.counts_disk.index(count))
     def load_count(self, count):
@@ -102,7 +101,8 @@ class Counter(Producer):
         self.count.value = outs.pop(self.countsKey)
         return outs
     def _load(self, arg):
-        if issubclass(type(arg), np.int):
+        i, ik, it, i0 = self._get_indexInfo(arg)
+        if i is self.count:
             try:
                 self.load_count(arg)
             except ValueError:

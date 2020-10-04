@@ -1,7 +1,8 @@
 import numpy as np
 from functools import wraps
 
-from ._producer import Producer, AbortStore, LoadFail
+from ._indexer import Indexer, _indexer_load_wrapper
+from ._producer import AbortStore, LoadFail
 from ..value import Value
 from ..anchor import NoActiveAnchorError
 
@@ -13,14 +14,29 @@ class ChronAlreadyLoadedError(ChronerException):
 class ChronerLoadFail(ChronerException, LoadFail):
     pass
 
-class Chroner(Producer):
+class Chroner(Indexer):
 
     _defaultChronsKey = 'chron'
+    _defaultNullVal = float('nan')
 
     def __init__(self, **kwargs):
-        self.chron = Value(float('NaN'))
+        self._chronNullVal = self._defaultNullVal
+        self.chron = Value(self._chronNullVal)
         self.chronsKey = self._defaultChronsKey
         super().__init__(**kwargs)
+
+    def _indexers(self):
+        for o in super()._indexers(): yield o
+        yield self.chron
+    def _indexerKeys(self):
+        for o in super()._indexerKeys(): yield o
+        yield self.chronsKey
+    def _indexerTypes(self):
+        for o in super()._indexerTypes(): yield o
+        yield np.float
+    def _indexerNulls(self):
+        for o in super()._indexerNulls(): yield o
+        yield self._chronNullVal
 
     def _outkeys(self):
         for o in super()._outkeys(): yield o
@@ -44,7 +60,7 @@ class Chroner(Producer):
         try:
             chrons = self.readouts[self.chronsKey]
             assert len(set(chrons)) == len(chrons)
-            chrons = [int(x) for x in chrons]
+            chrons = [float(x) for x in chrons]
             return chrons
         except (KeyError, NoActiveAnchorError):
             return []
@@ -69,27 +85,10 @@ class Chroner(Producer):
         self.stored[:] = [self.stored[i] for i in keepChrons]
         super()._save()
 
-    def _process_load_chron_arg(self, chron):
-        if chron == self.chron:
-            raise ChronAlreadyLoadedError
-        elif chron < 0:
-            if self.initialised:
-                chron += self.chron
-            else:
-                chron = -chron
-            return chron
-        else:
-            return chron
-    def _chroner_load_wrapper(func):
-        @wraps(func)
-        def wrapper(self, chron, *args, **kwargs):
-            chron = self._process_load_chron_arg(chron)
-            return func(self, chron, *args, **kwargs)
-        return wrapper
-    @_chroner_load_wrapper
+    @_indexer_load_wrapper
     def load_chron_stored(self, chron):
         return self.load_index_stored(self.chrons_stored.index(chron))
-    @_chroner_load_wrapper
+    @_indexer_load_wrapper
     def load_chron_disk(self, chron):
         return self.load_index_disk(self.chrons_disk.index(chron))
     def load_chron(self, chron):
@@ -102,7 +101,8 @@ class Chroner(Producer):
         self.chron.value = outs.pop(self.chronsKey)
         return outs
     def _load(self, arg):
-        if issubclass(type(arg), np.float):
+        i, ik, it, i0 = self._get_indexInfo(arg)
+        if i is self.chron:
             try:
                 self.load_chron(arg)
             except ValueError:
