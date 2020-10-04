@@ -8,6 +8,7 @@ from ._voyager import Voyager
 from ..exceptions import EverestException, NotYetImplemented
 from ..weaklist import WeakList
 from ..pyklet import Pyklet
+from ..comparator import Comparator, Prop
 
 
 class NotConfigured(EverestException):
@@ -24,6 +25,38 @@ def _configured(func):
         return func(self, *args, **kwargs)
     return wrapper
 
+class State:
+    def __init__(self, wanderer, *args):
+        self.wanderer = wanderer
+        self.configs = {
+            **self.wanderer.configs,
+            **{k: v for k, v in zip(self.wanderer.configsKeys, args) if not v is None}
+            }
+        if len(args) > len(self.wanderer.configsKeys):
+            if len(args) == len(self.wanderer.configsKeys) + 1:
+                self.final, self.count = self._process_endpoint(args[-1])
+            else:
+                raise ValueError("Too many inputs.")
+        self.hashID = w_hash((self.wanderer, self.configs, self.final))
+    def _process_endpoint(self, arg):
+        if issubclass(type(arg), np.int):
+            count = arg
+            final = Comparator(Prop(self.wanderer, 'count'), count, op = 'ge')
+        return final, count
+    def __enter__(self):
+        self._oldConfigs = self.wanderer.configs.copy()
+        if self.wanderer.initialised:
+            self._reloadVals = self.wanderer.out
+        else:
+            self._reloadVals = None
+        self.wanderer.configure(**self.configs)
+        self.wanderer.go(self.final)
+        return None
+    def __exit__(self, *args):
+        self.wanderer.configure(**self._oldConfigs)
+        if not self._reloadVals is None:
+            self.wanderer.load_raw(self._reloadVals)
+        del self._oldConfigs, self._reloadVals
 
 class Configs(dict):
     @property
