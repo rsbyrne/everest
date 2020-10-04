@@ -29,7 +29,7 @@ class PiMachine(Voyager):
     def _iterate(self):
         kthVal = self.kth(self.count.value)
         self.state += kthVal
-    def _load(self, loadDict):
+    def _load_process(self, loadDict):
         self.state = loadDict['pi']
 
 CLASS = PiMachine

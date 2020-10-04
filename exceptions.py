@@ -15,3 +15,9 @@ class InDevelopmentError(EverestException):
 
 class NotYetImplemented(EverestException):
     '''This feature has not been implemented yet.'''
+
+class MissingMethod(EverestException):
+    '''
+    The user has failed to provide an expected method \
+    when inheriting from an Everest class.
+    '''

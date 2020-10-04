@@ -4,7 +4,7 @@ from contextlib import contextmanager
 
 from . import Built, Meta, w_hash
 from ._applier import Applier
-from ._voyager import Voyager, LoadFail, _initialised
+from ._voyager import Voyager
 from ..exceptions import EverestException, NotYetImplemented
 from ..weaklist import WeakList
 from ..pyklet import Pyklet
@@ -40,19 +40,10 @@ class Wanderer(Voyager):
 
         super().__init__(**kwargs)
 
-        # Producer attributes:
-        self._pre_save_fns.append(self._wanderer_pre_save_fn)
-        self._post_save_fns.append(self._wanderer_post_save_fn)
-        self._outputSubKeys.append(self._wanderer_outputSubKey_fn)
-
-        # Observable attributes:
-
     @_configured
-    def _wanderer_pre_save_fn(self):
-        pass
-
-    def _wanderer_post_save_fn(self):
+    def _save(self):
         self.writeouts.add_dict({'configs': self.configs})
+        super()._save()
 
     def _process_configs(self, configs):
         # expects to be overridden:
@@ -80,8 +71,6 @@ class Wanderer(Voyager):
             }
         configs = {**self.configs, **argConfigs, **kwargConfigs}
         for fn in self._wanderer_configure_pre_fns: fn()
-        if hasattr(self, 'chron'):
-            self.chron.value = float('NaN')
         self.count.value = -1
         self.configs.clear()
         self.configs.update(self._process_configs(**configs))
@@ -90,8 +79,9 @@ class Wanderer(Voyager):
         for fn in self._wanderer_configure_post_fns: fn()
 
     @_configured
-    def _wanderer_outputSubKey_fn(self):
-        return self.configs.hashID
+    def _outputSubKey(self):
+        for o in super()._outputSubKey(): yield o
+        yield self.configs.hashID
 
     @_configured
     def initialise(self):

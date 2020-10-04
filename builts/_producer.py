@@ -1,28 +1,35 @@
-import os
 import numpy as np
 import time
-from types import FunctionType, MethodType
+from functools import wraps
+from collections import OrderedDict
 
-from .. import utilities
 from .. import disk
 from ..reader import Reader
 from ..writer import Writer
 
 from . import buffersize_exceeded
 from ._promptable import Promptable
-from ..weaklist import WeakList
 from ..array import EverestArray
-from ..exceptions import EverestException
+from .. import exceptions
 from .. import mpi
 
-class AbortStore(EverestException):
+class ProducerException(exceptions.EverestException):
     pass
+class LoadFail(ProducerException):
+    pass
+class ProducerLoadFail(LoadFail):
+    pass
+class AbortStore(ProducerException):
+    pass
+# class ProducerMissingMethod(exceptions.MissingMethod):
+#     pass
 
 class _DataProxy:
     def __init__(self, method):
         self._method = method
     def __getitem__(self, inp):
         return self._method(inp)
+
 
 class Producer(Promptable):
 
@@ -32,22 +39,12 @@ class Producer(Promptable):
             **kwargs
             ):
 
-        self._outputRootKey = self.hashID
-        self._outputMasterKeys = WeakList([self._producer_outputMasterKey,])
-        self._outputSubKeys = WeakList()
+        self.outputRootKey = self.hashID
 
         self.baselines = dict()
         for key, val in sorted(baselines.items()):
             self.baselines[key] = EverestArray(val, extendable = False)
 
-        self._pre_out_fns = WeakList()
-        self._outFns = WeakList()
-        self._post_out_fns = WeakList()
-        self._pre_store_fns = WeakList()
-        self._post_store_fns = WeakList()
-        self._pre_save_fns = WeakList()
-        self._post_save_fns = WeakList()
-        self._producer_outkeys = WeakList()
         self._stored = dict()
 
         super().__init__(baselines = self.baselines, **kwargs)
@@ -58,47 +55,37 @@ class Producer(Promptable):
         self.set_autosave(True)
         self.set_save_interval(3600.)
 
-    def _producer_outputMasterKey(self):
-        return 'outputs'
     @property
+    def outputMasterKey(self):
+        return '/'.join([k for k in self._outputMasterKey if len(k)])
     def _outputMasterKey(self):
-        return '/'.join([fn() for fn in self._outputMasterKeys])
+        yield 'outputs'
     @property
+    def outputSubKey(self):
+        return '/'.join([k for k in self._outputSubKey if len(k)])
     def _outputSubKey(self):
-        return '/'.join([fn() for fn in self._outputSubKeys])
+        yield ''
     @property
-    def _outputKey(self):
-        keys = [self._outputRootKey, self._outputMasterKey, self._outputSubKey]
+    def outputKey(self):
+        keys = [self.outputRootKey, self.outputMasterKey, self.outputSubKey]
         return '/'.join([k for k in keys if len(k)])
 
     @property
     def outkeys(self):
-        out = []
-        for item in self._producer_outkeys:
-            if callable(item):
-                item = item()
-            if type(item) is str:
-                out.append(item)
-            else:
-                try:
-                    out.extend(item)
-                except TypeError:
-                    out.append(item)
-        return out
+        return [*self._outkeys()][1:]
+    def _outkeys(self):
+        yield None
+    @property
+    def out(self):
+        return [*self._out()][1:]
+    def _out(self):
+        yield None
+    @property
+    def outDict(self):
+        return dict(zip(self.outkeys, self.out()))
 
     def _producer_prompt(self, prompter):
         self.store()
-
-    def set_autosave(self, val: bool):
-        self.autosave = val
-    def set_save_interval(self, val: float):
-        self.saveinterval = val
-    def get_stored_nbytes(self):
-        nbytes = 0
-        for datas in self.stored:
-            for data in datas:
-                nbytes += np.array(data).nbytes
-        return nbytes
 
     @property
     def dataDict(self):
@@ -111,45 +98,19 @@ class Producer(Promptable):
         if not key in self._stored:
             self._stored[key] = []
         return self._stored[key]
-
-    def out(self):
-        for fn in self._pre_out_fns: fn()
-        outs = tuple([item for fn in self._outFns for item in fn()])
-        assert len(outs) == len(self.outkeys), \
-            ("Outkeys do not match outputs!", (len(outs), len(self.outkeys)))
-        for fn in self._post_out_fns: fn()
-        return outs
-    @property
-    def outDict(self):
-        return dict(zip(self.outkeys, self.out()))
-
     def store(self):
         try:
             self._store()
         except AbortStore:
             pass
-
     def _store(self):
-        for fn in self._pre_store_fns: fn()
-        self.stored.append(self.out())
-        for fn in self._post_store_fns: fn()
+        self.stored.append(self.out)
         mpi.message(';')
         self.nbytes = self.get_stored_nbytes()
         if self.anchored and self.autosave:
             self._autosave()
-
     def clear(self):
         self._stored[self._outputSubKey].clear()
-
-    @disk.h5filewrap
-    def save(self):
-        for fn in self._pre_save_fns: fn()
-        self._save()
-        self.clear()
-        self.writeouts.add(self, 'producer')
-        self.lastsaved = time.time()
-        for fn in self._post_save_fns: fn()
-        mpi.message(':')
 
     @property
     def readouts(self):
@@ -166,16 +127,32 @@ class Producer(Promptable):
             self._outputKey
             )
 
+    @disk.h5filewrap
+    def save(self):
+        self._save()
+        self.lastsaved = time.time()
+        self.clear()
+        mpi.message(':')
     def _save(self):
+        self.writeouts.add(self, 'producer')
         wrappedDict = dict()
         for key, val in sorted(self.dataDict.items()):
             wrappedDict[key] = EverestArray(
                 val,
                 extendable = True,
-                indices = '/'.join([self._outputKey, self._countsKey])
+                # indices = '/'.join([self.outputKey, self.countsKey])
                 )
         self.writeouts.add_dict(wrappedDict)
-
+    def set_autosave(self, val: bool):
+        self.autosave = val
+    def set_save_interval(self, val: float):
+        self.saveinterval = val
+    def get_stored_nbytes(self):
+        nbytes = 0
+        for datas in self.stored:
+            for data in datas:
+                nbytes += np.array(data).nbytes
+        return nbytes
     def _autosave(self):
         if buffersize_exceeded():
             self.save()
@@ -183,23 +160,31 @@ class Producer(Promptable):
             if time.time() - self.lastsaved > self.saveinterval:
                 self.save()
 
-    # def _producer_get(self, arg):
-    #     if type(arg) is str:
-    #         key = arg
-    #         if not key in self.outkeys:
-    #             raise ValueError("That key is not valid for this producer.")
-    #         if self.anchored:
-    #             self.save()
-    #             out = self.readouts[key]
-    #         else:
-    #             out = self.dataDict[key]
-    #         return out
-    #     elif type(arg) is tuple:
-    #         tup = arg
-    #         return [self._producer_get(k) for k in tup]
-    #     else:
-    #         raise TypeError("Input must be string or tuple.")
-    #
-    # @property
-    # def data(self):
-    #     return _DataProxy(self._producer_get)
+    def _producer_load_wrapper(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            return self._load_process(func(self, *args, **kwargs))
+        return wrapper
+    def _load_process(self, outs):
+        return OrderedDict(zip(self.outkeys, outs))
+    @_producer_load_wrapper
+    def load_index_stored(self, index):
+        return self.stored[index]
+    @_producer_load_wrapper
+    def load_index_disk(self, index):
+        return [
+            self.readouts[key][index]
+                for key in self.outkeys
+                ]
+    def load_index(self, index):
+        try:
+            return self.load_index_stored(index)
+        except IndexError:
+            return self.load_index_disk(index)
+    def _load(self, arg):
+        try:
+            return self.load_index(arg)
+        except IndexError:
+            raise ProducerLoadFail
+    def load(self, arg):
+        return self._load(arg)
