@@ -42,7 +42,8 @@ class Counter(Producer):
     @property
     def counts_disk(self):
         try:
-            counts = sorted(set(self.readouts[self._countsKey]))
+            counts = self.readouts[self._countsKey]
+            assert len(set(counts)) == len(counts)
             counts = [int(x) for x in counts]
             return counts
         except (KeyError, NoActiveAnchorError):
