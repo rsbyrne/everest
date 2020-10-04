@@ -2,14 +2,13 @@ import numpy as np
 from functools import wraps, partial
 from contextlib import contextmanager
 
-from . import Built, Meta, make_hash
+from . import Built, Meta, w_hash
 from ._applier import Applier
 from ._voyager import Voyager, LoadFail, _initialised
 from ..exceptions import EverestException, NotYetImplemented
-from .. import wordhash
 from ..weaklist import WeakList
 from ..pyklet import Pyklet
-wHash = lambda x: wordhash.get_random_phrase(make_hash(x))
+
 
 class NotConfigured(EverestException):
     '''
@@ -29,7 +28,7 @@ def _configured(func):
 class Configs(dict):
     @property
     def hashID(self):
-        return wHash(self)
+        return w_hash(self)
 
 class Wanderer(Voyager):
 

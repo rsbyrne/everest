@@ -14,6 +14,7 @@ from ..reader import Reader, ClassProxy
 from ..weaklist import WeakList
 from .. import globevars
 from ..anchor import Anchor, _namepath_process
+w_hash = lambda x: wordhash.get_random_phrase(make_hash(x)) # do not remove
 
 # from ..globevars import _BUILTTAG_, _CLASSTAG_
 
