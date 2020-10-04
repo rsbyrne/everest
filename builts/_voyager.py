@@ -127,12 +127,15 @@ class Voyager(Cycler, Stampable, Observable, Counter):
 
     @_changed_state
     def initialise(self, *args, **kwargs):
-        try:
-            self.load(0)
-        except LoadFail:
-            self._initialise(*args, **kwargs)
-        self.count.value = 0
-        self.initialised = True
+        if self.count == 0:
+            pass
+        else:
+            try:
+                self.load(0)
+            except LoadFail:
+                self._initialise(*args, **kwargs)
+            self.count.value = 0
+            self.initialised = True
     def reset(self):
         self.initialise()
 

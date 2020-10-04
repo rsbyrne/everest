@@ -102,7 +102,7 @@ class Counter(Producer):
         self.count.value = outs.pop(self.countsKey)
         return outs
     def _load(self, arg):
-        if type(arg) is int:
+        if issubclass(type(arg), np.int):
             try:
                 self.load_count(arg)
             except ValueError:

@@ -57,12 +57,12 @@ class Producer(Promptable):
 
     @property
     def outputMasterKey(self):
-        return '/'.join([k for k in self._outputMasterKey if len(k)])
+        return '/'.join([k for k in self._outputMasterKey() if len(k)])
     def _outputMasterKey(self):
         yield 'outputs'
     @property
     def outputSubKey(self):
-        return '/'.join([k for k in self._outputSubKey if len(k)])
+        return '/'.join([k for k in self._outputSubKey() if len(k)])
     def _outputSubKey(self):
         yield ''
     @property
@@ -117,14 +117,14 @@ class Producer(Promptable):
         return Reader(
             self.name,
             self.path,
-            self._outputKey
+            self.outputKey
             )
     @property
     def writeouts(self):
         return Writer(
             self.name,
             self.path,
-            self._outputKey
+            self.outputKey
             )
 
     @disk.h5filewrap
@@ -186,5 +186,7 @@ class Producer(Promptable):
             return self.load_index(arg)
         except IndexError:
             raise ProducerLoadFail
+        except TypeError:
+            raise LoadFail
     def load(self, arg):
         return self._load(arg)

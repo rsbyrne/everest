@@ -102,7 +102,7 @@ class Chroner(Producer):
         self.chron.value = outs.pop(self.chronsKey)
         return outs
     def _load(self, arg):
-        if type(arg) is float:
+        if issubclass(type(arg), np.float):
             try:
                 self.load_chron(arg)
             except ValueError:
