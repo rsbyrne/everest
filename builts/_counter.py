@@ -27,18 +27,22 @@ class Counter(Producer):
     @property
     def _countsKey(self):
         return self._countsKeyFn()[0]
+    @property
+    def _countsKeyIndex(self):
+        return self.outkeys.index(self._countsKey)
 
     @property
     def counts_stored(self):
-        countsIndex = self.outkeys.index(self._countsKey)
-        storedCounts = [row[countsIndex] for row in self.stored]
+        storedCounts = sorted([
+            row[self._countsKeyIndex] for row in self.stored
+            ])
         assert sorted(set(storedCounts)) == storedCounts
         return storedCounts
 
     @property
     def counts_disk(self):
         try:
-            counts = list(set(self.readouts[self._countsKey]))
+            counts = sorted(set(self.readouts[self._countsKey]))
             counts = [int(x) for x in counts]
             return counts
         except (KeyError, NoActiveAnchorError):
@@ -47,6 +51,9 @@ class Counter(Producer):
     @property
     def counts(self):
         return sorted(set([*self.counts_stored, *self.counts_disk]))
+
+    def _counter_sort_stored_fn(self):
+        self.stored.sort(key = lambda row: row[self._countsKeyIndex])
 
     def _countoutFn(self):
         yield self.count.value
