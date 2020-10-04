@@ -30,6 +30,11 @@ class _DataProxy:
     def __getitem__(self, inp):
         return self._method(inp)
 
+def _producer_load_wrapper(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        return self._load_process(func(self, *args, **kwargs))
+    return wrapper
 
 class Producer(Promptable):
 
@@ -160,11 +165,6 @@ class Producer(Promptable):
             if time.time() - self.lastsaved > self.saveinterval:
                 self.save()
 
-    def _producer_load_wrapper(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            return self._load_process(func(self, *args, **kwargs))
-        return wrapper
     def _load_process(self, outs):
         return OrderedDict(zip(self.outkeys, outs))
     @_producer_load_wrapper

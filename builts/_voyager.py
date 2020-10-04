@@ -30,6 +30,24 @@ class VoyagerMissingMethod(VoyagerException, exceptions.MissingMethod):
 #     def __exit__(self, *args):
 #         self.iterator.load(self.returnStep)
 
+def _initialised(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if not self.initialised:
+            self.initialise()
+        return func(self, *args, **kwargs)
+    return wrapper
+
+def _changed_state(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        prevCount = self.count.value
+        out = func(self, *args, **kwargs)
+        if not self.count.value == prevCount:
+            for fn in self._changed_state_fns:
+                fn()
+        return out
+    return wrapper
 
 class Voyager(Cycler, Stampable, Observable, Counter):
 
@@ -93,25 +111,6 @@ class Voyager(Cycler, Stampable, Observable, Counter):
     #         attr = getattr(self, key)
     #         attr.clear()
     #         attr.extend(val)
-
-    def _initialised(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            if not self.initialised:
-                self.initialise()
-            return func(self, *args, **kwargs)
-        return wrapper
-
-    def _changed_state(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            prevCount = self.count.value
-            out = func(self, *args, **kwargs)
-            if not self.count.value == prevCount:
-                for fn in self._changed_state_fns:
-                    fn()
-            return out
-        return wrapper
 
     def _outkeys(self):
         for o in super()._outkeys(): yield o
