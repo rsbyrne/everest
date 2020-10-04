@@ -55,6 +55,9 @@ class Counter(Producer):
     def _counter_sort_stored_fn(self):
         self.stored.sort(key = lambda row: row[self._countsKeyIndex])
 
+    def drop_count(self, count):
+        del self.stored[self.counts_stored.index(count)]
+
     def _countoutFn(self):
         yield self.count.value
 
