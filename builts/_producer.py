@@ -82,7 +82,7 @@ class Producer(Promptable):
         yield None
     @property
     def outDict(self):
-        return dict(zip(self.outkeys, self.out))
+        return OrderedDict(zip(self.outkeys, self.out))
 
     def _producer_prompt(self, prompter):
         self.store()
