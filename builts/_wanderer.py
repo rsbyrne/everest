@@ -73,20 +73,12 @@ class Wanderer(Voyager):
                 else:
                     m[...] = c
 
-    @contextmanager
-    def bounce(self, configs):
-        oldConfigs = self.configs.copy()
-        # oldCount = self.count.value
-        try:
-            # if self.initialised:
-            #     self.store()
-            self.configure(configs)
-            yield None
-        finally:
-            self.configure(oldConfigs)
-            # self.load(oldStep)
-
-    def configure(self, configs):
+    def configure(self, *argConfigs, **kwargConfigs):
+        argConfigs = {
+            k: v for k, v in dict(zip(self.configsKeys, argConfigs))
+                if not v is None
+            }
+        configs = {**self.configs, **argConfigs, **kwargConfigs}
         for fn in self._wanderer_configure_pre_fns: fn()
         if hasattr(self, 'chron'):
             self.chron.value = float('NaN')
@@ -126,9 +118,12 @@ class Wanderer(Voyager):
         elif type(arg1) is slice:
             raise NotYetImplemented
         elif arg1 is Ellipsis:
-            self.configure(arg2)
+            if type(arg2) is dict:
+                self.configure(**arg2)
+            else:
+                self.configure(**dict(zip(self.configsKeys, arg2)))
         elif type(arg1) is str:
-            self.configure({**self.configs, **{arg1: arg2}})
+            self.configure(**{arg1: arg2})
         else:
             raise ValueError("Input type not supported.")
 
@@ -136,61 +131,3 @@ class Wanderer(Voyager):
     def _promptableKey(self):
         # Overrides Promptable property:
         return self.configs.hashID
-
-
-    # def __getitem__(self, arg):
-    #     if type(arg) is tuple:
-    #         raise NotYetImplemented
-    #     elif type(arg) is slice:
-    #         raise NotYetImplemented
-    #     else:
-    #         out = self.__class__(**self.inputs)
-    #         out.configure(arg)
-    #         return out
-    # def __getitem__(self, arg):
-    #     if type(arg) is tuple:
-    #         raise NotYetImplemented
-    #     elif type(arg) is slice:
-    #         if arg == slice(None, None, None):
-    #             return self.configs
-    #         else:
-    #             raise NotYetImplemented
-    #     elif type(arg) is str:
-    #         return self.configs[arg]
-    #     else:
-    #         raise ValueError("That input type is not supported.")
-    # def __setitem__(self, arg1, arg2):
-    #     assert len(self.configsKeys), "The configs keys dict is empty."
-    #     if type(arg1) is slice:
-    #         raise NotYetImplemented
-    #     if arg1 is Ellipsis:
-    #         arg1 = self.configsKeys
-    #     if not type(arg1) is tuple:
-    #         arg1 = arg1,
-    #     if not type(arg2) is tuple:
-    #         arg2 = arg2,
-    #     if len(arg2) > len(arg1):
-    #         raise ValueError(
-    #             "Too many configurations provided:\
-    #             there should be only " + str(len(arg1)) + '.'
-    #             )
-    #     elif len(arg1) > len(arg2):
-    #         if len(arg2) > 1:
-    #             raise ValueError(
-    #                 "Too many configurations provided:\
-    #                 there should be either 1 or " + str(len(arg1)) + '.'
-    #                 )
-    #         arg2 = tuple([arg2[0] for _ in arg1])
-    #     self.configure(dict(zip(arg1, arg2)))
-
-
-# class Express(Pyklet):
-#     def __init__(self,
-#             wanderer,
-#             start,
-#             stop,
-#             ):
-#         super().__init__(wanderer, start, stop)
-#         self.wanderer, self.start, self.stop = wanderer, start, stop
-#     def __call__(self):
-#         with self.wanderer.reconfigure(self.start)
