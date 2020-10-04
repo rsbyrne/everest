@@ -190,3 +190,7 @@ class Producer(Promptable):
             raise LoadFail
     def load(self, arg):
         return self._load(arg)
+    def load_raw(self, out):
+        leftovers = self._load_process(out)
+        if len(leftovers):
+            raise ProducerLoadFail
