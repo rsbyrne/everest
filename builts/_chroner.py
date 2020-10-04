@@ -18,7 +18,7 @@ class Chroner(Producer):
     _defaultChronsKey = 'chron'
 
     def __init__(self, **kwargs):
-        self.chron = Value(-1)
+        self.chron = Value(float('NaN'))
         self.chronsKey = self._defaultChronsKey
         super().__init__(**kwargs)
 
