@@ -1,7 +1,7 @@
 import numpy as np
 from functools import wraps
 
-from ._indexer import Indexer, _indexer_load_wrapper
+from ._indexer import Indexer, _indexer_load_wrapper, IndexerNullVal
 from ._producer import AbortStore, LoadFail
 from ..value import Value
 from ..anchor import NoActiveAnchorError
@@ -109,3 +109,13 @@ class Counter(Indexer):
                 raise CounterLoadFail
         else:
             super()._load(arg)
+
+    def _nullify_count(self):
+        self.count.value = self._countNullVal
+    @property
+    def _count_isNull(self):
+        try:
+            self._process_index(self.count.value)
+            return False
+        except IndexerNullVal:
+            return True

@@ -9,7 +9,7 @@ class IndexerException(EverestException):
     pass
 class IndexAlreadyLoaded(IndexerException):
     pass
-class NullVal(IndexerException):
+class IndexerNullVal(IndexerException):
     pass
 
 def _indexer_load_wrapper(func):
@@ -71,8 +71,12 @@ class Indexer(Producer):
             raise TypeError(arg, type(arg))
         i, ik, it, i0 = self._get_indexInfo(arg)
         if arg == i0 or not arg < np.inf: # hence is null:
-            raise NullVal
+            raise IndexerNullVal
         elif arg < 0.:
             return i - arg
         else:
             return arg
+
+    def _nullify_indexers(self):
+        for i, ik, it, i0 in self.indexersInfo:
+            i.value = i0

@@ -33,7 +33,7 @@ class Chroner(Indexer):
         yield self.chronsKey
     def _indexerTypes(self):
         for o in super()._indexerTypes(): yield o
-        yield np.float
+        yield np.int
     def _indexerNulls(self):
         for o in super()._indexerNulls(): yield o
         yield self._chronNullVal
@@ -60,7 +60,7 @@ class Chroner(Indexer):
         try:
             chrons = self.readouts[self.chronsKey]
             assert len(set(chrons)) == len(chrons)
-            chrons = [float(x) for x in chrons]
+            chrons = [int(x) for x in chrons]
             return chrons
         except (KeyError, NoActiveAnchorError):
             return []
@@ -109,3 +109,13 @@ class Chroner(Indexer):
                 raise ChronerLoadFail
         else:
             super()._load(arg)
+
+    def _nullify_chron(self):
+        self.chron.value = self._chronNullVal
+    @property
+    def _chron_isNull(self):
+        try:
+            self._process_index(self.chron.value)
+            return False
+        except IndexerNullVal:
+            return True
