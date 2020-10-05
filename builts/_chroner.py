@@ -17,10 +17,10 @@ class ChronerLoadFail(ChronerException, LoadFail):
 class Chroner(Indexer):
 
     _defaultChronsKey = 'chron'
-    _defaultNullVal = float('nan')
+    _defaultChronNullVal = float('nan')
 
     def __init__(self, **kwargs):
-        self._chronNullVal = self._defaultNullVal
+        self._chronNullVal = self._defaultChronNullVal
         self.chron = Value(self._chronNullVal)
         self.chronsKey = self._defaultChronsKey
         super().__init__(**kwargs)

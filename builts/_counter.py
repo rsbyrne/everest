@@ -17,10 +17,10 @@ class CounterLoadFail(CounterException, LoadFail):
 class Counter(Indexer):
 
     _defaultCountsKey = 'count'
-    _defaultNullVal = -999999999
+    _defaultCountNullVal = -999999999
 
     def __init__(self, **kwargs):
-        self._countNullVal = self._defaultNullVal
+        self._countNullVal = self._defaultCountNullVal
         self.count = Value(self._countNullVal)
         self.countsKey = self._defaultCountsKey
         super().__init__(**kwargs)
