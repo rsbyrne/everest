@@ -37,13 +37,14 @@ def load(hashID, name = None, path = '.'):
     return Reader(name, path).load(hashID)
 
 def _get_inputs(cls, inputs = dict()):
-    inputs = OrderedDict(cls.defaultInps).update(inputs)
+    allinputs = OrderedDict(cls.defaultInps)
+    allinputs.update(inputs)
     ghostKeys = cls._sortedGhostKeys['all']
     inputs = OrderedDict(
-        [(k, v) for k, v in inputs.items() if not k in ghostKeys]
+        [(k, v) for k, v in allinputs.items() if not k in ghostKeys]
         )
     ghosts = OrderedDict(
-        [(k, v) for k, v in inputs.items() if k in ghostKeys]
+        [(k, v) for k, v in allinputs.items() if k in ghostKeys]
         )
     inputs = cls._process_inputs(inputs)
     ghosts = cls._process_ghosts(ghosts)
@@ -96,6 +97,7 @@ def sort_inputKeys(func):
     catsDict = OrderedDict({None: []})
     ghostCatsDict = OrderedDict({None: []})
     tag = None
+    appendList = catsDict[None]
     for line in initsource:
         if line[0] == '#':
             tag = line[2:].lower()
@@ -105,11 +107,11 @@ def sort_inputKeys(func):
                 tag = tag[:-len(ghostCatTag)].strip()
                 if not tag in ghostCatsDict:
                     ghostCatsDict[tag] = []
-                    appendList = ghostCatsDict[tag]
+                appendList = ghostCatsDict[tag]
             else:
-                if not tag in keyDict:
+                if not tag in catsDict:
                     catsDict[tag] = []
-                    appendList = catsDict[tag]
+                appendList = catsDict[tag]
         else:
             key = line.split('=')[0].strip()
             if key.startswith(ghostTag):
@@ -125,7 +127,7 @@ def sort_inputKeys(func):
     ghostCatsDict = OrderedDict(
         [(key, tuple(val)) for key, val in ghostCatsDict.items()]
         )
-    return keyDict, ghostCatsDict
+    return catsDict, ghostCatsDict
 
 class Meta(type):
 
@@ -233,6 +235,11 @@ class Built(metaclass = Meta):
         return inputs
     @classmethod
     def _process_ghosts(cls, ghosts):
+        for key, val in sorted(ghosts.items()):
+            try:
+                ghosts[key] = Builder.make_from_tuple(val)
+            except NotBuilderTuple:
+                ghosts[key] = val
         return ghosts
 
     def __new__(cls, **inputs):
