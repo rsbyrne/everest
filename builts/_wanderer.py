@@ -9,6 +9,7 @@ from ._applier import Applier
 from ._voyager import Voyager
 from ._counter import Counter
 from ._chroner import Chroner
+from .._configurable import Configurable, _configured, _reconfigured
 from .. import exceptions
 from ..weaklist import WeakList
 from ..pyklet import Pyklet
@@ -24,26 +25,16 @@ class NotConfigured(WandererException):
     - see the 'configure' method.
     '''
 
-def _configured(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if not len(self.configs):
-            raise NotConfigured
-        return func(self, *args, **kwargs)
-    return wrapper
-
 class State(Pyklet, Mapping):
-    def __init__(self, wanderer, *args, final = None, **kwargs):
-        if final is None:
-            try:
-                final = args.pop(-1)
-            except IndexError:
-                raise ValueError("No 'final' argument was provided.")
-        self.configs = Configs(wanderer.configs, *args, **kwargs)
+    def __init__(self, wanderer, slicer):
         self.wanderer = wanderer
-        self.final = self._process_endpoint(final)
-        self.hashID = w_hash((self.wanderer, self.configs, self.final))
-        super(self.wanderer, **configs)
+        start, stop, step = slicer.start, slicer.stop, slicer.step
+        start = Configs(wanderer.configs, new = start)
+        stop = False if stop is None else self._process_endpoint(stop)
+        step = 1 if step is None else step
+        self.start, self.stop, self.step = start, stop, step
+        super(self.wanderer, slice(self.start, self.stop, self.step))
+        self.hashID = w_hash((self.wanderer, self.start, self.stop, self.step))
     def _process_endpoint(self, arg):
         if isinstance(arg, Comparator):
             return arg
@@ -60,126 +51,51 @@ class State(Pyklet, Mapping):
         else:
             self._reloadVals = None
         self.wanderer.configure(**self.configs)
-        self.wanderer.go(self.final)
-        return None
+        while not self.stop:
+            self.wanderer.iterate(self.step)
+        return self.wanderer.out
     def __exit__(self, *args):
         self.wanderer.configure(**self._oldConfigs)
         if not self._reloadVals is None:
             self.wanderer.load_raw(self._reloadVals)
         del self._oldConfigs, self._reloadVals
-
-class Configs(Mapping, Sequence):
-    def __init__(self, defaults, *args, **kwargs):
-        self._contents = self._align_inputs(defaults, *args, **kwargs)
-    @staticmethod
-    def _align_inputs(defaults, *args, **kwargs):
-        ks = defaults.keys()
-        new = {
-            **defaults,
-            **{k: v for k, v in zip(ks, args) if not v is None},
-            **kwargs,
-            }
-        if not new.keys() == ks:
-            raise ValueError(
-                "Keys did not match up:",
-                (new.keys(), ks),
-                )
-        new = OrderedDict([(k, new[k]) for k in ks])
-        return new
-    def __getitem__(self, arg):
-        if type(arg) is str:
-            return self._contents[arg]
-        else:
-            return list(self._contents.values())[arg]
-    def __setitem__(self, arg1, arg2):
-        if type(arg1) is str:
-            self._contents[arg1] = arg2
-        elif issubclass(type(arg1), np.int):
-            self._contents[self.keys()[arg1]] = arg2
-        elif type(arg1) is slice:
-            rekeys = self.keys()[arg1]
-            for k in rekeys:
-                self._contents[k] = arg2
-        else:
-            raise ValueError
-    def keys(self):
-        return list(self._contents.keys())
-    def __len__(self):
-        return len(self._contents)
     @property
-    def hashID(self):
-        return w_hash(self)
+    def out(self):
+        with self as out:
+            return out
 
-class Wanderer(Voyager):
+class Wanderer(Voyager, Configurable):
 
     def __init__(self, **kwargs):
 
-        self.configs = Configs()
-        self._wanderer_configure_pre_fns = WeakList()
-        self._wanderer_configure_post_fns = WeakList()
-
         super().__init__(**kwargs)
 
-    def configure(self, *args, **kwargs):
-        configs = Configs(self.configs, *args, **kwargs)
-        for fn in self._wanderer_configure_pre_fns: fn()
-        self.count.value = -1
-        self.configs.clear()
-        self.configs.update(self._process_configs(**configs))
-        self.initialised = False
-        self._configure()
-        for fn in self._wanderer_configure_post_fns: fn()
-
-    def _configure(self):
-        ms, cs = self.mutables, self.configs
-        for k in sorted(set(ms).intersection(set(cs))):
-            m, c = ms[k], cs[k]
-            if type(c) is float:
-                if not c < float('inf'):
-                    c = None
-            if not c is None:
-                if isinstance(c, Applier):
-                    c.apply(m)
-                elif hasattr(m, 'data'):
-                    m.data[...] = c
-                else:
-                    m[...] = c
-
-    def _process_configs(self, configs):
-        # expects to be overridden:
-        return configs
+    def _configurable_post_reconfigured(self):
+        super()._configurable_post_reconfigured()
+        self._nullify_count()
 
     @_configured
     def initialise(self):
-        # Overrides Producer method:
         super().initialise()
 
     @_configured
-    def _outputSubKey(self):
-        for o in super()._outputSubKey(): yield o
-        yield self.configs.hashID
-
-    @_configured
-    def _save(self):
-        self.writeouts.add_dict({'configs': self.configs})
-        super()._save()
-
-    @_configured
     def __getitem__(self, arg):
-        assert len(self.configsKeys)
-        if len(self.configsKeys) == 1:
+        assert len(self.configs)
+        if len(self.configs) == 1:
             return self._wanderer_get_single(arg)
         else:
             return self._wanderer_get_multi(arg)
     def _wanderer_get_single(arg):
         raise exceptions.NotYetImplemented
     def _wanderer_get_multi(arg):
-        raise exceptions.NotYetImplemented
+        if not type(arg) is slice:
+            arg = slice(arg)
+        return State(self, arg)
 
     @_configured
     def __setitem__(self, arg1, arg2):
-        assert len(self.configsKeys)
-        if len(self.configsKeys) == 1:
+        assert len(self.configs)
+        if len(self.configs) == 1:
             return self._wanderer_set_single(arg1, arg2)
         else:
             return self._wanderer_set_multi(arg1, arg2)
@@ -187,45 +103,6 @@ class Wanderer(Voyager):
         raise exceptions.NotYetImplemented
     def _wanderer_set_multi(arg):
         raise exceptions.NotYetImplemented
-    #
-    # def __getitem__(self, arg):
-    #     if type(arg) is tuple:
-    #         raise exceptions.NotYetImplemented
-    #     elif type(arg) is int:
-    #         raise exceptions.NotYetImplemented
-    #     elif type(arg) is dict:
-    #         raise exceptions.NotYetImplemented
-    #     elif type(arg) is slice:
-    #         if slice.step is None:
-    #             return State(
-    #                 self,
-    #                 final = slice.stop,
-    #                 **Configs(slice.start)
-    #                 )
-    #         else:
-    #             raise exceptions.NotYetImplemented
-    #     else:
-    #         raise TypeError
-    # def __setitem__(self, arg1, arg2):
-    #     if type(arg1) is tuple:
-    #         if not type(arg2)
-    #         self.configure(dict(zip()))
-    #         raise exceptions.NotYetImplemented
-    #     elif type(arg1) is slice:
-    #         raise exceptions.NotYetImplemented
-    #     elif arg1 is Ellipsis:
-    #         if len(self.configsKeys) == 1:
-    #             raise
-    #         if isinstance(arg2, Mapping):
-    #             self.configure(**arg2)
-    #         elif isinstance(arg2, Sequence):
-    #             self.configure(*arg2)
-    #         else:
-    #             self.configure(arg2)
-    #     elif type(arg1) is str:
-    #         self.configure(**{arg1: arg2})
-    #     else:
-    #         raise ValueError("Input type not supported.")
 
     @property
     def _promptableKey(self):
