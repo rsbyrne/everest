@@ -4,8 +4,8 @@ import numpy as np
 import hashlib
 
 from . import mpi
-
 message = mpi.message
+from . import wordhash
 
 from .exceptions import EverestException
 class GrouperSetAttrForbidden(EverestException):
@@ -68,6 +68,9 @@ def make_hash(obj):
         hexID = hashlib.md5(strObj.encode()).hexdigest()
         hashVal = int(hexID, 16)
     return str(hashVal)
+
+def w_hash(obj):
+    return wordhash.get_random_phrase(make_hash(obj))
 
 def _obtain_dtype(object):
     if type(object) == np.ndarray:
