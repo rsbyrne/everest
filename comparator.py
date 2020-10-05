@@ -43,8 +43,7 @@ class Comparator(Pyklet):
             try:
                 op = getattr(builtins, op)
             except AttributeError:
-                try:
-                    op = getattr(operator, op)
+                op = getattr(operator, op)
 
         super().__init__(*terms, op = op, asList = asList, invert = invert)
 
