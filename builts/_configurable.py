@@ -93,6 +93,8 @@ class Configs(Pyklet, Mapping, Sequence):
     def update_generic(self, *args, **kwargs):
         self._contents.clear()
         self._contents.update(self._align_inputs(*args, **kwargs))
+    def copy(self):
+        return self.__class__(self.defaults, self._contents.copy())
     def __len__(self):
         return len(self._contents)
     @property

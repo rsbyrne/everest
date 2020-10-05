@@ -1,24 +1,17 @@
 import numpy as np
-from functools import wraps, partial
-from contextlib import contextmanager
-from collections import OrderedDict
-from collections.abc import Mapping, Sequence
 
-from . import Built, Meta, w_hash
-from ._applier import Applier
+from ..utilities import w_hash
 from ._voyager import Voyager
-from ._counter import Counter
-from ._chroner import Chroner
-from ._configurable import Configurable, _configurable_configure_if_necessary
+from ._stampable import Stampable, Stamper
+from ._configurable import \
+    Configurable, _configurable_configure_if_necessary, Configs
 from .. import exceptions
-from ..weaklist import WeakList
-from ..pyklet import Pyklet
 from ..comparator import Comparator, Prop
 
 class WandererException(exceptions.EverestException):
     pass
 
-class State(Pyklet, Mapping):
+class State(Stamper):
     def __init__(self, wanderer, slicer):
         self.wanderer = wanderer
         start, stop, step = slicer.start, slicer.stop, slicer.step
@@ -26,29 +19,35 @@ class State(Pyklet, Mapping):
         stop = False if stop is None else self._process_endpoint(stop)
         step = 1 if step is None else step
         self.start, self.stop, self.step = start, stop, step
-        super(self.wanderer, slice(self.start, self.stop, self.step))
-        self.hashID = w_hash((self.wanderer, self.start, self.stop, self.step))
+        hashID = w_hash((self.wanderer, self.start, self.stop, self.step))
+        super().__init__(
+            self.wanderer,
+            slice(self.start, self.stop, self.step),
+            hashID = hashID
+            )
     def _process_endpoint(self, arg):
         if isinstance(arg, Comparator):
             return arg
-        elif issubclass(type(arg), np.number):
-            return self.wanderer._process_endpoint(arg)
         else:
-            raise exceptions.NotYetImplemented
-    def __getitem__(self, key):
-        self.configs[key]
+            try:
+                return self.wanderer._indexer_process_endpoint(arg)
+            except IndexError:
+                pass
+            raise TypeError
+    # def __getitem__(self, key):
+    #     self.configs[key]
     def __enter__(self):
         self._oldConfigs = self.wanderer.configs.copy()
         if self.wanderer.initialised:
             self._reloadVals = self.wanderer.out
         else:
             self._reloadVals = None
-        self.wanderer.configure(**self.configs)
+        self.wanderer.set_configs(**self.start)
         while not self.stop:
             self.wanderer.iterate(self.step)
         return self.wanderer.out
     def __exit__(self, *args):
-        self.wanderer.configure(**self._oldConfigs)
+        self.wanderer.set_configs(**self._oldConfigs)
         if not self._reloadVals is None:
             self.wanderer.load_raw(self._reloadVals)
         del self._oldConfigs, self._reloadVals

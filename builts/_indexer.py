@@ -27,8 +27,16 @@ class Indexer(Producer):
         super().__init__(**kwargs)
 
     @property
+    def indexer(self):
+        ind = self.indexers
+        assert len(ind)
+        if len(ind) == 1:
+            return ind[0]
+        else:
+            return ind
+    @property
     def indexers(self):
-        return [*self._indexers()][1:]
+        return tuple([*self._indexers()][1:])
     def _indexers(self):
         yield None
     @property
@@ -59,7 +67,7 @@ class Indexer(Producer):
         return [issubclass(type(arg), t) for t in self.indexerTypes].index(True)
     def _get_indexInfo(self, arg):
         return self.indexersInfo[self._get_metaIndex(arg)]
-    def _process_endpoint(self, arg):
+    def _indexer_process_endpoint(self, arg):
         i, ik, it, i0 = self._get_indexInfo(arg)
         return Comparator(
             Prop(self, ik),

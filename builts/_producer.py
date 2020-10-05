@@ -38,8 +38,7 @@ def _producer_load_wrapper(func):
 
 class Producer(Promptable):
 
-    def __init__(
-            self,
+    def __init__(self,
             baselines = dict(),
             **kwargs
             ):
@@ -193,4 +192,4 @@ class Producer(Promptable):
     def load_raw(self, out):
         leftovers = self._load_process(out)
         if len(leftovers):
-            raise ProducerLoadFail
+            raise ProducerLoadFail(leftovers)
