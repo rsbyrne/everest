@@ -1,4 +1,5 @@
 from types import FunctionType
+import builtins
 import operator
 
 from .pyklet import Pyklet
@@ -39,7 +40,11 @@ class Comparator(Pyklet):
         terms = [Prop(t[0], *t[1:]) if type(t) is tuple else t for t in terms]
 
         if type(op) is str:
-            op = operator.__dict__[op]
+            try:
+                op = getattr(builtins, op)
+            except AttributeError:
+                try:
+                    op = getattr(operator, op)
 
         super().__init__(*terms, op = op, asList = asList, invert = invert)
 
