@@ -48,6 +48,11 @@ class Grouper:
         if hasattr(self, 'lock'):
             if self.lock and not name == 'lock':
                 raise GrouperSetAttrForbidden
+    def copy(self):
+        return self.__class__(self.grouperDict.copy())
+    @property
+    def hashID(self):
+        return w_hash(self)
 
 def make_hash(obj):
     if hasattr(obj, 'instanceHash'):
