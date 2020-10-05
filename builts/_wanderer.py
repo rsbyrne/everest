@@ -9,7 +9,7 @@ from ._applier import Applier
 from ._voyager import Voyager
 from ._counter import Counter
 from ._chroner import Chroner
-from .._configurable import Configurable, _configured, _reconfigured
+from ._configurable import Configurable, _configurable_configure_if_necessary
 from .. import exceptions
 from ..weaklist import WeakList
 from ..pyklet import Pyklet
@@ -17,13 +17,6 @@ from ..comparator import Comparator, Prop
 
 class WandererException(exceptions.EverestException):
     pass
-class WandererStateException(WandererException):
-    pass
-class NotConfigured(WandererException):
-    '''
-    Objects inheriting from Wanderer must be configured before use \
-    - see the 'configure' method.
-    '''
 
 class State(Pyklet, Mapping):
     def __init__(self, wanderer, slicer):
@@ -70,15 +63,15 @@ class Wanderer(Voyager, Configurable):
 
         super().__init__(**kwargs)
 
-    def _configurable_post_reconfigured(self):
-        super()._configurable_post_reconfigured()
+    def _configure(self):
+        super()._configure()
         self._nullify_count()
+        self.initialised = False
 
-    @_configured
-    def initialise(self):
-        super().initialise()
+    @_configurable_configure_if_necessary
+    def _initialise(self, *args, **kwargs):
+        super()._initialise(*args, **kwargs)
 
-    @_configured
     def __getitem__(self, arg):
         assert len(self.configs)
         if len(self.configs) == 1:
@@ -91,18 +84,6 @@ class Wanderer(Voyager, Configurable):
         if not type(arg) is slice:
             arg = slice(arg)
         return State(self, arg)
-
-    @_configured
-    def __setitem__(self, arg1, arg2):
-        assert len(self.configs)
-        if len(self.configs) == 1:
-            return self._wanderer_set_single(arg1, arg2)
-        else:
-            return self._wanderer_set_multi(arg1, arg2)
-    def _wanderer_set_single(arg):
-        raise exceptions.NotYetImplemented
-    def _wanderer_set_multi(arg):
-        raise exceptions.NotYetImplemented
 
     @property
     def _promptableKey(self):
