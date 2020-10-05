@@ -6,31 +6,23 @@ from ._observable import Observable
 from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import Producer, LoadFail
-from ._stampable import Stampable
 from ._state import State
 from .. import exceptions
 from .. import mpi
 from ..value import Value
 from ..weaklist import WeakList
 
-class VoyagerException(exceptions.EverestException):
+from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
+class VoyagerException(BuiltException):
     pass
-class VoyagerMissingMethod(VoyagerException, exceptions.MissingMethod):
+class VoyagerMissingMethod(MissingMethod, VoyagerException):
+    pass
+class VoyagerMissingAttribute(MissingAttribute, VoyagerException):
+    pass
+class VoyagerMissingKwarg(MissingKwarg, VoyagerException):
     pass
 
-# class Bounce:
-#     def __init__(self, iterator, arg = 0):
-#         self.iterator = iterator
-#         self.arg = arg
-#     def __enter__(self):
-#         self.returnStep = self.iterator.count.value
-#         self.iterator.store()
-#         if self.arg == 0: self.iterator.reset()
-#         else: self.iterator.load(self.arg)
-#     def __exit__(self, *args):
-#         self.iterator.load(self.returnStep)
-
-def _initialised(func):
+def _voyager_must_be_initialised(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if not self.initialised:
@@ -38,18 +30,17 @@ def _initialised(func):
         return func(self, *args, **kwargs)
     return wrapper
 
-def _changed_state(func):
+def _voyager_changed_state(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         prevCount = self.count.value
         out = func(self, *args, **kwargs)
         if not self.count.value == prevCount:
-            for fn in self._changed_state_fns:
-                fn()
+            self._voyager_changed_state_hook()
         return out
     return wrapper
 
-class Voyager(Cycler, Stampable, Observable, Counter):
+class Voyager(Cycler, Observable, Counter):
 
     def __init__(
             self,
@@ -57,26 +48,78 @@ class Voyager(Cycler, Stampable, Observable, Counter):
             **kwargs
             ):
 
-        # Expects:
-        # self._initialise
-        # self._iterate
-        # self._voyager_out
-        # self._voyager_outkeys
-        # self._load
-
-        self.initialised = False
-
-        self._changed_state_fns = WeakList()
-
         self.baselines = dict()
 
         super().__init__(**kwargs)
 
-        # Prompter attributes:
-        self._changed_state_fns.append(self.advertise)
+        if _voyager_initialise:
+            self.initialise()
 
-        # Cycler attributes:
-        self._cycle_fns.append(self.iterate)
+    def _outkeys(self):
+        for o in super()._outkeys(): yield o
+        for o in self._voyager_outkeys(): yield o
+    def _voyager_outkeys(self):
+        raise VoyagerMissingMethod
+    def _out(self):
+        for o in super()._out(): yield o
+        for o in self._voyager_out(): yield o
+    @_voyager_initialised
+    def _voyager_out(self):
+        raise VoyagerMissingMethod
+
+    @property
+    def initialised(self):
+        return all([*self._initialised()])
+    def _initialised(self):
+        yield True
+    @_voyager_changed_state
+    def initialise(self, *args, **kwargs):
+        if self.count == 0:
+            pass
+        else:
+            try:
+                self.load(0)
+            except LoadFail:
+                self._initialise(*args, **kwargs)
+            self.count.value = 0
+            self.initialised = True
+    def reset(self):
+        self.initialise()
+    def _voyager_changed_state_hook(self):
+        # self.advertise
+        pass
+
+    @_voyager_changed_state
+    def _single_iterate(self):
+        self.count += 1
+        self._iterate()
+    @_voyager_initialised
+    def iterate(self, n = 1):
+        for i in range(n):
+            self._single_iterate()
+            # mpi.message('.')
+    @_voyager_initialised
+    def go(self, stop = False):
+        while not stop:
+            self.iterate()
+
+    def _cycle(self):
+        super()._cycle()
+        self.iterate()
+
+    @_voyager_initialised
+    def _save(self):
+        self.writer.add_dict(self.baselines, 'baselines')
+        super()._save()
+
+    @_voyager_changed_state
+    def _load_process(self, outs):
+        outs = super()._load_process(outs)
+        ks = self._voyager_outkeys()
+        self._voyager_load_update(dict(zip(ks, [outs.pop(k) for k in ks])))
+        return outs
+    def _voyager_load_update(self, outs):
+        raise VoyagerMissingMethod
 
         # Observable attributes:
         # self._activate_observation_mode_fns.append(
@@ -85,18 +128,6 @@ class Voyager(Cycler, Stampable, Observable, Counter):
         # self._deactivate_observation_mode_fns.append(
         #     self._voyager_deactivate_observation_mode_fn
         #     )
-
-        if _voyager_initialise:
-            self.initialise()
-
-                # oldOutFns = [*subject._outFns]
-                # oldOutKeys = [*subject._producer_outkeys]
-                # subject._outFns.clear()
-                # subject._producer_outkeys.clear()
-                # if isinstance(subject, Counter):
-                #     subject._outFns.append([subject.])
-                # subject._outFns.remove(subject.)
-
     # def _voyager_activate_observation_mode_fn(self):
     #     temp = []
     #     for key in ('_outFns', '_producer_outkeys'):
@@ -111,61 +142,6 @@ class Voyager(Cycler, Stampable, Observable, Counter):
     #         attr = getattr(self, key)
     #         attr.clear()
     #         attr.extend(val)
-
-    def _outkeys(self):
-        for o in super()._outkeys(): yield o
-        for o in self._voyager_outkeys(): yield o
-    def _voyager_outkeys(self):
-        raise VoyagerMissingMethod
-    def _out(self):
-        for o in super()._out(): yield o
-        for o in self._voyager_out(): yield o
-    @_initialised
-    def _voyager_out(self):
-        raise VoyagerMissingMethod
-
-    @_changed_state
-    def initialise(self, *args, **kwargs):
-        if self.count == 0:
-            pass
-        else:
-            try:
-                self.load(0)
-            except LoadFail:
-                self._initialise(*args, **kwargs)
-            self.count.value = 0
-            self.initialised = True
-    def reset(self):
-        self.initialise()
-
-    @_changed_state
-    def _single_iterate(self):
-        self.count += 1
-        self._iterate()
-    @_initialised
-    def iterate(self, n = 1):
-        for i in range(n):
-            self._single_iterate()
-            # mpi.message('.')
-    @_initialised
-    def go(self, stop = False):
-        while not stop:
-            self.iterate()
-
-    @_initialised
-    def _save(self):
-        self.writer.add_dict(self.baselines, 'baselines')
-        super()._save()
-
-    @_changed_state
-    def _load_process(self, outs):
-        outs = super()._load_process(outs)
-        ks = self._voyager_outkeys()
-        self._voyager_load_update(dict(zip(ks, [outs.pop(k) for k in ks])))
-        return outs
-    def _voyager_load_update(self, outs):
-        raise VoyagerMissingMethod
-
 
     #
     # def load(self, arg, **kwargs):
@@ -200,7 +176,7 @@ class Voyager(Cycler, Stampable, Observable, Counter):
     #     except (LoadDiskFail, LoadStampFail, LoadStoredFail, LoadFail):
     #         raise LoadFail
     #
-    # @_changed_state
+    # @_voyager_changed_state
     # def _load_process_outs(self, outs):
     #     outsDict = dict(zip(self.outkeys, self.outs))
     #     self.count.value = outsDict.pop(self._countsKey)
