@@ -6,20 +6,26 @@ from functools import partial
 from collections import OrderedDict
 import inspect
 
-from ..utilities import Grouper, make_hash
-from .. import disk
+from ..utilities import Grouper, make_hash, w_hash
 from .. import wordhash
+from .. import disk
 from ..writer import Writer
 from ..reader import Reader, ClassProxy
 from ..weaklist import WeakList
 from .. import globevars
 from ..anchor import Anchor, _namepath_process
-w_hash = lambda x: wordhash.get_random_phrase(make_hash(x)) # do not remove
-
 # from ..globevars import _BUILTTAG_, _CLASSTAG_
 
 
 from ..exceptions import EverestException
+class BuiltException(EverestException):
+    pass
+class MissingMethod(BuiltException):
+    pass
+class MissingAttribute(BuiltException):
+    pass
+class MissingKwarg(BuiltException):
+    pass
 class NotOnDiskError(EverestException):
     '''That hashID could not be found at the provided location.'''
     pass
@@ -30,22 +36,17 @@ def load(hashID, name = None, path = '.'):
     except TypeError: raise NotOnDiskError
     return Reader(name, path).load(hashID)
 
-def _get_ghostInps(inputs):
-    ghostInps = dict()
-    ordinaryInps = dict()
-    tag = globevars._GHOSTTAG_
-    for key, val in sorted(inputs.items()):
-        if key.startswith(tag):
-            ghostInps[key[len(tag):]] = val
-        else:
-            ordinaryInps[key] = val
-    return ordinaryInps, ghostInps
-
 def _get_inputs(cls, inputs = dict()):
-    inputs = {**cls.defaultInps, **inputs}
-    inputs = cls._deep_process_inputs(inputs)
+    inputs = OrderedDict(cls.defaultInps).update(inputs)
+    ghostKeys = cls._sortedGhostKeys['all']
+    inputs = OrderedDict(
+        [(k, v) for k, v in inputs.items() if not k in ghostKeys]
+        )
+    ghosts = OrderedDict(
+        [(k, v) for k, v in inputs.items() if k in ghostKeys]
+        )
     inputs = cls._process_inputs(inputs)
-    inputs, ghosts = _get_ghostInps(inputs)
+    ghosts = cls._process_ghosts(ghosts)
     return inputs, ghosts
 
 def _get_hashes(cls, inputs):
@@ -87,21 +88,44 @@ def _get_default_inputs(func):
     return out
 
 def sort_inputKeys(func):
+    ghostTag = globevars._GHOSTTAG_
+    ghostCatTag = '(' + ghostTag + ')'
     initsource = inspect.getsource(func).split('\n')
     initsource = [line.strip() for line in initsource]
     initsource = initsource[1:initsource.index('):')]
-    keyDict = {None: []}
+    catsDict = OrderedDict({None: []})
+    ghostCatsDict = OrderedDict({None: []})
     tag = None
     for line in initsource:
         if line[0] == '#':
             tag = line[2:].lower()
-            if not tag in keyDict:
-                keyDict[tag] = []
+            if tag == ghostTag:
+                appendList = ghostCatsDict[None]
+            elif tag.endswith(ghostCatTag):
+                tag = tag[:-len(ghostCatTag)].strip()
+                if not tag in ghostCatsDict:
+                    ghostCatsDict[tag] = []
+                    appendList = ghostCatsDict[tag]
+            else:
+                if not tag in keyDict:
+                    catsDict[tag] = []
+                    appendList = catsDict[tag]
         else:
             key = line.split('=')[0].strip()
-            keyDict[tag].append(key)
-    keyDict = {key: tuple(val) for key, val in keyDict.items()}
-    return keyDict
+            if key.startswith(ghostTag):
+                assert not appendList in catsDict.values()
+                key = key[len(ghostTag):]
+                ghostCatsDict[None].append(key)
+            appendList.append(key)
+    catsDict['all'] = [i for k, sl in catsDict.items() for i in sl]
+    ghostCatsDict['all'] = [i for k, sl in ghostCatsDict.items() for i in sl]
+    catsDict = OrderedDict(
+        [(key, tuple(val)) for key, val in catsDict.items()]
+        )
+    ghostCatsDict = OrderedDict(
+        [(key, tuple(val)) for key, val in ghostCatsDict.items()]
+        )
+    return keyDict, ghostCatsDict
 
 class Meta(type):
 
@@ -122,9 +146,10 @@ class Meta(type):
             outCls.script = script
             outCls.defaultInps = _get_default_inputs(outCls.__init__)
             try:
-                outCls._sortedInputKeys = sort_inputKeys(outCls.__init__)
+                outCls._sortedInputKeys, outCls._sortedGhostKeys = \
+                    sort_inputKeys(outCls.__init__)
             except ValueError:
-                pass
+                outCls._sortedInputKeys, outCls._sortedGhostKeys = {}, {}
             outCls._custom_cls_fn()
             cls._preclasses[outCls.typeHash] = outCls
             return outCls
@@ -198,20 +223,17 @@ class Built(metaclass = Meta):
         # designed to be overridden
         pass
 
-    @staticmethod
-    def _deep_process_inputs(inputs):
-        processed = dict()
+    @classmethod
+    def _process_inputs(cls, inputs):
         for key, val in sorted(inputs.items()):
             try:
-                processed[key] = Builder.make_from_tuple(val)
+                inputs[key] = Builder.make_from_tuple(val)
             except NotBuilderTuple:
-                processed[key] = val
-        return processed
-
-    @staticmethod
-    def _process_inputs(inputs):
-        # designed to be overridden
+                inputs[key] = val
         return inputs
+    @classmethod
+    def _process_ghosts(cls, ghosts):
+        return ghosts
 
     def __new__(cls, **inputs):
 
@@ -223,7 +245,6 @@ class Built(metaclass = Meta):
         obj.inputsHash = inputsHash
         obj.instanceHash = instanceHash
         obj.hashID = hashID
-        obj._initialised = False
 
         obj.localObjects = {
             'typeHash': obj.typeHash,
