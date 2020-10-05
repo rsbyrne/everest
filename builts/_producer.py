@@ -99,7 +99,7 @@ class Producer(Promptable):
 
     @property
     def stored(self):
-        key = self._outputSubKey
+        key = self.outputSubKey
         if not key in self._stored:
             self._stored[key] = []
         return self._stored[key]
@@ -115,7 +115,7 @@ class Producer(Promptable):
         if self.anchored and self.autosave:
             self._autosave()
     def clear(self):
-        self._stored[self._outputSubKey].clear()
+        self._stored[self.outputSubKey].clear()
 
     @property
     def readouts(self):
