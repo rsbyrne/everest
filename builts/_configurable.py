@@ -6,8 +6,10 @@ from ._producer import Producer
 from ._mutable import Mutable
 from ._applier import Applier
 from . import w_hash
+from ..pyklet import Pyklet
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
+from ..exceptions import NotYetImplemented
 class ConfigurableException(BuiltException):
     pass
 class ConfigurableMissingMethod(MissingMethod, ConfigurableException):
@@ -38,12 +40,12 @@ class Configs(Pyklet, Mapping, Sequence):
         if new is None:
             return OrderedDict({**defaults})
         elif isinstance(new, Mapping):
-            return cls._align_inputs(defaults, **new)
+            return self._align_inputs(defaults, **new)
         elif isinstance(new, Sequence):
-            return cls._align_inputs(defaults, *new)
+            return self._align_inputs(defaults, *new)
         else:
             raise ValueError
-    def _align_inputs(cls, *args, **kwargs):
+    def _align_inputs(self, *args, **kwargs):
         defaults = self.defaults
         ks = defaults.keys()
         new = {
@@ -65,6 +67,8 @@ class Configs(Pyklet, Mapping, Sequence):
             return list(self._contents.values())[arg]
     def __setitem__(self, arg1, arg2):
         if type(arg1) is str:
+            if not arg1 in self.keys():
+                raise KeyError
             self._contents[arg1] = arg2
         elif issubclass(type(arg1), np.int):
             self._contents[self.keys()[arg1]] = arg2
@@ -74,13 +78,18 @@ class Configs(Pyklet, Mapping, Sequence):
                 self._contents[k] = arg2
         else:
             raise ValueError
-    def keys(self):
-        return list(self._contents.keys())
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+    def keys(self, *args, **kwargs):
+        return list(self._contents.keys(*args, **kwargs))
+    def items(self, *args, **kwargs):
+        return self._contents.items(*args, **kwargs)
     def clear(self):
-        self.update({})
+        self._contents.update(self.defaults)
     def update(self, inDict):
-        self._contents.clear()
-        self._contents.update(self._align_inputs(**inDict))
+        for k, v in inDict.items():
+            self[k] = v
     def update_generic(self, *args, **kwargs):
         self._contents.clear()
         self._contents.update(self._align_inputs(*args, **kwargs))
@@ -90,19 +99,12 @@ class Configs(Pyklet, Mapping, Sequence):
     def hashID(self):
         return w_hash(self)
 
-def _configured(func):
+def _configurable_configure_if_necessary(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if not self.configured:
-            raise NotConfigured
+            self.configure()
         return func(self, *args, **kwargs)
-    return wrapper
-def _reconfigured(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        out = func(self, *args, **kwargs)
-        self._configurable_post_reconfigured()
-        return out
     return wrapper
 
 class Configurable(Producer, Mutable):
@@ -116,23 +118,26 @@ class Configurable(Producer, Mutable):
         try:
             _defaultConfigs = OrderedDict(_defaultConfigs)
         except TypeError:
-            _defaultConfigs = OrderedDict([k, None for k in _defaultConfigs])
-        if isinstance(_defaultConfigs, Ma)
+            _defaultConfigs = OrderedDict([(k, None) for k in _defaultConfigs])
         self.configs = Configs(_defaultConfigs)
         self.configsKey = self._defaultConfigsKey
+        self.configured = False
 
         super().__init__(_mutableKeys = self.configs.keys(), **kwargs)
 
-    @_reconfigured
-    def configure(self, *args, **kwargs):
+    def set_configs(self, *args, **kwargs):
         self.configs.update_generic(*args, **kwargs)
-        self.configs.update(_process_configs(self.configs))
-        self._configure()
+        self.configs.update(self._process_configs(self.configs))
+        self.configured = False
     def _process_configs(self, configs):
         return configs
+    def configure(self):
+        self._configure()
+        self.configured = True
     def _configure(self):
         ms, cs = self.mutables, self.configs
-        for k in sorted(set(ms).intersection(set(cs))):
+        ks = [k for k in self.configs.keys() if k in self.mutables.keys()]
+        for k in ks:
             m, c = ms[k], cs[k]
             if type(c) is float:
                 if not c < float('inf'):
@@ -144,20 +149,32 @@ class Configurable(Producer, Mutable):
                     m.data[...] = c
                 else:
                     m[...] = c
-    @property
-    def configured(self):
-        return all([*self._configured()])
-    def _configured(self):
-        yield True
-    def _configurable_post_reconfigured(self):
-        pass
 
-    @_configured
+    @_configurable_configure_if_necessary
     def _outputSubKey(self):
         for o in super()._outputSubKey(): yield o
         yield self.configs.hashID
 
-    @_configured
+    @_configurable_configure_if_necessary
     def _save(self):
-        self.writeouts.add_dict({self.configsKey: self.configs})
+        self.writeouts.add_dict({self.configsKey: {**self.configs}})
         super()._save()
+
+    def __setitem__(self, arg1, arg2):
+        assert len(self.configs)
+        if len(self.configs) == 1:
+            return self._configurable_set_single(arg1, arg2)
+        else:
+            return self._configurable_set_multi(arg1, arg2)
+    def _configurable_set_single(self, arg1, arg2):
+        raise NotYetImplemented
+    def _configurable_set_multi(self, arg1, arg2):
+        if type(arg1) is str:
+            self.set_configs(**{arg1: arg2})
+        elif arg1 is Ellipsis:
+            if type(arg2) is tuple:
+                self.set_configs(*arg2)
+            else:
+                self.set_configs(*[arg2 for _ in range(len(self.configs))])
+        else:
+            raise TypeError
