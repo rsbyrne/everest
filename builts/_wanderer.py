@@ -78,9 +78,9 @@ class Wanderer(Voyager, Configurable):
             return self._wanderer_get_single(arg)
         else:
             return self._wanderer_get_multi(arg)
-    def _wanderer_get_single(arg):
+    def _wanderer_get_single(self, arg):
         raise exceptions.NotYetImplemented
-    def _wanderer_get_multi(arg):
+    def _wanderer_get_multi(self, arg):
         if not type(arg) is slice:
             arg = slice(arg)
         return State(self, arg)
