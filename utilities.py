@@ -1,4 +1,5 @@
 import collections
+from collections import OrderedDict
 import inspect
 import numpy as np
 import hashlib
