@@ -97,9 +97,8 @@ class Chroner(Indexer):
         except ValueError:
             return self.load_chron_disk(chron)
     def _load_process(self, outs):
-        outs = super()._load_process(outs)
         self.chron.value = outs.pop(self.chronsKey)
-        return outs
+        return super()._load_process(outs)
     def _load(self, arg):
         i, ik, it, i0 = self._get_indexInfo(arg)
         if i is self.chron:

@@ -14,9 +14,9 @@ class IndexerNullVal(IndexerException):
 
 def _indexer_load_wrapper(func):
     @wraps(func)
-    def wrapper(self, count, *args, **kwargs):
-        count = self._process_index(count)
-        return func(self, count, *args, **kwargs)
+    def wrapper(self, arg, *args, **kwargs):
+        index = self._process_index(arg)
+        return func(self, index, *args, **kwargs)
     return wrapper
 
 class Indexer(Producer):

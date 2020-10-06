@@ -2,6 +2,7 @@ import numpy as np
 import time
 from functools import wraps
 from collections import OrderedDict
+from collections.abc import Mapping
 
 from .. import disk
 from ..reader import Reader
@@ -33,7 +34,11 @@ class _DataProxy:
 def _producer_load_wrapper(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        return self._load_process(func(self, *args, **kwargs))
+        loaded = func(self, *args, **kwargs)
+        loadedDict = OrderedDict(zip(self.outkeys, loaded))
+        leftovers = self._load_process(loadedDict)
+        if len(leftovers):
+            raise ProducerLoadFail(leftovers)
     return wrapper
 
 class Producer(Promptable):
@@ -165,7 +170,7 @@ class Producer(Promptable):
                 self.save()
 
     def _load_process(self, outs):
-        return OrderedDict(zip(self.outkeys, outs))
+        return outs
     @_producer_load_wrapper
     def load_index_stored(self, index):
         return self.stored[index]
@@ -189,7 +194,6 @@ class Producer(Promptable):
             raise LoadFail
     def load(self, arg):
         return self._load(arg)
-    def load_raw(self, out):
-        leftovers = self._load_process(out)
-        if len(leftovers):
-            raise ProducerLoadFail(leftovers)
+    @_producer_load_wrapper
+    def load_raw(self, outs):
+        return outs

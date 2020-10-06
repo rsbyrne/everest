@@ -97,9 +97,8 @@ class Counter(Indexer):
         except ValueError:
             return self.load_count_disk(count)
     def _load_process(self, outs):
-        outs = super()._load_process(outs)
         self.count.value = outs.pop(self.countsKey)
-        return outs
+        return super()._load_process(outs)
     def _load(self, arg):
         i, ik, it, i0 = self._get_indexInfo(arg)
         if i is self.count:
