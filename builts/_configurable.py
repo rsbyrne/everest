@@ -99,7 +99,7 @@ class Configs(Pyklet, Mapping, Sequence):
         return len(self._contents)
     @property
     def hashID(self):
-        return w_hash(self)
+        return w_hash(self._contents)
 
 def _configurable_configure_if_necessary(func):
     @wraps(func)

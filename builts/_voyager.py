@@ -4,6 +4,7 @@ from ._observable import Observable
 from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import LoadFail
+from ._stampable import Stampable
 from ..comparator import Comparator, Prop
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
@@ -33,7 +34,7 @@ def _voyager_changed_state(func):
         return out
     return wrapper
 
-class Voyager(Cycler, Counter, Observable):
+class Voyager(Cycler, Counter, Stampable, Observable):
 
     def __init__(self,
             **kwargs
