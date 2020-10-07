@@ -61,12 +61,12 @@ def _get_info(cls, inputs = dict()):
     inputsHash, instanceHash, hashID = _get_hashes(cls, inputs)
     return inputs, ghosts, inputsHash, instanceHash, hashID
 
-BUFFERSIZE = 5 * 2 ** 30 # i.e. 5 GiB
-def buffersize_exceeded():
-    nbytes = 0
-    for builtID, built in sorted(Meta._prebuilts.items()):
-        nbytes += built.nbytes
-    return nbytes > BUFFERSIZE
+# BUFFERSIZE = 5 * 2 ** 30 # i.e. 5 GiB
+# def buffersize_exceeded():
+#     nbytes = 0
+#     for builtID, built in sorted(Meta._prebuilts.items()):
+#         nbytes += built.nbytes
+#     return nbytes > BUFFERSIZE
 
 def _get_default_inputs(func):
     parameters = inspect.signature(func).parameters
@@ -274,8 +274,6 @@ class Built(metaclass = Meta):
 
         self.localObjects.update(customAttributes)
         self.localObjects['type'] = type(self).__name__
-
-        self.nbytes = 0
 
         self._pre_anchor_fns = WeakList()
         self._post_anchor_fns = WeakList()

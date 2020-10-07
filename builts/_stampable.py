@@ -1,5 +1,7 @@
 from ._indexer import Indexer
 from ..pyklet import Pyklet
+from ..anchor import NoActiveAnchorError
+from ..reader import PathNotInFrameError
 
 class Stamper(Pyklet):
     def __init__(self, *args, hashID = None, **kwargs):
@@ -41,14 +43,14 @@ class Stampable(Indexer):
     def stamps_disk(self):
         try:
             stamps = self.reader[self.stampsKey]
-            self._stamp_sort(stamps)
-            return stamps
-        except (KeyError, NoActiveAnchorError):
+        except (NoActiveAnchorError, PathNotInFrameError):
             return []
+        self._stamp_sort(stamps)
+        return stamps
     def _stamp_sort(self, stamps):
         stamps.sort(key = lambda row: row[1])
 
     def _save(self):
         super()._save()
-        self.writer.add(self.stamps, 'stamp')
-        self.stored_stamps.clear()
+        self.writer.add(self.stamps, self.stampsKey)
+        self.stamps_stored.clear()

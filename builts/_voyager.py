@@ -3,7 +3,7 @@ from functools import wraps
 from ._observable import Observable
 from ._counter import Counter
 from ._cycler import Cycler
-from ._producer import LoadFail
+from ._producer import LoadFail, _producer_update_outs
 from ._stampable import Stampable
 from ..comparator import Comparator, Prop
 
@@ -20,16 +20,17 @@ class VoyagerMissingKwarg(MissingKwarg, VoyagerException):
 def _voyager_initialise_if_necessary(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if not self.initialised:
+        if self.indices.count.null:
             self.initialise()
         return func(self, *args, **kwargs)
     return wrapper
 def _voyager_changed_state(func):
     @wraps(func)
+    @_producer_update_outs
     def wrapper(self, *args, **kwargs):
-        prevCount = self.count.value
+        prevCount = self.indices.count.value
         out = func(self, *args, **kwargs)
-        if not self.count.value == prevCount:
+        if not self.indices.count.value == prevCount:
             self._voyager_changed_state_hook()
         return out
     return wrapper
@@ -41,23 +42,18 @@ class Voyager(Cycler, Counter, Stampable, Observable):
             ):
 
         self.baselines = dict()
+        self.initialised = False
 
         super().__init__(**kwargs)
 
     @_voyager_changed_state
     def initialise(self, *args, **kwargs):
-        if self.count == 0:
-            pass
-        else:
-            try:
-                self.load(0)
-            except LoadFail:
-                self._initialise(*args, **kwargs)
-        self.initialised = True
+        self._initialise(*args, **kwargs)
     def _initialise(self, *args, **kwargs):
-        self.count.value = 0
+        self._zero_indexers()
+    @_voyager_initialise_if_necessary
     def reset(self):
-        self.initialise()
+        pass
     def _voyager_changed_state_hook(self):
         # self.advertise
         pass
@@ -68,7 +64,7 @@ class Voyager(Cycler, Counter, Stampable, Observable):
             self._iterate()
     @_voyager_changed_state
     def _iterate(self):
-        self.count += 1
+        self.indices.count.value += 1
     def go(self, stop = False, step = 1, do = None):
         if type(step) is int:
             step = Comparator(Prop(self, 'count'), step, op = 'mod')

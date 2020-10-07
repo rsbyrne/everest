@@ -64,7 +64,7 @@ class Wanderer(Voyager, Configurable):
 
     def _configure(self):
         super()._configure()
-        self._nullify_count()
+        self._nullify_indexers()
         self.initialised = False
 
     @_configurable_configure_if_necessary

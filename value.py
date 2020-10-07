@@ -3,7 +3,7 @@ import operator
 
 class Value:
 
-    def __init__(self, value):
+    def __init__(self, value, null = False):
         if np.issubdtype(type(value), np.integer):
             self.plain = int(value)
             self.type = np.int32
@@ -11,6 +11,7 @@ class Value:
             self.plain = float(value)
             self.type = np.float64
         self.value = self.type(value)
+        self.null = null
 
     def __setattr__(self, item, value):
         if item in self.__dict__:

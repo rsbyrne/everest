@@ -1,44 +1,157 @@
 import numpy as np
+import random
+import math
 import time
 from functools import wraps
-from collections import OrderedDict
 from collections.abc import Mapping
+from collections import OrderedDict
 
 from .. import disk
 from ..reader import Reader
 from ..writer import Writer
 
-from . import buffersize_exceeded
+# from . import buffersize_exceeded
 from ._promptable import Promptable
 from ..array import EverestArray
 from .. import exceptions
-from .. import mpi
+from ..utilities import Grouper, prettify_nbytes
 
 class ProducerException(exceptions.EverestException):
     pass
-class LoadFail(ProducerException):
+class ProducerNoOuts(ProducerException):
+    pass
+class ProducerIOError(ProducerException):
+    pass
+class SaveFail(ProducerIOError):
+    pass
+class LoadFail(ProducerIOError):
+    pass
+class ProducerSaveFail(SaveFail):
     pass
 class ProducerLoadFail(LoadFail):
+    pass
+class ProducerNothingToSave(ProducerSaveFail):
     pass
 class AbortStore(ProducerException):
     pass
 # class ProducerMissingMethod(exceptions.MissingMethod):
 #     pass
 
-class _DataProxy:
-    def __init__(self, method):
-        self._method = method
-    def __getitem__(self, inp):
-        return self._method(inp)
+from collections import OrderedDict
+import numpy as np
+import math
+
+from everest.utilities import make_hash
+from everest.builts._producer import ProducerException
+
+class OutsException(ProducerException):
+    pass
+class OutsAlreadyStored(OutsException):
+    pass
+class OutsAlreadyCleared(OutsException):
+    pass
+
+
+class Outs:
+    def __init__(self, keys, name = 'default'):
+        self.keys, self.name = keys, name
+        self.data = OrderedDict()
+        self.stored = OrderedDict([(k, []) for k in self.keys])
+        self.hashVals = []
+        self.n = 0
+        self.token = 0
+    def update(self, outs):
+        for k, v in outs.items():
+            self[k] = v
+    def __setitem__(self, k, v):
+        if k in self.keys:
+            self.data[k] = v
+            setattr(self, k, v)
+        else:
+            raise OutsKeysImmutable
+    def __getitem__(self, k):
+        return self.data[k]
+    def __delitem__(self, k):
+        raise OutsKeysImmutable
+    def store(self, silent = False):
+        hashVal = make_hash(self.data.values())
+        if hashVal in self.hashVals:
+            if not silent:
+                raise OutsAlreadyStored
+        else:
+            for k, v in self.data.items():
+                self.stored[k].append(v)
+            self.hashVals.append(hashVal)
+            self.n += 1
+    def sort(self, key = None):
+        if key is None:
+            key = self.keys[0]
+        sortInds = np.stack(self.stored[key]).argsort()
+        for k, v in self.zipstacked:
+            self.stored[k][:] = v[sortInds]
+    def clear(self, silent = False):
+        if not silent:
+            if not len(self.hashVals):
+                raise OutsAlreadyCleared
+        self.hashVals.clear()
+        for k, v in self.stored.items():
+            v.clear()
+        self.n = 0
+    def retrieve(self, index):
+        for v in self.stored.values():
+            yield v[index]
+    def pop(self, index):
+        _ = self.hashVals.pop(index)
+        for v in self.stored.values():
+            yield v.pop(index)
+    def drop(self, indices):
+        keep = [i for i in range(self.n) if not i in indices]
+        self.hashVals[:] = [self.hashVals[i] for i in keep]
+        for v in self.stored.values():
+            v[:] = [v[i] for i in keep]
+    def index(self, **kwargs):
+        search = lambda k, v: self.stored[k].index(v)
+        indices = [search(k, v) for k, v in sorted(kwargs.items())]
+        if len(set(indices)) != 1:
+            raise ValueError
+        return indices[0]
+    @property
+    def stacked(self):
+        if self.n:
+            for v in self.stored.values():
+                yield np.stack(v)
+        else:
+            for v in self.stored:
+                yield []
+    @property
+    def zipstacked(self):
+        return zip(self.keys, self.stacked)
+    @property
+    def nbytes(self):
+        nbytes = np.array(self.hashVals).nbytes
+        for v in self.stored.values():
+            nbytes += np.array(v).nbytes
+        return nbytes
+    @property
+    def strnbytes(self):
+        return prettify_nbytes(self.nbytes)
 
 def _producer_load_wrapper(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         loaded = func(self, *args, **kwargs)
-        loadedDict = OrderedDict(zip(self.outkeys, loaded))
-        leftovers = self._load_process(loadedDict)
+        leftovers = self._load_process(loaded)
         if len(leftovers):
             raise ProducerLoadFail(leftovers)
+    return wrapper
+maxToken, minToken = int(1e10) - 1, int(1e9)
+makeToken = lambda: random.randint(minToken, maxToken)
+def _producer_update_outs(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        toReturn = func(self, *args, **kwargs)
+        self._tokens[self.outputSubKey] = makeToken()
+        return toReturn
     return wrapper
 
 class Producer(Promptable):
@@ -54,15 +167,13 @@ class Producer(Promptable):
         for key, val in sorted(baselines.items()):
             self.baselines[key] = EverestArray(val, extendable = False)
 
-        self._stored = dict()
+        self._outs = OrderedDict()
+        self._tokens = dict()
 
         super().__init__(baselines = self.baselines, **kwargs)
 
         # Promptable attributes:
         self._prompt_fns.append(self._producer_prompt)
-
-        self.set_autosave(True)
-        self.set_save_interval(3600.)
 
     @property
     def outputMasterKey(self):
@@ -80,46 +191,35 @@ class Producer(Promptable):
         return '/'.join([k for k in keys if len(k)])
 
     @property
-    def outkeys(self):
-        return [*self._outkeys()][1:]
-    def _outkeys(self):
-        yield None
-    @property
-    def out(self):
-        return [*self._out()][1:]
+    def outs(self):
+        sk = self.outputSubKey
+        try:
+            outs, token = self._outs[sk], self._tokens[sk]
+            if not outs.token == token:
+                outsDict = self._out()
+                outs.update(outsDict)
+        except KeyError:
+            outsDict = self._out()
+            outs = Outs(outsDict.keys(), sk)
+            self._outs[sk] = outs
+            outs.update(outsDict)
+        return outs
     def _out(self):
-        yield None
+        return OrderedDict()
+
+    def store(self, silent = False):
+        self.outs.store(silent = silent)
+    def clear(self, silent = False):
+        self.outs.clear(silent = silent)
     @property
-    def outDict(self):
-        return OrderedDict(zip(self.outkeys, self.out))
+    def nbytes(self):
+        return sum([o.nbytes for o in self._outs.values()])
+    @property
+    def strnbytes(self):
+        return prettify_nbytes(self.nbytes)
 
     def _producer_prompt(self, prompter):
         self.store()
-
-    @property
-    def dataDict(self):
-        processed = list(map(np.stack, (list(map(list, zip(*self.stored))))))
-        return dict(zip(self.outkeys, processed))
-
-    @property
-    def stored(self):
-        key = self.outputSubKey
-        if not key in self._stored:
-            self._stored[key] = []
-        return self._stored[key]
-    def store(self):
-        try:
-            self._store()
-        except AbortStore:
-            pass
-    def _store(self):
-        self.stored.append(self.out)
-        mpi.message(';')
-        self.nbytes = self.get_stored_nbytes()
-        if self.anchored and self.autosave:
-            self._autosave()
-    def clear(self):
-        self._stored[self.outputSubKey].clear()
 
     @property
     def readouts(self):
@@ -139,47 +239,24 @@ class Producer(Promptable):
     @disk.h5filewrap
     def save(self):
         self._save()
-        self.lastsaved = time.time()
-        self.clear()
-        mpi.message(':')
+        self.outs.clear()
     def _save(self):
+        if not self.outs.n:
+            raise ProducerNothingToSave
         self.writeouts.add(self, 'producer')
-        wrappedDict = dict()
-        for key, val in sorted(self.dataDict.items()):
-            wrappedDict[key] = EverestArray(
-                val,
-                extendable = True,
-                # indices = '/'.join([self.outputKey, self.countsKey])
-                )
-        self.writeouts.add_dict(wrappedDict)
-    def set_autosave(self, val: bool):
-        self.autosave = val
-    def set_save_interval(self, val: float):
-        self.saveinterval = val
-    def get_stored_nbytes(self):
-        nbytes = 0
-        for datas in self.stored:
-            for data in datas:
-                nbytes += np.array(data).nbytes
-        return nbytes
-    def _autosave(self):
-        if buffersize_exceeded():
-            self.save()
-        elif hasattr(self, 'lastsaved'):
-            if time.time() - self.lastsaved > self.saveinterval:
-                self.save()
+        for key, val in self.outs.zipstacked:
+            wrapped = EverestArray(val, extendable = True)
+            self.writeouts.add(wrapped, key)
 
     def _load_process(self, outs):
         return outs
     @_producer_load_wrapper
     def load_index_stored(self, index):
-        return self.stored[index]
+        return dict(zip(self.outs.keys, self.outs.retrieve(index)))
     @_producer_load_wrapper
     def load_index_disk(self, index):
-        return [
-            self.readouts[key][index]
-                for key in self.outkeys
-                ]
+        ks = self.outs.keys
+        return dict(zip(ks, (self.readouts[k][index] for k in ks)))
     def load_index(self, index):
         try:
             return self.load_index_stored(index)

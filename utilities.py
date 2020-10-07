@@ -17,7 +17,7 @@ class GrouperSetAttrForbidden(EverestException):
 
 class Grouper:
     def __init__(self, grouperDict):
-        grouperDict = grouperDict.copy()
+        grouperDict = OrderedDict(grouperDict.copy())
         for key in grouperDict:
             if ' ' in key:
                 val = grouperDict[key]
@@ -38,22 +38,34 @@ class Grouper:
     def items(self, *args, **kwargs):
         return self.grouperDict.items(*args, **kwargs)
     def __setattr__(self, name, value):
-        self._lockcheck()
+        self._lockcheck(name)
         super().__setattr__(name, value)
         self.grouperDict[name] = value
     def __delattr__(self, name):
-        self._lockcheck()
+        self._lockcheck(name)
         super().__delattr__(name)
         del self.grouperDict[name]
-    def _lockcheck(self):
+    def _lockcheck(self, name = None):
         if hasattr(self, 'lock'):
             if self.lock and not name == 'lock':
                 raise GrouperSetAttrForbidden
     def copy(self):
         return self.__class__(self.grouperDict.copy())
+    def update(self, inDict):
+        for key, val in inDict.items():
+            self[key] = val
     @property
     def hashID(self):
         return w_hash(self)
+
+def prettify_nbytes(size_bytes):
+    if size_bytes == 0:
+        return "0B"
+    size_name = ("B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB")
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return "%s %s" % (s, size_name[i])
 
 def make_hash(obj):
     if hasattr(obj, 'instanceHash'):
