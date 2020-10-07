@@ -1,4 +1,12 @@
 import random
+import os
+
+parentPath = os.path.abspath(os.path.dirname(__file__))
+
+with open(os.path.join(parentPath, '_namesources', 'cities.txt'), mode = 'r') as file:
+    CITIES = file.read().split('\n')
+with open(os.path.join(parentPath, '_namesources', 'english_words.txt'), mode = 'r') as file:
+    WORDS = file.read().split('\n')
 
 class Reseed:
     def __init__(self, randomseed = None):
@@ -10,14 +18,13 @@ class Reseed:
     def __exit__(self, *args):
         random.seed()
 
-def wordhash(hashID, nWords = 2):
-    with Reseed(hashID):
-        wordhashlist = []
-        for n in range(nWords):
-            randindex = random.randint(0, (len(wordlist) - 1))
-            wordhashlist.append(wordlist[randindex])
-        wordhashstr = '-'.join(wordhashlist).replace('--', '-').lower()
-    return wordhashstr
+from functools import wraps
+def reseed(func):
+    @wraps(func)
+    def wrapper(*args, randomseed = None, **kwargs):
+        with Reseed(randomseed):
+            return func(*args, **kwargs)
+    return wrapper
 
 def _make_syllables():
     consonants = list("bcdfghjklmnpqrstvwxyz")
@@ -78,24 +85,25 @@ def random_alphanumeric(length = 6):
     choices = [random.choice(characters) for i in range(length)]
     return ''.join(choices)
 
-def get_random_alphanumeric(randomseed = None, **kwargs):
-    with Reseed(randomseed):
-        output = random_alphanumeric(**kwargs)
+@reseed
+def get_random_alphanumeric(**kwargs):
+    return random_alphanumeric(**kwargs)
+
+@reseed
+def get_random_word(**kwargs):
+    output = random_word(**kwargs)
+
+@reseed
+def get_random_phrase(**kwargs):
+    return random_phrase(**kwargs)
+
+@reseed
+def get_random_mix(**kwargs):
+    phrase = random_phrase(phraselength = 1)
+    alphanum = random_alphanumeric()
+    output = '-'.join((phrase, alphanum))
     return output
 
-def get_random_word(randomseed = None, **kwargs):
-    with Reseed(randomseed):
-        output = random_word(**kwargs)
-    return output
-
-def get_random_phrase(randomseed = None, **kwargs):
-    with Reseed(randomseed):
-        output = random_phrase(**kwargs)
-    return output
-
-def get_random_mix(randomseed = None, **kwargs):
-    with Reseed(randomseed):
-        phrase = random_phrase(phraselength = 1)
-        alphanum = random_alphanumeric()
-        output = '-'.join((phrase, alphanum))
-    return output
+@reseed
+def get_random_cityword():
+    return '-'.join([random.choice(s) for s in [CITIES, WORDS]])
