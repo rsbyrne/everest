@@ -141,20 +141,18 @@ class Reader(H5Manager):
     def load_class(self, inp):
         typeHash = self._process_tag(inp, _CLASSTAG_)
         return self.__getitem__(
-            '/' + self.join('_globals_', 'classes', typeHash)
+            '/' + self.join(typeHash, '_class_')
             )
 
     @disk.h5filewrap
-    def load(self, inp):
+    def load_built(self, inp):
         hashID = self._process_tag(inp, _BUILTTAG_)
-        inputs = self.__getitem__('/' + self.join(hashID, 'inputs'))
-        typeHash = self.__getitem__('/' + self.join(hashID, 'typeHash'))
+        typeHash, inputsHash = '/'.split(hashID)
         cls = self.load_class(typeHash)
+        inputs = self.__getitem__('/' + self.join(hashID, 'inputs'))
         built = cls(**inputs)
         assert built.hashID == hashID
         return built
-    def load_built(self, *args, **kwargs):
-        return self.load(*args, **kwargs)
 
     def _seekresolve(self, inp):
         if type(inp) is dict:

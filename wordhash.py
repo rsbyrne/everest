@@ -105,7 +105,7 @@ def get_random_mix(**kwargs):
     return output
 
 @reseed
-def get_random_words(n):
+def get_random_english_words(n):
     return '-'.join([random.choice(WORDS) for i in range(n)])
 
 @reseed

@@ -34,32 +34,7 @@ class NotOnDiskError(EverestException):
 def load(hashID, name = None, path = '.'):
     try: name, path = _namepath_process(name, path)
     except TypeError: raise NotOnDiskError
-    return Reader(name, path).load(hashID)
-
-def _get_inputs(cls, inputs = dict()):
-    allinputs = OrderedDict(cls.defaultInps)
-    allinputs.update(inputs)
-    ghostKeys = cls._sortedGhostKeys['all']
-    inputs = OrderedDict(
-        [(k, v) for k, v in allinputs.items() if not k in ghostKeys]
-        )
-    ghosts = OrderedDict(
-        [(k, v) for k, v in allinputs.items() if k in ghostKeys]
-        )
-    inputs = cls._process_inputs(inputs)
-    ghosts = cls._process_ghosts(ghosts)
-    return inputs, ghosts
-
-def _get_hashes(cls, inputs):
-    inputsHash = make_hash(inputs)
-    instanceHash = make_hash((cls.typeHash, inputsHash))
-    hashID = wordhash.get_random_phrase(instanceHash)
-    return inputsHash, instanceHash, hashID
-
-def _get_info(cls, inputs = dict()):
-    inputs, ghosts = _get_inputs(cls, inputs)
-    inputsHash, instanceHash, hashID = _get_hashes(cls, inputs)
-    return inputs, ghosts, inputsHash, instanceHash, hashID
+    return Reader(name, path).load_built(hashID)
 
 # BUFFERSIZE = 5 * 2 ** 30 # i.e. 5 GiB
 # def buffersize_exceeded():
@@ -132,7 +107,14 @@ def sort_inputKeys(func):
 class Meta(type):
 
     _preclasses = weakref.WeakValueDictionary()
-    _prebuilts = weakref.WeakValueDictionary()
+
+    @staticmethod
+    def _type_hash(arg):
+        rawHash = make_hash(arg)
+        neatHash = wordhash.get_random_cityword(
+            randomseed = rawHash
+            )
+        return neatHash
 
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
@@ -140,7 +122,7 @@ class Meta(type):
             script = outCls._swapscript
         else:
             script = disk.ToOpen(inspect.getfile(outCls))()
-        typeHash = make_hash(script)
+        typeHash = Meta._type_hash(script)
         try:
             return cls._preclasses[typeHash]
         except KeyError:
@@ -154,6 +136,8 @@ class Meta(type):
                 outCls._sortedInputKeys, outCls._sortedGhostKeys = {}, {}
             outCls._custom_cls_fn()
             cls._preclasses[outCls.typeHash] = outCls
+            if not hasattr(outCls, '_prebuilts'):
+                outCls._prebuilts = weakref.WeakValueDictionary()
             return outCls
 
     @staticmethod
@@ -168,10 +152,10 @@ class Meta(type):
         inputs = Meta._align_inputs(cls, *args, **kwargs)
         obj = cls.__new__(cls, **inputs)
         try:
-            return Meta._prebuilts[obj.hashID]
+            return cls._prebuilts[obj.inputsHash]
         except KeyError:
             obj.__init__(**obj.inputs)
-            Meta._prebuilts[obj.hashID] = obj
+            cls._prebuilts[obj.inputsHash] = obj
             return obj
 
     #
@@ -200,10 +184,9 @@ class Builder:
     def __init__(self, cls, **inputs):
         self.obj = cls.__new__(**inputs)
         self.cls = cls
-        self.hashID = self.obj.hashID
         self.typeHash = self.obj.typeHash
         self.inputsHash = self.obj.inputsHash
-        self.instanceHash = self.obj.instanceHash
+        self.hashID = self.obj.hashID
 
     def __call__(self):
         obj.__init__(**obj.inputs)
@@ -241,29 +224,50 @@ class Built(metaclass = Meta):
             except NotBuilderTuple:
                 ghosts[key] = val
         return ghosts
+    @staticmethod
+    def _inputs_hash(arg):
+        rawHash = make_hash(arg)
+        neatHash = wordhash.get_random_phrase(
+            randomseed = rawHash
+            )
+        return neatHash
+    @classmethod
+    def _get_inputs(cls, inputs = dict()):
+        allinputs = OrderedDict(cls.defaultInps)
+        allinputs.update(inputs)
+        ghostKeys = cls._sortedGhostKeys['all']
+        inputs = OrderedDict(
+            [(k, v) for k, v in allinputs.items() if not k in ghostKeys]
+            )
+        ghosts = OrderedDict(
+            [(k, v) for k, v in allinputs.items() if k in ghostKeys]
+            )
+        inputs = cls._process_inputs(inputs)
+        ghosts = cls._process_ghosts(ghosts)
+        return inputs, ghosts
 
     def __new__(cls, **inputs):
 
-        inputs, ghosts, inputsHash, instanceHash, hashID = \
-            _get_info(cls, inputs)
+        inputs, ghosts = cls._get_inputs(**inputs)
+        inputsHash = cls._inputs_hash(inputs)
         obj = super().__new__(cls)
         obj.inputs = inputs
         obj.ghosts = ghosts
         obj.inputsHash = inputsHash
-        obj.instanceHash = instanceHash
-        obj.hashID = hashID
+        obj.hashID = '/'.join(obj.typeHash, obj.inputsHash)
 
+        obj.rootObjects = {
+            cls.typeHash: {'_class_': cls}
+            }
+        obj.globalObjects = {
+            # 'classes': {cls.typeHash: cls}
+            }
         obj.localObjects = {
             'typeHash': obj.typeHash,
             'inputsHash': obj.inputsHash,
-            'instanceHash': obj.instanceHash,
             'hashID': obj.hashID,
             'inputs': obj.inputs,
             # 'class': cls
-            }
-
-        obj.globalObjects = {
-            'classes': {cls.typeHash: cls}
             }
 
         obj._anchorManager = Anchor
@@ -295,6 +299,7 @@ class Built(metaclass = Meta):
     def _touch(self):
         for fn in self._pre_anchor_fns: fn()
         self.writer.add_dict(self.localObjects)
+        self.rootwriter.add_dict(self.rootObjects)
         self.globalwriter.add_dict(self.globalObjects)
         for fn in self._post_anchor_fns: fn()
     @property
@@ -319,6 +324,14 @@ class Built(metaclass = Meta):
     def globalreader(self):
         man = self._anchorManager.get_active()
         return man.globalreader
+    @property
+    def rootwriter(self):
+        man = self._anchorManager.get_active()
+        return man.rootwriter
+    @property
+    def rootreader(self):
+        man = self._anchorManager.get_active()
+        return man.rootreader
     @property
     def h5filename(self):
         man = self._anchorManager.get_active()
@@ -366,6 +379,6 @@ class Loader(Pyklet):
         super().__init__(hashID, _anchorManager)
     def __call__(self):
         man = self._anchorManager.get_active()
-        out = man.reader.load(self.hashID)
+        out = man.reader.load_built(self.hashID)
         assert out.hashID == self.hashID
         return out

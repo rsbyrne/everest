@@ -39,13 +39,13 @@ class State(Stamper):
     def __enter__(self):
         self._oldConfigs = self.wanderer.configs.copy()
         if self.wanderer.initialised:
-            self._reloadVals = self.wanderer.out
+            self._reloadVals = self.wanderer.outs.data
         else:
             self._reloadVals = None
         self.wanderer.set_configs(**self.start)
         while not self.stop:
             self.wanderer.iterate(self.step)
-        return self.wanderer.out
+        return self.wanderer.outs.data
     def __exit__(self, *args):
         self.wanderer.set_configs(**self._oldConfigs)
         if not self._reloadVals is None:

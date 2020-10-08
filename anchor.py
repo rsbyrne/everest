@@ -84,6 +84,8 @@ class Anchor:
             purge_address(self.name, self.path)
         self.writer = Writer(self.name, self.path)
         self.reader = Reader(self.name, self.path)
+        self.rootwriter = Writer(self.name, self.path)
+        self.rootreader = Reader(self.name, self.path)
         self.globalwriter = Writer(self.name, self.path, '_globals_')
         self.globalreader = Reader(self.name, self.path, '_globals_')
         self.h5filename = get_framePath(self.name, self.path)
@@ -95,8 +97,11 @@ class Anchor:
         self.__class__._active = self._formerActive
         if self.test:
             purge_address(self.name, self.path)
-        del self.name, self.path, self.writer, self.reader, \
-            self.globalwriter, self.globalreader, self.h5filename, \
+        del self.name, self.path, \
+            self.writer, self.reader, \
+            self.rootwriter, self.rootreader, \
+            self.globalwriter, self.globalreader, \
+            self.h5filename, \
             self.test, self.purge, self._formerActive
 
 
