@@ -1,4 +1,5 @@
 import collections
+from collections.abc import Mapping, Sequence
 from collections import OrderedDict
 import inspect
 import numpy as np
@@ -56,7 +57,7 @@ class Grouper:
             self[key] = val
     @property
     def hashID(self):
-        return w_hash(self)
+        return w_hash(sorted(self.grouperDict.items()))
 
 def prettify_nbytes(size_bytes):
     if size_bytes == 0:
@@ -68,15 +69,15 @@ def prettify_nbytes(size_bytes):
     return "%s %s" % (s, size_name[i])
 
 def make_hash(obj):
-    if hasattr(obj, 'instanceHash'):
-        hashVal = obj.instanceHash
+    if hasattr(obj, 'hashID'):
+        hashVal = obj.hashID
     elif hasattr(obj, 'typeHash'):
         hashVal = obj.typeHash
     elif hasattr(obj, '_hashObjects'):
         hashVal = make_hash(obj._hashObjects)
-    elif type(obj) is dict or isinstance(obj, Grouper):
-        hashVal = make_hash(sorted(obj.items()))
-    elif type(obj) is list or type(obj) is tuple:
+    elif isinstance(obj, Mapping):
+        hashVal = make_hash(sorted({**obj}.items()))
+    elif isinstance(obj, Sequence) and not type(obj) is str:
         hashList = [make_hash(subObj) for subObj in obj]
         hashVal = make_hash(str(hashList))
     elif isinstance(obj, np.generic):
@@ -88,7 +89,11 @@ def make_hash(obj):
     return str(hashVal)
 
 def w_hash(obj):
-    return wordhash.get_random_phrase(make_hash(obj))
+    return wordhash.get_random_phrase(
+        randomseed = make_hash(obj),
+        wordlength = 2,
+        phraselength = 2,
+        )
 
 def _obtain_dtype(object):
     if type(object) == np.ndarray:

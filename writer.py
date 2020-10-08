@@ -64,7 +64,8 @@ class Writer(H5Manager):
             inp.touch(self.name, self.path)
             return _BUILTTAG_ + inp.hashID
         elif type(inp) is self.builtsmodule.Meta:
-            return _CLASSTAG_ + inp.script
+            inp.touch_class(self.name, self.path)
+            return _CLASSTAG_ + inp.typeHash
         elif type(inp) in {list, tuple, frozenset}:
             out = list()
             for sub in inp: out.append(self._process_inp(sub))

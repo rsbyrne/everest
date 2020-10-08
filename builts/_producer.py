@@ -50,21 +50,27 @@ class OutsAlreadyStored(OutsException):
     pass
 class OutsAlreadyCleared(OutsException):
     pass
-
+class NullValueDetected(OutsException):
+    pass
+class OutsNull:
+    pass
 
 class Outs:
     def __init__(self, keys, name = 'default'):
-        self.keys, self.name = keys, name
-        self.data = OrderedDict()
-        self.stored = OrderedDict([(k, []) for k in self.keys])
+        self._keys, self.name = keys, name
+        self.data = OrderedDict([(k, OutsNull) for k in self._keys])
+        self.stored = OrderedDict([(k, []) for k in self._keys])
         self.hashVals = []
         self.n = 0
         self.token = 0
-    def update(self, outs):
+    def update(self, outs, silent = False):
+        if any([v is OutsNull for v in outs.values()]):
+            if not silent:
+                raise NullValueDetected
         for k, v in outs.items():
             self[k] = v
     def __setitem__(self, k, v):
-        if k in self.keys:
+        if k in self._keys:
             self.data[k] = v
             setattr(self, k, v)
         else:
@@ -79,13 +85,19 @@ class Outs:
             if not silent:
                 raise OutsAlreadyStored
         else:
-            for k, v in self.data.items():
-                self.stored[k].append(v)
-            self.hashVals.append(hashVal)
-            self.n += 1
+            if any([v is OutsNull for v in self.data.values()]):
+                if silent:
+                    pass
+                else:
+                    raise NullValueDetected
+            else:
+                for k, v in self.data.items():
+                    self.stored[k].append(v)
+                self.hashVals.append(hashVal)
+                self.n += 1
     def sort(self, key = None):
         if key is None:
-            key = self.keys[0]
+            key = self._keys[0]
         sortInds = np.stack(self.stored[key]).argsort()
         for k, v in self.zipstacked:
             self.stored[k][:] = v[sortInds]
@@ -115,6 +127,8 @@ class Outs:
         if len(set(indices)) != 1:
             raise ValueError
         return indices[0]
+    def keys(self):
+        return self.data.keys()
     @property
     def stacked(self):
         if self.n:
@@ -125,7 +139,7 @@ class Outs:
                 yield []
     @property
     def zipstacked(self):
-        return zip(self.keys, self.stacked)
+        return zip(self._keys, self.stacked)
     @property
     def nbytes(self):
         nbytes = np.array(self.hashVals).nbytes
@@ -161,8 +175,6 @@ class Producer(Promptable):
             **kwargs
             ):
 
-        self.outputRootKey = self.hashID
-
         self.baselines = dict()
         for key, val in sorted(baselines.items()):
             self.baselines[key] = EverestArray(val, extendable = False)
@@ -187,7 +199,7 @@ class Producer(Promptable):
         yield ''
     @property
     def outputKey(self):
-        keys = [self.outputRootKey, self.outputMasterKey, self.outputSubKey]
+        keys = [self.outputMasterKey, self.outputSubKey]
         return '/'.join([k for k in keys if len(k)])
 
     @property
@@ -202,7 +214,10 @@ class Producer(Promptable):
             outsDict = self._out()
             outs = Outs(outsDict.keys(), sk)
             self._outs[sk] = outs
-            outs.update(outsDict)
+            try:
+                outs.update(outsDict)
+            except NullValueDetected:
+                pass
         return outs
     def _out(self):
         return OrderedDict()
@@ -223,18 +238,10 @@ class Producer(Promptable):
 
     @property
     def readouts(self):
-        return Reader(
-            self.name,
-            self.path,
-            self.outputKey
-            )
+        return self.reader.sub(self.outputKey)
     @property
     def writeouts(self):
-        return Writer(
-            self.name,
-            self.path,
-            self.outputKey
-            )
+        return self.writer.sub(self.outputKey)
 
     @disk.h5filewrap
     def save(self):
@@ -252,10 +259,10 @@ class Producer(Promptable):
         return outs
     @_producer_load_wrapper
     def load_index_stored(self, index):
-        return dict(zip(self.outs.keys, self.outs.retrieve(index)))
+        return dict(zip(self.outs.keys(), self.outs.retrieve(index)))
     @_producer_load_wrapper
     def load_index_disk(self, index):
-        ks = self.outs.keys
+        ks = self.outs.keys()
         return dict(zip(ks, (self.readouts[k][index] for k in ks)))
     def load_index(self, index):
         try:

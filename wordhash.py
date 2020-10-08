@@ -1,29 +1,111 @@
 import random
 import os
+import string
 
 parentPath = os.path.abspath(os.path.dirname(__file__))
+namesDir = os.path.join(parentPath, '_namesources')
+pathFn = lambda n: os.path.join(namesDir, n)
 
-with open(os.path.join(parentPath, '_namesources', 'cities.txt'), mode = 'r') as file:
+with open(pathFn('cities.txt'), mode = 'r') as file:
     CITIES = file.read().split('\n')
-with open(os.path.join(parentPath, '_namesources', 'english_words.txt'), mode = 'r') as file:
-    WORDS = file.read().split('\n')
+with open(pathFn('english_words.txt'), mode = 'r') as file:
+    ENGLISH = file.read().split('\n')
+with open(pathFn('names.txt'), mode = 'r') as file:
+    NAMES = file.read().split('\n')
+PROPER = sorted(set([*CITIES, *NAMES]))
+
+GREEK = [
+    'alpha',
+    'beta',
+    'gamma',
+    'delta',
+    'epsilon',
+    'zeta',
+    'eta',
+    'theta',
+    'iota',
+    'kappa',
+    'lambda',
+    'mu',
+    'nu',
+    'xi',
+    'omicron',
+    'pi',
+    'rho',
+    'sigma',
+    'tau',
+    'upsilon',
+    'phi',
+    'chi',
+    'psi',
+    'omega',
+    ]
+PHONETIC = [
+    'Alfa',
+    'Bravo',
+    'Charlie',
+    'Delta',
+    'Echo',
+    'Foxtrot',
+    'Golf',
+    'Hotel',
+    'India',
+    'Juliett',
+    'Kilo',
+    'Lima',
+    'Mike',
+    'November',
+    'Oscar',
+    'Papa',
+    'Quebec',
+    'Romeo',
+    'Sierra',
+    'Tango',
+    'Uniform',
+    'Victor',
+    'Whiskey',
+    'Xray',
+    'Yankee',
+    'Zulu',
+    ]
+WORDNUMS = [
+    'zero',
+    'one',
+    'two',
+    'three',
+    'four',
+    'five',
+    'six',
+    'seven',
+    'eight',
+    'nine',
+    ]
+CODEWORDS = sorted(set([
+    *[n.lower() for n in PHONETIC],
+    *[n.lower() for n in GREEK],
+    *[n.lower() for n in WORDNUMS],
+    ]))
 
 class Reseed:
+    active = False
     def __init__(self, randomseed = None):
-        if randomseed is None:
-            randomseed = random.random()
         self.randomseed = randomseed
     def __enter__(self):
         random.seed(self.randomseed)
+        self.active = True
     def __exit__(self, *args):
         random.seed()
+        self.active = False
 
 from functools import wraps
 def reseed(func):
     @wraps(func)
     def wrapper(*args, randomseed = None, **kwargs):
-        with Reseed(randomseed):
+        if Reseed.active:
             return func(*args, **kwargs)
+        else:
+            with Reseed(randomseed):
+                return func(*args, **kwargs)
     return wrapper
 
 def _make_syllables():
@@ -70,16 +152,6 @@ def random_word(length = 3):
         outWord += random_syllable()
     return outWord
 
-def random_phrase(phraselength = 2, wordlength = 2):
-    # 2 * 2 yields 64 bits of entropy
-    phraseList = []
-    for _ in range(phraselength):
-        phraseList.append(
-            random_word(wordlength)
-            )
-    phrase = "-".join(phraseList)
-    return phrase
-
 def random_alphanumeric(length = 6):
     characters = 'abcdefghijklmnopqrstuvwxyz0123456789'
     choices = [random.choice(characters) for i in range(length)]
@@ -90,24 +162,47 @@ def get_random_alphanumeric(**kwargs):
     return random_alphanumeric(**kwargs)
 
 @reseed
-def get_random_word(**kwargs):
-    output = random_word(**kwargs)
+def get_random_word(*args, **kwargs):
+    return random_word(*args, **kwargs)
 
 @reseed
-def get_random_phrase(**kwargs):
-    return random_phrase(**kwargs)
+def get_random_phrase(phraselength = 2, wordlength = 2):
+    # 2 * 2 yields 64 bits of entropy
+    phraseList = []
+    for _ in range(phraselength):
+        phraseList.append(
+            random_word(wordlength)
+            )
+    phrase = "-".join(phraseList)
+    return phrase
 
 @reseed
-def get_random_mix(**kwargs):
-    phrase = random_phrase(phraselength = 1)
-    alphanum = random_alphanumeric()
-    output = '-'.join((phrase, alphanum))
-    return output
-
+def get_random_english(n = 1):
+    return '-'.join([random.choice(ENGLISH) for i in range(n)])
 @reseed
-def get_random_english_words(n):
-    return '-'.join([random.choice(WORDS) for i in range(n)])
-
+def get_random_numerical(n = 1):
+    return ''.join([random.choice(string.digits) for _ in range(n)])
+@reseed
+def get_random_greek(n = 1):
+    return '-'.join([random.choice(GREEK) for i in range(n)])
+@reseed
+def get_random_city(n = 1):
+    return '-'.join([random.choice(CITIES) for i in range(n)])
+@reseed
+def get_random_phonetic(n = 1):
+    return '-'.join([random.choice(PHONETIC) for i in range(n)])
+@reseed
+def get_random_codeword(n = 1):
+    return '-'.join([random.choice(CODEWORDS) for i in range(n)])
+@reseed
+def get_random_wordnum(n = 1):
+    return '-'.join([random.choice(WORDNUMS) for i in range(n)])
+@reseed
+def get_random_name(n = 1):
+    return '-'.join([random.choice(NAMES) for i in range(n)])
+@reseed
+def get_random_proper(n = 1):
+    return '-'.join([random.choice(PROPER) for i in range(n)])
 @reseed
 def get_random_cityword():
     return '-'.join([random.choice(s) for s in [CITIES, WORDS]])

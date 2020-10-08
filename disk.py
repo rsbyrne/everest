@@ -42,6 +42,7 @@ class H5Manager:
             purge_address(name, path)
         self.name, self.path = name, path
         self.h5filename = get_framePath(self.name, self.path)
+        self._inpCwd = cwd
         self.cwd = '/'
         if len(cwd):
             self.cd(cwd)
@@ -56,6 +57,12 @@ class H5Manager:
         return H5Wrap(self)
     def merge_from(self, file2):
         merge(self, file2)
+    def sub(self, *cwd):
+        return self.__class__(
+            self.name,
+            self.path,
+            *[*self._inpCwd, *cwd]
+            )
 
 def merge(file1, file2):
     with file1.open(), file2.open():

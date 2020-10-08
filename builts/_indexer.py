@@ -2,7 +2,7 @@ from functools import wraps
 from collections import OrderedDict, namedtuple
 import numpy as np
 
-from ._producer import Producer, LoadFail
+from ._producer import Producer, LoadFail, OutsNull
 from ..comparator import Comparator, Prop
 from ..anchor import NoActiveAnchorError
 from ..reader import PathNotInFrameError
@@ -89,12 +89,10 @@ class Indexer(Producer):
             indexer.value = 0
 
     def _out(self):
-        if any([i.null for i in self.indexers]):
-            raise IndexerNullVal
         outs = super()._out()
         outs.update(OrderedDict(zip(
             self.indexerKeys,
-            [i.value for i in self.indexers]
+            [OutsNull if i.null else i.value for i in self.indexers]
             )))
         return outs
 
@@ -163,7 +161,7 @@ class Indexer(Producer):
         except ValueError:
             try:
                 ind = self.indicesDisk[ik].index(arg)
-            except ValueError:
+            except (ValueError, NoActiveAnchorError, PathNotInFrameError):
                 raise IndexerLoadFail
             return self.load_index_disk(ind)
         return self.load_index_stored(ind)

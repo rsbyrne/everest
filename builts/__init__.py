@@ -2,19 +2,15 @@
 
 import weakref
 import os
-from functools import partial
 from collections import OrderedDict
 import inspect
 
 from ..utilities import Grouper, make_hash, w_hash
 from .. import wordhash
 from .. import disk
-from ..writer import Writer
-from ..reader import Reader, ClassProxy
 from ..weaklist import WeakList
-from .. import globevars
 from ..anchor import Anchor, _namepath_process
-# from ..globevars import _BUILTTAG_, _CLASSTAG_
+from ..globevars import _BUILTTAG_, _CLASSTAG_, _GHOSTTAG_
 
 
 from ..exceptions import EverestException
@@ -30,18 +26,19 @@ class NotOnDiskError(EverestException):
     '''That hashID could not be found at the provided location.'''
     pass
 
-
-def load(hashID, name = None, path = '.'):
-    try: name, path = _namepath_process(name, path)
-    except TypeError: raise NotOnDiskError
-    return Reader(name, path).load_built(hashID)
-
 # BUFFERSIZE = 5 * 2 ** 30 # i.e. 5 GiB
 # def buffersize_exceeded():
 #     nbytes = 0
 #     for builtID, built in sorted(Meta._prebuilts.items()):
 #         nbytes += built.nbytes
 #     return nbytes > BUFFERSIZE
+
+def load_built(hashID, name, path = '.'):
+    with Anchor(name, path):
+        return BuiltProxy(_BUILTTAG_ + hashID)()
+def load_class(typeHash, name, path = '.'):
+    with Anchor(name, path):
+        return ClassProxy(_CLASSTAG_ + typeHash)()
 
 def _get_default_inputs(func):
     parameters = inspect.signature(func).parameters
@@ -64,7 +61,7 @@ def _get_default_inputs(func):
     return out
 
 def sort_inputKeys(func):
-    ghostTag = globevars._GHOSTTAG_
+    ghostTag = _GHOSTTAG_
     ghostCatTag = '(' + ghostTag + ')'
     initsource = inspect.getsource(func).split('\n')
     initsource = [line.strip() for line in initsource]
@@ -104,14 +101,19 @@ def sort_inputKeys(func):
         )
     return catsDict, ghostCatsDict
 
+
 class Meta(type):
 
     _preclasses = weakref.WeakValueDictionary()
+    _hashDepth = 2
 
-    @staticmethod
-    def _type_hash(arg):
+    _anchorManager = Anchor
+
+    @classmethod
+    def _type_hash(cls, arg):
         rawHash = make_hash(arg)
-        neatHash = wordhash.get_random_cityword(
+        neatHash = wordhash.get_random_proper(
+            cls._hashDepth,
             randomseed = rawHash
             )
         return neatHash
@@ -124,7 +126,9 @@ class Meta(type):
             script = disk.ToOpen(inspect.getfile(outCls))()
         typeHash = Meta._type_hash(script)
         try:
-            return cls._preclasses[typeHash]
+            outCls = cls._preclasses[typeHash]
+            assert outCls.script == script
+            return outCls
         except KeyError:
             outCls.typeHash = typeHash
             outCls.script = script
@@ -158,50 +162,9 @@ class Meta(type):
             cls._prebuilts[obj.inputsHash] = obj
             return obj
 
-    #
-    # def __reduce__(cls):
-    #     args = (cls.typeHash, cls.script)
-    #     kwargs = dict()
-    #     print("using custom reduce")
-    #     return (cls._unpickle, (args, kwargs))
-    #
-    # def _unpickle(cls, args, kwargs):
-    #     assert not len(kwargs)
-    #     print("using custom unpickle")
-    #     typeHash, script = args
-    #     try:
-    #         return cls._preclasses[typeHash]
-    #     except KeyError:
-    #         return ClassProxy(script)()
-
-
-class NotBuilderTuple(EverestException):
-    pass
-
-
-class Builder:
-
-    def __init__(self, cls, **inputs):
-        self.obj = cls.__new__(**inputs)
-        self.cls = cls
-        self.typeHash = self.obj.typeHash
-        self.inputsHash = self.obj.inputsHash
-        self.hashID = self.obj.hashID
-
-    def __call__(self):
-        obj.__init__(**obj.inputs)
-        return obj
-
-    @classmethod
-    def make_from_tuple(cls, inp):
-        if type(inp) is tuple:
-            if len(inp) == 2:
-                if type(inp[0]) is Meta and type(inp[1]) is dict:
-                    return cls(inp[0], **inp[1])
-        raise NotBuilderTuple
-
-
 class Built(metaclass = Meta):
+
+    _hashDepth = 2
 
     @classmethod
     def _custom_cls_fn(cls):
@@ -209,28 +172,31 @@ class Built(metaclass = Meta):
         pass
 
     @classmethod
+    def _inputs_hash(cls, arg):
+        rawHash = make_hash(arg)
+        neatHash = wordhash.get_random_english(
+            cls._hashDepth,
+            randomseed = rawHash
+            )
+        return neatHash
+    @classmethod
+    def _process_proxy(cls, arg, silent = False):
+        try:
+            return Proxy(type(cls))(arg)()
+        except NotAProxyTag:
+            if silent:
+                return arg
+        raise NotAProxyTag
+    @classmethod
     def _process_inputs(cls, inputs):
         for key, val in sorted(inputs.items()):
-            try:
-                inputs[key] = Builder.make_from_tuple(val)
-            except NotBuilderTuple:
-                inputs[key] = val
+            inputs[key] = cls._process_proxy(val, silent = True)
         return inputs
     @classmethod
     def _process_ghosts(cls, ghosts):
         for key, val in sorted(ghosts.items()):
-            try:
-                ghosts[key] = Builder.make_from_tuple(val)
-            except NotBuilderTuple:
-                ghosts[key] = val
+            ghosts[key] = cls._process_proxy(val, silent = True)
         return ghosts
-    @staticmethod
-    def _inputs_hash(arg):
-        rawHash = make_hash(arg)
-        neatHash = wordhash.get_random_phrase(
-            randomseed = rawHash
-            )
-        return neatHash
     @classmethod
     def _get_inputs(cls, inputs = dict()):
         allinputs = OrderedDict(cls.defaultInps)
@@ -248,16 +214,16 @@ class Built(metaclass = Meta):
 
     def __new__(cls, **inputs):
 
-        inputs, ghosts = cls._get_inputs(**inputs)
+        inputs, ghosts = cls._get_inputs(inputs)
         inputsHash = cls._inputs_hash(inputs)
         obj = super().__new__(cls)
         obj.inputs = inputs
         obj.ghosts = ghosts
         obj.inputsHash = inputsHash
-        obj.hashID = '/'.join(obj.typeHash, obj.inputsHash)
+        obj.hashID = ':'.join([obj.typeHash, obj.inputsHash])
 
         obj.rootObjects = {
-            cls.typeHash: {'_class_': cls}
+            cls.typeHash: {_CLASSTAG_: cls.script}
             }
         obj.globalObjects = {
             # 'classes': {cls.typeHash: cls}
@@ -269,8 +235,6 @@ class Built(metaclass = Meta):
             'inputs': obj.inputs,
             # 'class': cls
             }
-
-        obj._anchorManager = Anchor
 
         return obj
 
@@ -286,12 +250,46 @@ class Built(metaclass = Meta):
 
         super().__init__()
 
+    @classmethod
+    def anchor(cls, name, path):
+        return cls.__class__._anchorManager(name, path)
+    @property
+    def man(self):
+        return self.__class__._anchorManager.get_active()
+    @property
+    def name(self):
+        return self.man.name
+    @property
+    def path(self):
+        return self.man.path
+    @property
+    def writer(self):
+        return self.man.writer.sub(self.typeHash, self.inputsHash)
+    @property
+    def reader(self):
+        return self.man.reader.sub(self.typeHash, self.inputsHash)
+    @property
+    def globalwriter(self):
+        return self.man.globalwriter
+    @property
+    def globalreader(self):
+        return self.man.globalreader
+    @property
+    def rootwriter(self):
+        return self.man.rootwriter
+    @property
+    def rootreader(self):
+        return self.man.rootreader
+    @property
+    def h5filename(self):
+        man = self.__class__._anchorManager.get_active()
+        return self.man.h5filename
     def touch(self, name = None, path = None):
         conds = [o is None for o in (name, path)]
         if any(conds) and not all(conds):
             raise ValueError
         if not any(conds):
-            with Anchor(name, path) as anchor:
+            with self.anchor(name, path) as anchor:
                 self._touch()
         else:
             self._touch()
@@ -302,43 +300,20 @@ class Built(metaclass = Meta):
         self.rootwriter.add_dict(self.rootObjects)
         self.globalwriter.add_dict(self.globalObjects)
         for fn in self._post_anchor_fns: fn()
-    @property
-    def name(self):
-        man = self._anchorManager.get_active()
-        return man.name
-    @property
-    def path(self):
-        man = self._anchorManager.get_active()
-        return man.path
-    @property
-    def writer(self):
-        return Writer(self.name, self.path, self.hashID)
-    @property
-    def reader(self):
-        return Reader(self.name, self.path, self.hashID)
-    @property
-    def globalwriter(self):
-        man = self._anchorManager.get_active()
-        return man.globalwriter
-    @property
-    def globalreader(self):
-        man = self._anchorManager.get_active()
-        return man.globalreader
-    @property
-    def rootwriter(self):
-        man = self._anchorManager.get_active()
-        return man.rootwriter
-    @property
-    def rootreader(self):
-        man = self._anchorManager.get_active()
-        return man.rootreader
-    @property
-    def h5filename(self):
-        man = self._anchorManager.get_active()
-        return man.h5filename
-    @property
-    def anchored(self):
-        return not self._anchorManager is None
+    @classmethod
+    def touch_class(cls, name = None, path = None):
+        conds = [o is None for o in (name, path)]
+        if any(conds) and not all(conds):
+            raise ValueError
+        if not any(conds):
+            with cls.anchor(name, path) as anchor:
+                cls._touch_class()
+        else:
+            cls._touch_class()
+    @classmethod
+    def _touch_class(cls):
+        man = cls.__class__._anchorManager.get_active()
+        man.writer.add_dict({cls.typeHash: {_CLASSTAG_: cls.script}})
 
     def __hash__(self):
         return int(self.instanceHash)
@@ -370,15 +345,110 @@ class Built(metaclass = Meta):
                 outCls = self.reader.load_class(typeHash)
             return outCls(**inputs)
 
+#
+# from ..pyklet import Pyklet
+# class Loader(Pyklet):
+#     def __init__(self, hashID, _anchorManager = Anchor):
+#         self._anchorManager = _anchorManager
+#         self.hashID = hashID
+#         super().__init__(hashID, _anchorManager)
+#     def __call__(self):
+#         man = self._anchorManager.get_active()
+#         out = man.reader.load_built(self.hashID)
+#         assert out.hashID == self.hashID
+#         return out
 
-from ..pyklet import Pyklet
-class Loader(Pyklet):
-    def __init__(self, hashID, _anchorManager = Anchor):
-        self._anchorManager = _anchorManager
-        self.hashID = hashID
-        super().__init__(hashID, _anchorManager)
+class ProxyException(EverestException):
+    pass
+class NotAProxyTag(ProxyException):
+    pass
+class Proxy:
+    def __init__(self, meta = Meta):
+        self.meta = Meta
+    @staticmethod
+    def _process_tag(inp, tag):
+        if type(inp) is str:
+            if inp.startswith(tag):
+                processed = inp[len(tag):]
+                assert len(processed) > 0
+                return processed
+        raise NotAProxyTag
+    def __call__(self, arg):
+        try:
+            _ = self._process_tag(arg, _CLASSTAG_)
+            return ClassProxy(arg)
+        except NotAProxyTag:
+            _ = self._process_tag(arg, _BUILTTAG_)
+            return BuiltProxy(arg)
+    @property
+    def reader(self):
+        return self.meta._anchorManager.get_active().reader
+class ClassProxyException(ProxyException):
+    pass
+class ClassProxy(Proxy):
+    def __init__(self, inp, **kwargs):
+        super().__init__(**kwargs)
+        try:
+            inp = self._process_tag(inp, _CLASSTAG_)
+            self.typeHash = inp
+        except NotAProxyTag:
+            self.script = inp
+            self.typeHash = self.meta._type_hash(self.script)
     def __call__(self):
-        man = self._anchorManager.get_active()
-        out = man.reader.load_built(self.hashID)
-        assert out.hashID == self.hashID
-        return out
+        try:
+            return self.meta._preclasses[self.typeHash]
+        except KeyError:
+            if not hasattr(self, 'script'):
+                self.script = self.reader[_CLASSTAG_]
+            return disk.local_import_from_str(self.script).CLASS
+    @property
+    def reader(self):
+        return super().reader.sub(self.typeHash)
+class BuiltProxyException(ProxyException):
+    pass
+class NotEnoughInformation(BuiltProxyException):
+    pass
+class BuiltProxy(Proxy):
+    def __init__(self, inp1, inp2 = None, **kwargs):
+        super().__init__(**kwargs)
+        if inp2 is None:
+            if not type(inp1) is str:
+                raise TypeError
+            inp1 = self._process_tag(inp1, _BUILTTAG_)
+            typeHash, inputsHash = inp1.split(':')
+            clsproxy = ClassProxy(_CLASSTAG_ + typeHash)
+        else:
+            if type(inp1) is self.meta:
+                clsproxy = lambda: inp1
+                clsproxy.typeHash = inp1.typeHash
+            elif type(inp1) is ClassProxy:
+                clsproxy = inp1
+            else:
+                clsproxy = ClassProxy(inp1)
+            if type(inp2) is str:
+                try:
+                    inputsHash = self._process_tag(inp2, _BUILTTAG_)
+                except NotAProxyTag:
+                    inputsHash = inp2
+            elif type(inp2) is dict:
+                self.cls = clsproxy()
+                self.inputs = self.cls.get_inputs(inp2)
+                inputsHash = self.cls._inputs_hash(self.inputs)
+            else:
+                raise TypeError
+        self.clsproxy = clsproxy
+        self.inputsHash = inputsHash
+        self.typeHash = clsproxy.typeHash
+        self.hashID = ':'.join([self.typeHash, self.inputsHash])
+    def __call__(self):
+        try:
+            preclasses = self.meta._preclasses[self.typeHash]
+            return preclasses._prebuilts[self.inputsHash]
+        except KeyError:
+            self.cls = self.clsproxy()
+            if not hasattr(self, 'inputs'):
+                self.inputs = self.reader['inputs']
+            return self.cls(**self.inputs)
+    @property
+    def reader(self):
+        return super().reader.sub(self.typeHash, self.inputsHash)

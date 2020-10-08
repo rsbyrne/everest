@@ -4,16 +4,20 @@ import pickle
 class Pyklet:
     _TAG_ = '_pyklet_'
     def __init__(self, *args, **kwargs):
-        self._source = inspect.getsource(self.__class__)
+        # self._source = inspect.getsource(self.__class__)
         self.args, self.kwargs = args, kwargs
+        self._hashObjects = (args, kwargs)
     def __reduce__(self):
-        args, kwargs = self.args, self.kwargs
-        self._hashObjects = (args, kwargs, self._source)
-        self._pickleClass = pickle.dumps(self.__class__)
+        # self._pickleClass = pickle.dumps(self.__class__)
         return (self._unpickle, (args, kwargs))
     @classmethod
     def _unpickle(cls, args, kwargs):
         return cls(*args, **kwargs)
+    @property
+    def hashID(self):
+        return w_hash(self._hashObjects)
+
+from .utilities import w_hash
 
 # import inspect
 # import pickle

@@ -27,19 +27,6 @@ class PathNotInFrameError(EverestException, KeyError):
 class NotGroupError(EverestException, KeyError):
     pass
 
-class Proxy:
-    def __init__(self):
-        pass
-
-class ClassProxy(Proxy):
-    def __init__(self, script):
-        self.script = script
-        super().__init__()
-    def __call__(self):
-        return disk.local_import_from_str(self.script).CLASS
-    def __repr__(self):
-        return _CLASSTAG_ + make_hash(self.script)
-
 class Reader(H5Manager):
 
     def __init__(
@@ -138,22 +125,6 @@ class Reader(H5Manager):
         else:
             return inp
 
-    def load_class(self, inp):
-        typeHash = self._process_tag(inp, _CLASSTAG_)
-        return self.__getitem__(
-            '/' + self.join(typeHash, '_class_')
-            )
-
-    @disk.h5filewrap
-    def load_built(self, inp):
-        hashID = self._process_tag(inp, _BUILTTAG_)
-        typeHash, inputsHash = '/'.split(hashID)
-        cls = self.load_class(typeHash)
-        inputs = self.__getitem__('/' + self.join(hashID, 'inputs'))
-        built = cls(**inputs)
-        assert built.hashID == hashID
-        return built
-
     def _seekresolve(self, inp):
         if type(inp) is dict:
             out = dict()
@@ -170,14 +141,10 @@ class Reader(H5Manager):
             global \
                 _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
                 _BYTESTAG_, _STRINGTAG_, _EVALTAG_
-            if inp.startswith(_BUILTTAG_):
-                hashID = self._process_tag(inp, _BUILTTAG_)
-                return self.load(hashID)
-            elif inp.startswith(_CLASSTAG_):
-                script = self._process_tag(inp, _CLASSTAG_)
-                proxy = ClassProxy(script)
-                cls = proxy()
-                return cls
+            if inp.startswith(_CLASSTAG_):
+                return inp
+            elif inp.startswith(_BUILTTAG_):
+                return inp
             elif inp.startswith(_ADDRESSTAG_):
                 address = self._process_tag(inp, _ADDRESSTAG_)
                 return self._getstr(address)

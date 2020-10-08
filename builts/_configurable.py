@@ -5,7 +5,6 @@ from collections import OrderedDict
 from ._producer import Producer
 from ._mutable import Mutable
 from ._applier import Applier
-from . import w_hash
 from ..pyklet import Pyklet
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
@@ -34,7 +33,7 @@ class Configs(Pyklet, Mapping, Sequence):
                 self._contents = self._process_new(new)
             else:
                 self._contents = self._align_inputs(*args, **kwargs)
-        super().__init__(self.defaults, {'new': self._contents})
+        super().__init__(self.defaults, **{'new': self._contents})
     def _process_new(self, new):
         defaults = self.defaults
         if new is None:
@@ -97,9 +96,6 @@ class Configs(Pyklet, Mapping, Sequence):
         return self.__class__(self.defaults, self._contents.copy())
     def __len__(self):
         return len(self._contents)
-    @property
-    def hashID(self):
-        return w_hash(self._contents)
 
 def _configurable_configure_if_necessary(func):
     @wraps(func)
