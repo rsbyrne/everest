@@ -142,9 +142,11 @@ class Reader(H5Manager):
                 _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
                 _BYTESTAG_, _STRINGTAG_, _EVALTAG_
             if inp.startswith(_CLASSTAG_):
-                return inp
+                from .builts import ClassProxy
+                return ClassProxy(inp)
             elif inp.startswith(_BUILTTAG_):
-                return inp
+                from .builts import BuiltProxy
+                return BuiltProxy
             elif inp.startswith(_ADDRESSTAG_):
                 address = self._process_tag(inp, _ADDRESSTAG_)
                 return self._getstr(address)

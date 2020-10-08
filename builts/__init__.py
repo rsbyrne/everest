@@ -180,22 +180,16 @@ class Built(metaclass = Meta):
             )
         return neatHash
     @classmethod
-    def _process_proxy(cls, arg, silent = False):
-        try:
-            return Proxy(type(cls))(arg)()
-        except NotAProxyTag:
-            if silent:
-                return arg
-        raise NotAProxyTag
-    @classmethod
     def _process_inputs(cls, inputs):
         for key, val in sorted(inputs.items()):
-            inputs[key] = cls._process_proxy(val, silent = True)
+            if isinstance(val, Proxy):
+                inputs[key] = val()
         return inputs
     @classmethod
     def _process_ghosts(cls, ghosts):
         for key, val in sorted(ghosts.items()):
-            ghosts[key] = cls._process_proxy(val, silent = True)
+            if isinstance(val, Proxy):
+                ghosts[key] = val()
         return ghosts
     @classmethod
     def _get_inputs(cls, inputs = dict()):
@@ -344,19 +338,6 @@ class Built(metaclass = Meta):
             except KeyError:
                 outCls = self.reader.load_class(typeHash)
             return outCls(**inputs)
-
-#
-# from ..pyklet import Pyklet
-# class Loader(Pyklet):
-#     def __init__(self, hashID, _anchorManager = Anchor):
-#         self._anchorManager = _anchorManager
-#         self.hashID = hashID
-#         super().__init__(hashID, _anchorManager)
-#     def __call__(self):
-#         man = self._anchorManager.get_active()
-#         out = man.reader.load_built(self.hashID)
-#         assert out.hashID == self.hashID
-#         return out
 
 class ProxyException(EverestException):
     pass
