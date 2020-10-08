@@ -105,5 +105,9 @@ def get_random_mix(**kwargs):
     return output
 
 @reseed
+def get_random_words(n):
+    return '-'.join([random.choice(WORDS) for i in range(n)])
+
+@reseed
 def get_random_cityword():
     return '-'.join([random.choice(s) for s in [CITIES, WORDS]])
