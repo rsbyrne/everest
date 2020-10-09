@@ -230,6 +230,7 @@ class Built(metaclass = Meta):
             'inputs': obj.inputs,
             # 'class': cls
             }
+        obj._proxy = lambda: None
 
         return obj
 
@@ -320,7 +321,14 @@ class Built(metaclass = Meta):
 
     @property
     def proxy(self):
-        return BuiltProxy(self.__class__, {**self.inputs})
+        _proxy = self._proxy()
+        if not _proxy is None:
+            return _proxy
+        else:
+            _proxy = BuiltProxy(self.__class__, {**self.inputs})
+            self._proxy = weakref.ref(_proxy)
+            return _proxy
+
     def __reduce__(self):
         kwargs = dict()
         return (self._unpickle, (self.proxy, kwargs))
