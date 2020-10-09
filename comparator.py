@@ -3,6 +3,7 @@ import builtins
 import operator
 
 from .pyklet import Pyklet
+from .utilities import w_hash
 
 class Prop(Pyklet):
 
@@ -27,6 +28,9 @@ class Prop(Pyklet):
             obj = getattr(obj, prop)
 
         return obj
+
+    def _hashID(self):
+        return w_hash([self.target, *self.props])
 
 class Comparator(Pyklet):
 
@@ -76,6 +80,10 @@ class Comparator(Pyklet):
 
     def __bool__(self):
         return bool(self())
+
+    def _hashID(self):
+        return w_hash([*self.terms, str(self.op), self.asList, self.invert])
+
 
 #     def close(self, *queryArgs):
 #
