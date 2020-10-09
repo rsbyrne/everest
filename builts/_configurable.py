@@ -6,6 +6,7 @@ from ._producer import Producer
 from ._mutable import Mutable
 from ._applier import Applier
 from ..pyklet import Pyklet
+from ..utilities import w_hash
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
 from ..exceptions import NotYetImplemented
@@ -30,6 +31,8 @@ class Configs(Pyklet, Mapping, Sequence):
         self._contents = self._align_inputs(*args, **kwargs)
         self._contents.update(self._process_new(new))
         super().__init__(self.defaults, **{'new': self._contents})
+    def _hashID(self):
+        return w_hash(tuple(self.items()))
     def _process_new(self, new):
         if new is None:
             return dict()

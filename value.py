@@ -1,6 +1,12 @@
 import numpy as np
 import operator
 
+from .exceptions import EverestException
+class ValueException(EverestException):
+    pass
+class NullValueDetected(ValueException):
+    pass
+
 class Value:
 
     def __init__(self, value, null = False):
@@ -10,33 +16,45 @@ class Value:
         else:
             self.plain = float(value)
             self.type = np.float64
-        self.value = self.type(value)
-        self.null = null
+        if null:
+            self.value = None
+        else:
+            self.value = self.type(value)
+
+    @property
+    def null(self):
+        return self.value is None
 
     def __setattr__(self, item, value):
         if item in self.__dict__:
             if item == 'type':
                 raise Exception("Forbidden to manually set 'type'.")
             elif item == 'value':
-                try:
-                    if np.issubdtype(type(value), np.integer):
-                        plain = int(value)
-                    else:
-                        plain = float(value)
-                    value = self.type(value)
-                    dict.__setattr__(self, 'plain', plain)
-                    dict.__setattr__(self, 'value', value)
-                except TypeError:
-                    raise TypeError((value, type(value)))
+                if value is None:
+                    dict.__setattr__(self, 'value', None)
+                    dict.__setattr__(self, 'plain', None)
+                else:
+                    try:
+                        if np.issubdtype(type(value), np.integer):
+                            plain = int(value)
+                        else:
+                            plain = float(value)
+                        value = self.type(value)
+                        dict.__setattr__(self, 'plain', plain)
+                        dict.__setattr__(self, 'value', value)
+                    except TypeError:
+                        raise TypeError((value, type(value)))
             else:
                 dict.__setattr__(self, item, value)
         else:
             dict.__setattr__(self, item, value)
 
     def evaluate(self):
+        if self.null: raise NullValueDetected(self.value)
         return self.value
 
     def _operate(self, arg, opkey):
+        if self.null: raise NullValueDetected(self, self.value)
         return getattr(operator, opkey)(self.value, arg)
     def __eq__(self, arg): return self._operate(arg, 'eq')
     def __ne__(self, arg): return self._operate(arg, 'ne')
@@ -65,6 +83,9 @@ class Value:
     def __itruediv__(self, arg): return self._reassign(arg, 'truediv')
 
     def __str__(self):
-        return str(self.value)
+        if self.null:
+            return 'NullVal'
+        else:
+            return str(self.value)
     def __repr__(self):
-        return str(self)
+        return 'EverestValue' + '{' + str(self) + '}'

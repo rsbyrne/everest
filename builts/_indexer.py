@@ -86,10 +86,9 @@ class Indexer(Producer):
 
     def _nullify_indexers(self):
         for indexer in self.indexers:
-            indexer.null = True
+            indexer.value = None
     def _zero_indexers(self):
         for indexer in self.indexers:
-            indexer.null = False
             indexer.value = 0
     @property
     def _indexers_isnull(self):
@@ -164,7 +163,6 @@ class Indexer(Producer):
             raise IndexerLoadRedundant
         for val, i in zip(vals, self.indexers):
             i.value = val
-            i.null = False
         return super()._load_process(outs)
     def _load(self, arg):
         try:

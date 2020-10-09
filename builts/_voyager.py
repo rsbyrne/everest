@@ -16,6 +16,8 @@ class VoyagerMissingAttribute(MissingAttribute, VoyagerException):
     pass
 class VoyagerMissingKwarg(MissingKwarg, VoyagerException):
     pass
+class VoyagerNotInitialised(VoyagerException):
+    pass
 
 def _voyager_initialise_if_necessary(func):
     @wraps(func)
@@ -33,11 +35,10 @@ def _voyager_uninitialise_if_necessary(func):
     return wrapper
 def _voyager_changed_state(func):
     @wraps(func)
-    @_producer_update_outs
     def wrapper(self, *args, **kwargs):
-        pc = [*self.indices] if not self._indexers_isnull else True
+        pc = [i.value for i in self.indices]
         out = func(self, *args, **kwargs)
-        nc = [*self.indices] if not self._indexers_isnull else True
+        nc = [i.value for i in self.indices]
         if nc != pc:
             self._voyager_changed_state_hook()
         return out
@@ -76,27 +77,37 @@ class Voyager(Cycler, Counter, Stampable, Observable):
         return self._initialised
     def reset(self):
         self.initialise()
+    @_producer_update_outs
     def _voyager_changed_state_hook(self):
         pass
         # self.advertise
 
-    @_voyager_initialise_if_necessary
     def iterate(self, n = 1):
+        if self._indexers_isnull:
+            raise VoyagerNotInitialised
         for i in range(n):
             self._iterate()
     @_voyager_changed_state
     def _iterate(self):
         self.indices.count.value += 1
-    def go(self, stop = False, step = 1, do = None):
-        if type(step) is int:
-            step = Comparator(Prop(self, 'indices', 'count'), step, op = 'mod')
-        if do is None:
-            do = lambda: None
-        while not stop:
-            self.iterate()
-            while step:
-                self.iterate()
-            do()
+    # @_voyager_initialise_if_necessary
+    # def go(self, stop = False, step = 1, do = None):
+    #     print(self.indices)
+    #     print([*self.indices][0].null)
+    #     if type(step) is int:
+    #         if step == 1:
+    #             step = False
+    #         else:
+    #             step = Comparator(
+    #                 Prop(self, 'indices', 'count'), step, op = 'mod'
+    #                 )
+    #     if do is None:
+    #         do = lambda: None
+    #     while not stop:
+    #         self.iterate()
+    #         while step:
+    #             self.iterate()
+    #         do()
 
     def _cycle(self):
         super()._cycle()
@@ -109,7 +120,7 @@ class Voyager(Cycler, Counter, Stampable, Observable):
         elif self._indexers_iszero:
             self._initialise()
         else:
-            assert self.initialised
+            self._initialised = True
             self._voyager_changed_state_hook()
 
         # Observable attributes:
