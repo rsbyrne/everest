@@ -4,6 +4,8 @@ import os
 from .disk import get_framePath, purge_address
 from .exceptions import EverestException
 
+from .globevars import _GLOBALSTAG_
+
 class AnchorError(EverestException):
     '''
     Something went wrong relating to Frames and Anchors.
@@ -86,8 +88,8 @@ class Anchor:
         self.reader = Reader(self.name, self.path)
         self.rootwriter = Writer(self.name, self.path)
         self.rootreader = Reader(self.name, self.path)
-        self.globalwriter = Writer(self.name, self.path, '_globals_')
-        self.globalreader = Reader(self.name, self.path, '_globals_')
+        self.globalwriter = Writer(self.name, self.path, _GLOBALSTAG_)
+        self.globalreader = Reader(self.name, self.path, _GLOBALSTAG_)
         self.h5filename = get_framePath(self.name, self.path)
         return self
 

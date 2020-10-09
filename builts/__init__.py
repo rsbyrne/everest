@@ -3,6 +3,7 @@
 import weakref
 import os
 from collections import OrderedDict
+from collections.abc import Mapping
 import inspect
 
 from ..utilities import Grouper, make_hash, w_hash
@@ -421,11 +422,11 @@ class BuiltProxy(Proxy, Pyklet):
                     inputsHash = self._process_tag(inp2, _BUILTTAG_)
                 except NotAProxyTag:
                     inputsHash = inp2
-            elif type(inp2) is dict:
+            elif isinstance(inp2, Mapping):
                 self.inputs, self.ghosts = clsproxy.realised._get_inputs(inp2)
                 inputsHash = clsproxy.realised._inputs_hash(self.inputs)
             else:
-                raise TypeError
+                raise TypeError(inp2, type(inp2))
         self.clsproxy = clsproxy
         self.inputsHash = inputsHash
         self.typeHash = clsproxy.typeHash

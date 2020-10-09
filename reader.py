@@ -17,7 +17,7 @@ from .scope import Scope
 from .globevars import \
     _BUILTTAG_, _CLASSTAG_, _ADDRESSTAG_, \
     _BYTESTAG_, _STRINGTAG_, _EVALTAG_, \
-    _GROUPTAG_
+    _GROUPTAG_, _GLOBALSTAG_
 from .exceptions import EverestException, InDevelopmentError
 from .array import EverestArray
 from .utilities import Grouper
@@ -147,6 +147,12 @@ class Reader(H5Manager):
             elif inp.startswith(_BUILTTAG_):
                 from .builts import BuiltProxy
                 return BuiltProxy
+            elif inp.startswith(Pyklet._TAG_):
+                hashID = self._process_tag(inp, Pyklet._TAG_)
+                target = '/'.join(['', _GLOBALSTAG_, Pyklet._TAG_, hashID])
+                dumped = self.__getitem__(target)
+                loaded = pickle.loads(dumped)
+                return loaded
             elif inp.startswith(_ADDRESSTAG_):
                 address = self._process_tag(inp, _ADDRESSTAG_)
                 return self._getstr(address)
@@ -255,3 +261,6 @@ class Reader(H5Manager):
             return [self._getitem(sub) for sub in inp]
         else:
             return self._getitem(inp)
+
+# At bottom to avoid circular reference:
+from .pyklet import Pyklet

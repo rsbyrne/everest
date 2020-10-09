@@ -66,6 +66,9 @@ class Writer(H5Manager):
         elif type(inp) is self.builtsmodule.Meta:
             inp.touch_class(self.name, self.path)
             return _CLASSTAG_ + inp.typeHash
+        elif isinstance(inp, Pyklet):
+            inp.touch(self.name, self.path)
+            return inp._TAG_ + inp.hashID
         elif type(inp) in {list, tuple, frozenset}:
             out = list()
             for sub in inp: out.append(self._process_inp(sub))

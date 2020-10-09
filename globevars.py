@@ -8,4 +8,5 @@ _STRINGTAG_ = '_string_'
 _EVALTAG_ = '_eval_'
 _GHOSTTAG_ = '_ghost_'
 _GROUPTAG_ = '_grouptag_'
+_GLOBALSTAG_ = '_globals_'
 _DIRECTORY_ = os.path.abspath(os.path.dirname(__file__))

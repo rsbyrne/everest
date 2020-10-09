@@ -288,4 +288,4 @@ class Producer(Promptable):
         return self._load(arg)
     @_producer_load_wrapper
     def load_raw(self, outs):
-        return outs
+        return {**outs}

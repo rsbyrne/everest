@@ -1,4 +1,5 @@
 import numpy as np
+from collections import OrderedDict
 
 from ..utilities import w_hash
 from ._producer import NullValueDetected
@@ -13,7 +14,7 @@ class WandererException(exceptions.EverestException):
     pass
 
 class State(Stamper):
-    def __init__(self, wanderer, slicer):
+    def __init__(self, wanderer, slicer, _data = OrderedDict()):
         self.wanderer = wanderer
         if type(slicer) is tuple:
             slicer = slice(*slicer)
@@ -22,11 +23,9 @@ class State(Stamper):
         stop = False if stop is None else self._process_endpoint(stop)
         step = 1 if step is None else step
         self.start, self.stop, self.step = start, stop, step
-        hashID = w_hash((self.wanderer, self.start, self.stop, self.step))
-        super().__init__(
-            self.wanderer,
-            (self.start, self.stop, self.step),
-            )
+        self._data = _data
+        self._hashObjects = [self.wanderer, (self.start, self.stop, self.step)]
+        super().__init__(*[*self._hashObjects, self._data])
     def _process_endpoint(self, arg):
         if isinstance(arg, Comparator):
             return arg
@@ -38,6 +37,7 @@ class State(Stamper):
             raise TypeError
     # def __getitem__(self, key):
     #     self.configs[key]
+
     def __enter__(self):
         self._oldConfigs = self.wanderer.configs.copy()
         try:
@@ -45,14 +45,25 @@ class State(Stamper):
         except NullValueDetected:
             self._reloadVals = None
         self.wanderer.set_configs(**self.start)
-        while not self.stop:
-            self.wanderer.iterate(self.step)
+        if not len(self._data):
+            while not self.stop:
+                self.wanderer.iterate(self.step)
+            self._data.update(self.wanderer.outs.data)
+        else:
+            self.wanderer.load_raw(self._data)
         return self
     def __exit__(self, *args):
         self.wanderer.set_configs(**self._oldConfigs)
         if not self._reloadVals is None:
             self.wanderer.load_raw(self._reloadVals)
         del self._oldConfigs, self._reloadVals
+    @property
+    def data(self):
+        if not len(self._data) is None:
+            with self:
+                pass
+        return self._data
+
     # @property
     # def out(self):
     #     with self as out:
