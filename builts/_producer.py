@@ -266,26 +266,33 @@ class Producer(Promptable):
     def _load_process(self, outs):
         return outs
     @_producer_load_wrapper
-    def load_index_stored(self, index):
+    def _load_raw(self, outs):
+        return {**outs}
+    @_producer_load_wrapper
+    def _load_index_stored(self, index):
         return dict(zip(self.outs.keys(), self.outs.retrieve(index)))
     @_producer_load_wrapper
-    def load_index_disk(self, index):
+    def _load_index_disk(self, index):
         ks = self.outs.keys()
         return dict(zip(ks, (self.readouts[k][index] for k in ks)))
-    def load_index(self, index):
+    def _load_index(self, index):
         try:
-            return self.load_index_stored(index)
+            return self._load_index_stored(index)
         except IndexError:
-            return self.load_index_disk(index)
+            return self._load_index_disk(index)
     def _load(self, arg):
         try:
-            return self.load_index(arg)
-        except IndexError:
-            raise ProducerLoadFail
+            return self._load_raw(arg)
         except TypeError:
-            raise LoadFail
-    def load(self, arg):
-        return self._load(arg)
-    @_producer_load_wrapper
-    def load_raw(self, outs):
-        return {**outs}
+            try:
+                return self._load_index(arg)
+            except IndexError:
+                raise ProducerLoadFail
+            except TypeError:
+                raise LoadFail
+    def load(self, arg, silent = False):
+        fn = lambda: self._load(arg)
+        if silent:
+            try: return fn()
+            except LoadFail: pass
+        return fn()

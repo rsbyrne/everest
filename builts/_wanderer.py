@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 from ..utilities import w_hash
 from ._producer import NullValueDetected
-from ._voyager import Voyager
+from ._voyager import Voyager, _voyager_uninitialise_if_necessary
 from ._stampable import Stampable, Stamper
 from ._configurable import \
     Configurable, _configurable_configure_if_necessary, Configs
@@ -39,10 +39,10 @@ class State(Stamper):
     #     self.configs[key]
 
     def __enter__(self):
-        self._oldConfigs = self.wanderer.configs.copy()
-        try:
-            self._reloadVals = self.wanderer.outs.data
-        except NullValueDetected:
+        self._oldConfigs = {**self.wanderer.configs}
+        if self.wanderer.initialised:
+            self._reloadVals = {**self.wanderer.outs.data}
+        else:
             self._reloadVals = None
         self.wanderer.set_configs(**self.start)
         if not len(self._data):
@@ -50,12 +50,14 @@ class State(Stamper):
                 self.wanderer.iterate(self.step)
             self._data.update(self.wanderer.outs.data)
         else:
-            self.wanderer.load_raw(self._data)
+            self.wanderer.load(self._data)
         return self
     def __exit__(self, *args):
         self.wanderer.set_configs(**self._oldConfigs)
-        if not self._reloadVals is None:
-            self.wanderer.load_raw(self._reloadVals)
+        if self._reloadVals is None:
+            self.wanderer.uninitialise()
+        else:
+            self.wanderer.load(self._reloadVals)
         del self._oldConfigs, self._reloadVals
     @property
     def data(self):
@@ -75,9 +77,9 @@ class Wanderer(Voyager, Configurable):
 
         super().__init__(**kwargs)
 
+    @_voyager_uninitialise_if_necessary
     def _configure(self):
         super()._configure()
-        self._nullify_indexers()
 
     @_configurable_configure_if_necessary
     def _initialise(self, *args, **kwargs):

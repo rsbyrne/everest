@@ -16,6 +16,10 @@ class IndexerNullVal(IndexerException):
     pass
 class IndexerLoadFail(LoadFail, IndexerException):
     pass
+class IndexerLoadNull(IndexerLoadFail, IndexerNullVal):
+    pass
+class IndexerLoadRedundant(IndexerLoadFail):
+    pass
 
 def _indexer_load_wrapper(func):
     @wraps(func)
@@ -87,6 +91,12 @@ class Indexer(Producer):
         for indexer in self.indexers:
             indexer.null = False
             indexer.value = 0
+    @property
+    def _indexers_isnull(self):
+        return any([i.null for i in self.indexers])
+    @property
+    def _indexers_iszero(self):
+        return any([i == 0 for i in self.indexers])
 
     def _out(self):
         outs = super()._out()
@@ -147,14 +157,20 @@ class Indexer(Producer):
         super()._save()
 
     def _load_process(self, outs):
-        for k, i in zip(self.indexerKeys, self.indexers):
-            i.value = outs.pop(k)
+        vals = [outs.pop(k) for k in self.indexerKeys]
+        if any([v is OutsNull for v in vals]):
+            raise IndexerLoadNull
+        if [*vals] == [*self.indexers]:
+            raise IndexerLoadRedundant
+        for val, i in zip(vals, self.indexers):
+            i.value = val
+            i.null = False
         return super()._load_process(outs)
     def _load(self, arg):
         try:
             i, ik, it = self._get_indexInfo(arg)
         except TypeError:
-            super()._load(arg)
+            return super()._load(arg)
         arg = self._process_index(arg)
         try:
             ind = self.outs.index(**{ik: arg})
@@ -163,5 +179,5 @@ class Indexer(Producer):
                 ind = self.indicesDisk[ik].index(arg)
             except (ValueError, NoActiveAnchorError, PathNotInFrameError):
                 raise IndexerLoadFail
-            return self.load_index_disk(ind)
-        return self.load_index_stored(ind)
+            return self._load_index_disk(ind)
+        return self._load_index_stored(ind)
