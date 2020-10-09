@@ -75,7 +75,7 @@ class Indexer(Producer):
     def _indexer_process_endpoint(self, arg):
         i, ik, it = self._get_indexInfo(arg)
         return Comparator(
-            Prop(self, ik),
+            Prop(self, 'indices', ik),
             self._process_index(arg),
             op = 'ge'
             )

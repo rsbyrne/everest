@@ -21,44 +21,37 @@ class NotConfigured(ConfigurableException):
     pass
 
 class Configs(Pyklet, Mapping, Sequence):
-    def __init__(self, *args, new = None, **kwargs):
-        if not len(args):
-            self._contents = OrderedDict()
-            self.defaults = OrderedDict()
-        else:
-            args = list(args)
-            self.defaults = OrderedDict(args.pop(0))
-            args = tuple(args)
-            if new is None:
-                self._contents = self._process_new(new)
-            else:
-                self._contents = self._align_inputs(*args, **kwargs)
+    def __init__(self, defaults, *args, new = None, **kwargs):
+        if type(defaults) is type(self):
+            defaults = defaults._contents.copy()
+        elif not type(defaults) is OrderedDict:
+            raise TypeError
+        self.defaults = defaults
+        self._contents = self._align_inputs(*args, **kwargs)
+        self._contents.update(self._process_new(new))
         super().__init__(self.defaults, **{'new': self._contents})
     def _process_new(self, new):
-        defaults = self.defaults
         if new is None:
-            return OrderedDict({**defaults})
+            return dict()
         elif isinstance(new, Mapping):
-            return self._align_inputs(defaults, **new)
+            return {**new}
         elif isinstance(new, Sequence):
-            return self._align_inputs(defaults, *new)
+            return dict(zip(self.defaults.keys(), new))
         else:
-            raise ValueError
+            raise TypeError
     def _align_inputs(self, *args, **kwargs):
-        defaults = self.defaults
-        ks = defaults.keys()
+        ks = self.defaults.keys()
         new = {
-            **defaults,
+            **self.defaults,
             **{k: v for k, v in zip(ks, args) if not v is None},
             **kwargs,
             }
-        if not new.keys() == ks:
+        if not set(new.keys()) == set(ks):
             raise ValueError(
                 "Keys did not match up:",
                 (new.keys(), ks),
                 )
-        new = OrderedDict([(k, new[k]) for k in ks])
-        return new
+        return OrderedDict([(k, new[k]) for k in ks])
     def __getitem__(self, arg):
         if type(arg) is str:
             return self._contents[arg]
@@ -93,7 +86,7 @@ class Configs(Pyklet, Mapping, Sequence):
         self._contents.clear()
         self._contents.update(self._align_inputs(*args, **kwargs))
     def copy(self):
-        return self.__class__(self.defaults, self._contents.copy())
+        return self.__class__(self.defaults, new = self._contents.copy())
     def __len__(self):
         return len(self._contents)
 

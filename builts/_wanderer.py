@@ -1,6 +1,7 @@
 import numpy as np
 
 from ..utilities import w_hash
+from ._producer import NullValueDetected
 from ._voyager import Voyager
 from ._stampable import Stampable, Stamper
 from ._configurable import \
@@ -39,23 +40,23 @@ class State(Stamper):
     #     self.configs[key]
     def __enter__(self):
         self._oldConfigs = self.wanderer.configs.copy()
-        if self.wanderer.initialised:
+        try:
             self._reloadVals = self.wanderer.outs.data
-        else:
+        except NullValueDetected:
             self._reloadVals = None
         self.wanderer.set_configs(**self.start)
         while not self.stop:
             self.wanderer.iterate(self.step)
-        return self.wanderer.outs.data
+        return self
     def __exit__(self, *args):
         self.wanderer.set_configs(**self._oldConfigs)
         if not self._reloadVals is None:
             self.wanderer.load_raw(self._reloadVals)
         del self._oldConfigs, self._reloadVals
-    @property
-    def out(self):
-        with self as out:
-            return out
+    # @property
+    # def out(self):
+    #     with self as out:
+    #         return out
 
 class Wanderer(Voyager, Configurable):
 
@@ -66,7 +67,6 @@ class Wanderer(Voyager, Configurable):
     def _configure(self):
         super()._configure()
         self._nullify_indexers()
-        self.initialised = False
 
     @_configurable_configure_if_necessary
     def _initialise(self, *args, **kwargs):

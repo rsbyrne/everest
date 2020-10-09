@@ -20,7 +20,7 @@ class VoyagerMissingKwarg(MissingKwarg, VoyagerException):
 def _voyager_initialise_if_necessary(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if self.indices.count.null:
+        if not self.initialised:
             self.initialise()
         return func(self, *args, **kwargs)
     return wrapper
@@ -42,7 +42,6 @@ class Voyager(Cycler, Counter, Stampable, Observable):
             ):
 
         self.baselines = dict()
-        self.initialised = False
 
         super().__init__(**kwargs)
 
@@ -51,6 +50,9 @@ class Voyager(Cycler, Counter, Stampable, Observable):
         self._initialise(*args, **kwargs)
     def _initialise(self, *args, **kwargs):
         self._zero_indexers()
+    @property
+    def initialised(self):
+        return not self.indices.count.null
     @_voyager_initialise_if_necessary
     def reset(self):
         pass

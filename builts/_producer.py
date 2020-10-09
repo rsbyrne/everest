@@ -58,11 +58,17 @@ class OutsNull:
 class Outs:
     def __init__(self, keys, name = 'default'):
         self._keys, self.name = keys, name
-        self.data = OrderedDict([(k, OutsNull) for k in self._keys])
+        self._data = OrderedDict([(k, OutsNull) for k in self._keys])
         self.stored = OrderedDict([(k, []) for k in self._keys])
         self.hashVals = []
         self.n = 0
         self.token = 0
+    @property
+    def data(self):
+        if any([v is OutsNull for v in self._data.values()]):
+            raise NullValueDetected
+        else:
+            return self._data
     def update(self, outs, silent = False):
         if any([v is OutsNull for v in outs.values()]):
             if not silent:
@@ -71,27 +77,27 @@ class Outs:
             self[k] = v
     def __setitem__(self, k, v):
         if k in self._keys:
-            self.data[k] = v
+            self._data[k] = v
             setattr(self, k, v)
         else:
             raise OutsKeysImmutable
     def __getitem__(self, k):
-        return self.data[k]
+        return self._data[k]
     def __delitem__(self, k):
         raise OutsKeysImmutable
     def store(self, silent = False):
-        hashVal = make_hash(self.data.values())
+        hashVal = make_hash(self._data.values())
         if hashVal in self.hashVals:
             if not silent:
                 raise OutsAlreadyStored
         else:
-            if any([v is OutsNull for v in self.data.values()]):
+            if any([v is OutsNull for v in self._data.values()]):
                 if silent:
                     pass
                 else:
                     raise NullValueDetected
             else:
-                for k, v in self.data.items():
+                for k, v in self._data.items():
                     self.stored[k].append(v)
                 self.hashVals.append(hashVal)
                 self.n += 1
@@ -128,7 +134,7 @@ class Outs:
             raise ValueError
         return indices[0]
     def keys(self):
-        return self.data.keys()
+        return self._data.keys()
     @property
     def stacked(self):
         if self.n:
@@ -221,6 +227,8 @@ class Producer(Promptable):
         return outs
     def _out(self):
         return OrderedDict()
+    def out(self):
+        return self._out()
 
     def store(self, silent = False):
         self.outs.store(silent = silent)
