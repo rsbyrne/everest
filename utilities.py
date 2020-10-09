@@ -4,6 +4,7 @@ from collections import OrderedDict
 import inspect
 import numpy as np
 import hashlib
+import warnings
 
 from . import mpi
 message = mpi.message
@@ -69,15 +70,25 @@ def prettify_nbytes(size_bytes):
     return "%s %s" % (s, size_name[i])
 
 def make_hash(obj):
-    if hasattr(obj, 'hashID'):
+    if type(obj) is str:
+        hashVal = obj
+    elif hasattr(obj, 'hashID'):
         hashVal = obj.hashID
     elif hasattr(obj, 'typeHash'):
         hashVal = obj.typeHash
     elif hasattr(obj, '_hashObjects'):
         hashVal = make_hash(obj._hashObjects)
     elif isinstance(obj, Mapping):
-        hashVal = make_hash(sorted({**obj}.items()))
-    elif isinstance(obj, Sequence) and not type(obj) is str:
+        obj = {**obj}
+        try:
+            obj = OrderedDict(sorted(obj.items()))
+        except TypeError:
+            warnings.warn(
+                "You have passed unorderable kwargs to be hashed; \
+                reproducibility is not guaranteed."
+                )
+        hashVal = make_hash(obj.items())
+    elif isinstance(obj, Sequence):
         hashList = [make_hash(subObj) for subObj in obj]
         hashVal = make_hash(str(hashList))
     elif isinstance(obj, np.generic):

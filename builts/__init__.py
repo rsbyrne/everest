@@ -11,6 +11,7 @@ from .. import disk
 from ..weaklist import WeakList
 from ..anchor import Anchor, _namepath_process
 from ..globevars import _BUILTTAG_, _CLASSTAG_, _GHOSTTAG_
+from ..pyklet import Pyklet
 
 
 from ..exceptions import EverestException
@@ -183,13 +184,13 @@ class Built(metaclass = Meta):
     def _process_inputs(cls, inputs):
         for key, val in sorted(inputs.items()):
             if isinstance(val, Proxy):
-                inputs[key] = val()
+                inputs[key] = val.realise()
         return inputs
     @classmethod
     def _process_ghosts(cls, ghosts):
         for key, val in sorted(ghosts.items()):
             if isinstance(val, Proxy):
-                ghosts[key] = val()
+                ghosts[key] = val.realise()
         return ghosts
     @classmethod
     def _get_inputs(cls, inputs = dict()):
@@ -310,42 +311,33 @@ class Built(metaclass = Meta):
         man.writer.add_dict({cls.typeHash: {_CLASSTAG_: cls.script}})
 
     def __hash__(self):
-        return int(self.instanceHash)
+        return make_hash(self.hashID)
 
     def __eq__(self, arg):
-        if not isinstance(arg, Built):
-            raise TypeError
-        return self.hashID == arg.hashID
-
+        return self.hashID == arg
     def __lt__(self, arg):
-        if not isinstance(arg, Built):
-            raise TypeError
-        return self.hashID < arg.hashID
+        return self.hashID < arg
 
+    @property
+    def proxy(self):
+        return BuiltProxy(self.__class__, {**self.inputs})
     def __reduce__(self):
-        args = [self.hashID, self.typeHash]
-        kwargs = self.inputs
-        return (self._unpickle, (args, kwargs))
+        kwargs = dict()
+        return (self._unpickle, (self.proxy, kwargs))
     @classmethod
-    def _unpickle(cls, args, kwargs):
-        hashID, typeHash = args
-        inputs = kwargs
-        try:
-            return type(cls)._prebuilts[hashID]
-        except KeyError:
-            try:
-                outCls = type(cls)._preclasses[typeHash]
-            except KeyError:
-                outCls = self.reader.load_class(typeHash)
-            return outCls(**inputs)
+    def _unpickle(cls, proxy, kwargs):
+        return proxy.realise(**kwargs)
 
 class ProxyException(EverestException):
     pass
 class NotAProxyTag(ProxyException):
     pass
 class Proxy:
-    def __init__(self, meta = Meta):
-        self.meta = Meta
+    def __init__(self, meta = None):
+        if meta is None:
+            meta = Meta
+        self.meta = meta
+        self._realised = None
     @staticmethod
     def _process_tag(inp, tag):
         if type(inp) is str:
@@ -354,28 +346,39 @@ class Proxy:
                 assert len(processed) > 0
                 return processed
         raise NotAProxyTag
-    def __call__(self, arg):
-        try:
-            _ = self._process_tag(arg, _CLASSTAG_)
-            return ClassProxy(arg)
-        except NotAProxyTag:
-            _ = self._process_tag(arg, _BUILTTAG_)
-            return BuiltProxy(arg)
+    def realise(self):
+        if self._realised is None:
+            self._realised = self._realise()
+        return self._realised
+    @property
+    def realised(self):
+        return self.realise()
+    def __getattr__(self, key):
+        return getattr(self.realised, key)
     @property
     def reader(self):
         return self.meta._anchorManager.get_active().reader
 class ClassProxyException(ProxyException):
     pass
-class ClassProxy(Proxy):
+class ClassProxy(Proxy, Pyklet):
     def __init__(self, inp, **kwargs):
-        super().__init__(**kwargs)
-        try:
-            inp = self._process_tag(inp, _CLASSTAG_)
-            self.typeHash = inp
-        except NotAProxyTag:
-            self.script = inp
-            self.typeHash = self.meta._type_hash(self.script)
-    def __call__(self):
+        Proxy.__init__(self, **kwargs)
+        if type(inp) is self.meta:
+            self.typeHash = inp.typeHash
+            self.script = inp.script
+            Pyklet.__init__(self, self.script)
+        elif type(inp) is str:
+            try:
+                inp = self._process_tag(inp, _CLASSTAG_)
+                self.typeHash = inp
+                Pyklet.__init__(self, self.typeHash)
+            except NotAProxyTag:
+                self.script = inp
+                self.typeHash = self.meta._type_hash(self.script)
+                Pyklet.__init__(self, self.script)
+        else:
+            raise TypeError
+    def _realise(self):
         try:
             return self.meta._preclasses[self.typeHash]
         except KeyError:
@@ -385,13 +388,15 @@ class ClassProxy(Proxy):
     @property
     def reader(self):
         return super().reader.sub(self.typeHash)
+    def _hashID(self):
+        return self.typeHash
 class BuiltProxyException(ProxyException):
     pass
 class NotEnoughInformation(BuiltProxyException):
     pass
-class BuiltProxy(Proxy):
+class BuiltProxy(Proxy, Pyklet):
     def __init__(self, inp1, inp2 = None, **kwargs):
-        super().__init__(**kwargs)
+        Proxy.__init__(self, **kwargs)
         if inp2 is None:
             if not type(inp1) is str:
                 raise TypeError
@@ -399,10 +404,7 @@ class BuiltProxy(Proxy):
             typeHash, inputsHash = inp1.split(':')
             clsproxy = ClassProxy(_CLASSTAG_ + typeHash)
         else:
-            if type(inp1) is self.meta:
-                clsproxy = lambda: inp1
-                clsproxy.typeHash = inp1.typeHash
-            elif type(inp1) is ClassProxy:
+            if type(inp1) is ClassProxy:
                 clsproxy = inp1
             else:
                 clsproxy = ClassProxy(inp1)
@@ -412,24 +414,31 @@ class BuiltProxy(Proxy):
                 except NotAProxyTag:
                     inputsHash = inp2
             elif type(inp2) is dict:
-                self.cls = clsproxy()
-                self.inputs = self.cls.get_inputs(inp2)
-                inputsHash = self.cls._inputs_hash(self.inputs)
+                self.inputs, self.ghosts = clsproxy.realised._get_inputs(inp2)
+                inputsHash = clsproxy.realised._inputs_hash(self.inputs)
             else:
                 raise TypeError
         self.clsproxy = clsproxy
         self.inputsHash = inputsHash
         self.typeHash = clsproxy.typeHash
-        self.hashID = ':'.join([self.typeHash, self.inputsHash])
-    def __call__(self):
+        if hasattr(self, 'inputs'):
+            Pyklet.__init__(self, self.clsproxy, self.inputs)
+        else:
+            Pyklet.__init__(self, self.clsproxy, self.inputsHash)
+    def _realise(self):
         try:
             preclasses = self.meta._preclasses[self.typeHash]
             return preclasses._prebuilts[self.inputsHash]
         except KeyError:
-            self.cls = self.clsproxy()
             if not hasattr(self, 'inputs'):
                 self.inputs = self.reader['inputs']
-            return self.cls(**self.inputs)
+            if hasattr(self, 'ghosts'):
+                inputs = {**self.inputs, **self.ghosts}
+            else:
+                inputs = self.inputs
+            return self.clsproxy.realised(**inputs)
     @property
     def reader(self):
         return super().reader.sub(self.typeHash, self.inputsHash)
+    def _hashID(self):
+        return ':'.join([self.typeHash, self.inputsHash])

@@ -14,6 +14,8 @@ class WandererException(exceptions.EverestException):
 class State(Stamper):
     def __init__(self, wanderer, slicer):
         self.wanderer = wanderer
+        if type(slicer) is tuple:
+            slicer = slice(*slicer)
         start, stop, step = slicer.start, slicer.stop, slicer.step
         start = Configs(wanderer.configs, new = start)
         stop = False if stop is None else self._process_endpoint(stop)
@@ -22,8 +24,7 @@ class State(Stamper):
         hashID = w_hash((self.wanderer, self.start, self.stop, self.step))
         super().__init__(
             self.wanderer,
-            slice(self.start, self.stop, self.step),
-            hashID = hashID
+            (self.start, self.stop, self.step),
             )
     def _process_endpoint(self, arg):
         if isinstance(arg, Comparator):

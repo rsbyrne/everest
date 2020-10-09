@@ -1,21 +1,29 @@
 import inspect
 import pickle
+from collections import OrderedDict
+from collections.abc import Mapping, Sequence
 
 class Pyklet:
     _TAG_ = '_pyklet_'
     def __init__(self, *args, **kwargs):
         # self._source = inspect.getsource(self.__class__)
-        self.args, self.kwargs = args, kwargs
-        self._hashObjects = (args, kwargs)
+        self._pickleArgs, self._pickleKwargs = args, kwargs
+        self._pickleObjs = tuple([
+            *self._pickleArgs,
+            *[i for sl in self._pickleKwargs.items() for i in sl],
+            ])
     def __reduce__(self):
         # self._pickleClass = pickle.dumps(self.__class__)
-        return (self._unpickle, (args, kwargs))
+        return (self._unpickle, (self._pickleArgs, self._pickleKwargs))
     @classmethod
     def _unpickle(cls, args, kwargs):
         return cls(*args, **kwargs)
     @property
     def hashID(self):
-        return w_hash(self._hashObjects)
+        if hasattr(self, '_hashID'):
+            return self._hashID()
+        else:
+            return w_hash(self._pickleObjs)
 
 from .utilities import w_hash
 

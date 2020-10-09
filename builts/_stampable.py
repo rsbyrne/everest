@@ -4,13 +4,8 @@ from ..anchor import NoActiveAnchorError
 from ..reader import PathNotInFrameError
 
 class Stamper(Pyklet):
-    def __init__(self, *args, hashID = None, **kwargs):
-        if hashID is None:
-            raise Exception(
-                "Classes inheriting from Stamper must provide hashID."
-                )
+    def __init__(self, *args,**kwargs):
         super().__init__(*args, **kwargs)
-        self.hashID = hashID
     def stamp(self, stampee):
         stampee._receive_stamp(self)
 
