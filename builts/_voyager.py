@@ -67,7 +67,7 @@ class Voyager(Cycler, Counter, Stampable, Observable):
         self.indices.count.value += 1
     def go(self, stop = False, step = 1, do = None):
         if type(step) is int:
-            step = Comparator(Prop(self, 'count'), step, op = 'mod')
+            step = Comparator(Prop(self, 'indices', 'count'), step, op = 'mod')
         if do is None:
             do = lambda: None
         while not stop:
