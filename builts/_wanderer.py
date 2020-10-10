@@ -3,10 +3,10 @@ from collections import OrderedDict
 
 from ..utilities import w_hash
 from ._producer import NullValueDetected, OutsNull
-from ._voyager import Voyager, _voyager_uninitialise_if_necessary
+from ._voyager import Voyager
 from ._stampable import Stampable, Stamper
-from ._configurable import \
-    Configurable, _configurable_configure_if_necessary, Configs
+from ._configurable import Configurable, Configs
+from ._indexer import IndexerLoadRedundant
 from .. import exceptions
 from ..comparator import Comparator, Prop
 
@@ -30,21 +30,21 @@ class State(Stamper):
         super().__init__(*[*self._hashObjects, self._data])
     def _process_endpoint(self, arg):
         if isinstance(arg, Comparator):
+            self._indexerComparator = True
             return arg
         else:
             try:
+                self._indexerComparator = False
                 return self.wanderer._indexer_process_endpoint(arg)
             except IndexError:
-                pass
-            raise TypeError
+                raise TypeError
     def __enter__(self):
         self._oldConfigs = self.wanderer.configs.copy()
-        if self.wanderer.initialised:
+        try:
             self._reloadVals = self.wanderer.outs.data.copy()
-        else:
+        except NullValueDetected:
             self._reloadVals = None
         self.wanderer.set_configs(**self.start)
-        self.wanderer.configure()
         if any([v is OutsNull for v in self._data.values()]):
             self.wanderer.initialise()
             while not self.stop:
@@ -55,11 +55,13 @@ class State(Stamper):
         return self
     def __exit__(self, *args):
         self.wanderer.set_configs(**self._oldConfigs)
-        self.wanderer.configure()
-        if not self._reloadVals is None:
-            self.wanderer.initialise()
-            if self.wanderer.indices.count > 0:
+        if self._reloadVals is None:
+            self.wanderer.configure()
+        else:
+            try:
                 self.wanderer.load(self._reloadVals)
+            except IndexerLoadRedundant:
+                pass
         del self._oldConfigs, self._reloadVals
     @property
     def data(self):
@@ -79,12 +81,12 @@ class Wanderer(Voyager, Configurable):
 
         super().__init__(**kwargs)
 
-    @_voyager_uninitialise_if_necessary
     def _configure(self):
         super()._configure()
+        self._nullify_indexers()
 
-    @_configurable_configure_if_necessary
     def _initialise(self, *args, **kwargs):
+        self.configure()
         super()._initialise(*args, **kwargs)
 
     def __getitem__(self, arg):

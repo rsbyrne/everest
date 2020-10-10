@@ -16,6 +16,8 @@ class VoyagerMissingAttribute(MissingAttribute, VoyagerException):
     pass
 class VoyagerMissingKwarg(MissingKwarg, VoyagerException):
     pass
+class VoyagerAlreadyInitialised(VoyagerException):
+    pass
 class VoyagerNotInitialised(VoyagerException):
     pass
 
@@ -24,13 +26,6 @@ def _voyager_initialise_if_necessary(func):
     def wrapper(self, *args, **kwargs):
         if not self.initialised:
             self.initialise()
-        return func(self, *args, **kwargs)
-    return wrapper
-def _voyager_uninitialise_if_necessary(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if self.initialised:
-            self.uninitialise()
         return func(self, *args, **kwargs)
     return wrapper
 def _voyager_changed_state(func):
@@ -51,36 +46,25 @@ class Voyager(Cycler, Counter, Stampable, Observable):
             ):
 
         self.baselines = dict()
-        self._initialised = False
 
         super().__init__(**kwargs)
 
     def initialise(self):
-        if self._indexers_isnull or not self._indexers_iszero:
-            self._initialise()
-            self._zero_indexers()
+        if self.initialised:
+            raise VoyagerAlreadyInitialised
+        self._initialise()
         assert self.initialised
     def _initialise(self):
+        self._zero_indexers()
         self._voyager_changed_state_hook()
-        self._initialised = True
-    def uninitialise(self):
-        if not self._indexers_isnull:
-            self._uninitialise()
-            self._nullify_indexers()
-        assert not self.initialised
-    def _uninitialise(self):
-        # self._voyager_changed_state_hook()
-        self._initialised = False
     @property
     def initialised(self):
-        assert self._initialised != self._indexers_isnull
-        return self._initialised
+        return self._indexers_iszero
     def reset(self):
         self.initialise()
     @_producer_update_outs
     def _voyager_changed_state_hook(self):
         pass
-        # self.advertise
 
     def iterate(self, n = 1):
         if self._indexers_isnull:
@@ -90,6 +74,15 @@ class Voyager(Cycler, Counter, Stampable, Observable):
     @_voyager_changed_state
     def _iterate(self):
         self.indices.count.value += 1
+
+    def _cycle(self):
+        super()._cycle()
+        self.iterate()
+
+    @_voyager_changed_state
+    def _load(self, *args, **kwargs):
+        super()._load(*args, **kwargs)
+
     # @_voyager_initialise_if_necessary
     # def go(self, stop = False, step = 1, do = None):
     #     print(self.indices)
@@ -109,19 +102,6 @@ class Voyager(Cycler, Counter, Stampable, Observable):
     #             self.iterate()
     #         do()
 
-    def _cycle(self):
-        super()._cycle()
-        self.iterate()
-
-    def _load(self, *args, **kwargs):
-        super()._load(*args, **kwargs)
-        if self._indexers_isnull:
-            self._uninitialise()
-        elif self._indexers_iszero:
-            self._initialise()
-        else:
-            self._initialised = True
-            self._voyager_changed_state_hook()
 
         # Observable attributes:
         # self._activate_observation_mode_fns.append(

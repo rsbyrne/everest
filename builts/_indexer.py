@@ -95,7 +95,10 @@ class Indexer(Producer):
         return any([i.null for i in self.indexers])
     @property
     def _indexers_iszero(self):
-        return any([i == 0 for i in self.indexers])
+        if self._indexers_isnull:
+            return False
+        else:
+            return any([i == 0 for i in self.indexers])
 
     def _out(self):
         outs = super()._out()

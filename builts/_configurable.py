@@ -2,9 +2,12 @@ from functools import wraps
 from collections.abc import Mapping, Sequence
 from collections import OrderedDict
 
+import numpy as np
+
 from ._producer import Producer
 from ._mutable import Mutable
 from ._applier import Applier
+from ._configurator import Configurator
 from ..pyklet import Pyklet
 from ..utilities import w_hash
 
@@ -17,8 +20,6 @@ class ConfigurableMissingMethod(MissingMethod, ConfigurableException):
 class ConfigurableMissingAttribute(MissingAttribute, ConfigurableException):
     pass
 class ConfigurableMissingKwarg(MissingKwarg, ConfigurableException):
-    pass
-class NotConfigured(ConfigurableException):
     pass
 
 class Configs(Pyklet, Mapping, Sequence):
@@ -55,12 +56,22 @@ class Configs(Pyklet, Mapping, Sequence):
                 (new.keys(), ks),
                 )
         return OrderedDict([(k, new[k]) for k in ks])
+    @staticmethod
+    def _check_val(val):
+        if not any([
+                isinstance(val, Configurator),
+                issubclass(type(val), (np.int, np.float)),
+                isinstance(type(val), np.ndarray),
+                val is Ellipsis,
+                ]):
+            raise TypeError(val, type(val))
     def __getitem__(self, arg):
         if type(arg) is str:
             return self._contents[arg]
         else:
             return list(self._contents.values())[arg]
     def __setitem__(self, arg1, arg2):
+        self._check_val(arg2)
         if type(arg1) is str:
             if not arg1 in self.keys():
                 raise KeyError
@@ -93,14 +104,6 @@ class Configs(Pyklet, Mapping, Sequence):
     def __len__(self):
         return len(self._contents)
 
-def _configurable_configure_if_necessary(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if not self.configured:
-            self.configure()
-        return func(self, *args, **kwargs)
-    return wrapper
-
 class Configurable(Producer, Mutable):
 
     _defaultConfigsKey = 'configs'
@@ -115,41 +118,34 @@ class Configurable(Producer, Mutable):
             _defaultConfigs = OrderedDict([(k, None) for k in _defaultConfigs])
         self.configs = Configs(_defaultConfigs)
         self.configsKey = self._defaultConfigsKey
-        self.configured = False
 
         super().__init__(_mutableKeys = self.configs.keys(), **kwargs)
 
     def set_configs(self, *args, **kwargs):
         self.configs.update_generic(*args, **kwargs)
         self.configs.update(self._process_configs(self.configs))
-        self.configured = False
+        self.configure()
     def _process_configs(self, configs):
         return configs
     def configure(self):
         self._configure()
-        self.configured = True
     def _configure(self):
         ms, cs = self.mutables, self.configs
         ks = [k for k in self.configs.keys() if k in self.mutables.keys()]
         for k in ks:
             m, c = ms[k], cs[k]
-            if type(c) is float:
-                if not c < float('inf'):
-                    c = None
-            if not c is None:
-                if isinstance(c, Applier):
+            if not c is Ellipsis:
+                if isinstance(c, Configurator):
                     c.apply(m)
                 elif hasattr(m, 'data'):
                     m.data[...] = c
                 else:
                     m[...] = c
 
-    @_configurable_configure_if_necessary
     def _outputSubKey(self):
         for o in super()._outputSubKey(): yield o
         yield self.configs.hashID
 
-    @_configurable_configure_if_necessary
     def _save(self):
         self.writeouts.add_dict({self.configsKey: {**self.configs}})
         super()._save()
