@@ -332,10 +332,10 @@ class Built(metaclass = Meta):
 
     def __reduce__(self):
         kwargs = dict()
-        return (self._unpickle, (self.proxy, kwargs))
-    @classmethod
-    def _unpickle(cls, proxy, kwargs):
-        return proxy.realise(**kwargs)
+        return (_custom_unpickle, (self.proxy, kwargs))
+
+def _custom_unpickle(proxy, kwargs):
+    return proxy.realise(**kwargs)
 
 class ProxyException(EverestException):
     pass
