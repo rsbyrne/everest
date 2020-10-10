@@ -176,6 +176,8 @@ def _producer_update_outs(func):
 
 class Producer(Promptable):
 
+    _defaultOutputSubKey = 'default'
+
     def __init__(self,
             baselines = dict(),
             **kwargs
@@ -200,7 +202,10 @@ class Producer(Promptable):
         yield 'outputs'
     @property
     def outputSubKey(self):
-        return '/'.join([k for k in self._outputSubKey() if len(k)])
+        sk = '/'.join([k for k in self._outputSubKey() if len(k)])
+        if not len(sk):
+            sk = self._defaultOutputSubKey
+        return sk
     def _outputSubKey(self):
         yield ''
     @property
@@ -267,6 +272,14 @@ class Producer(Promptable):
         return outs
     @_producer_load_wrapper
     def _load_raw(self, outs):
+        try:
+            outsKey = outs.name
+        except AttributeError:
+            outsKey = self._defaultOutputSubKey
+        if not outsKey == self.outputSubKey:
+            raise ProducerLoadFail(
+                "SubKeys misaligned:", (outsKey, self.outputSubKey)
+                )
         return {**outs}
     @_producer_load_wrapper
     def _load_index_stored(self, index):

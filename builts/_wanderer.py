@@ -23,9 +23,8 @@ class State(Stamper):
         stop = False if stop is None else self._process_endpoint(stop)
         if not step is None: raise exceptions.NotYetImplemented
         self.start, self.stop, self.step = start, stop, step
-        self._data = OrderedDict([
-            (k, OutsNull) for k in self.wanderer.configs.keys()
-            ])
+        self._data = OrderedDict()
+        self._data.name = start.hashID
         self._hashObjects = [self.wanderer, (self.start, self.stop, self.step)]
         super().__init__(*[*self._hashObjects, self._data])
     def _process_endpoint(self, arg):
@@ -42,11 +41,13 @@ class State(Stamper):
         self._oldConfigs = self.wanderer.configs.copy()
         try:
             self._reloadVals = self.wanderer.outs.data.copy()
+            self._reloadVals.name = self.wanderer.outs.name
         except NullValueDetected:
             self._reloadVals = None
         self.wanderer.set_configs(**self.start)
-        if any([v is OutsNull for v in self._data.values()]):
-            self.wanderer.initialise()
+        if not len(self._data):
+            if not self.wanderer.initialised:
+                self.wanderer.initialise()
             while not self.stop:
                 self.wanderer.iterate()
             self._data.update(self.wanderer.outs.data)
@@ -65,7 +66,7 @@ class State(Stamper):
         del self._oldConfigs, self._reloadVals
     @property
     def data(self):
-        if not len(self._data) is None:
+        if not len(self._data):
             with self:
                 pass
         return self._data

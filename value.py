@@ -53,10 +53,13 @@ class Value:
         if self.null: raise NullValueDetected(self.value)
         return self.value
 
+    def __eq__(self, arg):
+        return self.value == arg
+
     def _operate(self, arg, opkey):
         if self.null: raise NullValueDetected(self, self.value)
         return getattr(operator, opkey)(self.value, arg)
-    def __eq__(self, arg): return self._operate(arg, 'eq')
+    # def __eq__(self, arg): return self._operate(arg, 'eq')
     def __ne__(self, arg): return self._operate(arg, 'ne')
     def __ge__(self, arg): return self._operate(arg, 'ge')
     def __le__(self, arg): return self._operate(arg, 'le')
