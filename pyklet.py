@@ -24,11 +24,12 @@ class Pyklet:
     @property
     def hashID(self):
         if hasattr(self, '_hashID'):
-            return self._hashID()
+            contentHash = self._hashID()
         elif hasattr(self, '_hashObjects'):
-            return w_hash(self._hashObjects)
+            contentHash = w_hash(self._hashObjects)
         else:
-            return w_hash(self._pickleObjs)
+            contentHash = w_hash(self._pickleObjs)
+        return w_hash((type(self).__name__, contentHash))
     def anchor(self, name, path):
         return self._anchorManager(name, path)
     def touch(self, name = None, path = None):
