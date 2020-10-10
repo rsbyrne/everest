@@ -1,14 +1,16 @@
 import numpy as np
 from collections import OrderedDict
+from contextlib import contextmanager
 
 from ..utilities import w_hash
 from ._producer import NullValueDetected, OutsNull
 from ._voyager import Voyager
 from ._stampable import Stampable, Stamper
-from ._configurable import Configurable, Configs
+from ._configurable import Configurable, Configs, Config
 from ._indexer import IndexerLoadRedundant
 from .. import exceptions
 from ..comparator import Comparator, Prop
+from ..pyklet import Pyklet
 
 class WandererException(exceptions.EverestException):
     pass
@@ -70,6 +72,32 @@ class State(Stamper):
             with self:
                 pass
         return self._data
+    def __getitem__(self, arg):
+        return Statelet(self, arg)
+
+class Statelet(Config):
+    def __init__(self, state, channel):
+        self.state, self.channel = state, channel
+        super().__init__(state, channel)
+    def _hashID(self):
+        return w_hash((self.state, self.channel))
+    @property
+    def data(self):
+        return self.state.data[self.channel]
+    @property
+    def var(self):
+        return self.state.wanderer.mutables[self.channel]
+    @contextmanager
+    def temp_data(self):
+        oldData = self.var.data.copy()
+        try:
+            self.var.data[...] = self.data
+            yield None
+        finally:
+            self.var.data[...] = oldData
+    def apply(self, toVar):
+        with self.temp_data():
+            toVar.imitate(self.var)
 
     # @property
     # def out(self):

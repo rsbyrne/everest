@@ -22,6 +22,10 @@ class ConfigurableMissingAttribute(MissingAttribute, ConfigurableException):
 class ConfigurableMissingKwarg(MissingKwarg, ConfigurableException):
     pass
 
+class Config(Pyklet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
 class Configs(Pyklet, Mapping, Sequence):
     def __init__(self, defaults, *args, new = None, **kwargs):
         if type(defaults) is type(self):
@@ -59,7 +63,7 @@ class Configs(Pyklet, Mapping, Sequence):
     @staticmethod
     def _check_val(val):
         if not any([
-                isinstance(val, Configurator),
+                isinstance(val, (Config, Configurator)),
                 issubclass(type(val), (np.int, np.float)),
                 isinstance(type(val), np.ndarray),
                 val is Ellipsis,
@@ -135,7 +139,7 @@ class Configurable(Producer, Mutable):
         for k in ks:
             m, c = ms[k], cs[k]
             if not c is Ellipsis:
-                if isinstance(c, Configurator):
+                if isinstance(c, (Configurator, Config)):
                     c.apply(m)
                 elif hasattr(m, 'data'):
                     m.data[...] = c
