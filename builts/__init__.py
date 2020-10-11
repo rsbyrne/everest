@@ -399,6 +399,8 @@ class ClassProxy(Proxy, Pyklet):
         return super().reader.sub(self.typeHash)
     def _hashID(self):
         return self.typeHash
+    def __call__(self, *args, **kwargs):
+        return self.realised(*args, **kwargs)
 class BuiltProxyException(ProxyException):
     pass
 class NotEnoughInformation(BuiltProxyException):
