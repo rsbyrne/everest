@@ -21,6 +21,8 @@ class ConfigurableMissingAttribute(MissingAttribute, ConfigurableException):
     pass
 class ConfigurableMissingKwarg(MissingKwarg, ConfigurableException):
     pass
+class ConfigurableAlreadyConfigure(ConfigurableException):
+    pass
 
 class Config(Pyklet):
     def __init__(self, *args, **kwargs):
@@ -114,6 +116,8 @@ class Configurable(Producer, Mutable):
 
     def __init__(self, _defaultConfigs = None, **kwargs):
 
+        self.configured = False
+
         if _defaultConfigs is None:
             raise ConfigurableMissingKwarg
         try:
@@ -126,13 +130,24 @@ class Configurable(Producer, Mutable):
         super().__init__(_mutableKeys = self.configs.keys(), **kwargs)
 
     def set_configs(self, *args, **kwargs):
+        prevHash = self.configs.hashID
+        self._set_configs(*args, **kwargs)
+        newHash = self.configs.hashID
+        self.configured = newHash == prevHash
+    def _set_configs(self, *args, **kwargs):
         self.configs.update_generic(*args, **kwargs)
         self.configs.update(self._process_configs(self.configs))
-        self.configure()
+        # self.configure()
     def _process_configs(self, configs):
         return configs
-    def configure(self):
-        self._configure()
+    def configure(self, silent = False):
+        if self.configured:
+            if silent:
+                pass
+            else:
+                raise ConfigurableAlreadyConfigure
+        else:
+            self._configure()
     def _configure(self):
         ms, cs = self.mutables, self.configs
         ks = [k for k in self.configs.keys() if k in self.mutables.keys()]
@@ -145,6 +160,7 @@ class Configurable(Producer, Mutable):
                     m.data[...] = c
                 else:
                     m[...] = c
+        self.configured = True
 
     def _outputSubKey(self):
         for o in super()._outputSubKey(): yield o
@@ -157,9 +173,9 @@ class Configurable(Producer, Mutable):
     def __setitem__(self, arg1, arg2):
         assert len(self.configs)
         if len(self.configs) == 1:
-            return self._configurable_set_single(arg1, arg2)
+            self._configurable_set_single(arg1, arg2)
         else:
-            return self._configurable_set_multi(arg1, arg2)
+            self._configurable_set_multi(arg1, arg2)
     def _configurable_set_single(self, arg1, arg2):
         raise NotYetImplemented
     def _configurable_set_multi(self, arg1, arg2):

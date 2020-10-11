@@ -110,12 +110,12 @@ class Wanderer(Voyager, Configurable):
 
         super().__init__(**kwargs)
 
-    def _configure(self):
-        super()._configure()
+    def _set_configs(self, *args, **kwargs):
+        super()._set_configs(*args, **kwargs)
         self._nullify_indexers()
 
     def _initialise(self, *args, **kwargs):
-        self.configure()
+        self.configure(silent = True)
         super()._initialise(*args, **kwargs)
 
     def __getitem__(self, arg):
@@ -130,6 +130,10 @@ class Wanderer(Voyager, Configurable):
         if not type(arg) is slice:
             arg = slice(arg)
         return State(self, arg)
+
+    def __setitem__(self, *args, **kwargs):
+        super().__setitem__(*args, **kwargs)
+        self.initialise(silent = True)
 
     @property
     def _promptableKey(self):

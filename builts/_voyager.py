@@ -49,11 +49,15 @@ class Voyager(Cycler, Counter, Stampable, Observable):
 
         super().__init__(**kwargs)
 
-    def initialise(self):
+    def initialise(self, silent = False):
         if self.initialised:
-            raise VoyagerAlreadyInitialised
-        self._initialise()
-        assert self.initialised
+            if silent:
+                pass
+            else:
+                raise VoyagerAlreadyInitialised
+        else:
+            self._initialise()
+            assert self.initialised
     def _initialise(self):
         self._zero_indexers()
         self._voyager_changed_state_hook()
