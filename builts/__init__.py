@@ -428,7 +428,7 @@ class BuiltProxy(Proxy, Pyklet):
                 self.inputs, self.ghosts = clsproxy.realised._get_inputs(inp2)
                 inputsHash = clsproxy.realised._inputs_hash(self.inputs)
             else:
-                raise TypeError(inp2, type(inp2))
+                raise TypeError(type(inp2))
         self.clsproxy = clsproxy
         self.inputsHash = inputsHash
         self.typeHash = clsproxy.typeHash

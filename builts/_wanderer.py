@@ -137,16 +137,19 @@ class Statelet(Config):
     def data(self):
         return self.state.data[self.channel]
     @property
+    def mutant(self):
+        return self.state.wanderer.mutables[self.channel]
+    @property
     def var(self):
-        return self.state.wanderer.mutables[self.channel].var
+        return self.mutant.var
     @contextmanager
     def temp_data(self):
-        oldData = self.var.data.copy()
+        oldData = self.mutant.out()
         try:
-            self.var.data[...] = self.data
+            self.mutant.mutate(self.data)
             yield None
         finally:
-            self.var.data[...] = oldData
+            self.mutant.mutate(oldData)
     def _apply(self, toVar):
         with self.temp_data():
             super()._apply(toVar)
@@ -188,8 +191,10 @@ class Wanderer(Voyager, Configurable):
                 arg = slice(arg)
             return State(self, arg)
 
-    def __setitem__(self, *args, **kwargs):
-        super().__setitem__(*args, **kwargs)
+    def __setitem__(self, key, val):
+        if isinstance(val, Wanderer):
+            val = val[:]
+        super().__setitem__(key, val)
         self.initialise(silent = True)
 
     @property

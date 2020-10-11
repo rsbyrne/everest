@@ -1,6 +1,7 @@
 from functools import wraps
 from collections.abc import Mapping, Sequence
 from collections import OrderedDict
+import warnings
 
 import numpy as np
 
@@ -37,10 +38,23 @@ class Config(Pyklet):
         super().__init__(*args, **kwargs)
     def apply(self, toVar):
         if not isinstance(toVar, Mutant):
-            raise TypeError(toVar, type(toVar))
+            raise TypeError(type(toVar))
         self._apply(toVar)
     def _apply(self, toVar):
         toVar.imitate(self)
+    @classmethod
+    def convert(cls, arg, default = None):
+        if not any([
+                isinstance(arg, (Config, Configurator)),
+                issubclass(type(arg), (np.int, np.float)),
+                isinstance(type(arg), np.ndarray),
+                arg is Ellipsis,
+                ]):
+            raise TypeError(type(arg))
+        if default is Ellipsis:
+            warnings.warn('Cannot reset Ellipsis default config: ignoring.')
+            return Ellipsis
+        return arg
     # @property
     # def var(self):
     #     return self._var()
@@ -95,7 +109,8 @@ class MutableConfigs(Configs):
         self.defaults = defaults
         self._contentsDict = self._align_inputs(*args, **kwargs)
         self._contentsDict.update(self._process_new(contents))
-        _ = [self._check_val_type(v) for v in self.values()]
+        for k, v in self._contentsDict.items():
+            self._contentsDict[k] = Config.convert(v, self.defaults[k])
         super().__init__(
             defaults = self.defaults,
             contents = self._contentsDict,
@@ -126,21 +141,8 @@ class MutableConfigs(Configs):
                 (new.keys(), ks),
                 )
         return OrderedDict([(k, new[k]) for k in ks])
-    @staticmethod
-    def _check_val_type(val):
-        if not any([
-                isinstance(val, (Config, Configurator)),
-                issubclass(type(val), (np.int, np.float)),
-                isinstance(type(val), np.ndarray),
-                val is Ellipsis,
-                ]):
-            raise TypeError(val, type(val))
-    @classmethod
-    def _process_val(cls, val):
-        cls._check_val_type(val)
-        return val
     def __setitem__(self, arg1, arg2):
-        arg2 = self._process_val(arg2)
+        arg2 = Config.convert(arg2, self.defaults[arg1])
         if type(arg1) is str:
             if not arg1 in self.keys():
                 raise KeyError
@@ -236,8 +238,10 @@ class Configurable(Producer, Mutable):
         if type(arg1) is str:
             self.set_configs(**{arg1: arg2})
         elif arg1 is Ellipsis:
-            if type(arg2) is tuple:
+            if isinstance(arg2, Sequence):
                 self.set_configs(*arg2)
+            elif isinstance(arg2, Mapping):
+                self.set_configs(**arg2)
             else:
                 self.set_configs(*[arg2 for _ in range(len(self.configs))])
         else:

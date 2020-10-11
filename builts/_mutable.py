@@ -38,7 +38,11 @@ class Mutant(Pyklet):
         raise MutantMissingMethod
     @property
     def varHash(self):
-        return make_hash(self.data)
+        return make_hash(self.out())
+    def out(self):
+        return self._out()
+    def _out(self):
+        raise MutantMissingMethod
     @property
     def data(self):
         return self._data()
@@ -52,6 +56,10 @@ class Mutant(Pyklet):
         self._imitate(fromVar)
     def _imitate(self, fromVar):
         raise MutantMissingMethod
+    def __getitem__(self, arg):
+        return self.out()[arg]
+    def __setitem__(self, key, val):
+        self.mutate(val, indices = key)
 
 class Mutables(OrderedDict):
     def __setitem__(self, key, arg):
