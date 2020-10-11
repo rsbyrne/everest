@@ -5,14 +5,14 @@ from collections import OrderedDict
 import numpy as np
 
 from ._producer import Producer
-from ._mutable import Mutable
+from ._mutable import Mutable, Mutant, Mutables
 from ._applier import Applier
 from ._configurator import Configurator
 from ..pyklet import Pyklet
 from ..utilities import w_hash
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
-from ..exceptions import NotYetImplemented
+from ..exceptions import EverestException, NotYetImplemented
 class ConfigurableException(BuiltException):
     pass
 class ConfigurableMissingMethod(MissingMethod, ConfigurableException):
@@ -23,23 +23,87 @@ class ConfigurableMissingKwarg(MissingKwarg, ConfigurableException):
     pass
 class ConfigurableAlreadyConfigure(ConfigurableException):
     pass
+class ConfigException(EverestException):
+    pass
+class ConfigMissingMethod(MissingMethod, ConfigException):
+    pass
+class ConfigsException(EverestException):
+    pass
+class ConfigsMissingAttribute(EverestException):
+    pass
 
 class Config(Pyklet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+    def apply(self, toVar):
+        if not isinstance(toVar, Mutant):
+            raise TypeError(toVar, type(toVar))
+        self._apply(toVar)
+    def _apply(self, toVar):
+        toVar.imitate(self)
+    # @property
+    # def var(self):
+    #     return self._var()
+    # def _var(self):
+    #     raise ConfigMissingMethod
 
 class Configs(Pyklet, Mapping, Sequence):
-    def __init__(self, defaults, *args, new = None, **kwargs):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    def _hashID(self):
+        return w_hash(tuple(self.items()))
+    @property
+    def contents(self):
+        raise ConfigsMissingAttribute
+    def __getitem__(self, arg):
+        if type(arg) is str:
+            return self.contents[arg]
+        else:
+            return list(self.contents.values())[arg]
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+    def keys(self, *args, **kwargs):
+        return list(self.contents.keys(*args, **kwargs))
+    def values(self, *args, **kwargs):
+        return list(self.contents.values(*args, **kwargs))
+    def items(self, *args, **kwargs):
+        return self.contents.items(*args, **kwargs)
+    def __len__(self):
+        return len(self.contents)
+    def apply(self, mutables):
+        if not isinstance(mutables, Mutables):
+            raise TypeError
+        if not [*mutables.keys()] == [*self.keys()]:
+            raise KeyError(mutables.keys(), self.keys())
+        self._apply(mutables)
+    def _apply(self, mutables):
+        for c, m in zip(self.values(), mutables.values()):
+            if not c is Ellipsis:
+                if isinstance(c, (Configurator, Config)):
+                    c.apply(m)
+                elif hasattr(m, 'data'):
+                    m.data[...] = c
+                else:
+                    m[...] = c
+class MutableConfigs(Configs):
+    def __init__(self, defaults, *args, contents = None, **kwargs):
         if type(defaults) is type(self):
-            defaults = defaults._contents.copy()
+            defaults = defaults.contents.copy()
         elif not type(defaults) is OrderedDict:
             raise TypeError
         self.defaults = defaults
-        self._contents = self._align_inputs(*args, **kwargs)
-        self._contents.update(self._process_new(new))
-        super().__init__(self.defaults, **{'new': self._contents})
-    def _hashID(self):
-        return w_hash(tuple(self.items()))
+        self._contentsDict = self._align_inputs(*args, **kwargs)
+        self._contentsDict.update(self._process_new(contents))
+        _ = [self._check_val_type(v) for v in self.values()]
+        super().__init__(
+            defaults = self.defaults,
+            contents = self._contentsDict,
+            **kwargs,
+            )
+    @property
+    def contents(self):
+        return self._contentsDict
     def _process_new(self, new):
         if new is None:
             return dict()
@@ -63,7 +127,7 @@ class Configs(Pyklet, Mapping, Sequence):
                 )
         return OrderedDict([(k, new[k]) for k in ks])
     @staticmethod
-    def _check_val(val):
+    def _check_val_type(val):
         if not any([
                 isinstance(val, (Config, Configurator)),
                 issubclass(type(val), (np.int, np.float)),
@@ -71,44 +135,44 @@ class Configs(Pyklet, Mapping, Sequence):
                 val is Ellipsis,
                 ]):
             raise TypeError(val, type(val))
-    def __getitem__(self, arg):
-        if type(arg) is str:
-            return self._contents[arg]
-        else:
-            return list(self._contents.values())[arg]
+    @classmethod
+    def _process_val(cls, val):
+        cls._check_val_type(val)
+        return val
     def __setitem__(self, arg1, arg2):
-        self._check_val(arg2)
+        arg2 = self._process_val(arg2)
         if type(arg1) is str:
             if not arg1 in self.keys():
                 raise KeyError
-            self._contents[arg1] = arg2
+            self.contents[arg1] = arg2
         elif issubclass(type(arg1), np.int):
-            self._contents[self.keys()[arg1]] = arg2
+            self.contents[self.keys()[arg1]] = arg2
         elif type(arg1) is slice:
             rekeys = self.keys()[arg1]
             for k in rekeys:
-                self._contents[k] = arg2
+                self.contents[k] = arg2
         else:
             raise ValueError
-    def __iter__(self):
-        for i in range(len(self)):
-            yield self[i]
-    def keys(self, *args, **kwargs):
-        return list(self._contents.keys(*args, **kwargs))
-    def items(self, *args, **kwargs):
-        return self._contents.items(*args, **kwargs)
     def clear(self):
-        self._contents.update(self.defaults)
+        self.contents.update(self.defaults)
     def update(self, inDict):
         for k, v in inDict.items():
             self[k] = v
     def update_generic(self, *args, **kwargs):
-        self._contents.clear()
-        self._contents.update(self._align_inputs(*args, **kwargs))
+        self.contents.clear()
+        self.contents.update(self._align_inputs(*args, **kwargs))
     def copy(self):
-        return self.__class__(self.defaults, new = self._contents.copy())
-    def __len__(self):
-        return len(self._contents)
+        return type(self)(
+            defaults = self.defaults,
+            contents = self.contents.copy()
+            )
+class ImmutableConfigs(Configs):
+    def __init__(self, *args, contents = OrderedDict(), **kwargs):
+        self._contentsDict = contents
+        super().__init__(*args, contents = contents, **kwargs)
+    @property
+    def contents(self):
+        return self._contentsDict
 
 class Configurable(Producer, Mutable):
 
@@ -124,7 +188,7 @@ class Configurable(Producer, Mutable):
             _defaultConfigs = OrderedDict(_defaultConfigs)
         except TypeError:
             _defaultConfigs = OrderedDict([(k, None) for k in _defaultConfigs])
-        self.configs = Configs(_defaultConfigs)
+        self.configs = MutableConfigs(_defaultConfigs)
         self.configsKey = self._defaultConfigsKey
 
         super().__init__(_mutableKeys = self.configs.keys(), **kwargs)
@@ -149,17 +213,7 @@ class Configurable(Producer, Mutable):
         else:
             self._configure()
     def _configure(self):
-        ms, cs = self.mutables, self.configs
-        ks = [k for k in self.configs.keys() if k in self.mutables.keys()]
-        for k in ks:
-            m, c = ms[k], cs[k]
-            if not c is Ellipsis:
-                if isinstance(c, (Configurator, Config)):
-                    c.apply(m)
-                elif hasattr(m, 'data'):
-                    m.data[...] = c
-                else:
-                    m[...] = c
+        self.configs.apply(self.mutables)
         self.configured = True
 
     def _outputSubKey(self):

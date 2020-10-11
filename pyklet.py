@@ -12,7 +12,7 @@ class Pyklet:
         self._pickleArgs, self._pickleKwargs = args, kwargs
         self._pickleObjs = tuple([
             *self._pickleArgs,
-            *[i for sl in self._pickleKwargs.items() for i in sl],
+            *[i for sl in sorted(self._pickleKwargs.items()) for i in sl],
             ])
         self._anchorManager = Meta._anchorManager
     def __reduce__(self):

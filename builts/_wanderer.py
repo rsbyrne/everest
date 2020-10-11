@@ -1,12 +1,14 @@
 import numpy as np
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
+from functools import wraps
 
-from ..utilities import w_hash
+from ..utilities import w_hash, get_hash
 from ._producer import NullValueDetected, OutsNull
 from ._voyager import Voyager
 from ._stampable import Stampable, Stamper
-from ._configurable import Configurable, Configs, Config
+from ._configurable import \
+    Configurable, MutableConfigs, ImmutableConfigs, Config
 from ._indexer import IndexerLoadRedundant
 from .. import exceptions
 from ..comparator import Comparator, Prop
@@ -15,27 +17,67 @@ from ..pyklet import Pyklet
 class WandererException(exceptions.EverestException):
     pass
 
-class State(Stamper):
+class StateException(exceptions.EverestException):
+    pass
+class ForbiddenSetItemOnState(StateException):
+    pass
+
+def _state_context_wrap(func):
+    @wraps(func)
+    def wrapper(state, *args, **kwargs):
+        with state:
+            pass
+        return func(state, *args, **kwargs)
+    return wrapper
+
+class State(Stamper, ImmutableConfigs):
     def __init__(self, wanderer, slicer, _data = OrderedDict()):
         self.wanderer = wanderer
         if type(slicer) is tuple:
             slicer = slice(*slicer)
         start, stop, step = slicer.start, slicer.stop, slicer.step
-        start = Configs(wanderer.configs, new = start)
-        stop = self._process_endpoint(stop)
-        if not step is None: raise exceptions.NotYetImplemented
-        self.start, self.stop, self.step = start, stop, step
+        self.start = self._process_startpoint(start)
+        self.stop = self._process_endpoint(stop)
+        self.step = step
+        if not self.step is None: raise exceptions.NotYetImplemented
         self._data = OrderedDict()
-        self._data.name = start.hashID
+        self._data.name = self.start.hashID
         self._hashObjects = [self.wanderer, (self.start, self.stop, self.step)]
-        super().__init__(*[*self._hashObjects, self._data])
+        statelets = OrderedDict([
+            (k, Statelet(self, k))
+                for k in self.wanderer.configs.keys()
+            ])
+        super().__init__(self,
+            *[*self._hashObjects, self._data],
+            contents = statelets,
+            )
+    def _process_startpoint(self, arg):
+        return MutableConfigs(defaults = self.wanderer.configs, contents = arg)
+        # if isinstance(arg, type(self)):
+        # if isinstance(arg, Comparator):
+        #     self._indexerStartpoint = False
+        #     substart = self.wanderer.configs.copy()
+        #     start = type(self)(self.wanderer, slice(substart, arg))
+        # elif isinstance(arg, type(self)):
+        #     if not arg.wanderer is self.wanderer:
+        #         raise ValueError
+        #     configs = None
+        #     start = arg
+        # elif arg is None:
+        #     configs = self.wanderer.configs.copy()
+        #     if self.wanderer._indexers_ispos:
+        #         self._indexerStartpoint = True
+        #         start = self._process_endpoint(self.indices[0])
+        #     else:
+        #         self._indexerStartpoint = False
+        #         start = None
     def _process_endpoint(self, arg):
         if isinstance(arg, Comparator):
-            self._indexerComparator = True
+            self._indexerEndpoint = False
             return arg
         else:
             try:
-                self._indexerComparator = False
+                self._indexerEndpoint = True
                 if arg is None:
                     arg = self.wanderer.indices.count
                 return self.wanderer._indexer_process_endpoint(arg)
@@ -55,6 +97,11 @@ class State(Stamper):
             while not self.stop:
                 self.wanderer.iterate()
             self._data.update(self.wanderer.outs.data)
+            self._indices = namedtuple(
+                'IndexerHost',
+                self.wanderer.indexerKeys)(
+                    *[*self.wanderer.indexers]
+                    )
         else:
             self.wanderer.load(self._data)
         return self
@@ -69,13 +116,16 @@ class State(Stamper):
                 pass
         del self._oldConfigs, self._reloadVals
     @property
+    @_state_context_wrap
     def data(self):
-        if not len(self._data):
-            with self:
-                pass
         return self._data
-    def __getitem__(self, arg):
-        return Statelet(self, arg)
+    @property
+    @_state_context_wrap
+    def indices(self):
+        return self._indices
+    def _hashID(self):
+        sliceStrs = [get_hash(o) for o in self._hashObjects[1]]
+        return self._hashObjects[0].hashID + '[' + ':'.join(sliceStrs) + ']'
 
 class Statelet(Config):
     def __init__(self, state, channel):
@@ -88,7 +138,7 @@ class Statelet(Config):
         return self.state.data[self.channel]
     @property
     def var(self):
-        return self.state.wanderer.mutables[self.channel]
+        return self.state.wanderer.mutables[self.channel].var
     @contextmanager
     def temp_data(self):
         oldData = self.var.data.copy()
@@ -97,9 +147,9 @@ class Statelet(Config):
             yield None
         finally:
             self.var.data[...] = oldData
-    def apply(self, toVar):
+    def _apply(self, toVar):
         with self.temp_data():
-            toVar.imitate(self.var)
+            super()._apply(toVar)
 
     # @property
     # def out(self):

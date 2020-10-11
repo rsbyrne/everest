@@ -1,5 +1,5 @@
 from .pyklet import Pyklet
-from .utilities import w_hash
+from .utilities import get_hash
 
 class Prop(Pyklet):
 
@@ -26,4 +26,5 @@ class Prop(Pyklet):
         return obj
 
     def _hashID(self):
-        return w_hash([self.target, *self.props])
+        targHash = get_hash(self.target)
+        return '.'.join([targHash, *self.props])
