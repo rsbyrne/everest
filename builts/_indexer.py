@@ -6,6 +6,7 @@ from ._producer import Producer, LoadFail, OutsNull
 from ..comparator import Comparator, Prop
 from ..anchor import NoActiveAnchorError
 from ..reader import PathNotInFrameError
+from ..value import Value
 
 from ..exceptions import EverestException
 class IndexerException(EverestException):
@@ -63,11 +64,13 @@ class Indexer(Producer):
             ))
 
     def _get_metaIndex(self, arg):
+        if type(arg) is Value:
+            arg = arg.plain
         trueTypes = [issubclass(type(arg), t) for t in self.indexerTypes]
         if any(trueTypes):
             return trueTypes.index(True)
         else:
-            raise TypeError
+            raise TypeError(arg, type(arg))
     def _get_indexInfo(self, arg):
         return self.indexersInfo[self._get_metaIndex(arg)]
     def _process_index(self, arg):

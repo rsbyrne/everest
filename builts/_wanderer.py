@@ -22,7 +22,7 @@ class State(Stamper):
             slicer = slice(*slicer)
         start, stop, step = slicer.start, slicer.stop, slicer.step
         start = Configs(wanderer.configs, new = start)
-        stop = False if stop is None else self._process_endpoint(stop)
+        stop = self._process_endpoint(stop)
         if not step is None: raise exceptions.NotYetImplemented
         self.start, self.stop, self.step = start, stop, step
         self._data = OrderedDict()
@@ -36,6 +36,8 @@ class State(Stamper):
         else:
             try:
                 self._indexerComparator = False
+                if arg is None:
+                    arg = self.wanderer.indices.count
                 return self.wanderer._indexer_process_endpoint(arg)
             except IndexError:
                 raise TypeError
@@ -127,9 +129,14 @@ class Wanderer(Voyager, Configurable):
     def _wanderer_get_single(self, arg):
         raise exceptions.NotYetImplemented
     def _wanderer_get_multi(self, arg):
-        if not type(arg) is slice:
-            arg = slice(arg)
-        return State(self, arg)
+        if type(arg) is str:
+            if not arg in self.configs:
+                raise ValueError
+            return self[:][arg]
+        else:
+            if not type(arg) is slice:
+                arg = slice(arg)
+            return State(self, arg)
 
     def __setitem__(self, *args, **kwargs):
         super().__setitem__(*args, **kwargs)
