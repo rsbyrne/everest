@@ -69,37 +69,45 @@ def prettify_nbytes(size_bytes):
     s = round(size_bytes / p, 2)
     return "%s %s" % (s, size_name[i])
 
+def is_numeric(arg):
+    try:
+        _ = arg + 1
+        return True
+    except:
+        return False
+
 def make_hash(obj):
     try:
-        hashVal = get_hash(obj, make = False)
+        return get_hash(obj, make = False)
     except HashIDNotFound:
-        if type(obj) is str:
-            hashVal = obj
-        elif hasattr(obj, 'hashID'):
-            hashVal = obj.hashID
-        elif hasattr(obj, 'typeHash'):
-            hashVal = obj.typeHash
-        elif hasattr(obj, '_hashObjects'):
-            hashVal = make_hash(obj._hashObjects)
-        elif isinstance(obj, Mapping):
-            obj = {**obj}
-            try:
-                obj = OrderedDict(sorted(obj.items()))
-            except TypeError:
-                warnings.warn(
-                    "You have passed unorderable kwargs to be hashed; \
-                    reproducibility is not guaranteed."
-                    )
-            hashVal = make_hash(obj.items())
-        elif isinstance(obj, Sequence):
-            hashList = [make_hash(subObj) for subObj in obj]
-            hashVal = make_hash(str(hashList))
-        elif isinstance(obj, np.generic):
-            hashVal = make_hash(np.asscalar(obj))
-        else:
-            strObj = str(obj)
-            hexID = hashlib.md5(strObj.encode()).hexdigest()
-            hashVal = int(hexID, 16)
+        pass
+    if type(obj) is str:
+        hashVal = obj
+    elif hasattr(obj, 'hashID'):
+        hashVal = obj.hashID
+    elif hasattr(obj, 'typeHash'):
+        hashVal = obj.typeHash
+    elif hasattr(obj, '_hashObjects'):
+        hashVal = make_hash(obj._hashObjects)
+    elif isinstance(obj, Mapping):
+        obj = {**obj}
+        try:
+            obj = OrderedDict(sorted(obj.items()))
+        except TypeError:
+            warnings.warn(
+                "You have passed unorderable kwargs to be hashed; \
+                reproducibility is not guaranteed."
+                )
+        hashVal = make_hash(obj.items())
+    elif isinstance(obj, Sequence):
+        hashList = [make_hash(subObj) for subObj in obj]
+        hashVal = make_hash(str(hashList))
+    elif isinstance(obj, np.generic):
+        hashVal = make_hash(np.asscalar(obj))
+    else:
+        strObj = str(obj)
+        hexID = hashlib.md5(strObj.encode()).hexdigest()
+        hashVal = int(hexID, 16)
     return str(hashVal)
 
 def w_hash(obj):

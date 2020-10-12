@@ -9,6 +9,8 @@ class Pyklet:
     _TAG_ = '_pyklet_'
     def __init__(self, *args, **kwargs):
         # self._source = inspect.getsource(self.__class__)
+        if hasattr(self, '_pickle'):
+            args, kwargs = self._pickle()
         self._pickleArgs, self._pickleKwargs = args, kwargs
         self._pickleObjs = tuple([
             *self._pickleArgs,
@@ -25,13 +27,13 @@ class Pyklet:
     def contentHash(self):
         if hasattr(self, '_hashID'):
             return self._hashID()
-        elif hasattr(self, '_hashObjects'):
+        if hasattr(self, '_hashObjects'):
             return w_hash(self._hashObjects)
         else:
             return w_hash(self._pickleObjs)
     @property
     def hashID(self):
-        return w_hash((type(self).__name__, self.contentHash))
+        return type(self).__name__ + '{' + self.contentHash + '}'
     def anchor(self, name, path):
         return self._anchorManager(name, path)
     def touch(self, name = None, path = None):
@@ -48,5 +50,19 @@ class Pyklet:
         man.globalwriter.add_dict(
             {self._TAG_: {self.hashID: pickle.dumps(self)}}
             )
+        # search_and_touch(self._pickleObjs)
 
-from .builts import Meta
+    def __repr__(self):
+        return self.hashID
+
+def search_and_touch(arg):
+    if hasattr(arg, 'touch'):
+        arg.touch()
+    elif isinstance(arg, Sequence):
+        for sub in arg:
+            search_and_touch(arg)
+    elif isinstance(arg, Mapping):
+        for key, sub in sorted({**arg}.items()):
+            search_and_touch(sub)
+
+from .builts import Meta, Built

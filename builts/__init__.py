@@ -5,15 +5,15 @@ import os
 from collections import OrderedDict
 from collections.abc import Mapping
 import inspect
+import warnings
 
 from ..utilities import Grouper, make_hash, w_hash
 from .. import wordhash
 from .. import disk
 from ..weaklist import WeakList
-from ..anchor import Anchor, _namepath_process
+from ..anchor import Anchor, _namepath_process, NoActiveAnchorError
 from ..globevars import _BUILTTAG_, _CLASSTAG_, _GHOSTTAG_
 from ..pyklet import Pyklet
-
 
 from ..exceptions import EverestException
 class BuiltException(EverestException):
@@ -107,6 +107,8 @@ def sort_inputKeys(func):
 class Meta(type):
 
     _preclasses = weakref.WeakValueDictionary()
+    _prebuilts = weakref.WeakValueDictionary()
+
     _hashDepth = 2
 
     _anchorManager = Anchor
@@ -142,8 +144,6 @@ class Meta(type):
                 outCls._sortedInputKeys, outCls._sortedGhostKeys = {}, {}
             outCls._custom_cls_fn()
             cls._preclasses[outCls.typeHash] = outCls
-            if not hasattr(outCls, '_prebuilts'):
-                outCls._prebuilts = weakref.WeakValueDictionary()
             return outCls
 
     @staticmethod
@@ -158,11 +158,12 @@ class Meta(type):
         inputs = Meta._align_inputs(cls, *args, **kwargs)
         obj = cls.__new__(cls, **inputs)
         try:
-            return cls._prebuilts[obj.inputsHash]
+            obj = cls._get_prebuilt(obj.inputsHash)
+            warnings.warn("Loading")
         except KeyError:
+            cls._prebuilts[obj.hashID] = obj
             obj.__init__(**obj.inputs)
-            cls._prebuilts[obj.inputsHash] = obj
-            return obj
+        return obj
 
 class Built(metaclass = Meta):
 
@@ -207,6 +208,11 @@ class Built(metaclass = Meta):
         inputs = cls._process_inputs(inputs)
         ghosts = cls._process_ghosts(ghosts)
         return inputs, ghosts
+
+    @classmethod
+    def _get_prebuilt(cls, inputsHash):
+        k = ':'.join([cls.typeHash, inputsHash])
+        return cls._prebuilts[k]
 
     def __new__(cls, **inputs):
 
@@ -332,6 +338,10 @@ class Built(metaclass = Meta):
 
     def __reduce__(self):
         kwargs = dict()
+        try:
+            self.touch()
+        except NoActiveAnchorError:
+            pass
         return (_custom_unpickle, (self.proxy, kwargs))
 
 def _custom_unpickle(proxy, kwargs):
@@ -362,11 +372,17 @@ class Proxy:
     @property
     def realised(self):
         return self.realise()
-    def __getattr__(self, key):
-        return getattr(self.realised, key)
+    # def __getattr__(self, key):
+    #     return getattr(self.realised, key)
+    @property
+    def man(self):
+        return self.meta._anchorManager.get_active()
     @property
     def reader(self):
-        return self.meta._anchorManager.get_active().reader
+        self.man.reader
+    @property
+    def hashID(self):
+        return self._hashID()
 class ClassProxyException(ProxyException):
     pass
 class ClassProxy(Proxy, Pyklet):
@@ -437,9 +453,9 @@ class BuiltProxy(Proxy, Pyklet):
         else:
             Pyklet.__init__(self, self.clsproxy, self.inputsHash)
     def _realise(self):
+        cls = self.clsproxy.realised
         try:
-            preclasses = self.meta._preclasses[self.typeHash]
-            return preclasses._prebuilts[self.inputsHash]
+            return cls._get_prebuilt(self.inputsHash)
         except KeyError:
             if not hasattr(self, 'inputs'):
                 self.inputs = self.reader['inputs']
@@ -447,7 +463,7 @@ class BuiltProxy(Proxy, Pyklet):
                 inputs = {**self.inputs, **self.ghosts}
             else:
                 inputs = self.inputs
-            return self.clsproxy.realised(**inputs)
+            return cls(**inputs)
     @property
     def reader(self):
         return super().reader.sub(self.typeHash, self.inputsHash)

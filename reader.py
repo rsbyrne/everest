@@ -146,7 +146,7 @@ class Reader(H5Manager):
                 return ClassProxy(inp)
             elif inp.startswith(_BUILTTAG_):
                 from .builts import BuiltProxy
-                return BuiltProxy
+                return BuiltProxy(inp)
             elif inp.startswith(Pyklet._TAG_):
                 hashID = self._process_tag(inp, Pyklet._TAG_)
                 target = '/'.join(['', _GLOBALSTAG_, Pyklet._TAG_, hashID])

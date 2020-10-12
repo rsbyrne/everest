@@ -10,7 +10,7 @@ from ._mutable import Mutable, Mutant, Mutables
 from ._applier import Applier
 from ._configurator import Configurator
 from ..pyklet import Pyklet
-from ..utilities import w_hash
+from ..utilities import w_hash, get_hash, is_numeric
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
 from ..exceptions import EverestException, NotYetImplemented
@@ -34,8 +34,11 @@ class ConfigsMissingAttribute(EverestException):
     pass
 
 class Config(Pyklet):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, content = None, **kwargs):
+        self.content = content
+        super().__init__(*args, content = content, **kwargs)
+    def _hashID(self):
+        return get_hash(self.content, make = True)
     def apply(self, toVar):
         if not isinstance(toVar, Mutant):
             raise TypeError(type(toVar))
@@ -44,13 +47,17 @@ class Config(Pyklet):
         toVar.imitate(self)
     @classmethod
     def convert(cls, arg, default = None):
+        try:
+            return arg.realised
+        except AttributeError:
+            pass
         if not any([
                 isinstance(arg, (Config, Configurator)),
-                issubclass(type(arg), (np.int, np.float)),
+                is_numeric(arg),
                 isinstance(type(arg), np.ndarray),
                 arg is Ellipsis,
                 ]):
-            raise TypeError(type(arg))
+            raise TypeError(repr(arg)[:100], type(arg))
         if default is Ellipsis and not arg is Ellipsis:
             warnings.warn('Cannot reset Ellipsis default config: ignoring.')
             return Ellipsis
@@ -65,10 +72,10 @@ class Configs(Pyklet, Mapping, Sequence):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     def _hashID(self):
-        return w_hash(tuple(self.items()))
+        return w_hash(tuple(self.contents.items()))
     @property
     def contents(self):
-        raise ConfigsMissingAttribute
+        return self._contentsDict
     def __getitem__(self, arg):
         if type(arg) is str:
             return self.contents[arg]
@@ -100,6 +107,9 @@ class Configs(Pyklet, Mapping, Sequence):
                     m.data[...] = c
                 else:
                     m[...] = c
+    @property
+    def id(self):
+        return self.contentHash
 class MutableConfigs(Configs):
     def __init__(self, defaults, *args, contents = None, **kwargs):
         if type(defaults) is type(self):
@@ -116,9 +126,6 @@ class MutableConfigs(Configs):
             contents = self._contentsDict,
             **kwargs,
             )
-    @property
-    def contents(self):
-        return self._contentsDict
     def _process_new(self, new):
         if new is None:
             return dict()
@@ -147,7 +154,7 @@ class MutableConfigs(Configs):
             if not arg1 in self.keys():
                 raise KeyError
             self.contents[arg1] = arg2
-        elif issubclass(type(arg1), np.int):
+        elif issubclass(type(arg1), np.integer):
             self.contents[self.keys()[arg1]] = arg2
         elif type(arg1) is slice:
             rekeys = self.keys()[arg1]
@@ -170,11 +177,8 @@ class MutableConfigs(Configs):
             )
 class ImmutableConfigs(Configs):
     def __init__(self, *args, contents = OrderedDict(), **kwargs):
-        self._contentsDict = contents
+        self._contentsDict = contents.copy()
         super().__init__(*args, contents = contents, **kwargs)
-    @property
-    def contents(self):
-        return self._contentsDict
 
 class Configurable(Producer, Mutable):
 
@@ -183,6 +187,7 @@ class Configurable(Producer, Mutable):
     def __init__(self, _defaultConfigs = None, **kwargs):
 
         self.configured = False
+        self._storedConfigs = OrderedDict()
 
         if _defaultConfigs is None:
             raise ConfigurableMissingKwarg
@@ -199,13 +204,12 @@ class Configurable(Producer, Mutable):
         prevHash = self.configs.contentHash
         self._set_configs(*args, **kwargs)
         newHash = self.configs.contentHash
-        self.configured = newHash == prevHash
-        if not self.configured:
+        self.configured = newHash == prevHash and self.configured
+        if newHash != prevHash:
             self._configurable_changed_state_hook()
     def _set_configs(self, *args, **kwargs):
         self.configs.update_generic(*args, **kwargs)
         self.configs.update(self._process_configs(self.configs))
-        # self.configure()
     def _process_configs(self, configs):
         return configs
     def configure(self, silent = False):
@@ -222,18 +226,35 @@ class Configurable(Producer, Mutable):
         self._configurable_changed_state_hook()
     def _configurable_changed_state_hook(self):
         pass
+    @property
+    def storedConfigs(self):
+        return self._storedConfigs
+    def store_config(self):
+        k, v = self.configs.id, ImmutableConfigs(contents = self.configs)
+        self.storedConfigs[k] = v
 
     def _outputSubKey(self):
         for o in super()._outputSubKey(): yield o
         yield self.configs.contentHash
 
     def _save(self):
-        self.writeouts.add_dict({self.configsKey: {**self.configs}})
+        self.writeouts.add_dict({self.configsKey: self.configs.contents})
         super()._save()
 
     def _load(self, arg):
         if arg is None:
             self.configure(silent = True)
+        elif type(arg) is str:
+            try:
+                loadCon = self.storedConfigs[arg]
+            except KeyError:
+                readpath = '/'.join([
+                    self.outputMasterKey,
+                    arg,
+                    self.configsKey
+                    ])
+                loadCon = self.reader[readpath]
+            self.set_configs(**loadCon)
         else:
             super()._load(arg)
 
