@@ -154,20 +154,27 @@ class Meta(type):
             inputs[key] = arg
         return inputs
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args, unique = False, **kwargs):
         inputs = Meta._align_inputs(cls, *args, **kwargs)
         obj = cls.__new__(cls, **inputs)
-        try:
-            obj = cls._get_prebuilt(obj.inputsHash)
-            # warnings.warn("Loading pre-built object.")
-        except KeyError:
-            cls._prebuilts[obj.hashID] = obj
+        if unique:
             obj.__init__(**obj.inputs)
-        return obj
+            return obj
+        else:
+            try:
+                obj = cls._get_prebuilt(obj.inputsHash)
+                # warnings.warn("Loading pre-built object.")
+            except KeyError:
+                cls._prebuilts[obj.hashID] = obj
+                obj.__init__(**obj.inputs)
+            return obj
 
 class Built(metaclass = Meta):
 
     _hashDepth = 2
+
+    def copy(self):
+        return type(self)(unique = True, **self.inputs)
 
     @classmethod
     def _custom_cls_fn(cls):
@@ -365,10 +372,13 @@ class Proxy:
                 assert len(processed) > 0
                 return processed
         raise NotAProxyTag
-    def realise(self):
-        if self._realised is None:
-            self._realised = self._realise()
-        return self._realised
+    def realise(self, unique = False):
+        if unique:
+            return self._realise(unique = unique)
+        else:
+            if self._realised is None:
+                self._realised = self._realise()
+            return self._realised
     @property
     def realised(self):
         return self.realise()
@@ -452,7 +462,7 @@ class BuiltProxy(Proxy, Pyklet):
             Pyklet.__init__(self, self.clsproxy, self.inputs)
         else:
             Pyklet.__init__(self, self.clsproxy, self.inputsHash)
-    def _realise(self):
+    def _realise(self, unique = False):
         cls = self.clsproxy.realised
         try:
             return cls._get_prebuilt(self.inputsHash)
@@ -463,7 +473,7 @@ class BuiltProxy(Proxy, Pyklet):
                 inputs = {**self.inputs, **self.ghosts}
             else:
                 inputs = self.inputs
-            return cls(**inputs)
+            return cls(unique = unique, **inputs)
     @property
     def reader(self):
         return super().reader.sub(self.typeHash, self.inputsHash)

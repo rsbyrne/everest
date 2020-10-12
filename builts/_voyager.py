@@ -82,6 +82,17 @@ class Voyager(Cycler, Counter, Stampable, Observable):
     def _iterate(self):
         self.indices.count.value += 1
 
+    def go(self, stop):
+        try:
+            self.load(target)
+        except LoadFail:
+            if not isinstance(stop, Comparator):
+                stop = self._indexer_process_endpoint(target)
+            if self._indexers_isnull:
+                self.initialise()
+            while not stop:
+                self.iterate()
+
     def _cycle(self):
         super()._cycle()
         self.iterate()

@@ -54,6 +54,8 @@ class Pyklet:
 
     def __repr__(self):
         return self.hashID
+    def copy(self):
+        return type(self)(*self._pickleArgs, **self._pickleKwargs)
 
 def search_and_touch(arg):
     if hasattr(arg, 'touch'):

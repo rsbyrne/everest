@@ -28,8 +28,7 @@ class Comparator(Pyklet):
         self.terms, self.op, self.asList, self.invert = \
             terms, op, asList, invert
 
-    def __call__(self, *queryArgs):
-
+    def _process_queryArgs(self, *queryArgs):
         queryArgs = iter(queryArgs)
         terms = []
         for t in self.terms:
@@ -42,6 +41,11 @@ class Comparator(Pyklet):
                 t = next(queryArgs)
             terms.append(t)
         terms.extend(list(queryArgs))
+        return terms
+
+    def __call__(self, *queryArgs):
+
+        terms = self._process_queryArgs(*queryArgs)
 
         if self.asList:
             out = bool(self.op(terms))
@@ -51,6 +55,10 @@ class Comparator(Pyklet):
             out = not out
 
         return out
+
+    def close(self, *queryArgs):
+        terms = self._process_queryArgs(*queryArgs)
+        return type(self)(*terms, self.op, self.asList, self.invert)
 
     def __bool__(self):
         return bool(self())
