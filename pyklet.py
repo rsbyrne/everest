@@ -22,14 +22,16 @@ class Pyklet:
     def _unpickle(cls, args, kwargs):
         return cls(*args, **kwargs)
     @property
-    def hashID(self):
+    def contentHash(self):
         if hasattr(self, '_hashID'):
-            contentHash = self._hashID()
+            return self._hashID()
         elif hasattr(self, '_hashObjects'):
-            contentHash = w_hash(self._hashObjects)
+            return w_hash(self._hashObjects)
         else:
-            contentHash = w_hash(self._pickleObjs)
-        return w_hash((type(self).__name__, contentHash))
+            return w_hash(self._pickleObjs)
+    @property
+    def hashID(self):
+        return w_hash((type(self).__name__, self.contentHash))
     def anchor(self, name, path):
         return self._anchorManager(name, path)
     def touch(self, name = None, path = None):

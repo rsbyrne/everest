@@ -21,6 +21,8 @@ class StateException(exceptions.EverestException):
     pass
 class ForbiddenSetItemOnState(StateException):
     pass
+class RedundantState(StateException):
+    pass
 
 def _state_context_wrap(func):
     @wraps(func)
@@ -79,6 +81,8 @@ class State(Stamper, ImmutableConfigs):
             try:
                 self._indexerEndpoint = True
                 if arg is None:
+                    if self.wanderer.initialised:
+                        raise RedundantState
                     arg = self.wanderer.indices.count
                 return self.wanderer._indexer_process_endpoint(arg)
             except IndexError:
@@ -189,7 +193,10 @@ class Wanderer(Voyager, Configurable):
         else:
             if not type(arg) is slice:
                 arg = slice(arg)
-            return State(self, arg)
+            try:
+                return State(self, arg)
+            except RedundantState:
+                return ImmutableConfigs(contents = self.configs)
 
     def __setitem__(self, key, val):
         if isinstance(val, Wanderer):
@@ -200,4 +207,4 @@ class Wanderer(Voyager, Configurable):
     @property
     def _promptableKey(self):
         # Overrides Promptable property:
-        return self.configs.hashID
+        return self.configs.contentHash

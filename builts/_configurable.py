@@ -196,9 +196,9 @@ class Configurable(Producer, Mutable):
         super().__init__(_mutableKeys = self.configs.keys(), **kwargs)
 
     def set_configs(self, *args, **kwargs):
-        prevHash = self.configs.hashID
+        prevHash = self.configs.contentHash
         self._set_configs(*args, **kwargs)
-        newHash = self.configs.hashID
+        newHash = self.configs.contentHash
         self.configured = newHash == prevHash
     def _set_configs(self, *args, **kwargs):
         self.configs.update_generic(*args, **kwargs)
@@ -220,7 +220,7 @@ class Configurable(Producer, Mutable):
 
     def _outputSubKey(self):
         for o in super()._outputSubKey(): yield o
-        yield self.configs.hashID
+        yield self.configs.contentHash
 
     def _save(self):
         self.writeouts.add_dict({self.configsKey: {**self.configs}})
