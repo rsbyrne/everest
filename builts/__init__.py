@@ -379,7 +379,7 @@ class Proxy:
         return self.meta._anchorManager.get_active()
     @property
     def reader(self):
-        self.man.reader
+        return self.man.reader
     @property
     def hashID(self):
         return self._hashID()

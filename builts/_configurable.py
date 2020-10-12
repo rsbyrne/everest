@@ -5,6 +5,7 @@ import warnings
 
 import numpy as np
 
+from . import Proxy
 from ._producer import Producer
 from ._mutable import Mutable, Mutant, Mutables
 from ._applier import Applier
@@ -47,21 +48,20 @@ class Config(Pyklet):
         toVar.imitate(self)
     @classmethod
     def convert(cls, arg, default = None):
-        try:
-            return arg.realised
-        except AttributeError:
-            pass
-        if not any([
-                isinstance(arg, (Config, Configurator)),
-                is_numeric(arg),
-                isinstance(type(arg), np.ndarray),
-                arg is Ellipsis,
-                ]):
-            raise TypeError(repr(arg)[:100], type(arg))
         if default is Ellipsis and not arg is Ellipsis:
             warnings.warn('Cannot reset Ellipsis default config: ignoring.')
             return Ellipsis
-        return arg
+        else:
+            if isinstance(arg, Proxy):
+                arg = arg.realised
+            if not any([
+                    isinstance(arg, (Config, Configurator)),
+                    is_numeric(arg),
+                    isinstance(type(arg), np.ndarray),
+                    arg is Ellipsis,
+                    ]):
+                raise TypeError(repr(arg)[:100], type(arg))
+            return arg
     # @property
     # def var(self):
     #     return self._var()
