@@ -159,7 +159,7 @@ class Meta(type):
         obj = cls.__new__(cls, **inputs)
         try:
             obj = cls._get_prebuilt(obj.inputsHash)
-            warnings.warn("Loading")
+            # warnings.warn("Loading pre-built object.")
         except KeyError:
             cls._prebuilts[obj.hashID] = obj
             obj.__init__(**obj.inputs)

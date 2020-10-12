@@ -25,9 +25,13 @@ class ConfigurableMissingKwarg(MissingKwarg, ConfigurableException):
     pass
 class ConfigurableAlreadyConfigured(ConfigurableException):
     pass
+class CannotProcessConfigs(ConfigurableException):
+    pass
 class ConfigException(EverestException):
     pass
 class ConfigMissingMethod(MissingMethod, ConfigException):
+    pass
+class ConfigCannotConvert(ConfigException):
     pass
 class ConfigsException(EverestException):
     pass
@@ -47,21 +51,25 @@ class Config(Pyklet):
     def _apply(self, toVar):
         toVar.imitate(self)
     @classmethod
-    def convert(cls, arg, default = None):
+    def convert(cls, arg, default = None, strict = False):
         if default is Ellipsis and not arg is Ellipsis:
             warnings.warn('Cannot reset Ellipsis default config: ignoring.')
             return Ellipsis
         else:
             if isinstance(arg, Proxy):
                 arg = arg.realised
-            if not any([
+            if any([
                     isinstance(arg, (Config, Configurator)),
-                    is_numeric(arg),
-                    isinstance(type(arg), np.ndarray),
                     arg is Ellipsis,
                     ]):
-                raise TypeError(repr(arg)[:100], type(arg))
-            return arg
+                return arg
+            elif not strict and any([
+                    is_numeric(arg),
+                    isinstance(type(arg), np.ndarray),
+                    ]):
+                return arg
+            else:
+                raise ConfigCannotConvert(repr(arg)[:100], type(arg))
     # @property
     # def var(self):
     #     return self._var()
@@ -200,18 +208,35 @@ class Configurable(Producer, Mutable):
 
         super().__init__(_mutableKeys = self.configs.keys(), **kwargs)
 
-    def set_configs(self, *args, **kwargs):
+    def set_configs(self, *args, new = None, **kwargs):
         prevHash = self.configs.contentHash
-        self._set_configs(*args, **kwargs)
+        self._set_configs(*args, new = new, **kwargs)
         newHash = self.configs.contentHash
         self.configured = newHash == prevHash and self.configured
         if newHash != prevHash:
             self._configurable_changed_state_hook()
-    def _set_configs(self, *args, **kwargs):
-        self.configs.update_generic(*args, **kwargs)
-        self.configs.update(self._process_configs(self.configs))
-    def _process_configs(self, configs):
-        return configs
+    def _set_configs(self, *args, new = None, **kwargs):
+        if new is None:
+            new = self.merge_configs(*args, **kwargs)
+        else:
+            if len(args) or len(kwargs):
+                raise ValueError
+            new = self.process_configs(new)
+        self.configs.update(new)
+    def merge_configs(self, *args, **kwargs):
+        merged = self.configs.copy()
+        merged.update_generic(*args, **kwargs)
+        return merged
+    def process_configs(self, arg, strict = False):
+        try:
+            return self.merge_configs(Config.convert(arg, strict = strict))
+        except ConfigCannotConvert:
+            if isinstance(arg, Sequence):
+                return self.merge_configs(*arg)
+            elif isinstance(arg, Mapping):
+                return self.merge_configs(**arg)
+            else:
+                raise CannotProcessConfigs
     def configure(self, silent = False):
         if self.configured:
             if silent:

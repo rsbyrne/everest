@@ -70,7 +70,7 @@ class Indexer(Producer):
         if any(trueTypes):
             return trueTypes.index(True)
         else:
-            raise TypeError(arg, type(arg))
+            raise TypeError(repr(arg)[:100], type(arg))
     def _get_indexInfo(self, arg):
         return self.indexersInfo[self._get_metaIndex(arg)]
     def _process_index(self, arg):

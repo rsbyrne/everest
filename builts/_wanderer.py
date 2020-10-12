@@ -8,7 +8,9 @@ from ._producer import NullValueDetected, OutsNull
 from ._voyager import Voyager
 from ._stampable import Stampable, Stamper
 from ._configurable import \
-    Configurable, MutableConfigs, ImmutableConfigs, Configs, Config
+    Configurable, MutableConfigs, ImmutableConfigs, Configs, Config, \
+    CannotProcessConfigs
+from ._configurator import Configurator
 from ._indexer import IndexerLoadRedundant, IndexerLoadFail
 from .. import exceptions
 from ..comparator import Comparator, Prop
@@ -55,19 +57,22 @@ class State(Stamper, ImmutableConfigs):
     def _pickle(self):
         return self._stateArgs, OrderedDict()
     def _process_startpoint(self, arg):
-        arg = self.wanderer.indices.count.value if arg is None else arg
-        arg = 0 if arg is None else arg
         if isinstance(arg, Comparator):
             raise everest.NotYetImplemented
-        elif isinstance(arg, Configs):
+        try:
+            arg = self.wanderer.process_configs(arg, strict = True)
+            self._indexerStartpoint = False
             return arg
-        elif is_numeric(arg):
-            if arg == 0:
-                return ImmutableConfigs(contents = self.wanderer.configs)
-            else:
-                return self.wanderer[0 : arg]
-        else:
-            raise TypeError(type(arg))
+        except CannotProcessConfigs:
+            arg = self.wanderer.indices.count.value if arg is None else arg
+            arg = 0 if arg is None else arg
+            if is_numeric(arg):
+                self._indexerStartpoint = True
+                if arg == 0:
+                    return ImmutableConfigs(contents = self.wanderer.configs)
+                else:
+                    return self.wanderer[0 : arg]
+        raise TypeError(type(arg))
     def _process_endpoint(self, arg):
         if isinstance(arg, Comparator):
             self._indexerEndpoint = False
@@ -83,7 +88,7 @@ class State(Stamper, ImmutableConfigs):
             except IndexError:
                 raise TypeError
     def __enter__(self):
-        self._oldConfigs = self.wanderer.configs.copy()
+        self._oldConfigs = ImmutableConfigs(contents = self.wanderer.configs)
         if not self.wanderer._indexers_isnull:
             self._reloadVals = self.wanderer.outs.data.copy()
             self._reloadVals.name = self.wanderer.outs.name
@@ -213,6 +218,9 @@ class Wanderer(Voyager, Configurable):
     def __setitem__(self, key, val):
         if isinstance(val, Wanderer):
             val = val[:]
+            if key is Ellipsis:
+                val = val[:]
+
         super().__setitem__(key, val)
         self.initialise(silent = True)
 
