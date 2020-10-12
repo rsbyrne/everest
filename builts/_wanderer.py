@@ -9,7 +9,7 @@ from ._voyager import Voyager
 from ._stampable import Stampable, Stamper
 from ._configurable import \
     Configurable, MutableConfigs, ImmutableConfigs, Config
-from ._indexer import IndexerLoadRedundant
+from ._indexer import IndexerLoadRedundant, IndexerLoadFail
 from .. import exceptions
 from ..comparator import Comparator, Prop
 from ..pyklet import Pyklet
@@ -107,6 +107,7 @@ class State(Stamper, ImmutableConfigs):
                     *[*self.wanderer.indexers]
                     )
         else:
+            self.wanderer.set_configs(**self.start)
             self.wanderer.load(self._data)
         return self
     def __exit__(self, *args):
@@ -169,13 +170,25 @@ class Wanderer(Voyager, Configurable):
 
         super().__init__(**kwargs)
 
-    def _set_configs(self, *args, **kwargs):
-        super()._set_configs(*args, **kwargs)
+    def _configurable_changed_state_hook(self):
+        super()._configurable_changed_state_hook()
         self._nullify_indexers()
 
     def _initialise(self, *args, **kwargs):
         self.configure(silent = True)
         super()._initialise(*args, **kwargs)
+        self.configured = False
+
+    def _load(self, arg):
+        if arg == 0:
+            try:
+                super()._load(arg)
+            except IndexerLoadFail:
+                self.initialise()
+        else:
+            super()._load(arg)
+        if not self._indexers_isnull:
+            self.configured = False
 
     def __getitem__(self, arg):
         assert len(self.configs)

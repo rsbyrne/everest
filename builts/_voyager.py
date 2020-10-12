@@ -70,9 +70,12 @@ class Voyager(Cycler, Counter, Stampable, Observable):
     def _voyager_changed_state_hook(self):
         pass
 
-    def iterate(self, n = 1):
+    def iterate(self, n = 1, silent = True):
         if self._indexers_isnull:
-            raise VoyagerNotInitialised
+            if silent:
+                self.initialise()
+            else:
+                raise VoyagerNotInitialised
         for i in range(n):
             self._iterate()
     @_voyager_changed_state

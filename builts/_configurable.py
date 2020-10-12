@@ -22,7 +22,7 @@ class ConfigurableMissingAttribute(MissingAttribute, ConfigurableException):
     pass
 class ConfigurableMissingKwarg(MissingKwarg, ConfigurableException):
     pass
-class ConfigurableAlreadyConfigure(ConfigurableException):
+class ConfigurableAlreadyConfigured(ConfigurableException):
     pass
 class ConfigException(EverestException):
     pass
@@ -51,7 +51,7 @@ class Config(Pyklet):
                 arg is Ellipsis,
                 ]):
             raise TypeError(type(arg))
-        if default is Ellipsis:
+        if default is Ellipsis and not arg is Ellipsis:
             warnings.warn('Cannot reset Ellipsis default config: ignoring.')
             return Ellipsis
         return arg
@@ -200,6 +200,8 @@ class Configurable(Producer, Mutable):
         self._set_configs(*args, **kwargs)
         newHash = self.configs.contentHash
         self.configured = newHash == prevHash
+        if not self.configured:
+            self._configurable_changed_state_hook()
     def _set_configs(self, *args, **kwargs):
         self.configs.update_generic(*args, **kwargs)
         self.configs.update(self._process_configs(self.configs))
@@ -211,12 +213,15 @@ class Configurable(Producer, Mutable):
             if silent:
                 pass
             else:
-                raise ConfigurableAlreadyConfigure
+                raise ConfigurableAlreadyConfigured
         else:
             self._configure()
     def _configure(self):
         self.configs.apply(self.mutables)
         self.configured = True
+        self._configurable_changed_state_hook()
+    def _configurable_changed_state_hook(self):
+        pass
 
     def _outputSubKey(self):
         for o in super()._outputSubKey(): yield o
@@ -225,6 +230,12 @@ class Configurable(Producer, Mutable):
     def _save(self):
         self.writeouts.add_dict({self.configsKey: {**self.configs}})
         super()._save()
+
+    def _load(self, arg):
+        if arg is None:
+            self.configure(silent = True)
+        else:
+            super()._load(arg)
 
     def __setitem__(self, arg1, arg2):
         assert len(self.configs)
