@@ -54,8 +54,13 @@ class Grouper:
     def copy(self):
         return self.__class__(self.grouperDict.copy())
     def update(self, inDict):
-        for key, val in inDict.items():
-            self[key] = val
+        if isinstance(inDict, type(self)):
+            inDict = inDict.grouperDict
+        for key, val in sorted(inDict.items()):
+            setattr(self, key, val)
+    def clear(self):
+        for name in self.grouperDict.keys():
+            delattr(self, name)
     @property
     def hashID(self):
         return w_hash(sorted(self.grouperDict.items()))
