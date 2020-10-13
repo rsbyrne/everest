@@ -96,7 +96,7 @@ class State(Stamper, ImmutableConfigs):
     def _process_endpoint(cls, arg, wanderer):
         if isinstance(arg, Comparator):
             _indexerEndpoint = None
-            return arg.close(wanderer), _indexerEndpoint
+            return arg, _indexerEndpoint
         else:
             try:
                 if arg is None:
@@ -104,7 +104,8 @@ class State(Stamper, ImmutableConfigs):
                         raise RedundantState
                     arg = wanderer.indices.count
                 _indexerEndpoint = arg
-                return wanderer._indexer_process_endpoint(arg), _indexerEndpoint
+                endComp = wanderer._indexer_process_endpoint(arg, close = False)
+                return endComp, _indexerEndpoint
             except IndexError:
                 raise TypeError
     def __init__(self, wanderer, sliceTup):
@@ -124,7 +125,7 @@ class State(Stamper, ImmutableConfigs):
     def _compute(self):
         assert not self._computed
         self.wanderer.initialise(silent = True)
-        while not self.stop:
+        while not self.stop(self.wanderer):
             self.wanderer.iterate()
         self._data = self.wanderer.outs.data.copy()
         self._data.name = self.wanderer.outputSubKey
