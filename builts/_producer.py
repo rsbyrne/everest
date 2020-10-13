@@ -59,6 +59,7 @@ class Outs:
     def __init__(self, keys, name = 'default'):
         self._keys, self.name = keys, name
         self._data = OrderedDict([(k, OutsNull) for k in self._keys])
+        self._data.name = name
         self.stored = OrderedDict([(k, []) for k in self._keys])
         self.hashVals = []
         self.n = 0

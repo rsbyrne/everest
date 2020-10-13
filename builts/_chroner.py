@@ -22,4 +22,4 @@ class Chroner(Indexer):
         yield self._chronsKey
     def _indexerTypes(self):
         for o in super()._indexerTypes(): yield o
-        yield np.float
+        yield (float, np.float)

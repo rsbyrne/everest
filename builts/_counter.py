@@ -22,4 +22,4 @@ class Counter(Indexer):
         yield self._countsKey
     def _indexerTypes(self):
         for o in super()._indexerTypes(): yield o
-        yield np.int
+        yield (int, np.integer, np.int)

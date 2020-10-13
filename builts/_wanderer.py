@@ -2,6 +2,8 @@ import numpy as np
 from collections import OrderedDict, namedtuple
 from contextlib import contextmanager
 from functools import wraps
+import warnings
+import weakref
 
 from ..utilities import w_hash, get_hash
 from ._producer import NullValueDetected, OutsNull
@@ -25,106 +27,6 @@ class StateException(exceptions.EverestException):
 class RedundantState(StateException):
     pass
 
-# def _state_context_wrap(func):
-#     @wraps(func)
-#     def wrapper(state, *args, **kwargs):
-#         with state:
-#             pass
-#         return func(state, *args, **kwargs)
-#     return wrapper
-#
-# class State(Stamper, ImmutableConfigs):
-#     def __init__(self, wanderer, slicer, _data = OrderedDict()):
-#         self.wanderer = wanderer
-#         if type(slicer) is tuple:
-#             slicer = slice(*slicer)
-#         start, stop, step = slicer.start, slicer.stop, slicer.step
-#         self.start = self._process_startpoint(start)
-#         self.stop = self._process_endpoint(stop)
-#         self.step = step
-#         if not self.step is None: raise exceptions.NotYetImplemented
-#         self._data = OrderedDict()
-#         self._data.name = self.start.id
-#         self._stateArgs = [self.wanderer, (self.start, self.stop, self.step)]
-#         statelets = OrderedDict([
-#             (k, Statelet(self, k))
-#                 for k in self.wanderer.configs.keys()
-#             ])
-#         super().__init__(self,
-#             *[*self._stateArgs, self._data],
-#             contents = statelets,
-#             )
-#     def _pickle(self):
-#         return self._stateArgs, OrderedDict()
-#     def _process_startpoint(self, arg):
-#         if isinstance(arg, Comparator):
-#             raise everest.NotYetImplemented
-#         try:
-#             arg = self.wanderer.process_configs(arg, strict = True)
-#             self._indexerStartpoint = False
-#             return arg
-#         except CannotProcessConfigs:
-#             arg = self.wanderer.indices.count.value if arg is None else arg
-#             arg = 0 if arg is None else arg
-#             if is_numeric(arg):
-#                 self._indexerStartpoint = True
-#                 if arg == 0:
-#                     return ImmutableConfigs(contents = self.wanderer.configs)
-#                 else:
-#                     return self.wanderer[0 : arg]
-#         raise TypeError(type(arg))
-#     def _process_endpoint(self, arg):
-#         if isinstance(arg, Comparator):
-#             self._indexerEndpoint = False
-#             return arg
-#         else:
-#             try:
-#                 self._indexerEndpoint = True
-#                 if arg is None:
-#                     if self.wanderer.initialised:
-#                         raise RedundantState
-#                     arg = self.wanderer.indices.count
-#                 return self.wanderer._indexer_process_endpoint(arg)
-#             except IndexError:
-#                 raise TypeError
-#     def __enter__(self):
-#         self._oldConfigs = ImmutableConfigs(contents = self.wanderer.configs)
-#         if not self.wanderer._indexers_isnull:
-#             self._reloadVals = self.wanderer.outs.data.copy()
-#             self._reloadVals.name = self.wanderer.outs.name
-#         else:
-#             self._reloadVals = None
-#         if not len(self._data):
-#             self.wanderer.set_configs(**self.start)
-#             self.wanderer.initialise(silent = True)
-#             while not self.stop:
-#                 self.wanderer.iterate()
-#             self._data.update(self.wanderer.outs.data)
-#             self._indices = namedtuple(
-#                 'IndexerHost',
-#                 self.wanderer.indexerKeys)(
-#                     *[*self.wanderer.indexers]
-#                     )
-#         else:
-#             self.wanderer.set_configs(**self.start)
-#             self.wanderer.load(self._data)
-#         return self
-#     def __exit__(self, *args):
-#         self.wanderer.set_configs(**self._oldConfigs)
-#         try:
-#             self.wanderer.load(self._reloadVals)
-#         except IndexerLoadRedundant:
-#             pass
-#         del self._oldConfigs, self._reloadVals
-#     @property
-#     @_state_context_wrap
-#     def data(self):
-#         return self._data
-#     @property
-#     @_state_context_wrap
-#     def indices(self):
-#         return self._indices
-
 def _state_context_wrap(func):
     @wraps(func)
     def wrapper(state, *args, **kwargs):
@@ -134,72 +36,102 @@ def _state_context_wrap(func):
     return wrapper
 
 class State(Stamper, ImmutableConfigs):
-    def __init__(self, wanderer, slicer):
-        self.wanderer = wanderer.copy()
-        self.wanderer.set_configs(**wanderer.configs)
+    _premade = weakref.WeakValueDictionary()
+    @classmethod
+    def get_state(cls, wanderer, slicer):
+        wanderer, (start, stop) = cls._state_process(wanderer, slicer)
+        obj = cls(wanderer, (start, stop))
+        try:
+            obj = cls._premade[obj.contentHash]
+        except KeyError:
+            cls._premade[obj.contentHash] = obj
+        return obj
+    @classmethod
+    def _state_process(cls, wanderer, slicer):
+        localWanderer = wanderer.copy()
+        localWanderer.set_configs(**wanderer.configs)
+        if wanderer._indexers_ispos:
+            localWanderer.load(wanderer.outs.data)
         if type(slicer) is tuple:
             slicer = slice(*slicer)
         start, stop, step = slicer.start, slicer.stop, slicer.step
-        self.start = self._process_startpoint(start)
-        self.stop = self._process_endpoint(stop)
-        self.step = step
-        if not self.step is None: raise exceptions.NotYetImplemented
-        self._data = OrderedDict()
-        self._data.name = self.start.id
-        self._computed = False
-        self._stateArgs = [
-            self.wanderer,
-            (self.start, self.stop, self.step)
+        if not step is None:
+            raise ValueError("Cannot specify step for state.")
+        stop, _indexerEndpoint = cls._process_endpoint(
+            stop,
+            localWanderer
+            )
+        if _indexerEndpoint:
+            if not start is None:
+                warnings.warn("Specified start point is redundant; ignoring.")
+            start, _indexerStartpoint = localWanderer.configs, 0
+        else:
+            start, _indexerStartpoint = cls._process_startpoint(
+                start,
+                localWanderer
+                )
+        return [
+            localWanderer,
+            (start, stop)
             ]
+    @classmethod
+    def _process_startpoint(cls, arg, wanderer):
+        if isinstance(arg, Comparator):
+            raise everest.NotYetImplemented
+        try:
+            arg = wanderer.process_configs(arg, strict = True)
+            _indexerStartpoint = None
+            return arg, _indexerStartpoint
+        except CannotProcessConfigs:
+            arg = swanderer.indices.count.value if arg is None else arg
+            arg = 0 if arg is None else arg
+            if is_numeric(arg):
+                _indexerStartpoint = arg
+                if arg == 0:
+                    return ImmutableConfigs(contents = wanderer.configs)
+                else:
+                    return wanderer[0 : arg], _indexerStartpoint
+        raise TypeError(type(arg))
+    @classmethod
+    def _process_endpoint(cls, arg, wanderer):
+        if isinstance(arg, Comparator):
+            _indexerEndpoint = None
+            return arg.close(wanderer), _indexerEndpoint
+        else:
+            try:
+                if arg is None:
+                    if not wanderer._indexers_ispos:
+                        raise RedundantState
+                    arg = wanderer.indices.count
+                _indexerEndpoint = arg
+                return wanderer._indexer_process_endpoint(arg), _indexerEndpoint
+            except IndexError:
+                raise TypeError
+    def __init__(self, wanderer, sliceTup):
+        self.wanderer, (self.start, self.stop) = wanderer, sliceTup
+        self._stateArgs = (self.wanderer, (self.start, self.stop))
         statelets = OrderedDict([
             (k, Statelet(self, k))
                 for k in self.wanderer.configs.keys()
             ])
         statelets = self.wanderer.process_configs(statelets)
+        self._computed = False
         super().__init__(self,
-            *[*self._stateArgs, self._data],
             contents = statelets,
             )
     def _pickle(self):
         return self._stateArgs, OrderedDict()
-    def _process_startpoint(self, arg):
-        if isinstance(arg, Comparator):
-            raise everest.NotYetImplemented
-        try:
-            arg = self.wanderer.process_configs(arg, strict = True)
-            self._indexerStartpoint = False
-            return arg
-        except CannotProcessConfigs:
-            arg = self.wanderer.indices.count.value if arg is None else arg
-            arg = 0 if arg is None else arg
-            if is_numeric(arg):
-                self._indexerStartpoint = True
-                if arg == 0:
-                    return ImmutableConfigs(contents = self.wanderer.configs)
-                else:
-                    return self.wanderer[0 : arg]
-        raise TypeError(type(arg))
-    def _process_endpoint(self, arg):
-        if isinstance(arg, Comparator):
-            self._indexerEndpoint = False
-            return arg.close(self.wanderer)
-        else:
-            try:
-                self._indexerEndpoint = True
-                if arg is None:
-                    if self.wanderer.initialised:
-                        raise RedundantState
-                    arg = self.wanderer.indices.count
-                return self.wanderer._indexer_process_endpoint(arg)
-            except IndexError:
-                raise TypeError
     def _compute(self):
         assert not self._computed
-        self.wanderer.set_configs(**self.start)
         self.wanderer.initialise(silent = True)
         while not self.stop:
             self.wanderer.iterate()
-        self._data.update(self.wanderer.outs.data)
+        self._data = self.wanderer.outs.data.copy()
+        self._data.name = self.wanderer.outputSubKey
+        self._indices = namedtuple('IndexerHost', self.wanderer.indexerKeys)(
+            *[i.value for i in self.wanderer.indexers]
+            )
+        self._computed = True
     @property
     @_state_context_wrap
     def data(self):
@@ -207,7 +139,7 @@ class State(Stamper, ImmutableConfigs):
     @property
     @_state_context_wrap
     def indices(self):
-        return self.wanderer.indices
+        return self._indices
     @property
     @_state_context_wrap
     def mutables(self):
@@ -216,12 +148,22 @@ class State(Stamper, ImmutableConfigs):
 class Statelet(Config):
     def __init__(self, state, channel):
         self.state, self.channel = state, channel
+        self._stateletHashID = self._make_hashID(
+            self.channel,
+            *self.state._stateArgs
+            )
         super().__init__(content = (self.channel, self.state._stateArgs))
-        inners = [
-            o.contentHash if hasattr(o, 'contentHash') else get_hash(o)
-                for o in self.content[1]
-            ]
-        self._stateletHashID = w_hash((self.content[0], *inners))
+    @staticmethod
+    def _make_hashID(channel, wanderer, sliceTup):
+        if wanderer.configs[channel] is Ellipsis:
+            return w_hash(str(Ellipsis))
+        else:
+            return w_hash((
+                channel,
+                wanderer.hashID,
+                *[o.contentHash if hasattr(o, 'contentHash') else get_hash(o)
+                    for o in sliceTup]
+                ))
     def _hashID(self):
         return self._stateletHashID
     def _pickle(self):
@@ -249,6 +191,10 @@ class Wanderer(Voyager, Configurable):
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
+
+    @property
+    def locality(self):
+        return self.configs.id, tuple(i.value for i in self.indices)
 
     def _configurable_changed_state_hook(self):
         super()._configurable_changed_state_hook()
@@ -292,15 +238,26 @@ class Wanderer(Voyager, Configurable):
             if not type(arg) is slice:
                 arg = slice(arg)
             try:
-                return State(self, arg)
+                return State.get_state(self, arg)
             except RedundantState:
                 return ImmutableConfigs(contents = self.configs)
 
     def __setitem__(self, key, val):
         if isinstance(val, Wanderer):
             val = val[:]
+        if isinstance(val, State):
+            if val.wanderer.hashID == self.hashID:
+                if not val.start.id == self.configs.id:
+                    self[...] = val.start
+                if not self.indices == val.indices:
+                    assert self.outputSubKey == val.data.name
+                    self.load(val.data)
+                return
+            else:
+                val = val[:]
         super().__setitem__(key, val)
         self.initialise(silent = True)
+        return
 
     @property
     def _promptableKey(self):
