@@ -292,14 +292,34 @@ class Configurable(Producer, Mutable):
     def _configurable_set_single(self, arg1, arg2):
         raise NotYetImplemented
     def _configurable_set_multi(self, arg1, arg2):
-        if type(arg1) is str:
-            self.set_configs(**{arg1: arg2})
-        elif arg1 is Ellipsis:
-            if isinstance(arg2, Sequence):
-                self.set_configs(*arg2)
-            elif isinstance(arg2, Mapping):
-                self.set_configs(**arg2)
+        if arg1 is Ellipsis:
+            seqChoice = range(len(self.configs))
+            mapChoice = self.configs.keys()
+        elif type(arg1) is str:
+            seqChoice = [list(self.configs.keys()).index(arg1),]
+            mapChoice = [arg1,]
+        elif type(arg1) is int:
+            seqChoice = [arg1,]
+            mapChoice = [list(self.configs.keys())[arg1],]
+        elif type(arg1) is tuple:
+            if len(set([type(o) for o in arg1])) > 1:
+                raise ValueError
+            if type(arg1[0]) is str:
+                seqFn = lambda arg: list(self.configs.keys()).index(arg)
+                seqChoice = [seqFn(arg) for arg in arg1]
+                mapChoice = arg1
+            elif type(arg1[0] is int):
+                mapFn = lambda arg: list(self.configs.keys())[arg]
+                seqChoice = arg1
+                mapChoice = [mapFn(arg) for arg in arg1]
             else:
-                self.set_configs(*[arg2 for _ in range(len(self.configs))])
+                raise TypeError
+        if isinstance(arg2, Sequence):
+            arg2 = [arg2[i] for i in seqChoice]
+            self.set_configs(*arg2)
+        elif isinstance(arg2, Mapping):
+            arg2 = OrderedDict((k, arg2[k]) for k in mapChoice)
+            self.set_configs(**arg2)
         else:
-            raise TypeError
+            arg2 = [arg2 for i in seqChoice]
+            self.set_configs(*arg2)
