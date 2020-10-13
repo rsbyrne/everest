@@ -64,8 +64,8 @@ class Voyager(Cycler, Counter, Stampable, Observable):
     @property
     def initialised(self):
         return self._indexers_iszero
-    def reset(self):
-        self.initialise()
+    def reset(self, silent = True):
+        self.initialise(silent = silent)
     @_producer_update_outs
     def _voyager_changed_state_hook(self):
         pass
@@ -97,6 +97,9 @@ class Voyager(Cycler, Counter, Stampable, Observable):
                 boolFn = lambda: stop
             else:
                 raise ValueError("Too many slots on comparator.")
+            self.reset()
+            if boolFn():
+                raise Exception("Condition already met.")
             while not boolFn():
                 self.iterate()
 
