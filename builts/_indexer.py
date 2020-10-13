@@ -79,17 +79,19 @@ class Indexer(Producer):
             return i - arg
         else:
             return arg
-    def _indexer_process_endpoint(self, arg, close = True):
+    def _indexer_process_endpoint(self, arg, close = False):
         i, ik, it = self._get_indexInfo(arg)
         if close:
             target = self
         else:
             target = None
-        return Comparator(
+        comp = Comparator(
             Prop(target, 'indices', ik),
             self._process_index(arg),
             op = 'ge'
             )
+        comp.index = arg
+        return comp
 
     def _nullify_indexers(self):
         for indexer in self.indexers:
@@ -178,6 +180,8 @@ class Indexer(Producer):
             i.value = val
         return super()._load_process(outs)
     def _load(self, arg):
+        if isinstance(arg, Comparator) and hasattr(arg, 'index'):
+            arg = arg.index
         try:
             i, ik, it = self._get_indexInfo(arg)
         except TypeError:

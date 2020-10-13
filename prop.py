@@ -16,6 +16,8 @@ class Prop(Pyklet):
 
         self.target, self.props = target, props
 
+        self.open = self.target is None
+
     def __call__(self, obj = None):
 
         if obj is None:

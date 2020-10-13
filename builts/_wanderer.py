@@ -39,78 +39,16 @@ class State(Stamper, ImmutableConfigs):
     _premade = weakref.WeakValueDictionary()
     @classmethod
     def get_state(cls, wanderer, slicer):
-        wanderer, (start, stop) = cls._state_process(wanderer, slicer)
-        obj = cls(wanderer, (start, stop))
+        obj = cls(wanderer, slicer)
         try:
             obj = cls._premade[obj.contentHash]
         except KeyError:
             cls._premade[obj.contentHash] = obj
         return obj
-    @classmethod
-    def _state_process(cls, wanderer, slicer):
-        localWanderer = wanderer.copy()
-        localWanderer.set_configs(**wanderer.configs)
-        if wanderer._indexers_ispos:
-            localWanderer.load(wanderer.outs.data)
-        if type(slicer) is tuple:
-            slicer = slice(*slicer)
-        start, stop, step = slicer.start, slicer.stop, slicer.step
-        if not step is None:
-            raise ValueError("Cannot specify step for state.")
-        stop, _indexerEndpoint = cls._process_endpoint(
-            stop,
-            localWanderer
-            )
-        if _indexerEndpoint:
-            if not start is None:
-                warnings.warn("Specified start point is redundant; ignoring.")
-            start, _indexerStartpoint = localWanderer.configs, 0
-        else:
-            start, _indexerStartpoint = cls._process_startpoint(
-                start,
-                localWanderer
-                )
-        return [
-            localWanderer,
-            (start, stop)
-            ]
-    @classmethod
-    def _process_startpoint(cls, arg, wanderer):
-        if isinstance(arg, Comparator):
-            raise everest.NotYetImplemented
-        try:
-            arg = wanderer.process_configs(arg, strict = True)
-            _indexerStartpoint = None
-            return arg, _indexerStartpoint
-        except CannotProcessConfigs:
-            arg = swanderer.indices.count.value if arg is None else arg
-            arg = 0 if arg is None else arg
-            if is_numeric(arg):
-                _indexerStartpoint = arg
-                if arg == 0:
-                    return ImmutableConfigs(contents = wanderer.configs)
-                else:
-                    return wanderer[0 : arg], _indexerStartpoint
-        raise TypeError(type(arg))
-    @classmethod
-    def _process_endpoint(cls, arg, wanderer):
-        if isinstance(arg, Comparator):
-            _indexerEndpoint = None
-            return arg, _indexerEndpoint
-        else:
-            try:
-                if arg is None:
-                    if not wanderer._indexers_ispos:
-                        raise RedundantState
-                    arg = wanderer.indices.count
-                _indexerEndpoint = arg
-                endComp = wanderer._indexer_process_endpoint(arg, close = False)
-                return endComp, _indexerEndpoint
-            except IndexError:
-                raise TypeError
-    def __init__(self, wanderer, sliceTup):
-        self.wanderer, (self.start, self.stop) = wanderer, sliceTup
-        self._stateArgs = (self.wanderer, (self.start, self.stop))
+    def __init__(self, wanderer, slicer):
+        self.start, self.stop = get_start_stop(wanderer, slicer)
+        self.wanderer = wanderer
+        self._stateArgs = (wanderer, (self.start, self.stop))
         statelets = OrderedDict([
             (k, Statelet(self, k))
                 for k in self.wanderer.configs.keys()
@@ -124,13 +62,13 @@ class State(Stamper, ImmutableConfigs):
         return self._stateArgs, OrderedDict()
     def _compute(self):
         assert not self._computed
-        self.wanderer.initialise(silent = True)
-        while not self.stop(self.wanderer):
-            self.wanderer.iterate()
-        self._data = self.wanderer.outs.data.copy()
-        self._data.name = self.wanderer.outputSubKey
-        self._indices = namedtuple('IndexerHost', self.wanderer.indexerKeys)(
-            *[i.value for i in self.wanderer.indexers]
+        self.localWanderer = wanderer.copy()
+        self.localWanderer.gofrom(self.start, self.stop)
+        self._data = self.localWanderer.outs.data.copy()
+        self._data.name = self.localWanderer.outputSubKey
+        iks = self.localWanderer.indexerKeys
+        self._indices = namedtuple('IndexerHost', iks)(
+            *[i.value for i in self.localWanderer.indexers]
             )
         self._computed = True
     @property
@@ -144,7 +82,7 @@ class State(Stamper, ImmutableConfigs):
     @property
     @_state_context_wrap
     def mutables(self):
-        return self.wanderer.mutables
+        return self.localWanderer.mutables
 
 class Statelet(Config):
     def __init__(self, state, channel):
@@ -179,13 +117,33 @@ class Statelet(Config):
     def var(self):
         return self.mutant.var
     def _apply(self, toVar):
-        assert not self.state.wanderer is toVar.host
+        assert not self.state.localWanderer is toVar.host
         super()._apply(toVar)
 
-    # @property
-    # def out(self):
-    #     with self as out:
-    #         return out
+def get_start_stop(wanderer, slicer):
+    if type(slicer) is tuple:
+        slicer = slice(*slicer)
+    start, stop, step = slicer.start, slicer.stop, slicer.step
+    if not step is None:
+        raise ValueError("Cannot specify step for state.")
+    stop = wanderer.indices.count.value if stop is None else stop
+    if is_numeric(stop):
+        if not start is None:
+            warnings.warn("Specified start point is redundant; ignoring.")
+        start = ImmutableConfigs(contents = wanderer.configs)
+        stop = wanderer._indexer_process_endpoint(stop)
+    elif isinstance(stop, Comparator):
+        if not stop.slots == 1:
+            raise ValueError("Too many slots on stop comparator.")
+        start = wanderer.indices.count.value if start is None else start
+        start = 0 if start is None else start
+        try:
+            start = wanderer.process_configs(start, strict = True)
+        except CannotProcessConfigs:
+            start = wanderer[0:start]
+    assert isinstance(start, Configs)
+    assert isinstance(stop, Comparator)
+    return start, stop
 
 class Wanderer(Voyager, Configurable):
 
@@ -205,6 +163,11 @@ class Wanderer(Voyager, Configurable):
         self.configure(silent = True)
         super()._initialise(*args, **kwargs)
         self.configured = False
+
+    def gofrom(self, start, stop):
+        start, stop = get_start_stop(self, (start, stop))
+        self.set_configs(**start)
+        self.go(stop)
 
     def _out(self, *args, **kwargs):
         if self._indexers_isnull:

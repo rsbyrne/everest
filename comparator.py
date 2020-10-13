@@ -28,7 +28,12 @@ class Comparator(Pyklet):
         self.terms, self.op, self.asList, self.invert = \
             terms, op, asList, invert
 
+        open = [t.open if isinstance(t, Prop) else False for t in self.terms]
+        self.slots = len([t for t in open if t])
+
     def _process_queryArgs(self, *queryArgs):
+        if not len(queryArgs) == self.slots:
+            raise ValueError("Not enough slots for query arguments.")
         queryArgs = iter(queryArgs)
         terms = []
         for t in self.terms:

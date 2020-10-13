@@ -84,13 +84,20 @@ class Voyager(Cycler, Counter, Stampable, Observable):
 
     def go(self, stop):
         try:
-            self.load(target)
+            self.load(stop)
         except LoadFail:
             if not isinstance(stop, Comparator):
-                stop = self._indexer_process_endpoint(target)
+                stop = self._indexer_process_endpoint(stop, close = False)
             if self._indexers_isnull:
                 self.initialise()
-            while not stop:
+            slots = stop.slots
+            if slots == 1:
+                boolFn = lambda: stop(self)
+            elif slots == 0:
+                boolFn = lambda: stop
+            else:
+                raise ValueError("Too many slots on comparator.")
+            while not boolFn():
                 self.iterate()
 
     def _cycle(self):
