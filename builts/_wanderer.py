@@ -47,6 +47,7 @@ class State(Stamper, ImmutableConfigs):
         return obj
     def __init__(self, wanderer, slicer):
         self.start, self.stop = get_start_stop(wanderer, slicer)
+        self.indexlike = hasattr(self.stop, 'index')
         self.wanderer = wanderer
         self._stateArgs = (wanderer, (self.start, self.stop))
         statelets = OrderedDict([
@@ -63,7 +64,7 @@ class State(Stamper, ImmutableConfigs):
     def _compute(self):
         assert not self._computed
         self.localWanderer = wanderer.copy()
-        self.localWanderer.gofrom(self.start, self.stop)
+        self.localWanderer.go(self.start, self.stop)
         self._data = self.localWanderer.outs.data.copy()
         self._data.name = self.localWanderer.outputSubKey
         iks = self.localWanderer.indexerKeys
@@ -117,7 +118,7 @@ class Statelet(Config):
     def var(self):
         return self.mutant.var
     def _apply(self, toVar):
-        assert not self.state.localWanderer is toVar.host
+        # assert not self.state.localWanderer is toVar.host
         super()._apply(toVar)
 
 def get_start_stop(wanderer, slicer):
@@ -126,22 +127,37 @@ def get_start_stop(wanderer, slicer):
     start, stop, step = slicer.start, slicer.stop, slicer.step
     if not step is None:
         raise ValueError("Cannot specify step for state.")
-    stop = wanderer.indices.count.value if stop is None else stop
-    if is_numeric(stop):
-        if not start is None:
+    count = wanderer.indices.count.value
+    start = (0 if count is None else count) if start is None else start
+    stop = (0 if count is None else count) if stop is None else stop
+    try:
+        start = wanderer.process_configs(start, strict = True)
+    except CannotProcessConfigs:
+        pass
+    indexlikeStop = any([
+        is_numeric(stop),
+        (isinstance(stop, Comparator) and hasattr(stop, 'index'))
+        ])
+    if isinstance(start, State):
+        if start.wanderer.hashID == wanderer.hashID:
+            if start.indexlike:
+                start = start.start
+    elif isinstance(start, Comparator) or is_numeric(start):
+        if indexlikeStop:
             warnings.warn("Specified start point is redundant; ignoring.")
-        start = ImmutableConfigs(contents = wanderer.configs)
-        stop = wanderer._indexer_process_endpoint(stop)
+            start = ImmutableConfigs(contents = wanderer.configs)
+        else:
+            start = wanderer[0 : start]
+    assert isinstance(start, Configs)
+    if is_numeric(stop):
+        if stop == 0:
+            raise RedundantState
+        stop = wanderer._indexer_process_endpoint(stop, close = False)
     elif isinstance(stop, Comparator):
         if not stop.slots == 1:
             raise ValueError("Too many slots on stop comparator.")
-        start = wanderer.indices.count.value if start is None else start
-        start = 0 if start is None else start
-        try:
-            start = wanderer.process_configs(start, strict = True)
-        except CannotProcessConfigs:
-            start = wanderer[0:start]
-    assert isinstance(start, Configs)
+    else:
+        raise TypeError("Stop must be a Comparator or convertible to one.")
     assert isinstance(stop, Comparator)
     return start, stop
 
@@ -164,10 +180,13 @@ class Wanderer(Voyager, Configurable):
         super()._initialise(*args, **kwargs)
         self.configured = False
 
-    def gofrom(self, start, stop):
-        start, stop = get_start_stop(self, (start, stop))
-        self.set_configs(**start)
-        self.go(stop)
+    def go(self, arg1, arg2 = None):
+        if arg2 is None:
+            super().go(arg1)
+        else:
+            start, stop = get_start_stop(self, (arg1, arg2))
+            self.set_configs(**start)
+            super().go(stop)
 
     def _out(self, *args, **kwargs):
         if self._indexers_isnull:
@@ -201,6 +220,7 @@ class Wanderer(Voyager, Configurable):
         else:
             if not type(arg) is slice:
                 arg = slice(arg)
+            start, stop, step = arg.start, arg.stop, arg.step
             try:
                 return State.get_state(self, arg)
             except RedundantState:
