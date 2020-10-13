@@ -4,25 +4,23 @@ import pickle
 import ast
 from collections import OrderedDict
 
-from . import load
-from ._diskbased import DiskBased
 from ..exceptions import EverestException
 from .. import mpi
 from .. import disk
 from ..pyklet import Pyklet
-from . import Builder
+from . import Built, BuildProxy
 
 
 class Ticket(Pyklet):
     def __init__(self, obj, spice = 0, timestamp = None):
         if timestamp is None:
             timestamp = mpi.share(time.time())
-        if isinstance(obj, Builder):
-            hashID = obj.hashID
+        if isinstance(obj, BuildProxy):
             getBuilt = obj
+            hashID = getBuilt.hashID
         elif type(obj) is str:
             hashID = obj
-            getBuilt = lambda: load(hashID)
+            getBuilt = BuildProxy(hashID)
         else:
             raise TypeError
         if spice is None:
@@ -31,23 +29,25 @@ class Ticket(Pyklet):
         hexID = hashlib.md5(hashInp.encode()).hexdigest()
         self.spice = spice
         self.obj = obj
-        self.hashID = hashID
+        self._targetHash = hashID
         self.number = int(hexID, 16)
         self.timestamp = timestamp
         self.getBuilt = getBuilt
         super().__init__(hashID, spice, timestamp)
+    def _hashID(self):
+        return self._targetHash
     def __repr__(self):
-        return '<' + self.hashID + ';' + str(self.timestamp) + '>'
+        return '<' + self._targetHash + ';' + str(self.timestamp) + '>'
     def __hash__(self):
         return self.number
     def __eq__(self, arg):
         if not type(arg) is self.__class__: raise TypeError(arg, type(arg))
-        return self.hashID == arg.hashID
+        return self.contentHash == arg.hashID
     def __lt__(self, arg):
         if not isinstance(arg, Ticket): raise TypeError
         return self.timestamp < arg.timestamp
     def __call__(self):
-        return self.getBuilt()
+        return self.getBuilt.realise()
 
 class ContainerError(EverestException):
     pass
@@ -58,7 +58,7 @@ class NoCheckedBacks(EverestException):
 class TicketUnavailable(EverestException):
     pass
 
-class Container(DiskBased):
+class Container(Built):
 
     _swapscript = '''from everest.builts.container import Container as CLASS'''
 
