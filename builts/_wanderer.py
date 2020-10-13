@@ -63,9 +63,10 @@ class State(Stamper, ImmutableConfigs):
         return self._stateArgs, OrderedDict()
     def _compute(self):
         assert not self._computed
-        self.localWanderer = wanderer.copy()
+        self.localWanderer = self.wanderer.copy()
+        self.localWanderer._outs = self.wanderer._outs
         self.localWanderer.go(self.start, self.stop)
-        self._data = self.localWanderer.outs.data.copy()
+        self._data = self.localWanderer.out()
         self._data.name = self.localWanderer.outputSubKey
         iks = self.localWanderer.indexerKeys
         self._indices = namedtuple('IndexerHost', iks)(
