@@ -14,6 +14,7 @@ from ..weaklist import WeakList
 from ..anchor import Anchor, _namepath_process, NoActiveAnchorError
 from ..globevars import _BUILTTAG_, _CLASSTAG_, _GHOSTTAG_
 from ..pyklet import Pyklet
+from ..vectorset import VectorSet
 
 from ..exceptions import EverestException
 class BuiltException(EverestException):
@@ -144,6 +145,8 @@ class Meta(type):
                 outCls._sortedInputKeys, outCls._sortedGhostKeys = {}, {}
             outCls._custom_cls_fn()
             cls._preclasses[outCls.typeHash] = outCls
+            o = O(outCls)
+            outCls.o = o
             return outCls
 
     @staticmethod
@@ -169,9 +172,33 @@ class Meta(type):
                 obj.__init__(**obj.inputs)
             return obj
 
+class SchemaIterator:
+    def __init__(self,
+            schema,
+            **space
+            ):
+        self.schema = schema
+        self.space = space
+    def __iter__(self):
+        self.vectors = iter(VectorSet(**self.space))
+        return self
+    def __next__(self):
+        vector = next(self.vectors)
+        return self.schema(**vector)
+
+class O:
+    def __init__(self, cls):
+        self.cls = cls
+    def __getitem__(self, arg):
+        return SchemaIterator(self.cls, **arg)
+
 class Built(metaclass = Meta):
 
     _hashDepth = 2
+
+    # @classmethod
+    # def o(cls, arg):
+    #     return SchemaIterator
 
     def copy(self):
         return type(self)(unique = True, **self.inputs)
