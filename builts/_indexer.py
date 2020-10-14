@@ -161,8 +161,10 @@ class Indexer(Producer):
         clashes = zip(*clashes.values())
         stored = zip(*[self.outs.stored[k] for k in self.indexerKeys])
         toDrop = []
+        # print(list(clashes))
+        # print(list(stored))
         for i, row in enumerate(stored):
-            if any([all([r == c for r in row]) for c in clashes]):
+            if any(all(r == c for r, c in zip(row, crow)) for crow in clashes):
                 toDrop.append(i)
         self.outs.drop(toDrop)
 

@@ -69,9 +69,16 @@ class Observer(Built):
             self.subject = None
             self.observer = None
 
+    def __call__(self, subject):
+        return self.observe(subject)
+
     @_attached
     def evaluate(self):
         return self.obsConstruct.evaluate()
+
+    @_attached
+    def _obs_save(self):
+        self.subject.writeouts(self, 'observer')
 
     @property
     @_attached

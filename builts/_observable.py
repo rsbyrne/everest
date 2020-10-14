@@ -18,6 +18,9 @@ def _observation_mode(func):
             return func(self, *args, **kwargs)
     return wrapper
 
+# class Obs:
+#
+
 class Observable(Producer):
 
     def __init__(self,
@@ -42,3 +45,10 @@ class Observable(Producer):
         if self._observer is None:
             raise NoObserver
         return self._observer
+
+    def _save(self):
+        super()._save()
+        self._obs_save()
+    @_observation_mode
+    def _obs_save(self):
+        pass

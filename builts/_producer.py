@@ -5,6 +5,7 @@ import time
 from functools import wraps
 from collections.abc import Mapping
 from collections import OrderedDict
+import warnings
 
 from .. import disk
 from ..reader import Reader
@@ -59,10 +60,10 @@ class Outs:
     def __init__(self, keys, name = 'default'):
         self._keys, self.name = keys, name
         self._data = OrderedDict([(k, OutsNull) for k in self._keys])
+        self._collateral = OrderedDict()
         self._data.name = name
         self.stored = OrderedDict([(k, []) for k in self._keys])
         self.hashVals = []
-        self.n = 0
         self.token = 0
     @property
     def data(self):
@@ -70,6 +71,9 @@ class Outs:
             raise NullValueDetected
         else:
             return self._data
+    @property
+    def collateral(self):
+        return self._collateral
     def update(self, outs, silent = False):
         if any([v is OutsNull for v in outs.values()]):
             if not silent:
@@ -101,7 +105,6 @@ class Outs:
                 for k, v in self._data.items():
                     self.stored[k].append(v)
                 self.hashVals.append(hashVal)
-                self.n += 1
     def sort(self, key = None):
         if key is None:
             key = self._keys[0]
@@ -115,7 +118,6 @@ class Outs:
         self.hashVals.clear()
         for k, v in self.stored.items():
             v.clear()
-        self.n = 0
     def retrieve(self, index):
         for v in self.stored.values():
             yield v[index]
@@ -124,7 +126,7 @@ class Outs:
         for v in self.stored.values():
             yield v.pop(index)
     def drop(self, indices):
-        keep = [i for i in range(self.n) if not i in indices]
+        keep = [i for i in range(len(self)) if not i in indices]
         self.hashVals[:] = [self.hashVals[i] for i in keep]
         for v in self.stored.values():
             v[:] = [v[i] for i in keep]
@@ -138,8 +140,9 @@ class Outs:
         return self._data.keys()
     @property
     def stacked(self):
-        if self.n:
+        if len(self):
             for v in self.stored.values():
+                assert len(v)
                 yield np.stack(v)
         else:
             for v in self.stored:
@@ -156,6 +159,8 @@ class Outs:
     @property
     def strnbytes(self):
         return prettify_nbytes(self.nbytes)
+    def __len__(self):
+        return len(self.hashVals)
 
 def _producer_load_wrapper(func):
     @wraps(func)
@@ -165,8 +170,7 @@ def _producer_load_wrapper(func):
         if len(leftovers):
             raise ProducerLoadFail(leftovers)
     return wrapper
-maxToken, minToken = int(1e10) - 1, int(1e9)
-makeToken = lambda: random.randint(minToken, maxToken)
+
 def _producer_update_outs(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -257,16 +261,21 @@ class Producer(Promptable):
         return self.writer.sub(self.outputKey)
 
     @disk.h5filewrap
-    def save(self):
-        self._save()
+    def save(self, silent = False):
+        try:
+            self._save()
+        except ProducerNothingToSave:
+            if not silent:
+                warnings.warn("No data was saved - did you expect this?")
         self.outs.clear()
     def _save(self):
-        if not self.outs.n:
+        if not len(self.outs):
             raise ProducerNothingToSave
         self.writeouts.add(self, 'producer')
         for key, val in self.outs.zipstacked:
             wrapped = EverestArray(val, extendable = True)
             self.writeouts.add(wrapped, key)
+        self.writeouts.add_dict(self.outs.collateral, 'collateral')
 
     def _load_process(self, outs):
         return outs
