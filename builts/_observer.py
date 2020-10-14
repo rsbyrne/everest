@@ -78,7 +78,7 @@ class Observer(Built):
 
     @_attached
     def _obs_save(self):
-        self.subject.writeouts(self, 'observer')
+        self.subject.writeouts.add(self, 'observer')
 
     @property
     @_attached

@@ -94,7 +94,9 @@ class Outs:
         hashVal = make_hash(self._data.values())
         if hashVal in self.hashVals:
             if not silent:
-                raise OutsAlreadyStored
+                warnings.warn(
+                    "This data was already saved - did you expect this?"
+                    )
         else:
             if any([v is OutsNull for v in self._data.values()]):
                 if silent:
@@ -114,7 +116,7 @@ class Outs:
     def clear(self, silent = False):
         if not silent:
             if not len(self.hashVals):
-                raise OutsAlreadyCleared
+                warnings.warn("No data was cleared - did you expect this?")
         self.hashVals.clear()
         for k, v in self.stored.items():
             v.clear()
@@ -267,7 +269,7 @@ class Producer(Promptable):
         except ProducerNothingToSave:
             if not silent:
                 warnings.warn("No data was saved - did you expect this?")
-        self.outs.clear()
+        self.outs.clear(silent = silent)
     def _save(self):
         if not len(self.outs):
             raise ProducerNothingToSave
