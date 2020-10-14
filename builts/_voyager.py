@@ -1,6 +1,5 @@
 from functools import wraps
 
-from ._observable import Observable
 from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import LoadFail, _producer_update_outs
@@ -39,7 +38,7 @@ def _voyager_changed_state(func):
         return out
     return wrapper
 
-class Voyager(Cycler, Counter, Stampable, Observable):
+class Voyager(Cycler, Counter, Stampable):
 
     def __init__(self,
             **kwargs

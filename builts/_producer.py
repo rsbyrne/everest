@@ -171,7 +171,10 @@ def _producer_update_outs(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         toReturn = func(self, *args, **kwargs)
-        self._tokens[self.outputSubKey] = makeToken()
+        try:
+            self.outs.update(self._out())
+        except NullValueDetected:
+            pass
         return toReturn
     return wrapper
 
@@ -189,7 +192,6 @@ class Producer(Promptable):
             self.baselines[key] = EverestArray(val, extendable = False)
 
         self._outs = OrderedDict()
-        self._tokens = dict()
 
         super().__init__(baselines = self.baselines, **kwargs)
 
@@ -217,12 +219,9 @@ class Producer(Promptable):
     @property
     def outs(self):
         sk = self.outputSubKey
-        try:
-            outs, token = self._outs[sk], self._tokens[sk]
-            if not outs.token == token:
-                outsDict = self._out()
-                outs.update(outsDict)
-        except KeyError:
+        if sk in self._outs:
+            outs = self._outs[sk]
+        else:
             outsDict = self._out()
             outs = Outs(outsDict.keys(), sk)
             self._outs[sk] = outs

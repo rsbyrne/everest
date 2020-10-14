@@ -19,6 +19,8 @@ class GrouperSetAttrForbidden(EverestException):
 
 class Grouper:
     def __init__(self, grouperDict):
+        if isinstance(grouperDict, Grouper):
+            grouperDict = grouperDict.grouperDict
         grouperDict = OrderedDict(grouperDict.copy())
         for key in grouperDict:
             if ' ' in key:
@@ -40,21 +42,39 @@ class Grouper:
     def items(self, *args, **kwargs):
         return self.grouperDict.items(*args, **kwargs)
     def __setattr__(self, name, value):
-        self._lockcheck(name)
-        super().__setattr__(name, value)
-        self.grouperDict[name] = value
+        try:
+            self._lockcheck(name)
+            super().__setattr__(name, value)
+            self.grouperDict[name] = value
+        except GrouperSetAttrForbidden:
+            warnings.warn(
+                "Setting of name " + name + " on Grouper is prohibited.")
     def __delattr__(self, name):
-        self._lockcheck(name)
-        super().__delattr__(name)
-        del self.grouperDict[name]
+        try:
+            self._lockcheck(name)
+            super().__delattr__(name)
+            del self.grouperDict[name]
+        except GrouperSetAttrForbidden:
+            warnings.warn(
+                "Deleting of name " + name + " on Grouper is prohibited.")
     def _lockcheck(self, name = None):
         if hasattr(self, 'lock'):
             if self.lock and not name == 'lock':
                 raise GrouperSetAttrForbidden
+        if name[:2] == name[-2:] == '__':
+            raise GrouperSetAttrForbidden
+        if name in dir(Grouper):
+            raise GrouperSetAttrForbidden
     def copy(self):
         return self.__class__(self.grouperDict.copy())
-    def update(self, inDict):
-        if isinstance(inDict, type(self)):
+    def update(self, inDict, silent = False):
+        if silent:
+            for key in list(inDict.keys()):
+                try:
+                    self._lockcheck(key)
+                except GrouperSetAttrForbidden:
+                    del inDict[key]
+        if isinstance(inDict, Grouper):
             inDict = inDict.grouperDict
         for key, val in sorted(inDict.items()):
             setattr(self, key, val)
@@ -87,7 +107,8 @@ def make_hash(obj):
     except HashIDNotFound:
         pass
     if type(obj) is str:
-        hashVal = obj
+        hexID = hashlib.md5(str(obj).encode()).hexdigest()
+        hashVal = str(int(hexID, 16))
     elif hasattr(obj, 'hashID'):
         hashVal = obj.hashID
     elif hasattr(obj, 'typeHash'):
@@ -110,10 +131,9 @@ def make_hash(obj):
     elif isinstance(obj, np.generic):
         hashVal = make_hash(np.asscalar(obj))
     else:
-        strObj = str(obj)
-        hexID = hashlib.md5(strObj.encode()).hexdigest()
-        hashVal = int(hexID, 16)
-    return str(hashVal)
+        hexID = hashlib.md5(str(obj).encode()).hexdigest()
+        hashVal = str(int(hexID, 16))
+    return hashVal
 
 def w_hash(obj):
     return wordhash.get_random_phrase(

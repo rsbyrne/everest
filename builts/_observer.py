@@ -1,8 +1,10 @@
 from functools import wraps
 from contextlib import contextmanager
 import weakref
+from collections import OrderedDict
 
 from . import Built
+from ._producer import Producer, Outs
 from ._observable import Observable
 
 from ..utilities import Grouper
@@ -33,18 +35,6 @@ def _unattached(func):
             raise AlreadyAttachedError
         return func(self, *args, **kwargs)
     return wrapper
-def _observation_mode(func):
-    @_attached
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        with self.subject._observation_mode():
-            self.subject._outFns.append(self.observer.out)
-            self.subject._producer_outkeys.append(self.observer.outkeys)
-            self.subject._outputSubKeys.append(self._key)
-            out = func(self, *args, **kwargs)
-            self.subject._outputSubKeys.remove(self._key)
-            return out
-    return wrapper
 
 class Observer(Built):
 
@@ -52,12 +42,9 @@ class Observer(Built):
             **kwargs
             ):
 
-        # Expects:
-        # self.build_observer
-
         self.subject = None
-        self.observer = None
-        self._observers = weakref.WeakKeyDictionary()
+        self._obsConstruct = None
+        self.observers = weakref.WeakKeyDictionary()
 
         super().__init__(**kwargs)
 
@@ -65,56 +52,52 @@ class Observer(Built):
     @_unattached
     def observe(self, subject):
         try:
-            if not isinstance(subject, Observable):
+            self.subject = subject
+            if not isinstance(self.subject, Observable):
                 raise TypeError(
                     "Observee must be an instance of the Observable class."
                     )
             try:
-                observer = self._observers[subject]
+                observer = self.observers[self.subject]
             except KeyError:
-                observer = self.master_build_observer(subject.observables)
-                self._observers[subject] = observer
-            self.subject = subject
-            self.observer = observer
+                observer = self.observer_construct(self.subject)
+                self.observers[self.subject] = observer
+            self.subject._observer = self
             yield observer
         finally:
+            self.subject._observer = None
             self.subject = None
             self.observer = None
 
-    @_observation_mode
-    def out(self, *args, **kwargs):
-        return self.subject.out(*args, **kwargs)
-    @_observation_mode
-    def store(self, *args, **kwargs):
-        self.subject.store(*args, **kwargs)
-    @_observation_mode
-    def save(self, *args, **kwargs):
-        self.subject.save(*args, **kwargs)
-        self.subject.writer.add(
-            self,
-            'observer',
-            self.subject._outputMasterKey,
-            self.subject._outputSubKey,
-            )
+    @_attached
+    def evaluate(self):
+        return self.obsConstruct.evaluate()
 
-    def _key(self):
-        return '/'.join(['observations', self.hashID])
     @property
-    def key(self):
-        return self._key()
+    @_attached
+    def obsConstruct(self):
+        if self._obsConstruct is None:
+            try:
+                self._obsConstruct = self.observers[self.subject]
+                if self._obsConstruct is None:
+                    raise KeyError
+            except KeyError:
+                self._obsConstruct = self.observer_construct(self.subject)
+                self.observers[self.subject] = self._obsConstruct
+        return self._obsConstruct
 
-    def master_build_observer(self, observables):
-        observerDict = self.build_observer(observables)
-        if 'self' in observerDict:
-            del observerDict['self']
-        return Grouper(observerDict)
+    def observer_construct(self, subject):
+        observer = self._observer_construct(subject.observables)
+        return observer
+    def _observer_construct(self, observables):
+        return Grouper({})
 
-    def _prompt(self, prompter):
-        # Overrides Promptable _prompt method:
-        if self.subject is None:
-            with self.attach(prompter):
-                super()._prompt(prompter)
-        elif prompter is self.subject:
-            super()._prompt(prompter)
-        else:
-            raise AlreadyAttachedError
+    # def _prompt(self, prompter):
+    #     # Overrides Promptable _prompt method:
+    #     if self.subject is None:
+    #         with self.attach(prompter):
+    #             super()._prompt(prompter)
+    #     elif prompter is self.subject:
+    #         super()._prompt(prompter)
+    #     else:
+    #         raise AlreadyAttachedError

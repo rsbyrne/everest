@@ -326,7 +326,7 @@ class Built(metaclass = Meta):
         man.writer.add_dict({cls.typeHash: {_CLASSTAG_: cls.script}})
 
     def __hash__(self):
-        return make_hash(self.hashID)
+        return int(make_hash(self.hashID))
 
     def __eq__(self, arg):
         return self.hashID == arg
