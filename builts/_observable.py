@@ -8,6 +8,8 @@ class ObservableError(EverestException):
     pass
 class NoObserver(EverestException):
     pass
+class ObservationModeError(EverestException):
+    pass
 
 def _observation_mode(func):
     @wraps(func)
@@ -52,3 +54,11 @@ class Observable(Producer):
     @_observation_mode
     def _obs_save(self):
         pass
+
+    def _load(self, *args, **kwargs):
+        if not self._observer is None:
+            raise ObservationModeError(
+                "Cannot load state while in Observer Mode."
+                )
+        else:
+            super()._load(*args, **kwargs)
