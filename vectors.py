@@ -20,7 +20,7 @@ class SchemaIterator:
         self.schema = schema
         self.space = space
     def __iter__(self):
-        self.vectors = iter(VectorSet(**self.space))
+        self.space = iter(VectorSet(**self.space))
         return self
     def __next__(self):
-        return self.schema(**next(self.vectors))
+        return self.schema(**next(self.space))

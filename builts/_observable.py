@@ -1,4 +1,5 @@
 from functools import wraps
+import weakref
 
 from ._producer import Producer
 from ..utilities import Grouper
@@ -20,8 +21,28 @@ def _observation_mode(func):
             return func(self, *args, **kwargs)
     return wrapper
 
-# class Obs:
-#
+class Obs:
+    def __init__(self, host):
+        self._host = weakref.ref(host)
+    @property
+    def host(self):
+        host = self._host()
+        assert not host is None
+        return host
+    def __getattr__(self, key):
+        if key in dir(self):
+            return self.__dict__[key]
+        else:
+            return self._get_out(key)
+    def _get_out(self, key):
+        for k in sorted(self.host.observers.keys()):
+            try:
+                observer = self.host.observers[k]
+                with observer(self.host):
+                    return self.host.outs[key]
+            except KeyError:
+                pass
+        raise KeyError
 
 class Observable(Producer):
 
@@ -31,6 +52,9 @@ class Observable(Producer):
 
         self.observables = Grouper({})
         self._observer = None
+        self.observers = weakref.WeakValueDictionary()
+        self._obsKeys = weakref.WeakKeyDictionary()
+        self.obs = Obs(self)
 
         super().__init__(**kwargs)
 

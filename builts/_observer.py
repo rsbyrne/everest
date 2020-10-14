@@ -44,33 +44,46 @@ class Observer(Built):
 
         self.subject = None
         self._obsConstruct = None
-        self.observers = weakref.WeakKeyDictionary()
+        self.constructs = weakref.WeakKeyDictionary()
+        self.outs = None
 
         super().__init__(**kwargs)
 
-    @contextmanager
     @_unattached
-    def observe(self, subject):
+    def attach(self, subject):
+        if not isinstance(subject, Observable):
+            raise TypeError(
+                "Observee must be an instance of the Observable class."
+                )
+        self.subject = subject
         try:
-            self.subject = subject
-            if not isinstance(self.subject, Observable):
-                raise TypeError(
-                    "Observee must be an instance of the Observable class."
-                    )
-            try:
-                observer = self.observers[self.subject]
-            except KeyError:
-                observer = self.observer_construct(self.subject)
-                self.observers[self.subject] = observer
-            self.subject._observer = self
-            yield observer
-        finally:
-            self.subject._observer = None
-            self.subject = None
-            self.observer = None
+            observer = self.constructs[self.subject]
+        except KeyError:
+            observer = self.observer_construct(self.subject)
+            self.constructs[self.subject] = observer
+        self.subject._observer = self
+        self.subject.observers[self.hashID] = self
+        self.outs = self.subject.outs
+    @_attached
+    def detach(self, subject):
+        self.subject._observer = None
+        self.subject = None
+        self.observer = None
+        self.outs = None
 
+    @contextmanager
+    def observe(self, subject):
+        self.attach(subject)
+        try:
+            yield
+        finally:
+            self.detach(subject)
     def __call__(self, subject):
         return self.observe(subject)
+
+    def register(self, subject):
+        with self(subject):
+            pass
 
     @_attached
     def evaluate(self):
@@ -85,12 +98,12 @@ class Observer(Built):
     def obsConstruct(self):
         if self._obsConstruct is None:
             try:
-                self._obsConstruct = self.observers[self.subject]
+                self._obsConstruct = self.constructs[self.subject]
                 if self._obsConstruct is None:
                     raise KeyError
             except KeyError:
                 self._obsConstruct = self.observer_construct(self.subject)
-                self.observers[self.subject] = self._obsConstruct
+                self.constructs[self.subject] = self._obsConstruct
         return self._obsConstruct
 
     def observer_construct(self, subject):

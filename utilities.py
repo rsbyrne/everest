@@ -5,6 +5,7 @@ import inspect
 import numpy as np
 import hashlib
 import warnings
+import random
 
 from . import mpi
 message = mpi.message
@@ -93,6 +94,9 @@ def prettify_nbytes(size_bytes):
     p = math.pow(1024, i)
     s = round(size_bytes / p, 2)
     return "%s %s" % (s, size_name[i])
+
+def make_randomstate():
+     return random.randint(int(1e18), int(1e19) - 1)
 
 def is_numeric(arg):
     try:

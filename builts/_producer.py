@@ -1,7 +1,4 @@
 import numpy as np
-import random
-import math
-import time
 from functools import wraps
 from collections.abc import Mapping
 from collections import OrderedDict
@@ -15,7 +12,7 @@ from ..writer import Writer
 from ._promptable import Promptable
 from ..array import EverestArray
 from .. import exceptions
-from ..utilities import Grouper, prettify_nbytes
+from ..utilities import Grouper, prettify_nbytes, make_randomstate
 
 class ProducerException(exceptions.EverestException):
     pass
@@ -64,7 +61,7 @@ class Outs:
         self._data.name = name
         self.stored = OrderedDict([(k, []) for k in self._keys])
         self.hashVals = []
-        self.token = 0
+        self.token = None
     @property
     def data(self):
         if any([v is OutsNull for v in self._data.values()]):
@@ -177,10 +174,7 @@ def _producer_update_outs(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         toReturn = func(self, *args, **kwargs)
-        try:
-            self.outs.update(self._out())
-        except NullValueDetected:
-            pass
+        self._update_randomstate()
         return toReturn
     return wrapper
 
@@ -198,11 +192,20 @@ class Producer(Promptable):
             self.baselines[key] = EverestArray(val, extendable = False)
 
         self._outs = OrderedDict()
+        self._randomstate = None
 
         super().__init__(baselines = self.baselines, **kwargs)
 
         # Promptable attributes:
         self._prompt_fns.append(self._producer_prompt)
+
+        self._update_randomstate()
+
+    def _update_randomstate(self):
+        self._randomstate = make_randomstate()
+    @property
+    def randomstate(self):
+        return self._randomstate
 
     @property
     def outputMasterKey(self):
@@ -227,8 +230,11 @@ class Producer(Promptable):
         sk = self.outputSubKey
         if sk in self._outs:
             outs = self._outs[sk]
+            if self.randomstate != outs.token:
+                outs.update(self.out())
+                outs.token = self.randomstate
         else:
-            outsDict = self._out()
+            outsDict = self.out()
             outs = Outs(outsDict.keys(), sk)
             self._outs[sk] = outs
             try:
