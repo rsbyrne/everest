@@ -20,13 +20,19 @@ class VoyagerAlreadyInitialised(VoyagerException):
 class VoyagerNotInitialised(VoyagerException):
     pass
 
-def _voyager_initialise_if_necessary(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if not self.initialised:
-            self.initialise()
-        return func(self, *args, **kwargs)
-    return wrapper
+def _voyager_initialise_if_necessary(post = False):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if post:
+                cond = self.initialised or self.postinitialised
+            else:
+                cond = self.initialised
+            if not cond:
+                self.initialise()
+            return func(self, *args, **kwargs)
+        return wrapper
+    return decorator
 def _voyager_changed_state(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -63,24 +69,24 @@ class Voyager(Cycler, Counter, Stampable):
     @property
     def initialised(self):
         return self._indexers_iszero
+    @property
+    def postinitialised(self):
+        return self._indexers_ispos
     def reset(self, silent = True):
         self.initialise(silent = silent)
     @_producer_update_outs
     def _voyager_changed_state_hook(self):
         pass
 
+    @_voyager_initialise_if_necessary(post = True)
     def iterate(self, n = 1, silent = True):
-        if self._indexers_isnull:
-            if silent:
-                self.initialise()
-            else:
-                raise VoyagerNotInitialised
         for i in range(n):
             self._iterate()
     @_voyager_changed_state
     def _iterate(self):
         self.indices.count.value += 1
 
+    @_voyager_initialise_if_necessary(post = True)
     def go(self, stop):
         if type(stop) is bool:
             self._go()

@@ -7,7 +7,7 @@ import weakref
 
 from ..utilities import w_hash, get_hash
 from ._producer import NullValueDetected, OutsNull
-from ._voyager import Voyager
+from ._voyager import Voyager, _voyager_initialise_if_necessary
 from ._stampable import Stampable, Stamper
 from ._mutable import Mutant
 from ._configurable import \
@@ -224,6 +224,7 @@ class Wanderer(Voyager, Configurable):
         super()._initialise(*args, **kwargs)
         self.configured = False
 
+    @_voyager_initialise_if_necessary(post = True)
     def go(self, arg1, arg2 = None):
         if arg2 is None:
             super().go(arg1)
@@ -232,9 +233,8 @@ class Wanderer(Voyager, Configurable):
             self.set_configs(**start)
             super().go(stop)
 
+    @_voyager_initialise_if_necessary(post = True)
     def _out(self, *args, **kwargs):
-        if self._indexers_isnull:
-            self.initialise()
         return super()._out(*args, **kwargs)
 
     def _load(self, arg):
@@ -284,7 +284,6 @@ class Wanderer(Voyager, Configurable):
             else:
                 val = val[:]
         super().__setitem__(key, val)
-        self.initialise(silent = True)
         return
 
     @property
