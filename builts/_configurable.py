@@ -213,6 +213,7 @@ class Configurable(Producer, Mutable):
             _defaultConfigs = OrderedDict([(k, None) for k in _defaultConfigs])
         self.configs = MutableConfigs(_defaultConfigs)
         self.configsKey = self._defaultConfigsKey
+        self.configsKeys = tuple(self.configs.keys())
 
         super().__init__(_mutableKeys = self.configs.keys(), **kwargs)
 
