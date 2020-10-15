@@ -15,10 +15,11 @@ from . import mpi
 from .exceptions import EverestException
 from .exceptions import InDevelopmentError
 
-try:
-    PYTEMP = os.environ['WORKSPACE']
-except KeyError:
-    PYTEMP = '.'
+# try:
+#     PYTEMP = os.environ['WORKSPACE']
+# except KeyError:
+#     PYTEMP = '.'
+PYTEMP = '.'
 if not PYTEMP in sys.path: sys.path.append(PYTEMP)
 
 @mpi.dowrap
@@ -246,16 +247,33 @@ class TempFile:
 def get_framePath(frameName, filePath):
     return os.path.join(os.path.abspath(filePath), frameName) + '.frm'
 
+# def local_import(filepath):
+#     modname = os.path.basename(filepath)
+#     spec = importlib.util.spec_from_file_location(
+#         modname,
+#         filepath,
+#         )
+#     module = importlib.util.module_from_spec(spec)
+#     sys.modules[modname] = module
+#     spec.loader.exec_module(module)
+#     return module
+
 def local_import(filepath):
-    modname = os.path.basename(filepath)
-    spec = importlib.util.spec_from_file_location(
-        modname,
-        filepath,
-        )
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[modname] = module
-    spec.loader.exec_module(module)
+    filepath = os.path.abspath(filepath)
+    path = os.path.dirname(filepath)
+    name = os.path.splitext(os.path.basename(filepath))[0]
+    if not path in sys.path:
+        pathAdded = True
+        sys.path.insert(0, path)
+    else:
+        pathAdded = False
+    try:
+        module = importlib.import_module(name)
+    finally:
+        if pathAdded:
+            sys.path.remove(path)
     return module
+
 
 def local_import_from_str(scriptString):
     with TempFile(

@@ -38,10 +38,10 @@ class NotOnDiskError(EverestException):
 
 def load_built(hashID, name, path = '.'):
     with Anchor(name, path):
-        return BuiltProxy(_BUILTTAG_ + hashID)()
+        return BuiltProxy(_BUILTTAG_ + hashID).realised
 def load_class(typeHash, name, path = '.'):
     with Anchor(name, path):
-        return ClassProxy(_CLASSTAG_ + typeHash)()
+        return ClassProxy(_CLASSTAG_ + typeHash).realised
 
 def _get_default_inputs(func):
     parameters = inspect.signature(func).parameters

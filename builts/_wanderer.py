@@ -242,7 +242,7 @@ class Wanderer(Voyager, Configurable):
             try:
                 super()._load(arg)
             except IndexerLoadFail:
-                self.initialise()
+                self.initialise(silent = True)
         else:
             super()._load(arg)
         if not self._indexers_isnull:

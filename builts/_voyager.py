@@ -82,6 +82,9 @@ class Voyager(Cycler, Counter, Stampable):
         self.indices.count.value += 1
 
     def go(self, stop):
+        if type(stop) is bool:
+            self._go()
+            return None
         try:
             self.load(stop)
         except LoadFail:
@@ -91,16 +94,18 @@ class Voyager(Cycler, Counter, Stampable):
                 self.initialise()
             slots = stop.slots
             if slots == 1:
-                boolFn = lambda: stop(self)
+                boolean = stop.close(self)
             elif slots == 0:
-                boolFn = lambda: stop
+                boolean = stop
             else:
                 raise ValueError("Too many slots on comparator.")
             self.reset()
-            if boolFn():
+            if boolean:
                 raise Exception("Condition already met.")
-            while not boolFn():
-                self.iterate()
+            self._go(boolean)
+    def _go(self, stop = False):
+        while not stop:
+            self.iterate()
 
     def _cycle(self):
         super()._cycle()
