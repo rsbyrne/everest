@@ -49,7 +49,7 @@ class Config(Pyklet):
             raise TypeError(type(toVar))
         self._apply(toVar)
     def _apply(self, toVar):
-        toVar.imitate(self)
+        toVar.mutate(self.content)
     @classmethod
     def convert(cls, arg, default = None, strict = False):
         if default is Ellipsis and not arg is Ellipsis:
@@ -107,14 +107,14 @@ class Configs(Pyklet, Mapping, Sequence):
             raise KeyError(mutables.keys(), self.keys())
         self._apply(mutables)
     def _apply(self, mutables):
+        if not isinstance(mutables, Mutables):
+            raise TypeError("Configs can only be applied to Mutables.")
         for c, m in zip(self.values(), mutables.values()):
             if not c is Ellipsis:
                 if isinstance(c, (Configurator, Config)):
                     c.apply(m)
-                elif hasattr(m, 'data'):
-                    m.data[...] = c
                 else:
-                    m[...] = c
+                    m.mutate(c)
     @property
     def id(self):
         return self.contentHash
@@ -193,6 +193,14 @@ class Configurable(Producer, Mutable):
     _defaultConfigsKey = 'configs'
 
     def __init__(self, _defaultConfigs = None, **kwargs):
+
+        if _defaultConfigs is None:
+            _defaultConfigs = OrderedDict(
+                (k, self.ghosts[k]) for k in self._sortedGhostKeys['configs']
+                )
+        for k, v in _defaultConfigs.items():
+            if v is None:
+                _defaultConfigs[k] = float('NaN')
 
         self.configured = False
         self._storedConfigs = OrderedDict()

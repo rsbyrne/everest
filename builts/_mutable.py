@@ -48,14 +48,16 @@ class Mutant(Pyklet):
         return self._data()
     def _data(self):
         raise MutantMissingMethod
-    def mutate(self, data):
-        return self._mutate(data)
-    def _mutate(self, data):
-        raise MutantMissingMethod
+    def mutate(self, vals, indices = Ellipsis):
+        return self._mutate(vals, indices)
+    def _mutate(self, vals, indices = Ellipsis):
+        self.data[indices] = vals
     def imitate(self, fromVar):
+        if not type(fromVar) is type(self):
+            raise TypeError
         self._imitate(fromVar)
     def _imitate(self, fromVar):
-        raise MutantMissingMethod
+        self.data[...] = fromVar.data
     def __getitem__(self, arg):
         return self.out()[arg]
     def __setitem__(self, key, val):

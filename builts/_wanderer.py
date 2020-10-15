@@ -9,6 +9,7 @@ from ..utilities import w_hash, get_hash
 from ._producer import NullValueDetected, OutsNull
 from ._voyager import Voyager
 from ._stampable import Stampable, Stamper
+from ._mutable import Mutant
 from ._configurable import \
     Configurable, MutableConfigs, ImmutableConfigs, Configs, Config, \
     CannotProcessConfigs
@@ -20,6 +21,10 @@ from ..pyklet import Pyklet
 from ..utilities import is_numeric
 
 class WandererException(exceptions.EverestException):
+    pass
+class StateVarException(WandererException):
+    pass
+class StateVarMissingUserProvidedAsset(StateVarException):
     pass
 
 class StateException(exceptions.EverestException):
@@ -115,42 +120,79 @@ class Statelet(Config):
     @property
     def mutant(self):
         return self.state.mutables[self.channel]
-    @property
-    def var(self):
-        return self.mutant.var
     def _apply(self, toVar):
-        # assert not self.state.localWanderer is toVar.host
-        super()._apply(toVar)
+        toVar.imitate(self.mutant)
+
+class StateVar(Config, Mutant):
+    def __init__(self, target, *props):
+        self.target = target
+        self._varProp = Prop(target, *props)
+        super().__init__(target, *props)
+    def _name(self):
+        return self._varProp.props[-1]
+    def _var(self):
+        return self._varProp()
+    def _data(self):
+        if not isinstance(self.var, np.ndarray):
+            raise StateVarMissingUserProvidedAsset(
+                "If var is not an array, provide a custom _data method."
+                )
+        return self.var
+    def _out(self):
+        if not isinstance(self.var, np.ndarray):
+            raise StateVarMissingUserProvidedAsset(
+                "If var is not an array, provide a custom _out method."
+                )
+        return self.var.copy()
+    def _mutate(self, vals, indices = Ellipsis):
+        self.data[indices] = vals
+    def _imitate(self, fromVar):
+        self.mutate(fromVar.data)
+    def _hashID(self):
+        return self._varProp._hashID()
+
+def _check_indexlike(obj):
+    return any([
+        is_numeric(obj),
+        (isinstance(obj, Comparator) and hasattr(obj, 'index'))
+        ])
+def _de_comparator(obj):
+    if isinstance(obj, Comparator) and hasattr(obj, 'index'):
+        return obj.index
+    else:
+        return obj
 
 def get_start_stop(wanderer, slicer):
+
     if type(slicer) is tuple:
         slicer = slice(*slicer)
     start, stop, step = slicer.start, slicer.stop, slicer.step
     if not step is None:
         raise ValueError("Cannot specify step for state.")
     count = wanderer.indices.count.value
+    wanCon = ImmutableConfigs(contents = wanderer.configs)
     start = (0 if count is None else count) if start is None else start
     stop = (0 if count is None else count) if stop is None else stop
-    try:
-        start = wanderer.process_configs(start, strict = True)
-    except CannotProcessConfigs:
-        pass
-    indexlikeStop = any([
-        is_numeric(stop),
-        (isinstance(stop, Comparator) and hasattr(stop, 'index'))
-        ])
-    if isinstance(start, State):
-        if start.wanderer.hashID == wanderer.hashID:
-            if start.indexlike:
-                start = start.start
-    elif isinstance(start, Comparator) or is_numeric(start):
-        if indexlikeStop:
-            warnings.warn("Specified start point is redundant; ignoring.")
-            start = ImmutableConfigs(contents = wanderer.configs)
+    start, stop = (_de_comparator(arg) for arg in (start, stop))
+    indexlikeStart, indexlikeStop = (is_numeric(arg) for arg in (start, stop))
+
+    if indexlikeStart:
+        if indexlikeStop or start == 0:
+            start = wanCon
         else:
-            start = wanderer[0 : start]
+            start = wanderer[wanCon : start]
+    elif isinstance(start, State):
+        if start.indexlike:
+            if start.wanderer.hashID == wanderer.hashID:
+                start = start.start
+    else:
+        try:
+            start = wanderer.process_configs(start)
+        except CannotProcessConfigs:
+            raise TypeError("Ran out of ways to create start point.")
     assert isinstance(start, Configs)
-    if is_numeric(stop):
+
+    if indexlikeStop:
         if stop == 0:
             raise RedundantState
         stop = wanderer._indexer_process_endpoint(stop, close = False)
@@ -160,6 +202,7 @@ def get_start_stop(wanderer, slicer):
     else:
         raise TypeError("Stop must be a Comparator or convertible to one.")
     assert isinstance(stop, Comparator)
+
     return start, stop
 
 class Wanderer(Voyager, Configurable):
