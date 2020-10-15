@@ -63,7 +63,12 @@ class Comparator(Pyklet):
 
     def close(self, *queryArgs):
         terms = self._process_queryArgs(*queryArgs)
-        return type(self)(*terms, self.op, self.asList, self.invert)
+        return type(self)(
+            *terms,
+            op = self.op,
+            asList = self.asList,
+            invert = self.invert
+            )
 
     def __bool__(self):
         return bool(self())
