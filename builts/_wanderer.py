@@ -16,7 +16,7 @@ from ._configurable import \
 from ._configurator import Configurator
 from ._indexer import IndexerLoadRedundant, IndexerLoadFail
 from .. import exceptions
-from ..comparator import Comparator, Prop
+from ..quantity import Comparator, Getter
 from ..pyklet import Pyklet
 from ..utilities import is_numeric
 
@@ -126,7 +126,7 @@ class Statelet(Config):
 class StateVar(Config, Mutant):
     def __init__(self, target, *props):
         self.target = target
-        self._varProp = Prop(target, *props)
+        self._varProp = Getter(target, *props)
         super().__init__(target, *props)
     def _name(self):
         return self._varProp.props[-1]

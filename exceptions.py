@@ -21,6 +21,8 @@ class MissingMethod(EverestException):
     The user has failed to provide an expected method \
     when inheriting from an Everest class.
     '''
-
 class MissingAsset(EverestException):
+    pass
+
+class Forbidden(EverestException):
     pass

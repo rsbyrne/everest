@@ -6,6 +6,7 @@ import numpy as np
 import hashlib
 import warnings
 import random
+import pickle
 
 from . import mpi
 message = mpi.message
@@ -82,6 +83,10 @@ class Grouper:
     def clear(self):
         for name in self.grouperDict.keys():
             delattr(self, name)
+    def __contains__(self, key):
+        return key in self.grouperDict
+    def __repr__(self):
+        return 'Grouper{' + str(self.grouperDict) + '}'
     @property
     def hashID(self):
         return w_hash(sorted(self.grouperDict.items()))
@@ -135,7 +140,9 @@ def make_hash(obj):
     elif isinstance(obj, np.generic):
         hashVal = make_hash(np.asscalar(obj))
     else:
-        hexID = hashlib.md5(str(obj).encode()).hexdigest()
+        hashObj = str(pickle.dumps(obj))
+        # hashObj = str(hashObj)
+        hexID = hashlib.md5(hashObj.encode()).hexdigest()
         hashVal = str(int(hexID, 16))
     return hashVal
 

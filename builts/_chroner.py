@@ -1,7 +1,7 @@
 import numpy as np
 
 from ._indexer import Indexer, _indexer_load_wrapper, IndexerNullVal
-from ..value import Value
+from ..quantity import Value
 
 class Chroner(Indexer):
 

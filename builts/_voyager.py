@@ -4,7 +4,7 @@ from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import LoadFail, _producer_update_outs
 from ._stampable import Stampable
-from ..comparator import Comparator, Prop
+from ..quantity import Comparator
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
 class VoyagerException(BuiltException):
@@ -120,45 +120,3 @@ class Voyager(Cycler, Counter, Stampable):
     @_voyager_changed_state
     def _load(self, *args, **kwargs):
         super()._load(*args, **kwargs)
-
-    # @_voyager_initialise_if_necessary
-    # def go(self, stop = False, step = 1, do = None):
-    #     print(self.indices)
-    #     print([*self.indices][0].null)
-    #     if type(step) is int:
-    #         if step == 1:
-    #             step = False
-    #         else:
-    #             step = Comparator(
-    #                 Prop(self, 'indices', 'count'), step, op = 'mod'
-    #                 )
-    #     if do is None:
-    #         do = lambda: None
-    #     while not stop:
-    #         self.iterate()
-    #         while step:
-    #             self.iterate()
-    #         do()
-
-
-        # Observable attributes:
-        # self._activate_observation_mode_fns.append(
-        #     self._voyager_activate_observation_mode_fn
-        #     )
-        # self._deactivate_observation_mode_fns.append(
-        #     self._voyager_deactivate_observation_mode_fn
-        #     )
-    # def _voyager_activate_observation_mode_fn(self):
-    #     temp = []
-    #     for key in ('_outFns', '_producer_outkeys'):
-    #         attr = getattr(self, key)
-    #         temp.append([*attr])
-    #         attr.clear()
-    #     self._outFns.append(self._countoutFn)
-    #     self._producer_outkeys.append(self._countsKeyFn)
-    #     return temp
-    # def _voyager_deactivate_observation_mode_fn(self, temp):
-    #     for val, key in zip(temp, ('_outFns', '_producer_outkeys')):
-    #         attr = getattr(self, key)
-    #         attr.clear()
-    #         attr.extend(val)

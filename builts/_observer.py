@@ -9,11 +9,13 @@ from ._observable import Observable
 
 from ..utilities import Grouper
 
-from ..exceptions import EverestException
+from ..exceptions import *
 class ObserverError(EverestException):
     '''An error has emerged related to the Observer class.'''
 class ObserverInputError(ObserverError):
     '''Observer subjects must be instances of Observable class.'''
+class ObserverMissingAsset(ObserverError, MissingAsset):
+    pass
 class AlreadyAttachedError(ObserverError):
     '''Observer is already attached to that subject.'''
 class NotAttachedError(ObserverError):
@@ -107,9 +109,11 @@ class Observer(Built):
         return self._obsConstruct
 
     def observer_construct(self, subject):
-        observer = self._observer_construct(subject.observables)
+        observer = self._observer_construct(subject, self.inputs)
+        if not 'evaluate' in observer:
+            raise ObserverMissingAsset
         return observer
-    def _observer_construct(self, observables):
+    def _observer_construct(self, observables, inputs):
         return Grouper({})
 
     # def _prompt(self, prompter):

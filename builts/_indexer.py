@@ -3,10 +3,10 @@ from collections import OrderedDict, namedtuple
 import numpy as np
 
 from ._producer import Producer, LoadFail, OutsNull
-from ..comparator import Comparator, Prop
+from ..quantity import Comparator, Getter
 from ..anchor import NoActiveAnchorError
 from ..reader import PathNotInFrameError
-from ..value import Value
+from ..quantity import Value
 
 from ..exceptions import EverestException
 class IndexerException(EverestException):
@@ -86,7 +86,7 @@ class Indexer(Producer):
         else:
             target = None
         comp = Comparator(
-            Prop(target, 'indices', ik),
+            Getter(target, 'indices', ik),
             self._process_index(arg),
             op = 'ge'
             )

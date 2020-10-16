@@ -33,7 +33,8 @@ class Pyklet:
             return w_hash(self._pickleObjs)
     @property
     def hashID(self):
-        return type(self).__name__ + '{' + self.contentHash + '}'
+        selfname = type(self).__name__.strip('_')
+        return 'Everest' + selfname + '{' + self.contentHash + '}'
     def anchor(self, name, path):
         return self._anchorManager(name, path)
     def touch(self, name = None, path = None):

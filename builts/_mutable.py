@@ -4,7 +4,6 @@ from contextlib import contextmanager
 from . import Built
 from ..pyklet import Pyklet
 from ..utilities import make_hash, w_hash, get_hash
-from ..prop import Prop
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
 from ..exceptions import EverestException
