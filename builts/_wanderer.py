@@ -16,7 +16,7 @@ from ._configurable import \
 from ._configurator import Configurator
 from ._indexer import IndexerLoadRedundant, IndexerLoadFail
 from .. import exceptions
-from ..quantity import Comparator, Getter
+from ..function import Evaluator, Getter
 from ..pyklet import Pyklet
 from ..utilities import is_numeric
 
@@ -154,10 +154,10 @@ class StateVar(Config, Mutant):
 def _check_indexlike(obj):
     return any([
         is_numeric(obj),
-        (isinstance(obj, Comparator) and hasattr(obj, 'index'))
+        (isinstance(obj, Evaluator) and hasattr(obj, 'index'))
         ])
 def _de_comparator(obj):
-    if isinstance(obj, Comparator) and hasattr(obj, 'index'):
+    if isinstance(obj, Evaluator) and hasattr(obj, 'index'):
         return obj.index
     else:
         return obj
@@ -196,12 +196,12 @@ def get_start_stop(wanderer, slicer):
         if stop == 0:
             raise RedundantState
         stop = wanderer._indexer_process_endpoint(stop, close = False)
-    elif isinstance(stop, Comparator):
+    elif isinstance(stop, Evaluator):
         if not stop.slots == 1:
             raise ValueError("Too many slots on stop comparator.")
     else:
-        raise TypeError("Stop must be a Comparator or convertible to one.")
-    assert isinstance(stop, Comparator)
+        raise TypeError("Stop must be a Evaluator or convertible to one.")
+    assert isinstance(stop, Evaluator)
 
     return start, stop
 

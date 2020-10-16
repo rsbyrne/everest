@@ -8,12 +8,12 @@ from .pyklet import Pyklet
 from .utilities import w_hash, get_hash
 from .exceptions import *
 
-class QuantityException(EverestException):
+class FunctionException(EverestException):
     pass
-class QuantityMissingAsset(MissingAsset, QuantityException):
+class FunctionMissingAsset(MissingAsset, FunctionException):
     pass
 
-class _Quantity(Pyklet):
+class _Function(Pyklet):
 
     def __init__(self, *terms, name = None, **kwargs):
         self._name = name
@@ -23,11 +23,11 @@ class _Quantity(Pyklet):
 
     def evaluate(self):
         if self.open:
-            raise QuantityException("Cannot evaluate open quantity.")
+            raise FunctionException("Cannot evaluate open function.")
         else:
             return self._evaluate()
     def _evaluate(self):
-        raise QuantityMissingAsset
+        raise FunctionMissingAsset
     @property
     def value(self):
         return self.evaluate()
@@ -44,7 +44,7 @@ class _Quantity(Pyklet):
         terms = self.terms
         slots = 0
         for term in terms:
-            if isinstance(term, _Quantity):
+            if isinstance(term, _Function):
                 slots += term.slots
             elif term is None:
                 slots += 1
@@ -63,7 +63,7 @@ class _Quantity(Pyklet):
         queryArgs = iter(queryArgs)
         terms = []
         for t in self.terms:
-            if isintance(t, _Quantity) and hasattr(t, 'slots'):
+            if isintance(t, _Function) and hasattr(t, 'slots'):
                 closeArgs = [next(queryArgs) for _ in range(t.slots)]
                 closed = t.close(*closeArgs)
                 terms.append(closed)
@@ -98,19 +98,19 @@ class _Quantity(Pyklet):
     def asbool(self):
         return self.bool_fn(self)
     def __invert__(self):
-        return Comparator(self, invert = True)
+        return Evaluator(self, invert = True)
     @staticmethod
     def bool_fn(arg):
-        return Comparator(self)
+        return Evaluator(self)
     @staticmethod
     def all_fn(*args):
-        return Comparator(*args, op = all, asList = True)
+        return Evaluator(*args, op = all, asList = True)
     @staticmethod
     def any_fn(*args):
-        return Comparator(*args, op = all, asList = True)
+        return Evaluator(*args, op = all, asList = True)
     @staticmethod
     def not_fn(arg):
-        return Comparator(arg, invert = True, asList = True)
+        return Evaluator(arg, invert = True, asList = True)
 
     def __str__(self):
         if self.null:
@@ -140,9 +140,9 @@ class _Quantity(Pyklet):
         else:
             return op
 
-Q = _Quantity
+Q = _Function
 
-class _Operation(_Quantity):
+class _Operation(_Function):
 
     def __init__(self, *terms, op = None, asList = False):
         self.op = self._getop(op)
@@ -151,7 +151,7 @@ class _Operation(_Quantity):
 
     def _evaluate(self):
         ts = [
-            t.value if isinstance(t, _Quantity) else t
+            t.value if isinstance(t, _Function) else t
                 for t in self.terms
             ]
         if self.asList:
@@ -166,7 +166,7 @@ class ValueForbiddenAttribute(Forbidden, ValueException):
 class NullValueDetected(ValueException):
     pass
 
-class Value(_Quantity):
+class Value(_Function):
 
     def __init__(self, value, null = False, name = None):
         if np.issubdtype(type(value), np.integer):
@@ -225,7 +225,7 @@ class Value(_Quantity):
     def _hashID(self):
         return self.name
 
-class Getter(_Quantity):
+class Getter(_Function):
 
     def __init__(self,
             target,
@@ -249,7 +249,7 @@ class Getter(_Quantity):
     def _hashID(self):
         return '.'.join([get_hash(self.terms[0]), *self.terms[1:]])
 
-class Comparator(_Quantity):
+class Evaluator(_Function):
 
     def __init__(self,
             *terms,

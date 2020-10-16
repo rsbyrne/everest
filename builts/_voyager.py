@@ -4,7 +4,7 @@ from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import LoadFail, _producer_update_outs
 from ._stampable import Stampable
-from ..quantity import Comparator
+from ..function import Evaluator
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
 class VoyagerException(BuiltException):
@@ -94,7 +94,7 @@ class Voyager(Cycler, Counter, Stampable):
         try:
             self.load(stop)
         except LoadFail:
-            if not isinstance(stop, Comparator):
+            if not isinstance(stop, Evaluator):
                 stop = self._indexer_process_endpoint(stop, close = False)
             if self._indexers_isnull:
                 self.initialise()
