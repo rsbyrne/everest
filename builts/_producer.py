@@ -12,7 +12,8 @@ from ..writer import Writer
 from ._promptable import Promptable
 from ..array import EverestArray
 from .. import exceptions
-from ..utilities import Grouper, prettify_nbytes, make_randomstate
+from ..utilities import Grouper, prettify_nbytes
+from .. import random
 
 class ProducerException(exceptions.EverestException):
     pass
@@ -202,7 +203,7 @@ class Producer(Promptable):
         self._update_randomstate()
 
     def _update_randomstate(self):
-        self._randomstate = make_randomstate()
+        self._randomstate = random.randint(18)
     @property
     def randomstate(self):
         return self._randomstate

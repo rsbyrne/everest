@@ -15,6 +15,7 @@ from ..anchor import Anchor, _namepath_process, NoActiveAnchorError
 from ..globevars import _BUILTTAG_, _CLASSTAG_, _GHOSTTAG_
 from ..pyklet import Pyklet
 from ..vectors import SchemaIterator
+from .. import random
 
 from ..exceptions import EverestException
 class BuiltException(EverestException):
@@ -122,6 +123,9 @@ class Meta(type):
             randomseed = rawHash
             )
         return neatHash
+    @staticmethod
+    def _hash_ID(typeHash, inputsHash):
+        return ':'.join([typeHash, inputsHash])
 
     def __new__(cls, name, bases, dic):
         outCls = super().__new__(cls, name, bases, dic)
@@ -138,6 +142,10 @@ class Meta(type):
             outCls.typeHash = typeHash
             outCls.script = script
             outCls.defaultInps = _get_default_inputs(outCls.__init__)
+            outCls.defaultInputsHash = outCls._inputs_hash(outCls.defaultInps)
+            outCls.defaultHashID = cls._hash_ID(
+                outCls.typeHash, outCls.defaultInputsHash
+                )
             try:
                 outCls._sortedInputKeys, outCls._sortedGhostKeys = \
                     sort_inputKeys(outCls.__init__)
@@ -157,7 +165,7 @@ class Meta(type):
 
     def __call__(cls, *args, unique = False, **kwargs):
         inputs = Meta._align_inputs(cls, *args, **kwargs)
-        obj = cls.__new__(cls, **inputs)
+        obj = cls.__new__(cls, unique = unique, **inputs)
         if unique:
             obj.__init__(**obj.inputs)
             return obj
@@ -166,7 +174,7 @@ class Meta(type):
                 obj = cls._get_prebuilt(obj.inputsHash)
                 # warnings.warn("Loading pre-built object.")
             except KeyError:
-                cls._prebuilts[obj.hashID] = obj
+                cls._prebuilts[obj.instanceHash] = obj
                 obj.__init__(**obj.inputs)
             return obj
 
@@ -231,7 +239,7 @@ class Built(metaclass = Meta):
         k = ':'.join([cls.typeHash, inputsHash])
         return cls._prebuilts[k]
 
-    def __new__(cls, **inputs):
+    def __new__(cls, unique = False, **inputs):
 
         inputs, ghosts = cls._get_inputs(inputs)
         inputsHash = cls._inputs_hash(inputs)
@@ -239,7 +247,12 @@ class Built(metaclass = Meta):
         obj.inputs = inputs
         obj.ghosts = ghosts
         obj.inputsHash = inputsHash
-        obj.hashID = ':'.join([obj.typeHash, obj.inputsHash])
+        obj.hashID = type(cls)._hash_ID(obj.typeHash, obj.inputsHash)
+        if unique:
+            instanceSuffix = str(random.randint(18))
+            obj.instanceHash = obj.hashID + ';' + instanceSuffix
+        else:
+            obj.instanceHash = obj.hashID
 
         obj.rootObjects = {
             cls.typeHash: {_CLASSTAG_: cls.script}
@@ -336,7 +349,7 @@ class Built(metaclass = Meta):
         man.writer.add_dict({cls.typeHash: {_CLASSTAG_: cls.script}})
 
     def __hash__(self):
-        return int(make_hash(self.hashID))
+        return int(make_hash(self.instanceHash))
 
     def __eq__(self, arg):
         return self.hashID == arg

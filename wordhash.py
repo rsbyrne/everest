@@ -1,6 +1,7 @@
 import random
 import os
 import string
+from .random import Reseed, reseed
 
 parentPath = os.path.abspath(os.path.dirname(__file__))
 namesDir = os.path.join(parentPath, '_namesources')
@@ -85,28 +86,6 @@ CODEWORDS = sorted(set([
     *[n.lower() for n in GREEK],
     *[n.lower() for n in WORDNUMS],
     ]))
-
-class Reseed:
-    active = False
-    def __init__(self, randomseed = None):
-        self.randomseed = randomseed
-    def __enter__(self):
-        random.seed(self.randomseed)
-        self.active = True
-    def __exit__(self, *args):
-        random.seed()
-        self.active = False
-
-from functools import wraps
-def reseed(func):
-    @wraps(func)
-    def wrapper(*args, randomseed = None, **kwargs):
-        if Reseed.active:
-            return func(*args, **kwargs)
-        else:
-            with Reseed(randomseed):
-                return func(*args, **kwargs)
-    return wrapper
 
 def _make_syllables():
     consonants = list("bcdfghjklmnpqrstvwxyz")

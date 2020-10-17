@@ -100,9 +100,6 @@ def prettify_nbytes(size_bytes):
     s = round(size_bytes / p, 2)
     return "%s %s" % (s, size_name[i])
 
-def make_randomstate():
-     return random.randint(int(1e18), int(1e19) - 1)
-
 def is_numeric(arg):
     try:
         _ = arg + 1
@@ -140,8 +137,8 @@ def make_hash(obj):
     elif isinstance(obj, np.generic):
         hashVal = make_hash(np.asscalar(obj))
     else:
-        hashObj = str(pickle.dumps(obj))
-        # hashObj = str(hashObj)
+        # hashObj = str(pickle.dumps(obj))
+        hashObj = repr(obj)
         hexID = hashlib.md5(hashObj.encode()).hexdigest()
         hashVal = str(int(hexID, 16))
     return hashVal
