@@ -24,7 +24,11 @@ class Function(Pyklet):
         self._name = name
         self.terms = terms
         if len(terms) == 1:
+<<<<<<< HEAD:functions/_base.py
             self.arg = terms[0]
+=======
+            self.arg = arg
+>>>>>>> c48a4d5cc3d32b5b9491b90d7ec0dc9b3aecdda8:function.py
         else:
             self.arg = terms
         self.kwargs = kwargs
