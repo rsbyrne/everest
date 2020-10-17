@@ -5,7 +5,7 @@ from types import FunctionType
 import numpy as np
 
 from .pyklet import Pyklet
-from .utilities import w_hash, get_hash
+from .utilities import w_hash, get_hash, is_numeric
 from .exceptions import *
 
 class FunctionException(EverestException):
@@ -13,7 +13,12 @@ class FunctionException(EverestException):
 class FunctionMissingAsset(MissingAsset, FunctionException):
     pass
 
-class _Function(Pyklet):
+class Function(Pyklet):
+
+    def __new__(cls, *args, **kwargs):
+        if cls is Function:
+            cls = cls._getcls(*args, **kwargs)
+        return super().__new__(cls)
 
     def __init__(self, *terms, name = None, **kwargs):
         self._name = name
@@ -44,7 +49,7 @@ class _Function(Pyklet):
         terms = self.terms
         slots = 0
         for term in terms:
-            if isinstance(term, _Function):
+            if isinstance(term, Function):
                 slots += term.slots
             elif term is None:
                 slots += 1
@@ -63,7 +68,7 @@ class _Function(Pyklet):
         queryArgs = iter(queryArgs)
         terms = []
         for t in self.terms:
-            if isintance(t, _Function) and hasattr(t, 'slots'):
+            if isintance(t, Function) and hasattr(t, 'slots'):
                 closeArgs = [next(queryArgs) for _ in range(t.slots)]
                 closed = t.close(*closeArgs)
                 terms.append(closed)
@@ -77,7 +82,7 @@ class _Function(Pyklet):
         return self.value == arg
 
     def _operate(self, *args, op = None):
-        return _Operation(self, *args, op = op)
+        return Operation(self, *args, op = op)
 
     def __ne__(self, *args): return self._operate(*args, op = 'ne')
     def __ge__(self, *args): return self._operate(*args, op = 'ge')
@@ -92,25 +97,25 @@ class _Function(Pyklet):
     def __pow__(self, *args): return self._operate(*args, op = 'pow')
     def __sub__(self, *args): return self._operate(*args, op = 'sub')
     def __truediv__(self, *args): return self._operate(*args, op = 'truediv')
+    def __neg__(self, *args): return self._operate(*args, op = 'neg')
 
     def __bool__(self):
         return bool(self.value)
-    def asbool(self):
-        return self.bool_fn(self)
+
+    @staticmethod
+    def bool(arg):
+        return Operation(*args, op = bool)
+    @staticmethod
+    def all(*args):
+        return Operation(*args, op = all)
+    @staticmethod
+    def any(*args):
+        return Operation(*args, op = any)
+    @staticmethod
+    def not_fn(*args):
+        return Operation(*args, op = bool, invert = True)
     def __invert__(self):
-        return Evaluator(self, invert = True)
-    @staticmethod
-    def bool_fn(arg):
-        return Evaluator(self)
-    @staticmethod
-    def all_fn(*args):
-        return Evaluator(*args, op = all, asList = True)
-    @staticmethod
-    def any_fn(*args):
-        return Evaluator(*args, op = all, asList = True)
-    @staticmethod
-    def not_fn(arg):
-        return Evaluator(arg, invert = True, asList = True)
+        return self._not(self)
 
     def __str__(self):
         if self.null:
@@ -119,7 +124,7 @@ class _Function(Pyklet):
             return str(self.value)
 
     def __repr__(self):
-        return super().__repr__() + '==' + str(self)
+        return super().__repr__() + '==' + str(self.value)
     def __str__(self):
         return str(self.value)
 
@@ -140,24 +145,36 @@ class _Function(Pyklet):
         else:
             return op
 
-Q = _Function
+    @classmethod
+    def _getcls(cls, *args, **kwargs):
+        if len(args) > 1:
+            return Getter
+        else:
+            arg = args[0]
+            if is_numeric(arg):
+                return Value
+            else:
+                raise TypeError
 
-class _Operation(_Function):
+class Operation(Function):
 
-    def __init__(self, *terms, op = None, asList = False):
+    def __init__(self, *terms, op = None, asList = False, invert = False):
         self.op = self._getop(op)
-        self.asList = asList
-        super().__init__(*terms, op = op, asList = asList)
+        self.asList, self.invert = asList, invert
+        super().__init__(*terms, op = op, asList = asList, invert = invert)
 
     def _evaluate(self):
         ts = [
-            t.value if isinstance(t, _Function) else t
+            t.value if isinstance(t, Function) else t
                 for t in self.terms
             ]
         if self.asList:
-            return self.op(ts)
+            out = self.op(ts)
         else:
-            return self.op(*ts)
+            out = self.op(*ts)
+        if self.invert:
+            out = not out
+        return out
 
 class ValueException(EverestException):
     pass
@@ -166,7 +183,7 @@ class ValueForbiddenAttribute(Forbidden, ValueException):
 class NullValueDetected(ValueException):
     pass
 
-class Value(_Function):
+class Value(Function):
 
     def __init__(self, value, null = False, name = None):
         if np.issubdtype(type(value), np.integer):
@@ -187,7 +204,10 @@ class Value(_Function):
     def __setattr__(self, item, value):
         if item in self.__dict__:
             if item == 'type':
-                raise ForbiddenAttribute("Forbidden to manually set 'type'.")
+                print(self.type)
+                raise ValueForbiddenAttribute(
+                    "Forbidden to manually set 'type'."
+                    )
             elif item == 'value':
                 if value is None:
                     self.__dict__['_value'] = None
@@ -212,7 +232,7 @@ class Value(_Function):
         return self._value
 
     def _reassign(self, arg, op = None):
-        self._value = self._operate(arg, op)
+        self._value = self._operate(arg, op = op).value
         return self
     def __iadd__(self, arg): return self._reassign(arg, op = 'add')
     def __ifloordiv__(self, arg): return self._reassign(arg, op = 'floordiv')
@@ -225,7 +245,7 @@ class Value(_Function):
     def _hashID(self):
         return self.name
 
-class Getter(_Function):
+class Getter(Function):
 
     def __init__(self,
             target,
@@ -248,25 +268,3 @@ class Getter(_Function):
 
     def _hashID(self):
         return '.'.join([get_hash(self.terms[0]), *self.terms[1:]])
-
-class Evaluator(_Function):
-
-    def __init__(self,
-            *terms,
-            op : (str, FunctionType) = bool,
-            asList = False,
-            invert = False
-            ):
-        terms = [Getter(t[0], *t[1:]) if type(t) is tuple else t for t in terms]
-        op = self._getop(op)
-        super().__init__(*terms, op = op, asList = asList, invert = invert)
-        self.op, self.asList, self.invert = op, asList, invert
-
-    def _evaluate(self):
-        if self.asList:
-            out = bool(self.op(self.terms))
-        else:
-            out = bool(self.op(*self.terms))
-        if self.invert:
-            out = not out
-        return out

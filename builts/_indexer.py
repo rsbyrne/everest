@@ -3,10 +3,9 @@ from collections import OrderedDict, namedtuple
 import numpy as np
 
 from ._producer import Producer, LoadFail, OutsNull
-from ..function import Evaluator, Getter
+from ..function import Value, Function
 from ..anchor import NoActiveAnchorError
 from ..reader import PathNotInFrameError
-from ..function import Value
 
 from ..exceptions import EverestException
 class IndexerException(EverestException):
@@ -85,11 +84,7 @@ class Indexer(Producer):
             target = self
         else:
             target = None
-        comp = Evaluator(
-            Getter(target, 'indices', ik),
-            self._process_index(arg),
-            op = 'ge'
-            )
+        comp = Function(target, 'indices', ik) >= self._process_index(arg)
         comp.index = arg
         return comp
 
@@ -182,7 +177,7 @@ class Indexer(Producer):
             i.value = val
         return super()._load_process(outs)
     def _load(self, arg):
-        if isinstance(arg, Evaluator) and hasattr(arg, 'index'):
+        if isinstance(arg, Function) and hasattr(arg, 'index'):
             arg = arg.index
         try:
             i, ik, it = self._get_indexInfo(arg)

@@ -1,7 +1,7 @@
 import numpy as np
 
 from ._indexer import Indexer, _indexer_load_wrapper, IndexerNullVal
-from ..function import Value
+from ..function import Function
 
 class Counter(Indexer):
 
@@ -10,7 +10,7 @@ class Counter(Indexer):
 
     def __init__(self, **kwargs):
         self._countNullVal = self._defaultCountNullVal
-        self._count = Value(self._countNullVal, null = True)
+        self._count = Function(self._countNullVal, null = True)
         self._countsKey = self._defaultCountsKey
         super().__init__(**kwargs)
 

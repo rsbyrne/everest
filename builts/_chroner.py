@@ -1,7 +1,7 @@
 import numpy as np
 
 from ._indexer import Indexer, _indexer_load_wrapper, IndexerNullVal
-from ..function import Value
+from ..function import Function
 
 class Chroner(Indexer):
 
@@ -10,7 +10,7 @@ class Chroner(Indexer):
 
     def __init__(self, **kwargs):
         self._chronNullVal = self._defaultChronNullVal
-        self._chron = Value(self._chronNullVal, null = True)
+        self._chron = Function(self._chronNullVal, null = True)
         self._chronsKey = self._defaultChronsKey
         super().__init__(**kwargs)
 
