@@ -16,7 +16,7 @@ from ._configurable import \
 from ._configurator import Configurator
 from ._indexer import IndexerLoadRedundant, IndexerLoadFail
 from .. import exceptions
-from ..function import Function
+from ..functions import Function
 from ..pyklet import Pyklet
 from ..utilities import is_numeric
 

@@ -23,6 +23,10 @@ class Function(Pyklet):
     def __init__(self, *terms, name = None, **kwargs):
         self._name = name
         self.terms = terms
+        if len(terms) == 1:
+            self.arg = arg
+        else:
+            self.arg = terms
         self.kwargs = kwargs
         super().__init__(*terms, **kwargs)
 
@@ -146,15 +150,18 @@ class Function(Pyklet):
             return op
 
     @classmethod
-    def _getcls(cls, *args, **kwargs):
-        if len(args) > 1:
-            return Getter
-        else:
-            arg = args[0]
-            if is_numeric(arg):
-                return Value
+    def _getcls(cls, *args, op = None, **kwargs):
+        if op is None:
+            if len(args) > 1:
+                return Getter
             else:
-                raise TypeError
+                arg = args[0]
+                if is_numeric(arg):
+                    return Value
+                else:
+                    raise TypeError
+        else:
+            return Operation(*args, op = op, **kwargs)
 
 class Operation(Function):
 

@@ -1,7 +1,7 @@
 import numpy as np
 
 from ._indexer import Indexer, _indexer_load_wrapper, IndexerNullVal
-from ..function import Function
+from ..functions import Function
 
 class Counter(Indexer):
 
