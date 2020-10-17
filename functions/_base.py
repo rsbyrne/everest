@@ -67,12 +67,12 @@ class Function(Pyklet):
     def open(self):
         return bool(self.slots)
     def close(self, *queryArgs):
-        if not len(queryArgs) == len(self.slots):
+        if not len(queryArgs) == self.slots:
             raise ValueError("Must provide one argument for each slot.")
         queryArgs = iter(queryArgs)
         terms = []
         for t in self.terms:
-            if isintance(t, Function) and hasattr(t, 'slots'):
+            if isinstance(t, Function) and hasattr(t, 'slots'):
                 closeArgs = [next(queryArgs) for _ in range(t.slots)]
                 closed = t.close(*closeArgs)
                 terms.append(closed)
@@ -159,13 +159,20 @@ class Function(Pyklet):
                 if is_numeric(arg):
                     return Value
                 else:
-                    raise TypeError
+                    _ = len(arg)
+                    return Array
         else:
-            return Operation(*args, op = op, **kwargs)
+            return Operation
 
 class Operation(Function):
 
     def __init__(self, *terms, op = None, asList = False, invert = False):
+        if type(op) is tuple:
+            sops, op = op[:-1], op[-1]
+            for sop in sops:
+                terms = Operation(*terms, op = sop)
+                if not type(terms) is tuple:
+                    terms = terms,
         self.op = self._getop(op)
         self.asList, self.invert = asList, invert
         super().__init__(*terms, op = op, asList = asList, invert = invert)
@@ -193,6 +200,9 @@ class NullValueDetected(ValueException):
 class Value(Function):
 
     def __init__(self, value, null = False, name = None):
+        if not is_numeric(value):
+            raise TypeError("Value must be numeric.")
+        self.initial = value
         if np.issubdtype(type(value), np.integer):
             self._plain = int(value)
             self.type = np.int32
@@ -205,16 +215,17 @@ class Value(Function):
             self._value = self.type(value)
         super().__init__(value, null = null, name = name)
 
+    @property
+    def plain(self):
+        return self._plain
+
     def _isnull(self):
         return self._value is None
 
     def __setattr__(self, item, value):
         if item in self.__dict__:
-            if item == 'type':
-                print(self.type)
-                raise ValueForbiddenAttribute(
-                    "Forbidden to manually set 'type'."
-                    )
+            if item in {'type', 'initial'}:
+                raise ValueForbiddenAttribute()
             elif item == 'value':
                 if value is None:
                     self.__dict__['_value'] = None
@@ -239,7 +250,62 @@ class Value(Function):
         return self._value
 
     def _reassign(self, arg, op = None):
-        self._value = self._operate(arg, op = op).value
+        self.value = self._operate(arg, op = op).value
+        return self
+    def __iadd__(self, arg): return self._reassign(arg, op = 'add')
+    def __ifloordiv__(self, arg): return self._reassign(arg, op = 'floordiv')
+    def __imod__(self, arg): return self._reassign(arg, op = 'mod')
+    def __imul__(self, arg): return self._reassign(arg, op = 'mul')
+    def __ipow__(self, arg): return self._reassign(arg, op = 'pow')
+    def __isub__(self, arg): return self._reassign(arg, op = 'sub')
+    def __itruediv__(self, arg): return self._reassign(arg, op = 'truediv')
+
+    def _hashID(self):
+        return self.name
+
+class Array(Function):
+
+    def __init__(self, values, null = False, name = None):
+        values = np.array(values)
+        self.initial = values
+        self._value = values
+        self._null = null
+        self.type = self._value.dtype
+        super().__init__(values, null = null, name = name)
+
+    @property
+    def plain(self):
+        return list(self._value)
+
+    def _isnull(self):
+        return self._null
+
+    def __setattr__(self, item, value):
+        if item in self.__dict__:
+            if item == 'type':
+                print(self.type)
+                raise ValueForbiddenAttribute(
+                    "Forbidden to manually set 'type'."
+                    )
+            elif item == 'value':
+                if value is None:
+                    self._null = True
+                    return None
+                else:
+                    try:
+                        self._value[...] = value
+                        self._null = False
+                    except TypeError:
+                        raise TypeError((value, type(value)))
+                    return None
+        self.__dict__[item] = value
+
+    def _evaluate(self):
+        if self.null: raise NullValueDetected(self._value)
+        return self._value
+
+    def _reassign(self, arg, op = None):
+        self.value = self._operate(arg, op = op).value
         return self
     def __iadd__(self, arg): return self._reassign(arg, op = 'add')
     def __ifloordiv__(self, arg): return self._reassign(arg, op = 'floordiv')
@@ -258,9 +324,7 @@ class Getter(Function):
             target,
             *props
             ):
-        for prop in props:
-            if not type(prop) is str:
-                raise TypeError
+        self.target, self.props = target, props
         super().__init__(target, *props)
 
     def _evaluate(self):
@@ -268,10 +332,14 @@ class Getter(Function):
         if target is None:
             raise ValueError
         for prop in props:
-            if not type(prop) is str:
-                raise ValueError
-            target = getattr(target, prop)
+            try:
+                target = getattr(target, prop)
+            except (AttributeError, TypeError):
+                target = target.__getitem__(prop)
         return target
 
     def _hashID(self):
-        return '.'.join([get_hash(self.terms[0]), *self.terms[1:]])
+        return '.'.join([
+            get_hash(self.terms[0]),
+            *[str(t) for t in self.terms[1:]]
+            ])
