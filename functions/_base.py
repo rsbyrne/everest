@@ -22,7 +22,7 @@ class Function(Pyklet):
 
     def __init__(self, *terms, name = None, **kwargs):
         self._name = name
-        self.terms = terms
+        self.terms = [Fn() if t is None else t for t in terms]
         if len(terms) == 1:
             self.arg = terms[0]
         else:
@@ -51,36 +51,93 @@ class Function(Pyklet):
 
     def _count_slots(self):
         terms = self.terms
-        slots = 0
+        argslots = 0
+        kwargslots = []
         for term in terms:
             if isinstance(term, Function):
-                slots += term.slots
-            elif term is None:
-                slots += 1
-        return slots
+                if type(term) is Slot:
+                    if term.argslots:
+                        argslots += 1
+                    elif not term.name in kwargslots:
+                        kwargslots.append(term.name)
+                else:
+                    kwargslots.extend(
+                        k for k in term.kwargslots if not k in kwargslots
+                        )
+                    argslots += term.argslots
+        return argslots, kwargslots
+    def _add_slot_attrs(self):
+        if not hasattr(self, '_slots'):
+            self._argslots, self._kwargslots = self._count_slots()
+            self._slots = self._argslots + len(self._kwargslots)
+        else:
+            pass
     @property
     def slots(self):
-        if not hasattr(self, '_slots'):
-            self._slots = self._count_slots()
+        self._add_slot_attrs()
         return self._slots
+    @property
+    def argslots(self):
+        self._add_slot_attrs()
+        return self._argslots
+    @property
+    def kwargslots(self):
+        self._add_slot_attrs()
+        return self._kwargslots
     @property
     def open(self):
         return bool(self.slots)
-    def close(self, *queryArgs):
-        if not len(queryArgs) == self.slots:
-            raise ValueError("Must provide one argument for each slot.")
-        queryArgs = iter(queryArgs)
+    def close(self,
+            *queryArgs,
+            **queryKwargs,
+            ):
+        badKeys = [k for k in queryKwargs if not k in self.kwargslots]
+        if badKeys:
+            raise FunctionException("Inappropriate kwargs:", badKeys)
+        unmatchedKwargs = [k for k in self.kwargslots if not k in queryKwargs]
+        if len(queryArgs) > self.argslots and len(unmatchedKwargs):
+            excessArgs = queryArgs[-(len(queryArgs) - self.argslots):]
+            extraKwargs = dict(zip(self.kwargslots, excessArgs))
+            excessArgs = excessArgs[len(extraKwargs):]
+            if len(excessArgs):
+                raise FunctionException("Too many args:", excessArgs)
+            queryKwargs.update(extraKwargs)
+        queryArgs = iter(queryArgs[:self.argslots])
         terms = []
+        changes = 0
         for t in self.terms:
-            if isinstance(t, Function) and hasattr(t, 'slots'):
-                closeArgs = [next(queryArgs) for _ in range(t.slots)]
-                closed = t.close(*closeArgs)
-                terms.append(closed)
-            elif t is None:
-                terms.append(next(queryArgs))
-            else:
-                terms.append(t)
-        return type(self)(*terms, **self.kwargs)
+            if type(t) is Slot:
+                if t.argslots:
+                    try:
+                        t = next(queryArgs)
+                        changes += 1
+                    except StopIteration:
+                        pass
+                else:
+                    if t.name in queryKwargs:
+                        t = queryKwargs[t.name]
+                        changes += 1
+            elif isinstance(t, Function):
+                if t.open:
+                    queryArgs = list(queryArgs)
+                    subArgs = queryArgs[:t.argslots]
+                    leftovers = subArgs[t.argslots:]
+                    subKwargs = {
+                        k: queryKwargs[k]
+                            for k in queryKwargs if k in t.kwargslots
+                        }
+                    t = t.close(
+                        *queryArgs,
+                        **subKwargs,
+                        )
+                    changes += 1
+                    queryArgs = iter(leftovers)
+            terms.append(t)
+        if changes:
+            outObj = type(self)(*terms, **self.kwargs)
+        else:
+            outObj = self
+        return outObj
 
     def __eq__(self, arg):
         return self.value == arg
@@ -128,13 +185,18 @@ class Function(Pyklet):
             return str(self.value)
 
     def __repr__(self):
-        return super().__repr__() + '==' + str(self.value)
+        head = super().__repr__()
+        if self.open:
+            tail = 'open:' + str((self.argslots, self.kwargslots))
+        else:
+            tail = str(self.value)
+        return '=='.join([head, tail])
     def __str__(self):
         return str(self.value)
 
-    def __call__(self, *args):
-        if len(args):
-            self = self.close(*args)
+    def __call__(self, *args, **kwargs):
+        if len(args) or len(kwargs):
+            self = self.close(*args, **kwargs)
         return self.evaluate()
 
     @staticmethod
@@ -152,12 +214,16 @@ class Function(Pyklet):
     @classmethod
     def _getcls(cls, *args, op = None, **kwargs):
         if op is None:
-            if len(args) > 1:
+            if not len(args):
+                return Slot
+            elif len(args) > 1:
                 return Getter
             else:
                 arg = args[0]
                 if is_numeric(arg):
                     return Value
+                elif type(arg) is str:
+                    return Slot
                 else:
                     _ = len(arg)
                     return Array
@@ -343,3 +409,17 @@ class Getter(Function):
             get_hash(self.terms[0]),
             *[str(t) for t in self.terms[1:]]
             ])
+
+class Slot(Function):
+
+    def __init__(self, name = None):
+        self._slots = 1
+        super().__init__(name = name)
+        if name is None:
+            self._argslots = 1
+            self._kwargslots = []
+        else:
+            self._argslots = 0
+            self._kwargslots = [self.name]
+    def close(self, *args, **kwargs):
+        raise FunctionException("Cannot close a Slot function.")
