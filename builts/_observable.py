@@ -2,6 +2,7 @@ from functools import wraps
 import weakref
 
 from ._producer import Producer
+from . import Meta
 from ..utilities import Grouper
 from ..weaklist import WeakList
 
@@ -44,6 +45,15 @@ class Obs:
                     return self.host.outs[key]
             except KeyError:
                 pass
+        for observerClass in self.host.observerClasses:
+            observer = observerClass()
+            if not observer in self.host.observers:
+                self.host.observers.append(observer)
+            try:
+                with observer(self.host):
+                    return self.host.outs[key]
+            except KeyError:
+                pass
         raise KeyError
 
 class Observable(Producer):
@@ -55,6 +65,7 @@ class Observable(Producer):
         self.observables = Grouper({})
         self._observer = None
         self.observers = WeakList()
+        self.observerClasses = WeakList()
         self.obs = Obs(self)
 
         super().__init__(**kwargs)
