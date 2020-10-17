@@ -3,7 +3,7 @@ from collections import OrderedDict, namedtuple
 import numpy as np
 
 from ._producer import Producer, LoadFail, OutsNull
-from ..function import Value, Function
+from ..functions import Value, Function
 from ..anchor import NoActiveAnchorError
 from ..reader import PathNotInFrameError
 

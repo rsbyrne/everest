@@ -4,7 +4,7 @@ from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import LoadFail, _producer_update_outs
 from ._stampable import Stampable
-from ..function import Function
+from ..functions import Function
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
 class VoyagerException(BuiltException):

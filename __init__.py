@@ -25,4 +25,4 @@ from .scope import Scope
 from .fetch import Fetch
 from .user import User
 from .anchor import Anchor
-from .function import Function
+from .functions import Function, Fn
