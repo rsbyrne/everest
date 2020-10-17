@@ -3,9 +3,12 @@ import weakref
 
 from ._producer import Producer
 from ..utilities import Grouper
+from ..weaklist import WeakList
 
-from ..exceptions import EverestException
+from ..exceptions import *
 class ObservableError(EverestException):
+    pass
+class ObservableMissingAsset(MissingAsset, ObservableError):
     pass
 class NoObserver(EverestException):
     pass
@@ -35,9 +38,8 @@ class Obs:
         else:
             return self._get_out(key)
     def _get_out(self, key):
-        for k in sorted(self.host.observers.keys()):
+        for observer in self.host.observers:
             try:
-                observer = self.host.observers[k]
                 with observer(self.host):
                     return self.host.outs[key]
             except KeyError:
@@ -52,8 +54,7 @@ class Observable(Producer):
 
         self.observables = Grouper({})
         self._observer = None
-        self.observers = weakref.WeakValueDictionary()
-        self._obsKeys = weakref.WeakKeyDictionary()
+        self.observers = WeakList()
         self.obs = Obs(self)
 
         super().__init__(**kwargs)
@@ -86,3 +87,9 @@ class Observable(Producer):
                 )
         else:
             super()._load(*args, **kwargs)
+
+    @_observation_mode
+    def evaluate(self):
+        return self._evaluate()
+    def _evaluate(self):
+        raise ObservableMissingAsset

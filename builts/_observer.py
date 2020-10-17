@@ -45,33 +45,19 @@ class Observer(Built):
             ):
 
         self.subject = None
-        self._obsConstruct = None
         self.constructs = weakref.WeakKeyDictionary()
-        self.outs = None
 
         super().__init__(**kwargs)
 
     @_unattached
     def attach(self, subject):
-        if not isinstance(subject, Observable):
-            raise TypeError(
-                "Observee must be an instance of the Observable class."
-                )
+        self.register(subject, silent = True)
         self.subject = subject
-        try:
-            observer = self.constructs[self.subject]
-        except KeyError:
-            observer = self.observer_construct(self.subject)
-            self.constructs[self.subject] = observer
         self.subject._observer = self
-        self.subject.observers[self.hashID] = self
-        self.outs = self.subject.outs
     @_attached
     def detach(self, subject):
         self.subject._observer = None
         self.subject = None
-        self.observer = None
-        self.outs = None
 
     @contextmanager
     def observe(self, subject):
@@ -83,13 +69,30 @@ class Observer(Built):
     def __call__(self, subject):
         return self.observe(subject)
 
-    def register(self, subject):
-        with self(subject):
-            pass
+    def register(self, subject, silent = False):
+        if not isinstance(subject, Observable):
+            raise TypeError(
+                "Observee must be an instance of the Observable class."
+                )
+        if not self in subject.observers:
+            subject.observers.append(self)
+        else:
+            if not silent:
+                raise ObserverError("Observer already registered.")
+    def deregister(self, subject):
+        if not isinstance(subject, Observable):
+            raise TypeError(
+                "Observee must be an instance of the Observable class."
+                )
+        if self in subject.observers:
+            subject.observers.remove(self)
+        else:
+            if not silent:
+                raise ObserverError("Observer not registered.")
 
     @_attached
     def evaluate(self):
-        return self.obsConstruct.evaluate()
+        return self.construct.evaluate()
 
     @_attached
     def _obs_save(self):
@@ -97,16 +100,13 @@ class Observer(Built):
 
     @property
     @_attached
-    def obsConstruct(self):
-        if self._obsConstruct is None:
-            try:
-                self._obsConstruct = self.constructs[self.subject]
-                if self._obsConstruct is None:
-                    raise KeyError
-            except KeyError:
-                self._obsConstruct = self.observer_construct(self.subject)
-                self.constructs[self.subject] = self._obsConstruct
-        return self._obsConstruct
+    def construct(self):
+        if self.subject in self.constructs:
+            construct = self.constructs[self.subject]
+        else:
+            construct = self.observer_construct(self.subject)
+            self.constructs[self.subject] = construct
+        return construct
 
     def observer_construct(self, subject):
         observer = self._observer_construct(subject, self.inputs)
