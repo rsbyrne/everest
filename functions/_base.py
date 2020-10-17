@@ -61,13 +61,9 @@ class Function(Pyklet):
                     elif not term.name in kwargslots:
                         kwargslots.append(term.name)
                 else:
-<<<<<<< HEAD
                     kwargslots.extend(
                         k for k in term.kwargslots if not k in kwargslots
                         )
-=======
-                    kwargslots.extend(term.kwargslots)
->>>>>>> da6ba6d8841ffa7ec9fba42358d12e018fc28453
                     argslots += term.argslots
         return argslots, kwargslots
     def _add_slot_attrs(self):
