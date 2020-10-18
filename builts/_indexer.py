@@ -183,6 +183,7 @@ class Indexer(Producer):
             raise IndexerLoadRedundant
         for val, i in zip(vals, self.indexers):
             i.value = val
+            assert i._value == val
         return super()._load_process(outs)
     def _load(self, arg):
         if isinstance(arg, Function) and hasattr(arg, 'index'):

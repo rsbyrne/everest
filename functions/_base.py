@@ -346,6 +346,7 @@ class Value(Function):
         else:
             self._value = self.type(value)
         super().__init__(value, null = null, name = name)
+        self._lock = True
 
     @property
     def plain(self):
@@ -354,28 +355,33 @@ class Value(Function):
     def _isnull(self):
         return self._value is None
 
-    def __setattr__(self, item, value):
-        if item in self.__dict__:
-            if item in {'type', 'initial'}:
-                raise ValueForbiddenAttribute()
-            elif item == 'value':
-                if value is None:
-                    self.__dict__['_value'] = None
-                    self.__dict__['_plain'] = None
-                    return None
-                else:
-                    try:
-                        if np.issubdtype(type(value), np.integer):
-                            plain = int(value)
-                        else:
-                            plain = float(value)
-                        value = self.type(value)
-                        self.__dict__['_value'] = value
-                        self.__dict__['_plain'] = plain
-                    except TypeError:
-                        raise TypeError((value, type(value)))
-                    return None
-        self.__dict__[item] = value
+    def __setattr__(self, key, value):
+        if hasattr(self, '_lock'):
+            self._lockset(key, value)
+        else:
+            super().__setattr__(key, value)
+    def _lockset(self, key, value):
+        if key in {'type', 'initial'}:
+            raise ValueForbiddenAttribute()
+        elif key == 'value':
+            if value is None:
+                super().__setattr__('_value', None)
+                super().__setattr__('_plain', None)
+                return None
+            else:
+                try:
+                    if np.issubdtype(type(value), np.integer):
+                        plain = int(value)
+                    else:
+                        plain = float(value)
+                    value = self.type(value)
+                    super().__setattr__('_value', value)
+                    super().__setattr__('_plain', plain)
+                except TypeError:
+                    raise TypeError((value, type(value)))
+                return None
+        else:
+            super().__setattr__(key, value)
 
     def _evaluate(self):
         if self.null: raise NullValueDetected(self._value)
@@ -412,25 +418,27 @@ class Array(Function):
     def _isnull(self):
         return self._null
 
-    def __setattr__(self, item, value):
-        if item in self.__dict__:
-            if item == 'type':
-                print(self.type)
-                raise ValueForbiddenAttribute(
-                    "Forbidden to manually set 'type'."
-                    )
-            elif item == 'value':
-                if value is None:
-                    self._null = True
-                    return None
-                else:
-                    try:
-                        self._value[...] = value
-                        self._null = False
-                    except TypeError:
-                        raise TypeError((value, type(value)))
-                    return None
-        self.__dict__[item] = value
+    def __setattr__(self, key, value):
+        if hasattr(self, '_lock'):
+            self._lockset(key, value)
+        else:
+            super().__setattr__(key, value)
+    def _lockset(self, key, value):
+        if key in {'type', 'initial', '_null'}:
+            raise ValueForbiddenAttribute()
+        elif key == 'value':
+            if value is None:
+                super().__setattr__('_null', True)
+                return None
+            else:
+                try:
+                    self._value[...] = value
+                    super().__setattr__('_null', False)
+                except TypeError:
+                    raise TypeError((value, type(value)))
+                return None
+        else:
+            super().__setattr__(key, value)
 
     def _evaluate(self):
         if self.null: raise NullValueDetected(self._value)

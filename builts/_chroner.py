@@ -10,8 +10,12 @@ class Chroner(Indexer):
 
     def __init__(self, **kwargs):
         self._chronNullVal = self._defaultChronNullVal
-        self._chron = Function(self._chronNullVal, null = True)
         self._chronsKey = self._defaultChronsKey
+        self._chron = Function(
+            self._chronNullVal,
+            name = self._chronsKey,
+            null = True
+            )
         super().__init__(**kwargs)
 
     def _indexers(self):

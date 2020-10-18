@@ -10,8 +10,12 @@ class Counter(Indexer):
 
     def __init__(self, **kwargs):
         self._countNullVal = self._defaultCountNullVal
-        self._count = Function(self._countNullVal, null = True)
         self._countsKey = self._defaultCountsKey
+        self._count = Function(
+            self._countNullVal,
+            name = self._countsKey,
+            null = True
+            )
         super().__init__(**kwargs)
 
     def _indexers(self):

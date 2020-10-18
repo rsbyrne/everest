@@ -53,14 +53,14 @@ class State(Stamper, ImmutableConfigs):
     def __init__(self, wanderer, slicer):
         self.start, self.stop = get_start_stop(wanderer, slicer)
         self.indexlike = hasattr(self.stop, 'index')
-        self.wanderer = wanderer
         self._stateArgs = (wanderer, (self.start, self.stop))
         statelets = OrderedDict([
             (k, Statelet(self, k))
-                for k in self.wanderer.configs.keys()
+                for k in wanderer.configs.keys()
             ])
-        statelets = self.wanderer.process_configs(statelets)
+        statelets = wanderer.process_configs(statelets)
         self._computed = False
+        self.wanderer = wanderer.copy()
         super().__init__(self,
             contents = statelets,
             )
@@ -68,14 +68,12 @@ class State(Stamper, ImmutableConfigs):
         return self._stateArgs, OrderedDict()
     def _compute(self):
         assert not self._computed
-        self.localWanderer = self.wanderer.copy()
-        self.localWanderer._outs = self.wanderer._outs
-        self.localWanderer.go(self.start, self.stop)
-        self._data = self.localWanderer.out()
-        self._data.name = self.localWanderer.outputSubKey
-        iks = self.localWanderer.indexerKeys
+        self.wanderer.go(self.start, self.stop)
+        self._data = self.wanderer.out()
+        self._data.name = self.wanderer.outputSubKey
+        iks = self.wanderer.indexerKeys
         self._indices = namedtuple('IndexerHost', iks)(
-            *[i.value for i in self.localWanderer.indexers]
+            *[i.value for i in self.wanderer.indexers]
             )
         self._computed = True
     @property
@@ -89,7 +87,7 @@ class State(Stamper, ImmutableConfigs):
     @property
     @_state_context_wrap
     def mutables(self):
-        return self.localWanderer.mutables
+        return self.wanderer.mutables
 
 class Statelet(Config):
     def __init__(self, state, channel):
@@ -272,6 +270,7 @@ class Wanderer(Voyager, Configurable):
                 if not self.indices == val.indices:
                     assert self.outputSubKey == val.data.name
                     self.load(val.data)
+                    assert self.indices == val.indices
                 return
             else:
                 val = val[:]
