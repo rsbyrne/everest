@@ -148,7 +148,7 @@ class Function(Pyklet):
         return Operation(self, *args, op = op, **kwargs)
 
     def __eq__(self, *args):
-        return self._operate(*args, op = 'ne', comparative = True)
+        return self._operate(*args, op = 'eq', comparative = True)
     def __ne__(self, *args):
         return self._operate(*args, op = 'ne', comparative = True)
     def __ge__(self, *args):
