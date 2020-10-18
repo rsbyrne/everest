@@ -84,23 +84,34 @@ class Observable(Producer):
             raise NoObserver
         return self._observer
 
-    def _save(self):
-        super()._save()
-        self._obs_save()
     @_observation_mode
-    def _obs_save(self):
-        pass
+    def evaluate(self):
+        return self._evaluate()
+    def _evaluate(self):
+        raise ObservableMissingAsset
+
+    def _store(self, *args, **kwargs):
+        super()._store(*args, **kwargs)
+        if self._observer is None:
+            for observer in self.observers:
+                with observer(self):
+                    super().store(*args, **kwargs)
+    def _save(self, *args, **kwargs):
+        super()._save(*args, **kwargs)
+        if self._observer is None:
+            for observer in self.observers:
+                with observer(self):
+                    super().save(*args, **kwargs)
+                    self.writeouts.add(observer, 'observer')
+    def _clear(self, *args, **kwargs):
+        if self._observer is None:
+            for observer in self.observers:
+                with observer(self):
+                    self._clear(*args, **kwargs)
 
     def _load(self, *args, **kwargs):
         if not self._observer is None:
             raise ObservationModeError(
                 "Cannot load state while in Observer Mode."
                 )
-        else:
-            super()._load(*args, **kwargs)
-
-    @_observation_mode
-    def evaluate(self):
-        return self._evaluate()
-    def _evaluate(self):
-        raise ObservableMissingAsset
+        super()._load(*args, **kwargs)

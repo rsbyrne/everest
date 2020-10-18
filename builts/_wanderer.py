@@ -151,11 +151,6 @@ class StateVar(Config, Mutant):
     def _hashID(self):
         return self._varProp._hashID()
 
-def _check_indexlike(obj):
-    return any([
-        is_numeric(obj),
-        (isinstance(obj, Function) and hasattr(obj, 'index'))
-        ])
 def _de_comparator(obj):
     if isinstance(obj, Function) and hasattr(obj, 'index'):
         return obj.index
@@ -169,13 +164,16 @@ def get_start_stop(wanderer, slicer):
     start, stop, step = slicer.start, slicer.stop, slicer.step
     if not step is None:
         raise ValueError("Cannot specify step for state.")
-    count = wanderer.indices.count.value
+    # if not wanderer.initialised:
+    #     wanderer.initialise()
+    count = wanderer.indices.count._value
     wanCon = ImmutableConfigs(contents = wanderer.configs)
     start = (0 if count is None else count) if start is None else start
     stop = (0 if count is None else count) if stop is None else stop
     start, stop = (_de_comparator(arg) for arg in (start, stop))
-    indexlikeStart, indexlikeStop = (is_numeric(arg) for arg in (start, stop))
-
+    indexlikeStart, indexlikeStop = (
+        wanderer._check_indexlike(arg) for arg in (start, stop)
+        )
     if indexlikeStart:
         if indexlikeStop or start == 0:
             start = wanCon
@@ -198,7 +196,7 @@ def get_start_stop(wanderer, slicer):
         stop = wanderer._indexer_process_endpoint(stop, close = False)
     elif isinstance(stop, Function):
         if not stop.slots == 1:
-            raise ValueError("Too many slots on stop comparator.")
+            raise ValueError("Wrong number of slots on stop comparator.")
     else:
         raise TypeError("Stop must be a Function or convertible to one.")
     assert isinstance(stop, Function)
@@ -238,13 +236,7 @@ class Wanderer(Voyager, Configurable):
         return super()._out(*args, **kwargs)
 
     def _load(self, arg):
-        if arg == 0:
-            try:
-                super()._load(arg)
-            except IndexerLoadFail:
-                self.initialise(silent = True)
-        else:
-            super()._load(arg)
+        super()._load(arg)
         if not self._indexers_isnull:
             self.configured = False
 

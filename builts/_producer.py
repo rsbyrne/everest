@@ -249,8 +249,12 @@ class Producer(Promptable):
         return self._out()
 
     def store(self, silent = False):
+        self._store(silent = silent)
+    def _store(self, silent = False):
         self.outs.store(silent = silent)
     def clear(self, silent = False):
+        self._clear(silent = silent)
+    def _clear(self, silent = False):
         self.outs.clear(silent = silent)
     @property
     def nbytes(self):
@@ -270,13 +274,14 @@ class Producer(Promptable):
         return self.writer.sub(self.outputKey)
 
     @disk.h5filewrap
-    def save(self, silent = False):
+    def save(self, silent = False, clear = True):
         try:
             self._save()
         except ProducerNothingToSave:
             if not silent:
                 warnings.warn("No data was saved - did you expect this?")
-        self.outs.clear(silent = silent)
+        if clear:
+            self.clear(silent = True)
     def _save(self):
         if not len(self.outs):
             raise ProducerNothingToSave

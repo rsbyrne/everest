@@ -94,9 +94,14 @@ class Observer(Built):
     def evaluate(self):
         return self.construct.evaluate()
 
-    @_attached
-    def _obs_save(self):
-        self.subject.writeouts.add(self, 'observer')
+    # @_attached
+    # def store(self, *args, **kwargs):
+    #     return self.subject.store(*args, **kwargs)
+    #
+    # @_attached
+    # def save(self, *args, **kwargs):
+    #     self.subject.writeouts.add(self, 'observer')
+    #     return self.subject.save(*args, **kwargs)
 
     @property
     @_attached

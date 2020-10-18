@@ -3,7 +3,7 @@ from collections import OrderedDict, namedtuple
 import numpy as np
 
 from ._producer import Producer, LoadFail, OutsNull
-from ..functions import Function
+from ..functions import Function, Value
 from ..anchor import NoActiveAnchorError
 from ..reader import PathNotInFrameError
 
@@ -19,6 +19,8 @@ class IndexerLoadFail(LoadFail, IndexerException):
 class IndexerLoadNull(IndexerLoadFail, IndexerNullVal):
     pass
 class IndexerLoadRedundant(IndexerLoadFail):
+    pass
+class NotIndexlike(TypeError, IndexerException):
     pass
 
 def _indexer_load_wrapper(func):
@@ -62,6 +64,12 @@ class Indexer(Producer):
             self.indexerTypes,
             ))
 
+    def _check_indexlike(self, arg):
+        try:
+            _ = self._get_metaIndex(arg)
+            return True
+        except NotIndexlike:
+            return False
     def _get_metaIndex(self, arg):
         if type(arg) is Value:
             arg = arg.plain
@@ -69,7 +77,7 @@ class Indexer(Producer):
         if any(trueTypes):
             return trueTypes.index(True)
         else:
-            raise TypeError(repr(arg)[:100], type(arg))
+            raise NotIndexlike(repr(arg)[:100], type(arg))
     def _get_indexInfo(self, arg):
         return self.indexersInfo[self._get_metaIndex(arg)]
     def _process_index(self, arg):

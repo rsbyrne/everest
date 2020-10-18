@@ -118,5 +118,13 @@ class Voyager(Cycler, Counter, Stampable):
         self.iterate()
 
     @_voyager_changed_state
-    def _load(self, *args, **kwargs):
-        super()._load(*args, **kwargs)
+    def _load(self, arg):
+        if self._check_indexlike(arg):
+            if arg == 0:
+                try:
+                    super()._load(arg)
+                except IndexerLoadFail:
+                    self.initialise(silent = True)
+            else:
+                super()._load(arg)
+        super()._load(arg)
