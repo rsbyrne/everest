@@ -1,6 +1,7 @@
 import operator
 import builtins
 from types import FunctionType
+from collections.abc import Mapping
 
 import numpy as np
 
@@ -22,13 +23,14 @@ class Function(Pyklet):
 
     def __init__(self, *terms, name = None, **kwargs):
         self._name = name
-        self.terms = [Fn() if t is None else t for t in terms]
+        self.terms = [Function() if t is None else t for t in terms]
         if len(terms) == 1:
             self.arg = terms[0]
         else:
             self.arg = terms
+        self.args = self.terms
         self.kwargs = kwargs
-        super().__init__(*terms, **kwargs)
+        super().__init__(*terms, name = name, **kwargs)
 
     def evaluate(self):
         if self.open:
@@ -139,30 +141,48 @@ class Function(Pyklet):
             outObj = self
         return outObj
 
-    def __eq__(self, arg):
-        return self.value == arg
+    # def __eq__(self, arg):
+    #     return self.value == arg
 
-    def _operate(self, *args, op = None):
-        return Operation(self, *args, op = op)
+    def _operate(self, *args, op = None, **kwargs):
+        return Operation(self, *args, op = op, **kwargs)
 
-    def __ne__(self, *args): return self._operate(*args, op = 'ne')
-    def __ge__(self, *args): return self._operate(*args, op = 'ge')
-    def __le__(self, *args): return self._operate(*args, op = 'le')
-    def __gt__(self, *args): return self._operate(*args, op = 'gt')
-    def __lt__(self, *args): return self._operate(*args, op = 'lt')
-    def __add__(self, *args): return self._operate(*args, op = 'add')
-    def __floordiv__(self, *args): return self._operate(*args, op = 'floordiv')
-    def __truediv__(self, *args): return self._operate(*args, op = 'truediv')
-    def __mod__(self, *args): return self._operate(*args, op = 'mod')
-    def __mul__(self, *args): return self._operate(*args, op = 'mul')
-    def __pow__(self, *args): return self._operate(*args, op = 'pow')
-    def __sub__(self, *args): return self._operate(*args, op = 'sub')
-    def __truediv__(self, *args): return self._operate(*args, op = 'truediv')
-    def __neg__(self, *args): return self._operate(*args, op = 'neg')
+    def __eq__(self, *args):
+        return self._operate(*args, op = 'ne', comparative = True)
+    def __ne__(self, *args):
+        return self._operate(*args, op = 'ne', comparative = True)
+    def __ge__(self, *args):
+        return self._operate(*args, op = 'ge', comparative = True)
+    def __le__(self, *args):
+        return self._operate(*args, op = 'le', comparative = True)
+    def __gt__(self, *args):
+        return self._operate(*args, op = 'gt', comparative = True)
+    def __lt__(self, *args):
+        return self._operate(*args, op = 'lt', comparative = True)
+    def __add__(self, *args):
+        return self._operate(*args, op = 'add')
+    def __floordiv__(self, *args):
+        return self._operate(*args, op = 'floordiv')
+    def __truediv__(self, *args):
+        return self._operate(*args, op = 'truediv')
+    def __mod__(self, *args):
+        return self._operate(*args, op = 'mod')
+    def __mul__(self, *args):
+        return self._operate(*args, op = 'mul')
+    def __pow__(self, *args):
+        return self._operate(*args, op = 'pow')
+    def __sub__(self, *args):
+        return self._operate(*args, op = 'sub')
+    def __truediv__(self, *args):
+        return self._operate(*args, op = 'truediv')
+    def __neg__(self, *args):
+        return self._operate(*args, op = 'neg')
 
     def __bool__(self):
-        return bool(self.value)
-
+        try:
+            return bool(self.value)
+        except NullValueDetected:
+            return False
     @staticmethod
     def bool(arg):
         return Operation(*args, op = bool)
@@ -176,24 +196,20 @@ class Function(Pyklet):
     def not_fn(*args):
         return Operation(*args, op = bool, invert = True)
     def __invert__(self):
-        return self._not(self)
-
-    def __str__(self):
-        if self.null:
-            return 'NullVal'
-        else:
-            return str(self.value)
+        return self.not_fn(self)
 
     def __repr__(self):
         head = super().__repr__()
         if self.open:
             tail = 'open:' + str((self.argslots, self.kwargslots))
         else:
-            tail = str(self.value)
+            tail = str(self)
         return '=='.join([head, tail])
     def __str__(self):
-        return str(self.value)
-
+        try:
+            return str(self.value)
+        except NullValueDetected:
+            return 'Null'
     def __call__(self, *args, **kwargs):
         if len(args) or len(kwargs):
             self = self.close(*args, **kwargs)
@@ -230,9 +246,46 @@ class Function(Pyklet):
         else:
             return Operation
 
+# class Group(Function):
+#
+#     def __init__(self, *args, _funcDict = None, **kwargs):
+#         if len(args):
+#             if (not _funcDict is None) or len(kwargs):
+#                 raise FunctionException("Bad Group inputs.")
+#             _funcDict = {arg.name : arg for arg in args}
+#         elif _funcDict is None:
+#             _funcDict = **kwargs
+#         else:
+#             if len(kwargs):
+#                 raise FunctionException("Provide dict OR kwargs to Group.")
+#         for key, val in sorted({**_funcDict}.items()):
+#             assert type(key) is str
+#             if not isinstance(val, Function):
+#                 val = Function(val, name = key)
+#             if not val.name == key:
+#                 raise ValueError("Input name does not equal provided key.")
+#                 # val = type(val)(*val.args, name = key, **val.kwargs)
+#         super().__init__(funcDict, **kwargs)
+#     def __getitem__(self, key):
+#         return self._funcDict[key]
+#     def __getattr__(self, key):
+#         if key in self._funcDict:
+#             return self[key].value
+#         else:
+#             super().__getattr__(key)
+#     def keys(self):
+#         return self._funcDict.keys()
+#     def _evaluate(self):
+#         return OrderedDict((k, getattr(self, k)) for k in self.keys())
+
 class Operation(Function):
 
-    def __init__(self, *terms, op = None, asList = False, invert = False):
+    def __init__(self,
+            *terms, op = None,
+            asList = False,
+            invert = False,
+            comparative = False,
+            ):
         if type(op) is tuple:
             sops, op = op[:-1], op[-1]
             for sop in sops:
@@ -241,20 +294,33 @@ class Operation(Function):
                     terms = terms,
         self.op = self._getop(op)
         self.asList, self.invert = asList, invert
-        super().__init__(*terms, op = op, asList = asList, invert = invert)
+        self.comparative = comparative
+        super().__init__(
+            *terms,
+            op = op,
+            asList = asList,
+            invert = invert,
+            comparative = comparative
+            )
 
     def _evaluate(self):
-        ts = [
-            t.value if isinstance(t, Function) else t
-                for t in self.terms
-            ]
-        if self.asList:
-            out = self.op(ts)
-        else:
-            out = self.op(*ts)
-        if self.invert:
-            out = not out
-        return out
+        try:
+            ts = [
+                t.value if isinstance(t, Function) else t
+                    for t in self.terms
+                ]
+            if self.asList:
+                out = self.op(ts)
+            else:
+                out = self.op(*ts)
+            if self.invert:
+                out = not out
+            return out
+        except NullValueDetected:
+            if self.comparative:
+                return False
+            else:
+                raise NullValueDetected
 
 class ValueException(EverestException):
     pass
