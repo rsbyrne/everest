@@ -36,9 +36,9 @@ def _voyager_initialise_if_necessary(post = False):
 def _voyager_changed_state(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        pc = [i.value for i in self.indices]
+        pc = [i._value for i in self.indices]
         out = func(self, *args, **kwargs)
-        nc = [i.value for i in self.indices]
+        nc = [i._value for i in self.indices]
         if nc != pc:
             self._voyager_changed_state_hook()
         return out
