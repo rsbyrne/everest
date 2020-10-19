@@ -91,7 +91,7 @@ class Function(Pyklet):
         return bool(self.slots)
     def close(self,
             *queryArgs,
-            **queryKwargs,
+            **queryKwargs
             ):
         badKeys = [k for k in queryKwargs if not k in self.kwargslots]
         if badKeys:
@@ -159,6 +159,10 @@ class Function(Pyklet):
         return self._operate(*args, op = 'gt', comparative = True)
     def __lt__(self, *args):
         return self._operate(*args, op = 'lt', comparative = True)
+    def __and__(self, *args):
+        return self._operate(*args, op = 'all', comparative = True)
+    def __or__(self, *args):
+        return self._operate(*args, op = 'any', comparative = True)
     def __add__(self, *args):
         return self._operate(*args, op = 'add')
     def __floordiv__(self, *args):
@@ -197,6 +201,11 @@ class Function(Pyklet):
         return Operation(*args, op = bool, invert = True)
     def __invert__(self):
         return self.not_fn(self)
+
+    def __rshift__(self, arg):
+        if not arg.open:
+            raise FunctionException("Data can only be routed into open Fns.")
+        return arg.close(Collect(self))
 
     def __repr__(self):
         head = super().__repr__()
@@ -284,7 +293,7 @@ class Operation(Function):
             *terms, op = None,
             asList = False,
             invert = False,
-            comparative = False,
+            comparative = False
             ):
         if type(op) is tuple:
             sops, op = op[:-1], op[-1]
@@ -496,4 +505,25 @@ class Slot(Function):
             self._argslots = 0
             self._kwargslots = [self.name]
     def close(self, *args, **kwargs):
-        raise FunctionException("Cannot close a Slot function.")
+        if len(args) + len(kwargs) > self._slots:
+            raise FunctionException
+        if len(args):
+            return args[0]
+        elif len(kwargs):
+            if not kwargs.keys()[0] == self.name:
+                raise KeyError
+            return kwargs.values()[0]
+        # raise FunctionException("Cannot close a Slot function.")
+
+class Collect(Function):
+    def __init__(self, pipe, name = None, **kwargs):
+        if not isinstance(pipe, Function):
+            raise TypeError
+        self.collection = []
+        self.pipe = pipe
+        super().__init__(pipe, name = name, **kwargs)
+    def _evaluate(self):
+        self.collection.append(self.pipe.value)
+        return np.array(self.collection)
+    def clear(self):
+        self.collection.clear()
