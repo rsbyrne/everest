@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from contextlib import contextmanager
+import weakref
 
 from . import Built
 from ..pyklet import Pyklet
@@ -20,33 +21,38 @@ class MutantException(EverestException):
 class MutantMissingMethod(EverestException):
     pass
 
-class Mutant(Pyklet):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class Mutant:
+    def __init__(self, var, name):
+        self._var, self._name = var, name
+        super().__init__()
     def _hashID(self):
         return '_'.join([self.name, get_hash(self.var)])
     @property
     def var(self):
-        return self._var()
-    def _var(self):
-        raise MutantMissingMethod
+        return self._var
     @property
     def name(self):
-        return self._name()
-    def _name(self):
-        raise MutantMissingMethod
+        return self._name
     @property
     def varHash(self):
         return make_hash(self.out())
     def out(self):
         return self._out()
     def _out(self):
-        raise MutantMissingMethod
+        if not isinstance(self.var, np.ndarray):
+            raise MutantMissingMethod(
+                "If var is not an array, provide a custom _out method."
+                )
+        return self.var.copy()
     @property
     def data(self):
         return self._data()
     def _data(self):
-        raise MutantMissingMethod
+        if not isinstance(self.var, np.ndarray):
+            raise MutantMissingMethod(
+                "If var is not an array, provide a custom _data method."
+                )
+        return self.var
     def mutate(self, vals, indices = Ellipsis):
         return self._mutate(vals, indices)
     def _mutate(self, vals, indices = Ellipsis):
@@ -56,7 +62,7 @@ class Mutant(Pyklet):
             raise TypeError
         self._imitate(fromVar)
     def _imitate(self, fromVar):
-        self.data[...] = fromVar.data
+        self.mutate(fromVar.data)
     def __getitem__(self, arg):
         return self.out()[arg]
     def __setitem__(self, key, val):
@@ -71,6 +77,8 @@ class Mutables(OrderedDict):
             else:
                 raise TypeError
         super().__setitem__(key, arg)
+    def __getitem__(self, key):
+        return super().__getitem__(key)
 
 class Mutable(Built):
 

@@ -205,3 +205,14 @@ def unflatten_dict(d):
     for key, val in sorted(d.items()):
         _unflatten_dict(processed, key, val)
     return processed
+
+class WeakOrderedDict(OrderedDict):
+    def __setitem__(self, key, arg):
+        if not arg is None:
+            arg = weakref.ref(arg)
+        super().__setitem__(key, arg)
+    def __getitem__(self, key):
+        out = super().__getitem__(key)
+        if out is None:
+            return out
+        return out()

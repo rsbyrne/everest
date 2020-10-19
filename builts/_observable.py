@@ -59,6 +59,7 @@ class Obs:
 class Observable(Producer):
 
     def __init__(self,
+            _observerClasses = [],
             **kwargs
             ):
 
@@ -66,6 +67,7 @@ class Observable(Producer):
         self._observer = None
         self.observers = WeakList()
         self.observerClasses = WeakList()
+        self.observerClasses.extend(_observerClasses)
         self.obs = Obs(self)
 
         super().__init__(**kwargs)

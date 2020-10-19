@@ -9,7 +9,8 @@ from ..reader import Reader
 from ..writer import Writer
 
 # from . import buffersize_exceeded
-from ._promptable import Promptable
+# from ._promptable import Promptable
+from . import Built
 from ..array import EverestArray
 from .. import exceptions
 from ..utilities import Grouper, prettify_nbytes
@@ -179,7 +180,7 @@ def _producer_update_outs(func):
         return toReturn
     return wrapper
 
-class Producer(Promptable):
+class Producer(Built):
 
     _defaultOutputSubKey = 'default'
 
@@ -196,9 +197,6 @@ class Producer(Promptable):
         self._randomstate = None
 
         super().__init__(baselines = self.baselines, **kwargs)
-
-        # Promptable attributes:
-        self._prompt_fns.append(self._producer_prompt)
 
         self._update_randomstate()
 

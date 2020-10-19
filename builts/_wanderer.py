@@ -22,10 +22,6 @@ from ..utilities import is_numeric
 
 class WandererException(exceptions.EverestException):
     pass
-class StateVarException(WandererException):
-    pass
-class StateVarMissingUserProvidedAsset(StateVarException):
-    pass
 
 class StateException(exceptions.EverestException):
     pass
@@ -120,34 +116,6 @@ class Statelet(Config):
         return self.state.mutables[self.channel]
     def _apply(self, toVar):
         toVar.imitate(self.mutant)
-
-class StateVar(Config, Mutant):
-    def __init__(self, target, *props):
-        self.target = target
-        self._varProp = Function(target, *props)
-        super().__init__(target, *props)
-    def _name(self):
-        return self._varProp.props[-1]
-    def _var(self):
-        return self._varProp()
-    def _data(self):
-        if not isinstance(self.var, np.ndarray):
-            raise StateVarMissingUserProvidedAsset(
-                "If var is not an array, provide a custom _data method."
-                )
-        return self.var
-    def _out(self):
-        if not isinstance(self.var, np.ndarray):
-            raise StateVarMissingUserProvidedAsset(
-                "If var is not an array, provide a custom _out method."
-                )
-        return self.var.copy()
-    def _mutate(self, vals, indices = Ellipsis):
-        self.data[indices] = vals
-    def _imitate(self, fromVar):
-        self.mutate(fromVar.data)
-    def _hashID(self):
-        return self._varProp._hashID()
 
 def _de_comparator(obj):
     if isinstance(obj, Function) and hasattr(obj, 'index'):
@@ -277,7 +245,7 @@ class Wanderer(Voyager, Configurable):
         super().__setitem__(key, val)
         return
 
-    @property
-    def _promptableKey(self):
-        # Overrides Promptable property:
-        return self.configs.contentHash
+    # @property
+    # def _promptableKey(self):
+    #     # Overrides Promptable property:
+    #     return self.configs.contentHash
