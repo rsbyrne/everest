@@ -20,6 +20,7 @@ def _observation_mode(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         try:
+            self._observation_mode_hook()
             return getattr(self.observer, func.__name__)(*args, **kwargs)
         except NoObserver:
             return func(self, *args, **kwargs)
@@ -68,9 +69,14 @@ class Observable(Producer):
         self.observers = WeakList()
         self.observerClasses = WeakList()
         self.observerClasses.extend(_observerClasses)
+        if 'observers' in self.ghosts:
+            self.observerClasses.extend(self.ghosts['observers'])
         self.obs = Obs(self)
 
         super().__init__(**kwargs)
+
+    def _observation_mode_hook(self):
+        pass
 
     def _outputSubKey(self):
         for o in super()._outputSubKey():
@@ -106,6 +112,7 @@ class Observable(Producer):
                     super().save(*args, **kwargs)
                     self.writeouts.add(observer, 'observer')
     def _clear(self, *args, **kwargs):
+        super()._clear(*args, **kwargs)
         if self._observer is None:
             for observer in self.observers:
                 with observer(self):

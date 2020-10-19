@@ -4,6 +4,7 @@ from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import LoadFail, _producer_update_outs
 from ._stampable import Stampable
+from ._prompter import Prompter
 from ..functions import Function
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
@@ -44,7 +45,7 @@ def _voyager_changed_state(func):
         return out
     return wrapper
 
-class Voyager(Cycler, Counter, Stampable):
+class Voyager(Cycler, Counter, Stampable, Prompter):
 
     def __init__(self,
             **kwargs
@@ -76,7 +77,7 @@ class Voyager(Cycler, Counter, Stampable):
         self.initialise(silent = silent)
     @_producer_update_outs
     def _voyager_changed_state_hook(self):
-        pass
+        self.promptees.prompt()
 
     @_voyager_initialise_if_necessary(post = True)
     def iterate(self, n = 1, silent = True):
