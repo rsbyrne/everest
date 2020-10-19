@@ -2,6 +2,8 @@ from collections import OrderedDict
 from contextlib import contextmanager
 import weakref
 
+import numpy as np
+
 from . import Built
 from ..pyklet import Pyklet
 from ..utilities import make_hash, w_hash, get_hash
