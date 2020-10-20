@@ -1,5 +1,7 @@
 from functools import wraps
+import weakref
 from collections import OrderedDict, namedtuple
+
 import numpy as np
 
 from ._producer import Producer, LoadFail, OutsNull
@@ -23,47 +25,36 @@ class IndexerLoadRedundant(IndexerLoadFail):
 class NotIndexlike(TypeError, IndexerException):
     pass
 
-def _indexer_load_wrapper(func):
-    @wraps(func)
-    def wrapper(self, arg, *args, **kwargs):
-        index = self._process_index(arg)
-        return func(self, index, *args, **kwargs)
-    return wrapper
+class Indices:
 
-class Indexer(Producer):
+    def __init__(self, host):
+        self._host = weakref.ref(host)
+        super().__init__()
 
-    def __init__(self,
-            **kwargs
-            ):
-        self.indices = namedtuple('IndexerHost', self.indexerKeys)(
-            *self.indexers
-            )
-        self.i = self.indices
-        super().__init__(**kwargs)
+    @property
+    def host(self):
+        host = self._host()
+        assert not host is None
+        return host
 
     @property
     def indexers(self):
-        return tuple([*self._indexers()][1:])
-    def _indexers(self):
-        yield None
+        return tuple([*self.host._indexers()][1:])
     @property
-    def indexerKeys(self):
-        return [*self._indexerKeys()][1:]
-    def _indexerKeys(self):
-        yield None
+    def types(self):
+        return tuple([*self.host._indexerTypes()][1:])
+    def keys(self):
+        return tuple([*self.host._indexerKeys()][1:])
     @property
-    def indexerTypes(self):
-        return [*self._indexerTypes()][1:]
-    def _indexerTypes(self):
-        yield None
+    def asdict(self):
+        return OrderedDict(zip(self.keys(), self.indexers))
     @property
-    def indexersInfo(self):
+    def info(self):
         return list(zip(
             self.indexers,
-            self.indexerKeys,
-            self.indexerTypes,
+            self.keys(),
+            self.types,
             ))
-
     def _check_indexlike(self, arg):
         try:
             _ = self._get_metaIndex(arg)
@@ -73,20 +64,20 @@ class Indexer(Producer):
     def _get_metaIndex(self, arg):
         if type(arg) is Value:
             arg = arg.plain
-        trueTypes = [issubclass(type(arg), t) for t in self.indexerTypes]
+        trueTypes = [issubclass(type(arg), t) for t in self.types]
         if any(trueTypes):
             return trueTypes.index(True)
         else:
             raise NotIndexlike(repr(arg)[:100], type(arg))
     def _get_indexInfo(self, arg):
-        return self.indexersInfo[self._get_metaIndex(arg)]
+        return self.info[self._get_metaIndex(arg)]
     def _process_index(self, arg):
         i, ik, it = self._get_indexInfo(arg)
         if arg < 0.:
             return i - arg
         else:
             return arg
-    def _indexer_process_endpoint(self, arg, close = False):
+    def process_endpoint(self, arg, close = False):
         i, ik, it = self._get_indexInfo(arg)
         if close:
             target = self
@@ -96,108 +87,151 @@ class Indexer(Producer):
         comp.index = arg
         return comp
 
-    def _nullify_indexers(self):
+    def nullify(self):
         for indexer in self.indexers:
             indexer.value = None
-    def _zero_indexers(self):
+    def zero(self):
         for indexer in self.indexers:
             indexer.value = 0
     @property
-    def _indexers_isnull(self):
+    def isnull(self):
         return any([i.null for i in self.indexers])
     @property
-    def _indexers_iszero(self):
-        if self._indexers_isnull:
+    def iszero(self):
+        if self.isnull:
             return False
         else:
             return any([i == 0 for i in self.indexers])
     @property
-    def _indexers_ispos(self):
-        return not (self._indexers_isnull or self._indexers_iszero)
-
-    def _out(self):
-        outs = super()._out()
-        outs.update(OrderedDict(zip(
-            self.indexerKeys,
-            [OutsNull if i.null else i.value for i in self.indexers]
-            )))
-        return outs
+    def ispos(self):
+        return not (self.isnull or self.iszero)
 
     @property
-    def indicesDisk(self):
+    def disk(self):
         diskIndices = OrderedDict()
-        for k in self.indexerKeys:
-            diskIndices[k] = list(self.readouts[k])
+        for k in self.keys():
+            diskIndices[k] = list(self.host.readouts[k])
         return diskIndices
     @property
-    def indicesStored(self):
+    def stored(self):
         storedIndices = OrderedDict()
-        stored = dict(self.outs.zipstacked)
-        for k in self.indexerKeys:
+        stored = dict(self.host.outs.zipstacked)
+        for k in self.keys():
             storedIndices[k] = list(stored[k])
         return storedIndices
     @property
-    def indicesAll(self):
-        return self._indices_all()
-    def _indices_all(self, clashes = False):
+    def all(self):
+        return self._all()
+    def _all(self, clashes = False):
         combinedIndices = OrderedDict()
         try:
-            diskIndices = self.indicesDisk
+            diskIndices = self.disk
         except (NoActiveAnchorError, PathNotInFrameError):
-            diskIndices = OrderedDict([k, []] for k in self.indexerKeys)
-        storedIndices = self.indicesStored
-        for k in self.indexerKeys:
+            diskIndices = OrderedDict([k, []] for k in self.keys())
+        storedIndices = self.stored
+        for k in self.keys():
             combinedIndices[k] = sorted(set(
                 [*diskIndices[k], *storedIndices[k]]
                 ))
         if clashes:
             clashes = OrderedDict()
-            for k in self.indexerKeys:
+            for k in self.keys():
                 clashes[k] = sorted(set.intersection(
                     set(diskIndices[k]), set(storedIndices[k])
                     ))
             return combinedIndices, clashes
         else:
             return combinedIndices
-    def _indexer_drop_clashes(self):
-        _, clashes = self._indices_all(clashes = True)
+    def drop_clashes(self):
+        _, clashes = self._all(clashes = True)
         clashes = zip(*clashes.values())
-        stored = zip(*[self.outs.stored[k] for k in self.indexerKeys])
+        stored = zip(*[self.host.outs.stored[k] for k in self.keys()])
         toDrop = []
         # print(list(clashes))
         # print(list(stored))
         for i, row in enumerate(stored):
             if any(all(r == c for r, c in zip(row, crow)) for crow in clashes):
                 toDrop.append(i)
-        self.outs.drop(toDrop)
+        self.host.outs.drop(toDrop)
 
-    def _save(self):
-        self._indexer_drop_clashes()
-        super()._save()
+    def out(self):
+        return OrderedDict(zip(
+            self.keys(),
+            [OutsNull if i.null else i.value for i in self.indexers]
+            ))
 
     def _load_process(self, outs):
-        vals = [outs.pop(k) for k in self.indexerKeys]
+        vals = [outs.pop(k) for k in self.keys()]
         if any([v is OutsNull for v in vals]):
             raise IndexerLoadNull
-        if [*vals] == [*self.indexers]:
-            raise IndexerLoadRedundant
+        if vals == self:
+            raise IndexerLoadRedundant(vals, self)
         for val, i in zip(vals, self.indexers):
             i.value = val
             assert i._value == val
-        return super()._load_process(outs)
+        return outs
+
+    def __eq__(self, arg):
+        return all(i == a for i, a in zip(self, arg))
+
+    def __getattr__(self, key):
+        try:
+            return self.asdict[key]
+        except KeyError:
+            raise AttributeError
+    def __getitem__(self, key):
+        return self.asdict[key]
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self.indexers[i]
+    def __len__(self):
+        return len(self.indexers)
+    def __repr__(self):
+        keyvalstr = ', '.join('=='.join((k, str(v)))
+            for k, v in self.asdict.items()
+            )
+        return 'Indices{' + keyvalstr + '}'
+
+class Indexer(Producer):
+
+    def __init__(self,
+            **kwargs
+            ):
+        self.indices = Indices(self)
+        super().__init__(**kwargs)
+
+    def _indexers(self):
+        yield None
+    def _indexerKeys(self):
+        yield None
+    def _indexerTypes(self):
+        yield None
+
+    def _out(self):
+        outs = super()._out()
+        outs.update(self.indices.out())
+        return outs
+
+    def _save(self):
+        self.indices.drop_clashes()
+        super()._save()
+
+    def _load_process(self, outs):
+        outs = super()._load_process(outs)
+        return self.indices._load_process(outs)
     def _load(self, arg):
         if isinstance(arg, Function) and hasattr(arg, 'index'):
             arg = arg.index
         try:
-            i, ik, it = self._get_indexInfo(arg)
+            i, ik, it = self.indices._get_indexInfo(arg)
         except TypeError:
             return super()._load(arg)
-        arg = self._process_index(arg)
+        arg = self.indices._process_index(arg)
         try:
             ind = self.outs.index(**{ik: arg})
         except ValueError:
             try:
-                ind = self.indicesDisk[ik].index(arg)
+                ind = self.indices.disk[ik].index(arg)
             except (ValueError, NoActiveAnchorError, PathNotInFrameError):
                 raise IndexerLoadFail
             return self._load_index_disk(ind)

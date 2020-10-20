@@ -65,14 +65,14 @@ class Voyager(Cycler, Counter, Stampable, Prompter):
             self._initialise()
             assert self.initialised
     def _initialise(self):
-        self._zero_indexers()
+        self.indices.zero()
         self._voyager_changed_state_hook()
     @property
     def initialised(self):
-        return self._indexers_iszero
+        return self.indices.iszero
     @property
     def postinitialised(self):
-        return self._indexers_ispos
+        return self.indices.ispos
     def reset(self, silent = True):
         self.initialise(silent = silent)
     @_producer_update_outs
@@ -96,8 +96,8 @@ class Voyager(Cycler, Counter, Stampable, Prompter):
             self.load(stop)
         except LoadFail:
             if not isinstance(stop, Function):
-                stop = self._indexer_process_endpoint(stop, close = False)
-            if self._indexers_isnull:
+                stop = self.indices.process_endpoint(stop, close = False)
+            if self.indices.isnull:
                 self.initialise()
             slots = stop.slots
             if slots == 1:
@@ -120,12 +120,10 @@ class Voyager(Cycler, Counter, Stampable, Prompter):
 
     @_voyager_changed_state
     def _load(self, arg):
-        if self._check_indexlike(arg):
+        if self.indices._check_indexlike(arg):
             if arg == 0:
                 try:
-                    super()._load(arg)
+                    return super()._load(arg)
                 except IndexerLoadFail:
                     self.initialise(silent = True)
-            else:
-                super()._load(arg)
-        super()._load(arg)
+        return super()._load(arg)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from ._indexer import Indexer, _indexer_load_wrapper, IndexerNullVal
+from ._indexer import Indexer
 from ..functions import Function
 
 class Chroner(Indexer):

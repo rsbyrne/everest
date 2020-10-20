@@ -67,9 +67,9 @@ class WildConfigs(Stamper, ImmutableConfigs):
         self.wanderer.go(self.start, self.stop)
         self._data = self.wanderer.out()
         self._data.name = self.wanderer.outputSubKey
-        iks = self.wanderer.indexerKeys
+        iks = self.wanderer.indices.keys()
         self._indices = namedtuple('IndexerHost', iks)(
-            *[i.value for i in self.wanderer.indexers]
+            *[i.value for i in self.wanderer.indices]
             )
         self._computed = True
     @property
@@ -138,7 +138,7 @@ def get_start_stop(wanderer, slicer):
     stop = (0 if count is None else count) if stop is None else stop
     start, stop = (_de_comparator(arg) for arg in (start, stop))
     indexlikeStart, indexlikeStop = (
-        wanderer._check_indexlike(arg) for arg in (start, stop)
+        wanderer.indices._check_indexlike(arg) for arg in (start, stop)
         )
     if indexlikeStart:
         if indexlikeStop or start == 0:
@@ -159,7 +159,7 @@ def get_start_stop(wanderer, slicer):
     if indexlikeStop:
         if stop == 0:
             raise RedundantWildConfigs
-        stop = wanderer._indexer_process_endpoint(stop, close = False)
+        stop = wanderer.indices.process_endpoint(stop, close = False)
     elif isinstance(stop, Function):
         if not stop.slots == 1:
             raise ValueError("Wrong number of slots on stop comparator.")
@@ -181,7 +181,7 @@ class Wanderer(Voyager, Configurable):
 
     def _configurable_changed_state_hook(self):
         super()._configurable_changed_state_hook()
-        self._nullify_indexers()
+        self.indices.nullify()
 
     def _initialise(self, *args, **kwargs):
         self.configure(silent = True)
@@ -203,7 +203,7 @@ class Wanderer(Voyager, Configurable):
 
     def _load(self, arg):
         super()._load(arg)
-        if not self._indexers_isnull:
+        if not self.indices.isnull:
             self.configured = False
 
     def __getitem__(self, arg):
