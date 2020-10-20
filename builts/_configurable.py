@@ -7,7 +7,7 @@ import numpy as np
 
 from . import Proxy
 from ._producer import Producer
-from ._mutable import Mutable, Mutant, Mutables
+from ._stateful import Stateful, Statelet, State
 from ._applier import Applier
 from ._configurator import Configurator
 from ..pyklet import Pyklet
@@ -45,7 +45,7 @@ class Config(Pyklet):
     def _hashID(self):
         return get_hash(self.content, make = True)
     def apply(self, toVar):
-        if not isinstance(toVar, Mutant):
+        if not isinstance(toVar, Statelet):
             raise TypeError(type(toVar))
         self._apply(toVar)
     def _apply(self, toVar):
@@ -100,16 +100,16 @@ class Configs(Pyklet, Mapping, Sequence):
         return self.contents.items(*args, **kwargs)
     def __len__(self):
         return len(self.contents)
-    def apply(self, mutables):
-        if not isinstance(mutables, Mutables):
+    def apply(self, state):
+        if not isinstance(state, State):
             raise TypeError
-        if not [*mutables.keys()] == [*self.keys()]:
-            raise KeyError(mutables.keys(), self.keys())
-        self._apply(mutables)
-    def _apply(self, mutables):
-        if not isinstance(mutables, Mutables):
-            raise TypeError("Configs can only be applied to Mutables.")
-        for c, m in zip(self.values(), mutables.values()):
+        if not [*state.keys()] == [*self.keys()]:
+            raise KeyError(state.keys(), self.keys())
+        self._apply(state)
+    def _apply(self, state):
+        if not isinstance(state, State):
+            raise TypeError("Configs can only be applied to State.")
+        for c, m in zip(self.values(), state.values()):
             if not c is Ellipsis:
                 if isinstance(c, (Configurator, Config)):
                     c.apply(m)
@@ -188,7 +188,7 @@ class ImmutableConfigs(Configs):
         self._contentsDict = contents.copy()
         super().__init__(*args, contents = contents, **kwargs)
 
-class Configurable(Producer, Mutable):
+class Configurable(Producer, Stateful):
 
     _defaultConfigsKey = 'configs'
 
@@ -215,7 +215,7 @@ class Configurable(Producer, Mutable):
         self.configsKey = self._defaultConfigsKey
         self.configsKeys = tuple(self.configs.keys())
 
-        super().__init__(_mutableKeys = self.configs.keys(), **kwargs)
+        super().__init__(_statefulKeys = self.configs.keys(), **kwargs)
 
     def set_configs(self, *args, new = None, **kwargs):
         prevHash = self.configs.contentHash
@@ -255,7 +255,7 @@ class Configurable(Producer, Mutable):
         else:
             self._configure()
     def _configure(self):
-        self.configs.apply(self.mutables)
+        self.configs.apply(self.state)
         self.configured = True
         self._configurable_changed_state_hook()
     def _configurable_changed_state_hook(self):

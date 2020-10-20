@@ -9,7 +9,7 @@ from ..utilities import w_hash, get_hash
 from ._producer import NullValueDetected, OutsNull
 from ._voyager import Voyager, _voyager_initialise_if_necessary
 from ._stampable import Stampable, Stamper
-from ._mutable import Mutant
+from ._stateful import State, Statelet
 from ._configurable import \
     Configurable, MutableConfigs, ImmutableConfigs, Configs, Config, \
     CannotProcessConfigs
@@ -23,23 +23,23 @@ from ..utilities import is_numeric
 class WandererException(exceptions.EverestException):
     pass
 
-class StateException(exceptions.EverestException):
+class WildConfigsException(exceptions.EverestException):
     pass
-class RedundantState(StateException):
+class RedundantWildConfigs(WildConfigsException):
     pass
 
-def _state_context_wrap(func):
+def _wild_context_wrap(func):
     @wraps(func)
-    def wrapper(state, *args, **kwargs):
-        if not state._computed:
-            state._compute()
-        return func(state, *args, **kwargs)
+    def wrapper(wild, *args, **kwargs):
+        if not wild._computed:
+            wild._compute()
+        return func(wild, *args, **kwargs)
     return wrapper
 
-class State(Stamper, ImmutableConfigs):
+class WildConfigs(Stamper, ImmutableConfigs):
     _premade = weakref.WeakValueDictionary()
     @classmethod
-    def get_state(cls, wanderer, slicer):
+    def get_wild(cls, wanderer, slicer):
         obj = cls(wanderer, slicer)
         try:
             obj = cls._premade[obj.contentHash]
@@ -49,19 +49,19 @@ class State(Stamper, ImmutableConfigs):
     def __init__(self, wanderer, slicer):
         self.start, self.stop = get_start_stop(wanderer, slicer)
         self.indexlike = hasattr(self.stop, 'index')
-        self._stateArgs = (wanderer, (self.start, self.stop))
-        statelets = OrderedDict([
-            (k, Statelet(self, k))
+        self._wildArgs = (wanderer, (self.start, self.stop))
+        wildconfigs = OrderedDict([
+            (k, WildConfig(self, k))
                 for k in wanderer.configs.keys()
             ])
-        statelets = wanderer.process_configs(statelets)
+        wildconfigs = wanderer.process_configs(wildconfigs)
         self._computed = False
         self.wanderer = wanderer.copy()
         super().__init__(self,
-            contents = statelets,
+            contents = wildconfigs,
             )
     def _pickle(self):
-        return self._stateArgs, OrderedDict()
+        return self._wildArgs, OrderedDict()
     def _compute(self):
         assert not self._computed
         self.wanderer.go(self.start, self.stop)
@@ -73,26 +73,26 @@ class State(Stamper, ImmutableConfigs):
             )
         self._computed = True
     @property
-    @_state_context_wrap
+    @_wild_context_wrap
     def data(self):
         return self._data
     @property
-    @_state_context_wrap
+    @_wild_context_wrap
     def indices(self):
         return self._indices
     @property
-    @_state_context_wrap
-    def mutables(self):
-        return self.wanderer.mutables
+    @_wild_context_wrap
+    def state(self):
+        return self.wanderer.state
 
-class Statelet(Config):
-    def __init__(self, state, channel):
-        self.state, self.channel = state, channel
-        self._stateletHashID = self._make_hashID(
+class WildConfig(Config):
+    def __init__(self, wild, channel):
+        self.wild, self.channel = wild, channel
+        self._wildconfigHashID = self._make_hashID(
             self.channel,
-            *self.state._stateArgs
+            *self.wild._wildArgs
             )
-        super().__init__(content = (self.channel, self.state._stateArgs))
+        super().__init__(content = (self.channel, self.wild._wildArgs))
     @staticmethod
     def _make_hashID(channel, wanderer, sliceTup):
         if wanderer.configs[channel] is Ellipsis:
@@ -105,17 +105,17 @@ class Statelet(Config):
                     for o in sliceTup]
                 ))
     def _hashID(self):
-        return self._stateletHashID
+        return self._wildconfigHashID
     def _pickle(self):
-        return (self.state, self.channel), OrderedDict()
+        return (self.wild, self.channel), OrderedDict()
     @property
     def data(self):
-        return self.state.data[self.channel]
+        return self.wild.data[self.channel]
     @property
-    def mutant(self):
-        return self.state.mutables[self.channel]
+    def statelet(self):
+        return self.wild.state[self.channel]
     def _apply(self, toVar):
-        toVar.imitate(self.mutant)
+        toVar.imitate(self.statelet)
 
 def _de_comparator(obj):
     if isinstance(obj, Function) and hasattr(obj, 'index'):
@@ -145,7 +145,7 @@ def get_start_stop(wanderer, slicer):
             start = wanCon
         else:
             start = wanderer[wanCon : start]
-    elif isinstance(start, State):
+    elif isinstance(start, WildConfigs):
         if start.indexlike:
             if start.wanderer.hashID == wanderer.hashID:
                 start = start.start
@@ -158,7 +158,7 @@ def get_start_stop(wanderer, slicer):
 
     if indexlikeStop:
         if stop == 0:
-            raise RedundantState
+            raise RedundantWildConfigs
         stop = wanderer._indexer_process_endpoint(stop, close = False)
     elif isinstance(stop, Function):
         if not stop.slots == 1:
@@ -224,14 +224,14 @@ class Wanderer(Voyager, Configurable):
                 arg = slice(arg)
             start, stop, step = arg.start, arg.stop, arg.step
             try:
-                return State.get_state(self, arg)
-            except RedundantState:
+                return WildConfigs.get_wild(self, arg)
+            except RedundantWildConfigs:
                 return ImmutableConfigs(contents = self.configs)
 
     def __setitem__(self, key, val):
         if isinstance(val, Wanderer):
             val = val[:]
-        if isinstance(val, State):
+        if isinstance(val, WildConfigs):
             if val.wanderer.hashID == self.hashID:
                 if not val.start.id == self.configs.id:
                     self[...] = val.start

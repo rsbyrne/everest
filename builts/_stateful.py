@@ -10,20 +10,20 @@ from ..utilities import make_hash, w_hash, get_hash
 
 from . import BuiltException, MissingMethod, MissingAttribute, MissingKwarg
 from ..exceptions import EverestException
-class MutableException(BuiltException):
+class StatefulException(BuiltException):
     pass
-class MutableMissingMethod(MissingMethod, MutableException):
+class StatefulMissingMethod(MissingMethod, StatefulException):
     pass
-class MutableMissingAttribute(MissingAttribute, MutableException):
+class StatefulMissingAttribute(MissingAttribute, StatefulException):
     pass
-class MutableMissingKwarg(MissingKwarg, MutableException):
+class StatefulMissingKwarg(MissingKwarg, StatefulException):
     pass
-class MutantException(EverestException):
+class StateletException(EverestException):
     pass
-class MutantMissingMethod(EverestException):
+class StateletMissingMethod(EverestException):
     pass
 
-class Mutant:
+class Statelet:
     def __init__(self, var, name):
         self._var, self._name = var, name
         super().__init__()
@@ -42,7 +42,7 @@ class Mutant:
         return self._out()
     def _out(self):
         if not isinstance(self.var, np.ndarray):
-            raise MutantMissingMethod(
+            raise StateletMissingMethod(
                 "If var is not an array, provide a custom _out method."
                 )
         return self.var.copy()
@@ -51,7 +51,7 @@ class Mutant:
         return self._data()
     def _data(self):
         if not isinstance(self.var, np.ndarray):
-            raise MutantMissingMethod(
+            raise StateletMissingMethod(
                 "If var is not an array, provide a custom _data method."
                 )
         return self.var
@@ -70,10 +70,10 @@ class Mutant:
     def __setitem__(self, key, val):
         self.mutate(val, indices = key)
 
-class Mutables(OrderedDict):
+class State(OrderedDict):
     def __setitem__(self, key, arg):
         if not arg is None:
-            if isinstance(arg, Mutant):
+            if isinstance(arg, Statelet):
                 if not key == arg.name:
                     raise ValueError
             else:
@@ -82,16 +82,16 @@ class Mutables(OrderedDict):
     def __getitem__(self, key):
         return super().__getitem__(key)
 
-class Mutable(Built):
+class Stateful(Built):
 
     def __init__(self,
-            _mutableKeys = None,
+            _statefulKeys = None,
             **kwargs
             ):
 
-        if _mutableKeys is None:
-            raise MutableMissingKwarg
+        if _statefulKeys is None:
+            raise StatefulMissingKwarg
 
-        self.mutables = Mutables([(k, None) for k in _mutableKeys])
+        self.state = State([(k, None) for k in _statefulKeys])
 
         super().__init__(**kwargs)
