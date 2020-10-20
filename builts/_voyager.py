@@ -1,5 +1,6 @@
 from functools import wraps
 
+from ._stateful import Stateful
 from ._counter import Counter
 from ._cycler import Cycler
 from ._producer import LoadFail, _producer_update_outs
@@ -45,7 +46,7 @@ def _voyager_changed_state(func):
         return out
     return wrapper
 
-class Voyager(Cycler, Counter, Stampable, Prompter):
+class Voyager(Cycler, Counter, Stateful, Stampable, Prompter):
 
     def __init__(self,
             **kwargs
@@ -118,6 +119,9 @@ class Voyager(Cycler, Counter, Stampable, Prompter):
         super()._cycle()
         self.iterate()
 
+    @_voyager_initialise_if_necessary(post = True)
+    def _out(self):
+        return super()._out()
     @_voyager_changed_state
     def _load(self, arg):
         if self.indices._check_indexlike(arg):

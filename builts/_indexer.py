@@ -48,6 +48,11 @@ class Indices:
     @property
     def asdict(self):
         return OrderedDict(zip(self.keys(), self.indexers))
+    def items(self):
+        return self.asdict.items()
+    def values(self):
+        return self.asdict.values()
+
     @property
     def info(self):
         return list(zip(
@@ -165,7 +170,7 @@ class Indices:
 
     def save(self):
         self.indices.drop_clashes()
-        super(Indexer, self.host)._save()
+        return super(Indexer, self.host)._save()
 
     def load_process(self, outs):
         outs = super(Indexer, self.host)._load_process(outs)
@@ -207,11 +212,11 @@ class Indices:
             raise AttributeError
     def __getitem__(self, key):
         return self.asdict[key]
+    def __len__(self):
+        return len(self.indexers)
     def __iter__(self):
         for i in range(len(self)):
             yield self.indexers[i]
-    def __len__(self):
-        return len(self.indexers)
     def __repr__(self):
         keyvalstr = ', '.join('=='.join((k, str(v)))
             for k, v in self.asdict.items()

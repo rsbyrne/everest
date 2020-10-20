@@ -4,7 +4,7 @@ import weakref
 
 import numpy as np
 
-from . import Built
+from ._producer import Producer, Outs
 from ..pyklet import Pyklet
 from ..utilities import make_hash, w_hash, get_hash
 
@@ -70,28 +70,88 @@ class Statelet:
     def __setitem__(self, key, val):
         self.mutate(val, indices = key)
 
-class State(OrderedDict):
-    def __setitem__(self, key, arg):
-        if not arg is None:
-            if isinstance(arg, Statelet):
-                if not key == arg.name:
-                    raise ValueError
-            else:
-                raise TypeError
-        super().__setitem__(key, arg)
-    def __getitem__(self, key):
-        return super().__getitem__(key)
+class State:
 
-class Stateful(Built):
+    def __init__(self, host):
+        self._host = weakref.ref(host)
+        super().__init__()
+
+    @property
+    def host(self):
+        host = self._host()
+        assert not host is None
+        return host
+
+    @property
+    def vars(self):
+        return tuple([*self.host._state_vars()][1:])
+    def keys(self):
+        return tuple([*self.host._state_keys()][1:])
+    @property
+    def asdict(self):
+        return OrderedDict(zip(self.keys(), self.vars))
+    def items(self):
+        return self.asdict.items()
+    def values(self):
+        return self.asdict.values()
+
+    def out(self):
+        outs = super(Stateful, self.host)._out()
+        add = OrderedDict(zip(
+            self.keys(),
+            (v.data.copy() for v in self.vars)
+            ))
+        outs.update(add)
+        return outs
+
+    def save(self):
+        return super(Stateful, self.host)._save()
+
+    def load_process(self, outs):
+        outs = super(Stateful, self.host)._load_process(outs)
+        for k, v in self.items():
+            v.mutate(outs.pop(k))
+        return outs
+
+    def load(self, arg):
+        return super(Stateful, self.host)._load(arg)
+
+    def __getitem__(self, key):
+        try:
+            return self.asdict[key]
+        except KeyError:
+            return self.vars[key]
+    def __len__(self):
+        return len(self.vars)
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self.vars[i]
+    def __repr__(self):
+        keyvalstr = ', '.join('=='.join((k, str(v)))
+            for k, v in self.items()
+            )
+        return 'State{' + keyvalstr + '}'
+
+class Stateful(Producer):
 
     def __init__(self,
-            _statefulKeys = None,
             **kwargs
             ):
 
-        if _statefulKeys is None:
-            raise StatefulMissingKwarg
-
-        self.state = State([(k, None) for k in _statefulKeys])
+        self.state = State(self)
 
         super().__init__(**kwargs)
+
+    def _state_vars(self):
+        yield None
+    def _state_keys(self):
+        yield None
+
+    def _out(self):
+        return self.state.out()
+    def _save(self):
+        return self.state.save()
+    def _load_process(self, outs):
+        return self.state.load_process(outs)
+    def _load(self, arg):
+        return self.state.load(arg)

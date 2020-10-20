@@ -6,7 +6,6 @@ import warnings
 import numpy as np
 
 from . import Proxy
-from ._producer import Producer
 from ._stateful import Stateful, Statelet, State
 from ._applier import Applier
 from ._configurator import Configurator
@@ -109,7 +108,7 @@ class Configs(Pyklet, Mapping, Sequence):
     def _apply(self, state):
         if not isinstance(state, State):
             raise TypeError("Configs can only be applied to State.")
-        for c, m in zip(self.values(), state.values()):
+        for c, m in zip(self.values(), state):
             if not c is Ellipsis:
                 if isinstance(c, (Configurator, Config)):
                     c.apply(m)
@@ -188,7 +187,7 @@ class ImmutableConfigs(Configs):
         self._contentsDict = contents.copy()
         super().__init__(*args, contents = contents, **kwargs)
 
-class Configurable(Producer, Stateful):
+class Configurable(Stateful):
 
     _defaultConfigsKey = 'configs'
 
@@ -215,7 +214,11 @@ class Configurable(Producer, Stateful):
         self.configsKey = self._defaultConfigsKey
         self.configsKeys = tuple(self.configs.keys())
 
-        super().__init__(_statefulKeys = self.configs.keys(), **kwargs)
+        super().__init__(**kwargs)
+
+    def _state_keys(self):
+        for k in super()._state_keys(): yield k
+        for k in self.configs.keys(): yield k
 
     def set_configs(self, *args, new = None, **kwargs):
         prevHash = self.configs.contentHash
