@@ -155,12 +155,20 @@ class Indices:
         self.host.outs.drop(toDrop)
 
     def out(self):
-        return OrderedDict(zip(
+        outs = super(Indexer, self.host)._out()
+        add = OrderedDict(zip(
             self.keys(),
             [OutsNull if i.null else i.value for i in self.indexers]
             ))
+        outs.update(add)
+        return outs
 
-    def _load_process(self, outs):
+    def save(self):
+        self.indices.drop_clashes()
+        super(Indexer, self.host)._save()
+
+    def load_process(self, outs):
+        outs = super(Indexer, self.host)._load_process(outs)
         vals = [outs.pop(k) for k in self.keys()]
         if any([v is OutsNull for v in vals]):
             raise IndexerLoadNull
@@ -170,6 +178,24 @@ class Indices:
             i.value = val
             assert i._value == val
         return outs
+
+    def load(self, arg):
+        if isinstance(arg, Function) and hasattr(arg, 'index'):
+            arg = arg.index
+        try:
+            i, ik, it = self._get_indexInfo(arg)
+        except TypeError:
+            return super(Indexer, self.host)._load(arg)
+        arg = self._process_index(arg)
+        try:
+            ind = self.host.outs.index(**{ik: arg})
+        except ValueError:
+            try:
+                ind = self.disk[ik].index(arg)
+            except (ValueError, NoActiveAnchorError, PathNotInFrameError):
+                raise IndexerLoadFail
+            return self.host._load_index_disk(ind)
+        return self.host._load_index_stored(ind)
 
     def __eq__(self, arg):
         return all(i == a for i, a in zip(self, arg))
@@ -208,31 +234,10 @@ class Indexer(Producer):
         yield None
 
     def _out(self):
-        outs = super()._out()
-        outs.update(self.indices.out())
-        return outs
-
+        return self.indices.out()
     def _save(self):
-        self.indices.drop_clashes()
-        super()._save()
-
+        return self.indices.save()
     def _load_process(self, outs):
-        outs = super()._load_process(outs)
-        return self.indices._load_process(outs)
+        return self.indices.load_process(outs)
     def _load(self, arg):
-        if isinstance(arg, Function) and hasattr(arg, 'index'):
-            arg = arg.index
-        try:
-            i, ik, it = self.indices._get_indexInfo(arg)
-        except TypeError:
-            return super()._load(arg)
-        arg = self.indices._process_index(arg)
-        try:
-            ind = self.outs.index(**{ik: arg})
-        except ValueError:
-            try:
-                ind = self.indices.disk[ik].index(arg)
-            except (ValueError, NoActiveAnchorError, PathNotInFrameError):
-                raise IndexerLoadFail
-            return self._load_index_disk(ind)
-        return self._load_index_stored(ind)
+        return self.indices.load(arg)
