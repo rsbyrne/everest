@@ -5,7 +5,7 @@ from collections import OrderedDict, namedtuple
 import numpy as np
 
 from ._producer import Producer, LoadFail, OutsNull
-from ..functions import Function, Value
+from ..functions import Fn, Value
 from ..anchor import NoActiveAnchorError
 from ..reader import PathNotInFrameError
 
@@ -68,7 +68,7 @@ class Indices:
             return False
     def _get_metaIndex(self, arg):
         if type(arg) is Value:
-            arg = arg.plain
+            arg = arg.value
         trueTypes = [issubclass(type(arg), t) for t in self.types]
         if any(trueTypes):
             return trueTypes.index(True)
@@ -88,7 +88,7 @@ class Indices:
             target = self
         else:
             target = None
-        comp = Function(target, 'indices', ik) >= self._process_index(arg)
+        comp = Fn(target).get('indices', ik) >= self._process_index(arg)
         comp.index = arg
         return comp
 
@@ -185,7 +185,7 @@ class Indices:
         return outs
 
     def load(self, arg):
-        if isinstance(arg, Function) and hasattr(arg, 'index'):
+        if isinstance(arg, Fn) and hasattr(arg, 'index'):
             arg = arg.index
         try:
             i, ik, it = self._get_indexInfo(arg)

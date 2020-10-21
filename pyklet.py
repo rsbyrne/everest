@@ -9,7 +9,7 @@ class Pyklet:
     _TAG_ = '_pyklet_'
     def __init__(self, *args, **kwargs):
         # self._source = inspect.getsource(self.__class__)
-        if hasattr(self, '_pickle'):
+        if '_pickle' in dir(self):
             args, kwargs = self._pickle()
         self._pickleArgs, self._pickleKwargs = args, kwargs
         self._pickleObjs = tuple([
@@ -23,14 +23,11 @@ class Pyklet:
     @classmethod
     def _unpickle(cls, args, kwargs):
         return cls(*args, **kwargs)
+    def _hashID(self):
+        return w_hash(self._pickleObjs)
     @property
     def contentHash(self):
-        if hasattr(self, '_hashID'):
-            return self._hashID()
-        if hasattr(self, '_hashObjects'):
-            return w_hash(self._hashObjects)
-        else:
-            return w_hash(self._pickleObjs)
+        return self._hashID()
     @property
     def hashID(self):
         selfname = type(self).__name__.strip('_')

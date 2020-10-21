@@ -115,12 +115,6 @@ def make_hash(obj):
     if type(obj) is str:
         hexID = hashlib.md5(str(obj).encode()).hexdigest()
         hashVal = str(int(hexID, 16))
-    elif hasattr(obj, 'hashID'):
-        hashVal = obj.hashID
-    elif hasattr(obj, 'typeHash'):
-        hashVal = obj.typeHash
-    elif hasattr(obj, '_hashObjects'):
-        hashVal = make_hash(obj._hashObjects)
     elif isinstance(obj, Mapping):
         obj = {**obj}
         try:
@@ -152,12 +146,10 @@ def w_hash(obj):
 class HashIDNotFound(EverestException):
     pass
 def get_hash(obj, make = True):
-    if hasattr(obj, 'hashID'):
+    if 'hashID' in dir(obj):
         hashVal = obj.hashID
-    elif hasattr(obj, 'typeHash'):
+    elif 'typeHash' in dir(obj):
         hashVal = obj.typeHash
-    elif hasattr(obj, '_hashObjects'):
-        hashVal = make_hash(obj._hashObjects)
     else:
         if make:
             hashVal = w_hash(obj)

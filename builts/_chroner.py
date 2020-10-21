@@ -13,8 +13,8 @@ class Chroner(Indexer):
         self._chronsKey = self._defaultChronsKey
         self._chron = Function(
             self._chronNullVal,
+            initial = 'null',
             name = self._chronsKey,
-            null = True
             )
         super().__init__(**kwargs)
 

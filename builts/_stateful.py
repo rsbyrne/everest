@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
 import weakref
 
@@ -65,12 +66,13 @@ class Statelet:
         self._imitate(fromVar)
     def _imitate(self, fromVar):
         self.mutate(fromVar.data)
+
     def __getitem__(self, arg):
         return self.out()[arg]
     def __setitem__(self, key, val):
         self.mutate(val, indices = key)
 
-class State:
+class State(Sequence, Mapping):
 
     def __init__(self, host):
         self._host = weakref.ref(host)
@@ -123,14 +125,17 @@ class State:
             return self.vars[key]
     def __len__(self):
         return len(self.vars)
-    def __iter__(self):
-        for i in range(len(self)):
-            yield self.vars[i]
     def __repr__(self):
         keyvalstr = ', '.join('=='.join((k, str(v)))
             for k, v in self.items()
             )
         return 'State{' + keyvalstr + '}'
+
+    def __getattr__(self, key):
+        try:
+            return self.asdict[key]
+        except KeyError:
+            raise AttributeError
 
 class Stateful(Producer):
 

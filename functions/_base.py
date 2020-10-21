@@ -1,7 +1,8 @@
 import operator
 import builtins
 from types import FunctionType
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+import weakref
 
 import numpy as np
 
@@ -13,11 +14,18 @@ class FunctionException(EverestException):
     pass
 class FunctionMissingAsset(MissingAsset, FunctionException):
     pass
+class NullValueDetected(FunctionException):
+    pass
+class EvaluationError(FunctionException):
+    pass
 
 class Function(Pyklet):
 
     def __new__(cls, *args, **kwargs):
         if cls is Function:
+            if len(kwargs) == 0 and len(args) == 1:
+                if isinstance(args[0], Function):
+                    raise ValueError("Arg is already a Function.")
             cls = cls._getcls(*args, **kwargs)
         return super().__new__(cls)
 
@@ -32,11 +40,16 @@ class Function(Pyklet):
         self.kwargs = kwargs
         super().__init__(*terms, name = name, **kwargs)
 
+    @staticmethod
+    def _value_resolve(val):
+        while isinstance(val, Function):
+            val = val.value
+        return val
     def evaluate(self):
         if self.open:
-            raise FunctionException("Cannot evaluate open function.")
+            raise EvaluationError("Cannot evaluate open function.")
         else:
-            return self._evaluate()
+            return self._value_resolve(self._evaluate())
     def _evaluate(self):
         raise FunctionMissingAsset
     @property
@@ -69,7 +82,7 @@ class Function(Pyklet):
                     argslots += term.argslots
         return argslots, kwargslots
     def _add_slot_attrs(self):
-        if not hasattr(self, '_slots'):
+        if not '_slots' in dir(self):
             self._argslots, self._kwargslots = self._count_slots()
             self._slots = self._argslots + len(self._kwargslots)
         else:
@@ -123,13 +136,13 @@ class Function(Pyklet):
                 if t.open:
                     queryArgs = list(queryArgs)
                     subArgs = queryArgs[:t.argslots]
-                    leftovers = subArgs[t.argslots:]
+                    leftovers = queryArgs[t.argslots:]
                     subKwargs = {
                         k: queryKwargs[k]
                             for k in queryKwargs if k in t.kwargslots
                         }
                     t = t.close(
-                        *queryArgs,
+                        *subArgs,
                         **subKwargs,
                         )
                     changes += 1
@@ -202,23 +215,28 @@ class Function(Pyklet):
     def __invert__(self):
         return self.not_fn(self)
 
+    def pipeout(self, arg):
+        if not isinstance(arg, (Array, Value)):
+            raise FunctionException("Can only pipe to Arrays or Values.")
+        return arg.pipein(self)
+
     def __rshift__(self, arg):
-        if not arg.open:
-            raise FunctionException("Data can only be routed into open Fns.")
-        return arg.close(Collect(self))
+        return self.pipeout(arg)
+    def __lshift__(self, arg):
+        return arg.pipeout(self)
 
     def __repr__(self):
         head = super().__repr__()
-        if self.open:
-            tail = 'open:' + str((self.argslots, self.kwargslots))
-        else:
-            tail = str(self)
+        tail = str(self)
         return '=='.join([head, tail])
     def __str__(self):
-        try:
-            return str(self.value)
-        except NullValueDetected:
-            return 'Null'
+        if self.open:
+            return 'open:' + str((self.argslots, self.kwargslots))
+        else:
+            try:
+                return str(self.value)
+            except (NullValueDetected, EvaluationError):
+                return 'Null'
     def __call__(self, *args, **kwargs):
         if len(args) or len(kwargs):
             self = self.close(*args, **kwargs)
@@ -242,288 +260,48 @@ class Function(Pyklet):
             if not len(args):
                 return Slot
             elif len(args) > 1:
-                return Getter
+                return Seq
             else:
                 arg = args[0]
                 if is_numeric(arg):
                     return Value
                 elif type(arg) is str:
-                    return Slot
+                    return Text
                 else:
-                    _ = len(arg)
-                    return Array
+                    try:
+                        _ = len(arg)
+                        return Array
+                    except TypeError:
+                        return Thing
         else:
             return Operation
 
-# class Group(Function):
-#
-#     def __init__(self, *args, _funcDict = None, **kwargs):
-#         if len(args):
-#             if (not _funcDict is None) or len(kwargs):
-#                 raise FunctionException("Bad Group inputs.")
-#             _funcDict = {arg.name : arg for arg in args}
-#         elif _funcDict is None:
-#             _funcDict = **kwargs
-#         else:
-#             if len(kwargs):
-#                 raise FunctionException("Provide dict OR kwargs to Group.")
-#         for key, val in sorted({**_funcDict}.items()):
-#             assert type(key) is str
-#             if not isinstance(val, Function):
-#                 val = Function(val, name = key)
-#             if not val.name == key:
-#                 raise ValueError("Input name does not equal provided key.")
-#                 # val = type(val)(*val.args, name = key, **val.kwargs)
-#         super().__init__(funcDict, **kwargs)
-#     def __getitem__(self, key):
-#         return self._funcDict[key]
-#     def __getattr__(self, key):
-#         if key in self._funcDict:
-#             return self[key].value
-#         else:
-#             super().__getattr__(key)
-#     def keys(self):
-#         return self._funcDict.keys()
-#     def _evaluate(self):
-#         return OrderedDict((k, getattr(self, k)) for k in self.keys())
-
-class Operation(Function):
-
-    def __init__(self,
-            *terms, op = None,
-            asList = False,
-            invert = False,
-            comparative = False
-            ):
-        if type(op) is tuple:
-            sops, op = op[:-1], op[-1]
-            for sop in sops:
-                terms = Operation(*terms, op = sop)
-                if not type(terms) is tuple:
-                    terms = terms,
-        self.op = self._getop(op)
-        self.asList, self.invert = asList, invert
-        self.comparative = comparative
-        super().__init__(
-            *terms,
-            op = op,
-            asList = asList,
-            invert = invert,
-            comparative = comparative
-            )
-
-    def _evaluate(self):
-        try:
-            ts = [
-                t.value if isinstance(t, Function) else t
-                    for t in self.terms
-                ]
-            if self.asList:
-                out = self.op(ts)
-            else:
-                out = self.op(*ts)
-            if self.invert:
-                out = not out
-            return out
-        except NullValueDetected:
-            if self.comparative:
-                return False
-            else:
-                raise NullValueDetected
-
-class ValueException(EverestException):
-    pass
-class ValueForbiddenAttribute(Forbidden, ValueException):
-    pass
-class NullValueDetected(ValueException):
-    pass
-
-class Value(Function):
-
-    def __init__(self, value, null = False, name = None):
-        if not is_numeric(value):
-            raise TypeError("Value must be numeric.")
-        self.initial = value
-        if np.issubdtype(type(value), np.integer):
-            self._plain = int(value)
-            self.type = np.int32
-        else:
-            self._plain = float(value)
-            self.type = np.float64
-        if null:
-            self._value = None
-        else:
-            self._value = self.type(value)
-        super().__init__(value, null = null, name = name)
-        self._lock = True
-
     @property
-    def plain(self):
-        return self._plain
+    def get(self):
+        return Getter(self)
+    def __getitem__(self, key):
+        return self.value[key]
 
-    def _isnull(self):
-        return self._value is None
+    def op(self, arg, **kwargs):
+        return Operation(self, op = arg, **kwargs)
 
-    def __setattr__(self, key, value):
-        if hasattr(self, '_lock'):
-            self._lockset(key, value)
-        else:
-            super().__setattr__(key, value)
-    def _lockset(self, key, value):
-        if key in {'type', 'initial'}:
-            raise ValueForbiddenAttribute()
-        elif key == 'value':
-            if value is None:
-                super().__setattr__('_value', None)
-                super().__setattr__('_plain', None)
-                return None
-            else:
-                try:
-                    if np.issubdtype(type(value), np.integer):
-                        plain = int(value)
-                    else:
-                        plain = float(value)
-                    value = self.type(value)
-                    super().__setattr__('_value', value)
-                    super().__setattr__('_plain', plain)
-                except TypeError:
-                    raise TypeError((value, type(value)))
-                return None
-        else:
-            super().__setattr__(key, value)
+    def exc(self, exc = Exception, altval = None):
+        return Trier(self, exc = exc, altval = altval)
 
-    def _evaluate(self):
-        if self.null: raise NullValueDetected(self._value)
-        return self._value
+class Getter:
+    def __init__(self, host):
+        self.host = host
+    def __call__(self, *props):
+        return GetAttr(self.host, *props)
+    def __getitem__(self, key):
+        return GetItem(self.host, key)
 
-    def _reassign(self, arg, op = None):
-        self.value = self._operate(arg, op = op).value
-        return self
-    def __iadd__(self, arg): return self._reassign(arg, op = 'add')
-    def __ifloordiv__(self, arg): return self._reassign(arg, op = 'floordiv')
-    def __imod__(self, arg): return self._reassign(arg, op = 'mod')
-    def __imul__(self, arg): return self._reassign(arg, op = 'mul')
-    def __ipow__(self, arg): return self._reassign(arg, op = 'pow')
-    def __isub__(self, arg): return self._reassign(arg, op = 'sub')
-    def __itruediv__(self, arg): return self._reassign(arg, op = 'truediv')
-
-    def _hashID(self):
-        return self.name
-
-class Array(Function):
-
-    def __init__(self, values, null = False, name = None):
-        values = np.array(values)
-        self.initial = values
-        self._value = values
-        self._null = null
-        self.type = self._value.dtype
-        super().__init__(values, null = null, name = name)
-
-    @property
-    def plain(self):
-        return list(self._value)
-
-    def _isnull(self):
-        return self._null
-
-    def __setattr__(self, key, value):
-        if hasattr(self, '_lock'):
-            self._lockset(key, value)
-        else:
-            super().__setattr__(key, value)
-    def _lockset(self, key, value):
-        if key in {'type', 'initial', '_null'}:
-            raise ValueForbiddenAttribute()
-        elif key == 'value':
-            if value is None:
-                super().__setattr__('_null', True)
-                return None
-            else:
-                try:
-                    self._value[...] = value
-                    super().__setattr__('_null', False)
-                except TypeError:
-                    raise TypeError((value, type(value)))
-                return None
-        else:
-            super().__setattr__(key, value)
-
-    def _evaluate(self):
-        if self.null: raise NullValueDetected(self._value)
-        return self._value
-
-    def _reassign(self, arg, op = None):
-        self.value = self._operate(arg, op = op).value
-        return self
-    def __iadd__(self, arg): return self._reassign(arg, op = 'add')
-    def __ifloordiv__(self, arg): return self._reassign(arg, op = 'floordiv')
-    def __imod__(self, arg): return self._reassign(arg, op = 'mod')
-    def __imul__(self, arg): return self._reassign(arg, op = 'mul')
-    def __ipow__(self, arg): return self._reassign(arg, op = 'pow')
-    def __isub__(self, arg): return self._reassign(arg, op = 'sub')
-    def __itruediv__(self, arg): return self._reassign(arg, op = 'truediv')
-
-    def _hashID(self):
-        return self.name
-
-class Getter(Function):
-
-    def __init__(self,
-            target,
-            *props
-            ):
-        self.target, self.props = target, props
-        super().__init__(target, *props)
-
-    def _evaluate(self):
-        target, *props = self.terms
-        if target is None:
-            raise ValueError
-        for prop in props:
-            try:
-                target = getattr(target, prop)
-            except (AttributeError, TypeError):
-                target = target.__getitem__(prop)
-        return target
-
-    def _hashID(self):
-        return '.'.join([
-            get_hash(self.terms[0]),
-            *[str(t) for t in self.terms[1:]]
-            ])
-
-class Slot(Function):
-
-    def __init__(self, name = None):
-        self._slots = 1
-        super().__init__(name = name)
-        if name is None:
-            self._argslots = 1
-            self._kwargslots = []
-        else:
-            self._argslots = 0
-            self._kwargslots = [self.name]
-    def close(self, *args, **kwargs):
-        if len(args) + len(kwargs) > self._slots:
-            raise FunctionException
-        if len(args):
-            return args[0]
-        elif len(kwargs):
-            if not kwargs.keys()[0] == self.name:
-                raise KeyError
-            return kwargs.values()[0]
-        # raise FunctionException("Cannot close a Slot function.")
-
-class Collect(Function):
-    def __init__(self, pipe, name = None, **kwargs):
-        if not isinstance(pipe, Function):
-            raise TypeError
-        self.collection = []
-        self.pipe = pipe
-        super().__init__(pipe, name = name, **kwargs)
-    def _evaluate(self):
-        self.collection.append(self.pipe.value)
-        return np.array(self.collection)
-    def clear(self):
-        self.collection.clear()
+from ._operation import Operation
+from ._get import GetAttr, GetItem
+from ._trier import Trier
+from ._seq import Seq
+from ._value import Value
+from ._array import Array
+from ._text import Text
+from ._thing import Thing
+from ._slot import Slot

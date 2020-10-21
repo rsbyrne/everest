@@ -259,6 +259,12 @@ class ConfigsHost(MutableConfigs):
             )
         return 'Configs:' + self.id + '{' + keyvalstr + '}'
 
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError
+
 class Configurable(Stateful):
 
     _defaultConfigsKey = 'configs'

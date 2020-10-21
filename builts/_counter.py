@@ -13,8 +13,8 @@ class Counter(Indexer):
         self._countsKey = self._defaultCountsKey
         self._count = Function(
             self._countNullVal,
+            initial = 'null',
             name = self._countsKey,
-            null = True
             )
         super().__init__(**kwargs)
 
