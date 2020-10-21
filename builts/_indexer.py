@@ -228,8 +228,14 @@ class Indexer(Producer):
     def __init__(self,
             **kwargs
             ):
-        self.indices = Indices(self)
+        self._indices = None
         super().__init__(**kwargs)
+
+    @property
+    def indices(self):
+        if self._indices is None:
+            self._indices = Indices(self)
+        return self._indices
 
     def _indexers(self):
         yield None

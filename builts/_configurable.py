@@ -2,6 +2,7 @@ from functools import wraps
 from collections.abc import Mapping, Sequence
 from collections import OrderedDict
 import warnings
+import weakref
 
 import numpy as np
 
@@ -187,46 +188,34 @@ class ImmutableConfigs(Configs):
         self._contentsDict = contents.copy()
         super().__init__(*args, contents = contents, **kwargs)
 
-class Configurable(Stateful):
+class ConfigsHost(MutableConfigs):
 
-    _defaultConfigsKey = 'configs'
-
-    def __init__(self, _defaultConfigs = None, **kwargs):
-
-        if _defaultConfigs is None:
-            _defaultConfigs = OrderedDict(
-                (k, self.ghosts[k]) for k in self._sortedGhostKeys['configs']
-                )
-        for k, v in _defaultConfigs.items():
+    def __init__(self, host):
+        self._host = weakref.ref(host)
+        defaults = OrderedDict(
+            (k, self.host.ghosts[k])
+                for k in self.host._sortedGhostKeys[self.host._configsKey]
+            )
+        for k, v in defaults.items():
             if v is None:
-                _defaultConfigs[k] = float('NaN')
-
+                defaults[k] = float('NaN')
         self.configured = False
-        self._storedConfigs = OrderedDict()
+        self.stored = OrderedDict()
+        super().__init__(defaults)
 
-        if _defaultConfigs is None:
-            raise ConfigurableMissingKwarg
-        try:
-            _defaultConfigs = OrderedDict(_defaultConfigs)
-        except TypeError:
-            _defaultConfigs = OrderedDict([(k, None) for k in _defaultConfigs])
-        self.configs = MutableConfigs(_defaultConfigs)
-        self.configsKey = self._defaultConfigsKey
-        self.configsKeys = tuple(self.configs.keys())
-
-        super().__init__(**kwargs)
-
-    def _state_keys(self):
-        for k in super()._state_keys(): yield k
-        for k in self.configs.keys(): yield k
+    @property
+    def host(self):
+        host = self._host()
+        assert not host is None
+        return host
 
     def set_configs(self, *args, new = None, **kwargs):
-        prevHash = self.configs.contentHash
+        prevHash = self.contentHash
         self._set_configs(*args, new = new, **kwargs)
-        newHash = self.configs.contentHash
+        newHash = self.contentHash
         self.configured = newHash == prevHash and self.configured
         if newHash != prevHash:
-            self._configurable_changed_state_hook()
+            self.host._configurable_changed_state_hook()
     def _set_configs(self, *args, new = None, **kwargs):
         if new is None:
             new = self.merge_configs(*args, **kwargs)
@@ -234,9 +223,9 @@ class Configurable(Stateful):
             if len(args) or len(kwargs):
                 raise ValueError
             new = self.process_configs(new)
-        self.configs.update(new)
+        self.update(new)
     def merge_configs(self, *args, **kwargs):
-        merged = self.configs.copy()
+        merged = self.copy()
         merged.update_generic(*args, **kwargs)
         return merged
     def process_configs(self, arg, strict = False):
@@ -249,49 +238,73 @@ class Configurable(Stateful):
                 return self.merge_configs(**arg)
             else:
                 raise CannotProcessConfigs
-    def configure(self, silent = False):
+    def apply(self, silent = False):
         if self.configured:
             if silent:
                 pass
             else:
                 raise ConfigurableAlreadyConfigured
         else:
-            self._configure()
-    def _configure(self):
-        self.configs.apply(self.state)
-        self.configured = True
-        self._configurable_changed_state_hook()
+            super().apply(self.host.state)
+            self.configured = True
+            self.host._configurable_changed_state_hook()
+
+    def store(self):
+        k, v = self.id, ImmutableConfigs(contents = self.contents)
+        self.stored[k] = v
+
+    def __repr__(self):
+        keyvalstr = ', '.join('=='.join((k, str(v)))
+            for k, v in self.items()
+            )
+        return 'Configs:' + self.id + '{' + keyvalstr + '}'
+
+class Configurable(Stateful):
+
+    _defaultConfigsKey = 'configs'
+
+    def __init__(self, **kwargs):
+
+        self._configsKey = self._defaultConfigsKey
+        self._configs = None
+
+        super().__init__(**kwargs)
+
+    @property
+    def configs(self):
+        if self._configs is None:
+            self._configs = ConfigsHost(self)
+        return self._configs
+
+    def _state_keys(self):
+        for k in super()._state_keys(): yield k
+        for k in self.configs.keys(): yield k
+
     def _configurable_changed_state_hook(self):
         pass
-    @property
-    def storedConfigs(self):
-        return self._storedConfigs
-    def store_config(self):
-        k, v = self.configs.id, ImmutableConfigs(contents = self.configs)
-        self.storedConfigs[k] = v
 
     def _outputSubKey(self):
         for o in super()._outputSubKey(): yield o
         yield self.configs.contentHash
 
     def _save(self):
-        self.writeouts.add_dict({self.configsKey: self.configs.contents})
         super()._save()
+        self.writeouts.add_dict({self._configsKey: self.configs.contents})
 
     def _load(self, arg):
         if arg is None:
-            self.configure(silent = True)
+            self.configs.apply(silent = True)
         elif type(arg) is str:
             try:
-                loadCon = self.storedConfigs[arg]
+                loadCon = self.configs.stored[arg]
             except KeyError:
                 readpath = '/'.join([
                     self.outputMasterKey,
                     arg,
-                    self.configsKey
+                    self._configsKey
                     ])
                 loadCon = self.reader[readpath]
-            self.set_configs(**loadCon)
+            self.configs.set_configs(**loadCon)
         else:
             super()._load(arg)
 
@@ -328,10 +341,10 @@ class Configurable(Stateful):
                 raise TypeError
         if isinstance(arg2, Sequence):
             arg2 = [arg2[i] for i in seqChoice]
-            self.set_configs(*arg2)
+            self.configs.set_configs(*arg2)
         elif isinstance(arg2, Mapping):
             arg2 = OrderedDict((k, arg2[k]) for k in mapChoice)
-            self.set_configs(**arg2)
+            self.configs.set_configs(**arg2)
         else:
             arg2 = [arg2 for i in seqChoice]
-            self.set_configs(*arg2)
+            self.configs.set_configs(*arg2)

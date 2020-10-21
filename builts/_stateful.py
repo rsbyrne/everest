@@ -138,9 +138,15 @@ class Stateful(Producer):
             **kwargs
             ):
 
-        self.state = State(self)
+        self._state = None
 
         super().__init__(**kwargs)
+
+    @property
+    def state(self):
+        if self._state is None:
+            self._state = State(self)
+        return self._state
 
     def _state_vars(self):
         yield None

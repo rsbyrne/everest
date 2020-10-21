@@ -54,7 +54,7 @@ class WildConfigs(Stamper, ImmutableConfigs):
             (k, WildConfig(self, k))
                 for k in wanderer.configs.keys()
             ])
-        wildconfigs = wanderer.process_configs(wildconfigs)
+        wildconfigs = wanderer.configs.process_configs(wildconfigs)
         self._computed = False
         self.wanderer = wanderer.copy()
         super().__init__(self,
@@ -151,7 +151,7 @@ def get_start_stop(wanderer, slicer):
                 start = start.start
     else:
         try:
-            start = wanderer.process_configs(start)
+            start = wanderer.configs.process_configs(start)
         except CannotProcessConfigs:
             raise TypeError("Ran out of ways to create start point.")
     assert isinstance(start, Configs)
@@ -184,9 +184,9 @@ class Wanderer(Voyager, Configurable):
         self.indices.nullify()
 
     def _initialise(self, *args, **kwargs):
-        self.configure(silent = True)
+        self.configs.apply(silent = True)
         super()._initialise(*args, **kwargs)
-        self.configured = False
+        self.configs.configured = False
 
     @_voyager_initialise_if_necessary(post = True)
     def go(self, arg1, arg2 = None):
@@ -194,7 +194,7 @@ class Wanderer(Voyager, Configurable):
             super().go(arg1)
         else:
             start, stop = get_start_stop(self, (arg1, arg2))
-            self.set_configs(**start)
+            self.configs.set_configs(**start)
             super().go(stop)
 
     @_voyager_initialise_if_necessary(post = True)
@@ -204,7 +204,7 @@ class Wanderer(Voyager, Configurable):
     def _load(self, arg):
         super()._load(arg)
         if not self.indices.isnull:
-            self.configured = False
+            self.configs.configured = False
 
     def __getitem__(self, arg):
         assert len(self.configs)
