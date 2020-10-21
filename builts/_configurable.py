@@ -179,7 +179,7 @@ class MutableConfigs(Configs):
         self.contents.clear()
         self.contents.update(self._align_inputs(*args, **kwargs))
     def copy(self):
-        return type(self)(
+        return MutableConfigs(
             defaults = self.defaults,
             contents = self.contents.copy()
             )
