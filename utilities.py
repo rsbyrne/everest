@@ -1,90 +1,6 @@
-import collections
-from collections.abc import Mapping, Sequence
-from collections import OrderedDict
-import inspect
+import math
+import numbers
 import numpy as np
-import hashlib
-import warnings
-import random
-
-from . import mpi
-message = mpi.message
-from . import wordhash
-
-from .exceptions import EverestException
-class GrouperSetAttrForbidden(EverestException):
-    '''
-    Cannot set attributes on Grouper objects after creation. \
-    Disable this lock by changing the 'lock' attribute to False.
-    '''
-
-class Grouper:
-    def __init__(self, grouperDict):
-        if isinstance(grouperDict, Grouper):
-            grouperDict = grouperDict.grouperDict
-        grouperDict = OrderedDict(grouperDict.copy())
-        for key in grouperDict:
-            if ' ' in key:
-                val = grouperDict[key]
-                del grouperDict[key]
-                newKey = key.replace(' ', '_')
-                grouperDict[newKey] = val
-        self.__dict__.update(grouperDict)
-        self.__dict__['grouperDict'] = grouperDict
-        self.__dict__['lock'] = False
-    def __getitem__(self, key):
-        return self.grouperDict[key]
-    def __setitem__(self, key, arg):
-        setattr(self, key, arg)
-    def __delitem__(self, key):
-        delattr(self, key)
-    def keys(self, *args, **kwargs):
-        return self.grouperDict.keys(*args, **kwargs)
-    def items(self, *args, **kwargs):
-        return self.grouperDict.items(*args, **kwargs)
-    def __setattr__(self, name, value):
-        try:
-            self._lockcheck(name)
-            super().__setattr__(name, value)
-            self.grouperDict[name] = value
-        except GrouperSetAttrForbidden:
-            warnings.warn(
-                "Setting of name " + name + " on Grouper is prohibited.")
-    def __delattr__(self, name):
-        try:
-            self._lockcheck(name)
-            super().__delattr__(name)
-            del self.grouperDict[name]
-        except GrouperSetAttrForbidden:
-            warnings.warn(
-                "Deleting of name " + name + " on Grouper is prohibited.")
-    def _lockcheck(self, name = None):
-        if hasattr(self, 'lock'):
-            if self.lock and not name == 'lock':
-                raise GrouperSetAttrForbidden
-        if name[:2] == name[-2:] == '__':
-            raise GrouperSetAttrForbidden
-        if name in dir(Grouper):
-            raise GrouperSetAttrForbidden
-    def copy(self):
-        return self.__class__(self.grouperDict.copy())
-    def update(self, inDict, silent = False):
-        if silent:
-            for key in list(inDict.keys()):
-                try:
-                    self._lockcheck(key)
-                except GrouperSetAttrForbidden:
-                    del inDict[key]
-        if isinstance(inDict, Grouper):
-            inDict = inDict.grouperDict
-        for key, val in sorted(inDict.items()):
-            setattr(self, key, val)
-    def clear(self):
-        for name in self.grouperDict.keys():
-            delattr(self, name)
-    @property
-    def hashID(self):
-        return w_hash(sorted(self.grouperDict.items()))
 
 def prettify_nbytes(size_bytes):
     if size_bytes == 0:
@@ -95,9 +11,6 @@ def prettify_nbytes(size_bytes):
     s = round(size_bytes / p, 2)
     return "%s %s" % (s, size_name[i])
 
-def make_randomstate():
-     return random.randint(int(1e18), int(1e19) - 1)
-
 def is_numeric(arg):
     try:
         _ = arg + 1
@@ -105,99 +18,55 @@ def is_numeric(arg):
     except:
         return False
 
-def make_hash(obj):
-    try:
-        return get_hash(obj, make = False)
-    except HashIDNotFound:
+def make_scalar(arg):
+    if isinstance(arg, np.ndarray):
+        if len(arg.shape):
+            if any(i > 1 for i in arg.shape):
+                raise ValueError(
+                    "Array-like input must have only one entry: shape was ",
+                    arg.shape
+                    )
+            for i in arg.shape:
+                arg = arg[i]
+        else:
+            arg = arg.item()
+    else:
         pass
-    if type(obj) is str:
-        hexID = hashlib.md5(str(obj).encode()).hexdigest()
-        hashVal = str(int(hexID, 16))
-    elif hasattr(obj, 'hashID'):
-        hashVal = obj.hashID
-    elif hasattr(obj, 'typeHash'):
-        hashVal = obj.typeHash
-    elif hasattr(obj, '_hashObjects'):
-        hashVal = make_hash(obj._hashObjects)
-    elif isinstance(obj, Mapping):
-        obj = {**obj}
-        try:
-            obj = OrderedDict(sorted(obj.items()))
-        except TypeError:
-            warnings.warn(
-                "You have passed unorderable kwargs to be hashed; \
-                reproducibility is not guaranteed."
-                )
-        hashVal = make_hash(obj.items())
-    elif isinstance(obj, Sequence):
-        hashList = [make_hash(subObj) for subObj in obj]
-        hashVal = make_hash(str(hashList))
-    elif isinstance(obj, np.generic):
-        hashVal = make_hash(np.asscalar(obj))
-    else:
-        hexID = hashlib.md5(str(obj).encode()).hexdigest()
-        hashVal = str(int(hexID, 16))
-    return hashVal
+    if not issubclass(type(arg), numbers.Number):
+        raise ValueError(arg, type(arg))
+    return arg
 
-def w_hash(obj):
-    return wordhash.get_random_phrase(
-        randomseed = make_hash(obj),
-        wordlength = 2,
-        phraselength = 2,
-        )
-class HashIDNotFound(EverestException):
-    pass
-def get_hash(obj, make = True):
-    if hasattr(obj, 'hashID'):
-        hashVal = obj.hashID
-    elif hasattr(obj, 'typeHash'):
-        hashVal = obj.typeHash
-    elif hasattr(obj, '_hashObjects'):
-        hashVal = make_hash(obj._hashObjects)
-    else:
-        if make:
-            hashVal = w_hash(obj)
+from collections import OrderedDict
+from collections.abc import Sequence, Mapping
+
+def ordered_unpack(keys, arg1, arg2):
+    keys = list(keys)
+    if arg1 is Ellipsis:
+        seqChoice = range(len(keys))
+        mapChoice = keys
+    elif type(arg1) is str:
+        seqChoice = [keys.index(arg1),]
+        mapChoice = [arg1,]
+    elif type(arg1) is int:
+        seqChoice = [arg1,]
+        mapChoice = [keys[arg1],]
+    elif type(arg1) is tuple:
+        if len(set([type(o) for o in arg1])) > 1:
+            raise ValueError
+        if type(arg1[0]) is str:
+            seqFn = lambda arg: keys.index(arg)
+            seqChoice = [seqFn(arg) for arg in arg1]
+            mapChoice = arg1
+        elif type(arg1[0] is int):
+            mapFn = lambda arg: keys[arg]
+            seqChoice = arg1
+            mapChoice = [mapFn(arg) for arg in arg1]
         else:
-            raise HashIDNotFound
-    return hashVal
-
-def _obtain_dtype(object):
-    if type(object) == np.ndarray:
-        dtype = object.dtype
+            raise TypeError
+    if isinstance(arg2, Sequence):
+        mapDict = OrderedDict((keys[i], arg2[i]) for i in seqChoice)
+    elif isinstance(arg2, Mapping):
+        mapDict = OrderedDict((k, arg2[k]) for k in mapChoice)
     else:
-        dtype = type(object)
-    return dtype
-
-def unique_list(listlike, func = None):
-    if func is None: func = lambda e: True
-    return OrderedDict(
-        {e: None for e in listlike if func(e)}
-        ).keys()
-
-def flatten_dict(d, parent_key = '', sep = '_'):
-    # by Imran@stackoverflow
-    items = []
-    parent_key = parent_key.strip(sep)
-    for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, collections.MutableMapping):
-            items.extend(flatten_dict(v, new_key, sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
-
-def _unflatten_dict(host, key, val):
-    splitkey = key.split('/')
-    if len(splitkey) == 1:
-        host[key] = val
-    else:
-        primekey, remkey = splitkey[0], '/'.join(splitkey[1:])
-        if not primekey in host:
-            host[primekey] = dict()
-        process_dict(host[primekey], remkey, val)
-
-def unflatten_dict(d):
-    processed = dict()
-    for key, val in sorted(d.items()):
-        _unflatten_dict(processed, key, val)
-    return processed
+        mapDict = OrderedDict((keys[i], arg2) for i in seqChoice)
+    return mapDict

@@ -1,27 +1,19 @@
-# #
-# class MyClass:
-#     def __init__(self):
-#         print('Hello world!')
+# Requires:
+# simpli
+# funcy
+# wordhash
+# h5anchor
 
-# foo
-# bar
-# baz
-# qux
-# quux
-# corge
-# grault
-# garply
-# waldo
-# fred
-# plugh
-# xyzzy
-# thud
+import simpli as mpi
+from funcy import Fn
+from h5anchor import *
 
-# from .builts import load
-from .disk import H5Manager
-from .reader import Reader
-from .writer import Writer
-from .scope import Scope
-from .fetch import Fetch
-from .user import User
-from .anchor import Anchor
+#
+# # from .frames import load
+# from .disk import H5Manager
+# from .anchor import Anchor
+# from .reader import Reader
+# from .writer import Writer
+# from .scope import Scope
+# from .fetch import Fetch
+# from .user import User
