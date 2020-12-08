@@ -1,6 +1,8 @@
 import numpy as np
 
 from funcy import Fn
+from funcy.variable import Array
+from ptolemaic import inner_class
 
 from everest.frames._traversable import Traversable
 from everest.frames._chronable import Chronable
@@ -8,6 +10,10 @@ from everest.frames._chronable import Chronable
 class Lorenz(Traversable, Chronable):
 
     __slots__ = ('coords', 'chron', '_integrate')
+
+    @inner_class(Traversable, Chronable)
+    class StateVar(Array):
+        ...
 
     def __init__(self,
             # params

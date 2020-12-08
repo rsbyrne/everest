@@ -23,3 +23,4 @@ class SubInstantiable(Bythic):
         for sub in self._subInstantiators.values():
             k, v = next(keyvals)
             sub[k] = v
+        self._subInstantiable_change_state_hook()

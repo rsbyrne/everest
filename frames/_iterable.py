@@ -13,6 +13,7 @@ from ptolemaic import Case
 from ptolemaic.frames.producer import LoadFail
 from ptolemaic.frames.indexable import NotIndexlike
 from ptolemaic.frames import Geometric
+from ptolemaic.frames import Bythic
 
 from ._prompter import Prompter, _prompter_prompt_all
 from ..exceptions import *
@@ -55,7 +56,7 @@ def _iterable_initialise_if_necessary(func):
 #         else:
 #             return case.Stage(case, arg)
 
-class Iterable(Prompter, Geometric):
+class Iterable(Prompter, Geometric, Bythic):
 
     def __init__(self,
             **kwargs
@@ -155,9 +156,10 @@ class Iterable(Prompter, Geometric):
         return self._go_fn(stop, **kwargs)
 
     # GO
-    def go(self, /, *args, **kwargs):
+    def go(self, arg, /, *args, **kwargs):
+        self._go(arg)
         for arg in args:
-            self.go(arg, **kwargs)
+            self._go(arg, **kwargs)
     def _go(self, stop = None, /, **kwargs):
         if stop is None:
             self._go_indefinite(**kwargs)
