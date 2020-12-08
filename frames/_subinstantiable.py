@@ -1,8 +1,8 @@
 from collections import OrderedDict
 
-from ._sliceable import Sliceable
+from ptolemaic.frames import Bythic
 
-class SubInstantiable(Sliceable):
+class SubInstantiable(Bythic):
     def __init__(self,
             _subInstantiators = OrderedDict(),
             **kwargs,
@@ -10,6 +10,8 @@ class SubInstantiable(Sliceable):
         self._subInstantiators = \
             OrderedDict() if _subInstantiators is None else _subInstantiators
         super().__init__(**kwargs)
+        self._subInstantiable_change_state_hook()
+    def reset(self):
         self._subInstantiable_change_state_hook()
     def _subInstantiable_change_state_hook(self):
         pass

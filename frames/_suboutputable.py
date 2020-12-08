@@ -1,4 +1,5 @@
-from ._producer import Producer
+from ptolemaic.frames import Producer
+
 from ._subinstantiable import SubInstantiable
 
 class SubOutputable(Producer, SubInstantiable):

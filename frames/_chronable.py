@@ -1,7 +1,7 @@
 import numbers
 import numpy as np
 
-from ._indexable import Indexable
+from ptolemaic.frames.indexable import Indexable
 
 class Chronable(Indexable):
 

@@ -1,7 +1,7 @@
 from h5anchor.anchor import NoActiveAnchorError
 from h5anchor.reader import PathNotInFrameError
 
-from ._indexable import Indexable
+from ptolemaic.frames.indexable import Indexable
 from ..exceptions import *
 
 class Stamper:

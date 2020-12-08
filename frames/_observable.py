@@ -2,8 +2,8 @@ from functools import wraps
 import weakref
 
 from grouper import Grouper
+from ptolemaic.frames import Producer
 
-from ._producer import Producer
 from ..weaklist import WeakList
 
 from ..exceptions import *

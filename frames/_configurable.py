@@ -3,10 +3,10 @@ from collections import OrderedDict
 
 import numpy as np
 
-from ._stateful import Stateful, State, DynamicState, MutableState, StateVar
+from ptolemaic.frames.stateful import Stateful, State, DynamicState, MutableState
+
 from ._configurator import Configurator
 from ._suboutputable import SubOutputable
-from ..hosted import Hosted
 from ..utilities import ordered_unpack
 from ..exceptions import *
 
@@ -47,22 +47,6 @@ class MutableConfigs(MutableState, Configs):
         out.update(self.vars)
         return out
 
-class FrameConfigs(MutableConfigs):
-
-    def __init__(self, defaults, _stateVarClass):
-        self._stateVarClass = _stateVarClass
-        defaults = OrderedDict(**defaults)
-        super().__init__(defaults)
-        self.stored = OrderedDict()
-        self.stateVars = [self._process_default(k, v) for k, v in self.items()]
-    def _process_default(self, k, v):
-        if isinstance(v, self._stateVarClass):
-            return v
-        elif type(v) is tuple:
-            return v[0](v[1], name = k)
-        else:
-            return self._stateVarClass(v, name = k)
-
     # def store(self):
     #     k, v = self.id, Configs(contents = self.vars)
     #     self.stored[k] = v
@@ -75,12 +59,6 @@ class FrameConfigs(MutableConfigs):
 
 class Configurable(Stateful, SubOutputable):
 
-    @classmethod
-    def _frameClasses(cls):
-        d = super()._frameClasses()
-        d['Configs'] = ([FrameConfigs,], OrderedDict())
-        return d
-
     def __init__(self,
             _stateVars = None,
             _subInstantiators = None,
@@ -89,7 +67,7 @@ class Configurable(Stateful, SubOutputable):
         _stateVars = [] if _stateVars is None else _stateVars
         _subInstantiators = \
             OrderedDict() if _subInstantiators is None else _subInstantiators
-        self.configs = self.Configs(self.ghosts.configs, self.StateVar)
+        self.configs = self.Configs(self)
         _stateVars.extend(self.configs.stateVars)
         _subInstantiators['configs'] = (self.configs)
         super().__init__(
@@ -98,9 +76,38 @@ class Configurable(Stateful, SubOutputable):
             **kwargs
             )
 
+    def reset(self):
+        self.configs.reset()
+        super().reset()
+
     def _subInstantiable_change_state_hook(self):
         super()._subInstantiable_change_state_hook()
         self.configs.apply(self.state)
+
+    class Configs(MutableConfigs):
+
+        def __init__(self, frame):
+            self.sourceInstanceHash = frame.instanceHash
+            self._stateVarClass = frame.StateVar
+            defaults = OrderedDict(**frame.ghosts.configs)
+            super().__init__(defaults)
+            self.stored = OrderedDict()
+            self.stateVars = [self._process_default(k, v) for k, v in self.items()]
+        def _process_default(self, k, v):
+            if isinstance(v, self._stateVarClass):
+                return v
+            elif type(v) is tuple:
+                return v[0](v[1], name = k)
+            else:
+                return self._stateVarClass(v, name = k)
+        def __repr__(self):
+            return f'{super().__repr__()}({self.sourceInstanceHash})'
+
+    # @classmethod
+    # def _frameClasses(cls):
+    #     d = super()._frameClasses()
+    #     d['Configs'] = ([FrameConfigs,], OrderedDict())
+    #     return d
 
     # def __setitem__(self, key, val):
     #     if type(key) is tuple:
