@@ -4,9 +4,9 @@ from collections import OrderedDict
 import numpy as np
 
 from ptolemaic.frames.stateful import Stateful, State, DynamicState, MutableState
+from ptolemaic.frames.bythic import Bythic
 
 from ._configurator import Configurator
-from ._suboutputable import SubOutputable
 from ..utilities import ordered_unpack
 from ..exceptions import *
 
@@ -57,49 +57,52 @@ class MutableConfigs(MutableState, Configs):
     #     super().__setitem__(key, val)
     #     self.frame._configurable_changed_state_hook()
 
-class Configurable(Stateful, SubOutputable):
+class Configurable(Stateful, Bythic):
 
     def __init__(self,
             _stateVars = None,
-            _subInstantiators = None,
             **kwargs
             ):
-        _stateVars = [] if _stateVars is None else _stateVars
-        _subInstantiators = \
-            OrderedDict() if _subInstantiators is None else _subInstantiators
-        self.configs = self.Configs(self)
-        _stateVars.extend(self.configs.stateVars)
-        _subInstantiators['configs'] = (self.configs)
+        _stateVars = dict() if _stateVars is None else _stateVars
         super().__init__(
-            _stateVars = _stateVars,
-            _subInstantiators = _subInstantiators,
+            _stateVars = {**_stateVars, **self.ghosts.configs},
             **kwargs
             )
+        self.configs = self.Configs(self)
 
     def reset(self):
         self.configs.reset()
         super().reset()
 
-    def _subInstantiable_change_state_hook(self):
-        super()._subInstantiable_change_state_hook()
-        self.configs.apply(self.state)
+    def _setitem(self, keyvals):
+        super()._setitem(keyvals)
+        k, v = keyvals.popleft()
+        if k is Ellipsis: pass
+        elif type(k) is tuple: pass
+        elif k == 'configs': pass
+        else:
+            keyvals.appendleft(k, v)
+            return
+        self.configs[k] = v
+        self._producer_purge()
+
+    def _outputKey(self):
+        return '/'.join((
+            super()._outputKey(),
+            self.configs.hashID,
+            ))
 
     class Configs(MutableConfigs):
 
         def __init__(self, frame):
             self.sourceInstanceHash = frame.instanceHash
             self._stateVarClass = frame.StateVar
+            self.state = frame.state
             defaults = OrderedDict(**frame.ghosts.configs)
             super().__init__(defaults)
             self.stored = OrderedDict()
-            self.stateVars = [self._process_default(k, v) for k, v in self.items()]
-        def _process_default(self, k, v):
-            if isinstance(v, self._stateVarClass):
-                return v
-            elif type(v) is tuple:
-                return v[0](v[1], name = k)
-            else:
-                return self._stateVarClass(v, name = k)
+        def apply(self):
+            super().apply(self.state)
         def __repr__(self):
             return f'{super().__repr__()}({self.sourceInstanceHash})'
 

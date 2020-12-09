@@ -12,13 +12,22 @@ class TraversableException(EverestException):
 
 class Traversable(Iterable, Configurable):
 
-    def initialise(self):
-        self._subInstantiable_change_state_hook()
-        super().initialise()
+    def __init__(self,
+            *args,
+            **kwargs
+            ):
+        super().__init__(*args, **kwargs)
+        self.configs.indices = self.indices
 
-    def _subInstantiable_change_state_hook(self):
-        super()._subInstantiable_change_state_hook()
-        self.indices.nullify()
+    def _initialise(self):
+        super()._initialise()
+        self.configs.apply()
+
+    @inner_class(Iterable, Configurable)
+    class Configs:
+        def __setitem__(self, *args, **kwargs):
+            super().__setitem__(*args, **kwargs)
+            self.indices.nullify()
 
     @inner_class(Iterable, Configurable)
     class StateVar:
