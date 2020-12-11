@@ -95,16 +95,19 @@ class Configurable(Stateful, Bythic):
     class Configs(MutableConfigs):
 
         def __init__(self, frame):
-            self.sourceInstanceHash = frame.instanceHash
+            self._frameRepr = repr(frame)
             self._stateVarClass = frame.StateVar
             self.state = frame.state
             defaults = OrderedDict(**frame.ghosts.configs)
             super().__init__(defaults)
             self.stored = OrderedDict()
+        def __setitem__(self, *args, **kwargs):
+            super().__setitem__(*args, **kwargs)
+            self.apply()
         def apply(self):
             super().apply(self.state)
         def __repr__(self):
-            return f'{super().__repr__()}({self.sourceInstanceHash})'
+            return f'{super().__repr__()}({self._frameRepr})'
 
     # @classmethod
     # def _frameClasses(cls):
