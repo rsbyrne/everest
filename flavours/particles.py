@@ -5,9 +5,11 @@ from .base import Flavour
 from ..frames._traversable import Traversable
 from ..frames._chronable import Chronable
 
-bases = Flavour, Traversable, Chronable
-class Particles(*bases):
+class Particles(Flavour, Traversable, Chronable):
 
-    @inner_class(*bases)
-    class StateVar(Position):
-        ...
+    @classmethod
+    def _class_construct(cls):
+        super()._class_construct()
+        class StateVar(cls.StateVar, Position):
+            ...
+        cls.StateVar = StateVar

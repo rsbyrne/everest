@@ -92,7 +92,7 @@ class Iterable(Prompter, Geometric):
                 )
             self._try_strats(strats, stop, **kwargs)
     def _reach_end(self, /, **kwargs):
-        presentCount = self.index.data
+        presentCount = self.index.value
         if presentCount == self.terminus: return None
         stored = self.storage[self.index.name]
         if stored:
