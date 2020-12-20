@@ -1,7 +1,7 @@
 import os
 
-import simpli as mpi
-from h5anchor import disk
+from everest import simpli as mpi
+from everest.h5anchor import disk
 
 class Fig:
 

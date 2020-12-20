@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import inspect
 
-import wordhash
+from everest import wordhash
 
 from .hierarchy import get_hierarchy, Hierarchy
 

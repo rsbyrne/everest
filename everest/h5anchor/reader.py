@@ -4,7 +4,7 @@ import numpy as np
 import ast
 import pickle
 
-import simpli as mpi
+from everest import simpli as mpi
 
 from . import disk
 H5Manager = disk.H5Manager

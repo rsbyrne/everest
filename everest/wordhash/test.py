@@ -1,6 +1,6 @@
 import unittest
 
-import wordhash
+from everest import wordhash
 
 class WordhashTest(unittest.TestCase):
     def test(self):

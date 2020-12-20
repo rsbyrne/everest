@@ -1,4 +1,4 @@
-from wordhash import w_hash
+from everest.wordhash import w_hash
 
 def is_numeric(arg):
     try:

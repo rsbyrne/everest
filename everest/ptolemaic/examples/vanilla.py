@@ -1,4 +1,4 @@
-from ptolemaic import Frame
+from everest.ptolemaic import Frame
 
 class Vanilla(Frame):
     def __init__(self,

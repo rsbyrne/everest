@@ -4,9 +4,9 @@
 # wordhash
 # h5anchor
 
-import simpli as mpi
-from funcy import Fn
-from h5anchor import *
+from everest import simpli as mpi
+from everest.funcy import Fn
+from everest.h5anchor import *
 
 #
 # # from .frames import load

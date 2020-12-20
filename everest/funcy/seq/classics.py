@@ -1,6 +1,6 @@
 from functools import cached_property, lru_cache
 import numbers
-from funcy import inf
+from everest.funcy import inf
 
 @lru_cache(maxsize = 1000)
 def fibonacci(n):

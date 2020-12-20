@@ -7,4 +7,4 @@ class NotYetImplemented(PtolemaicException):
 class MissingAsset(PtolemaicException):
     pass
 
-from funcy.exceptions import NullValueDetected
+from everest.funcy.exceptions import NullValueDetected

@@ -7,7 +7,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-import reseed
+from everest import reseed
 
 from .exceptions import *
 

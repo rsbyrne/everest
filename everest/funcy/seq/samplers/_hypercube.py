@@ -15,7 +15,7 @@ class Latin(HyperCube):
         return len(self.samples)
 
 import numpy as np
-import reseed
+from everest import reseed
 
 @reseed.reseed
 def latin_hypercube(n, d, lower = 0, upper = 1):

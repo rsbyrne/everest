@@ -1,8 +1,8 @@
 from functools import wraps
 import weakref
 
-from grouper import Grouper
-from ptolemaic.frames import Producer
+from everest.grouper import Grouper
+from everest.ptolemaic.frames import Producer
 
 from ..weaklist import WeakList
 

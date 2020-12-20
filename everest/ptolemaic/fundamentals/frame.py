@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import warnings
 
-from h5anchor import disk
+from everest.h5anchor import disk
 
 from .. import globevars
 from ..exceptions import *

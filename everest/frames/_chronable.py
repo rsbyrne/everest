@@ -1,9 +1,9 @@
 import numbers
 import numpy as np
 
-from ptolemaic.frames.indexable import Indexable
-from datalike.qualifieds.indexed import Chroned
-from datalike.datums.numerical.scalar import Chron
+from everest.ptolemaic.frames.indexable import Indexable
+from everest.datalike.qualifieds.indexed import Chroned
+from everest.datalike.datums.numerical.scalar import Chron
 
 class Chronable(Indexable):
 

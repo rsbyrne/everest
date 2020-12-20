@@ -1,7 +1,7 @@
 from functools import cached_property
 
-from wordhash import w_hash
-import reseed
+from everest.wordhash import w_hash
+from everest import reseed
 
 from . import utilities
 from .constructor import Fn

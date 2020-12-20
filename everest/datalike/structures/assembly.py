@@ -1,4 +1,4 @@
-from funcy.map import VarMap
+from everest.funcy.map import VarMap
 
 from .base import Structure
 

@@ -1,6 +1,6 @@
 import unittest
 
-from grouper import Grouper, GrouperSetAttrForbidden
+from everest.grouper import Grouper, GrouperSetAttrForbidden
 import weakref
 
 class GrouperTest(unittest.TestCase):

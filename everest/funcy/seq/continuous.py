@@ -1,4 +1,4 @@
-import reseed
+from everest import reseed
 
 from ..utilities import process_scalar
 from ..special import *

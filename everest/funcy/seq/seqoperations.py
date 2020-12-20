@@ -1,7 +1,7 @@
 import itertools
 from collections.abc import Iterable, Sized
 
-from reseed import Reseed
+from everest.reseed import Reseed
 
 from ..special import *
 

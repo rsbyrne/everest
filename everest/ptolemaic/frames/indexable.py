@@ -5,11 +5,11 @@ import weakref
 
 import numpy as np
 
-from funcy import Fn
-from funcy.variable import Scalar
-import wordhash
-from datalike.qualifieds.indexed import Counted
-from datalike.datums.numerical.scalar import Count
+from everest.funcy import Fn
+from everest.funcy.variable import Scalar
+from everest import wordhash
+from everest.datalike.qualifieds.indexed import Counted
+from everest.datalike.datums.numerical.scalar import Count
 
 from .producer import Producer, LoadFail
 from ..utilities import make_scalar
@@ -201,8 +201,8 @@ class Indexable(Producer):
     def load_index(self, arg):
         self.process_loaded(self._load_index(arg))
 
-# from h5anchor.reader import PathNotInFrameError
-# from h5anchor.anchor import NoActiveAnchorError
+# from everest.h5anchor.reader import PathNotInFrameError
+# from everest.h5anchor.anchor import NoActiveAnchorError
 # from producer import OutsNull
 
 # class IndexableNullVal(IndexableException):

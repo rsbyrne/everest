@@ -3,7 +3,7 @@ import pickle
 import ast
 from collections.abc import Mapping
 
-import simpli as mpi
+from everest import simpli as mpi
 
 from . import disk
 H5Manager = disk.H5Manager

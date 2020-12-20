@@ -5,8 +5,8 @@ import shutil
 import subprocess
 from subprocess import PIPE
 
-import simpli as mpi
-from h5anchor import disk
+from everest import simpli as mpi
+from everest.h5anchor import disk
 from ._fig import Fig as _Fig
 
 def split_imgArr(imgArr):

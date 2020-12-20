@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 
-from wordhash import w_hash
+from everest.wordhash import w_hash
 
 def message(m):
     print(m)

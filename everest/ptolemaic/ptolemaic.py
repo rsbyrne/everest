@@ -1,7 +1,7 @@
 from functools import lru_cache
 
-from wordhash import w_hash
-import reseed
+from everest.wordhash import w_hash
+from everest import reseed
 
 class Ptolemaic:
     # __slots__ = ('_callArgs', '_repr', '_hashID', 'instanceID')

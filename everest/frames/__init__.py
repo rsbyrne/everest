@@ -5,4 +5,4 @@
 # funcy
 # h5anchor
 
-from ptolemaic import Pleroma, Schema, Frame, Case
+from everest.ptolemaic import Pleroma, Schema, Frame, Case

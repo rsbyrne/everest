@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from collections import OrderedDict
 import warnings
 
-import wordhash
+from everest import wordhash
 w_hash = wordhash.w_hash
 
 class GrouperSetAttrForbidden(Exception):

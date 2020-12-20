@@ -1,6 +1,6 @@
 import unittest
 
-import reseed
+from everest import reseed
 import random
 
 class ReseedTest(unittest.TestCase):

@@ -3,10 +3,10 @@ from collections import OrderedDict
 
 import numpy as np
 
-from ptolemaic.frames.stateful import Stateful
-from ptolemaic.frames.bythic import Bythic
-from ptolemaic.display import Reportable
-from funcy.map import SettableMap
+from everest.ptolemaic.frames.stateful import Stateful
+from everest.ptolemaic.frames.bythic import Bythic
+from everest.ptolemaic.display import Reportable
+from everest.funcy.map import SettableMap
 
 from ._configurator import Configurator
 from ..utilities import ordered_unpack

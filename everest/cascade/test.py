@@ -1,6 +1,6 @@
 import unittest
 
-from cascade import Inputs
+from everest.cascade import Inputs
 
 def testfunc(a, b,
         buttons, # a comment

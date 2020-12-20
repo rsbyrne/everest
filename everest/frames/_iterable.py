@@ -7,13 +7,13 @@ from collections.abc import Iterator as abcIterator
 from collections.abc import Sequence
 import weakref
 
-from funcy import Fn, NullValueDetected
-import wordhash
-from ptolemaic import Case
-from ptolemaic.frames.producer import LoadFail
-from ptolemaic.frames.indexable import NotIndexlike
-from ptolemaic.frames import Geometric
-from ptolemaic.frames import Bythic
+from everest.funcy import Fn, NullValueDetected
+from everest import wordhash
+from everest.ptolemaic import Case
+from everest.ptolemaic.frames.producer import LoadFail
+from everest.ptolemaic.frames.indexable import NotIndexlike
+from everest.ptolemaic.frames import Geometric
+from everest.ptolemaic.frames import Bythic
 
 from ._prompter import Prompter, _prompter_prompt_all
 from ..exceptions import *

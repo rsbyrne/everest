@@ -4,8 +4,8 @@ from collections import OrderedDict, deque
 from functools import partial, lru_cache, cached_property
 import numbers
 
-from funcy import Fn
-from datalike.base import Datalike
+from everest.funcy import Fn
+from everest.datalike.base import Datalike
 
 from ..fundamentals import Case
 from .producer import Producer

@@ -1,4 +1,4 @@
-from h5anchor import disk
+from everest.h5anchor import disk
 
 from .schema import Schema
 from .exceptions import *

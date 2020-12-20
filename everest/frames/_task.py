@@ -4,9 +4,9 @@ import os
 import warnings
 import atexit
 
-import simpli as mpi
-from h5anchor import disk
-from h5anchor.globevars import _DIRECTORY_
+from everest import simpli as mpi
+from everest.h5anchor import disk
+from everest.h5anchor.globevars import _DIRECTORY_
 TempFile = disk.TempFile
 
 from ._cycler import Cycler

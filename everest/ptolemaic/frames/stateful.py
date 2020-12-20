@@ -1,4 +1,4 @@
-from datalike.structures import Assembly
+from everest.datalike.structures import Assembly
 
 from ..display import Reportable
 from .dataful import Dataful

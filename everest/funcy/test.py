@@ -1,6 +1,6 @@
 import unittest
 
-from funcy import Fn
+from everest.funcy import Fn
 
 class TestObj:
     def __init__(self):

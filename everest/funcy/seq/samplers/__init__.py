@@ -1,4 +1,4 @@
-import reseed
+from everest import reseed
 
 from ..exceptions import *
 

@@ -128,7 +128,7 @@ import itertools
 import numpy
 import scipy
 import sklearn
-import reseed
+from everest import reseed
 from . import operations
 from .seq import seqoperations
 sources = OrderedDict(

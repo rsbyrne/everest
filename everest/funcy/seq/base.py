@@ -2,7 +2,7 @@ from functools import cached_property
 from collections.abc import Iterable
 from itertools import product
 
-import reseed
+from everest import reseed
 
 from .. import Fn
 from ..base import Function

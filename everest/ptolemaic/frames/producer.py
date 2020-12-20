@@ -2,10 +2,10 @@ import numpy as np
 from functools import wraps, partial, cached_property, lru_cache
 import warnings
 
-import wordhash
-from h5anchor import Reader, Writer, disk
-from h5anchor.array import AnchorArray
-# import reseed
+from everest import wordhash
+from everest.h5anchor import Reader, Writer, disk
+from everest.h5anchor.array import AnchorArray
+# from everest import reseed
 
 from .dataful import Dataful
 from ..utilities import prettify_nbytes

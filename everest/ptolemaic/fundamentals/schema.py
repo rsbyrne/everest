@@ -1,8 +1,8 @@
 import weakref
 import inspect
 
-from h5anchor import Anchor, disk
-import wordhash
+from everest.h5anchor import Anchor, disk
+from everest import wordhash
 
 from .pleroma import Pleroma
 from .vector import Vector

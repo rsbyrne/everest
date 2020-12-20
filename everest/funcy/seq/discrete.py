@@ -1,7 +1,7 @@
 from functools import cached_property
 import numbers
 
-import reseed
+from everest import reseed
 
 from ..variable import Scalar
 from ..special import *

@@ -1,9 +1,9 @@
-from datalike.base import Datalike as _Datalike
-from datalike.structures import \
+from everest.datalike.base import Datalike as _Datalike
+from everest.datalike.structures import \
     Ensemble as _Ensemble, \
     Magazine as _Magazine, \
     Assembly as _Assembly
-from datalike.datums import Datum as _Datum
+from everest.datalike.datums import Datum as _Datum
 
 from ..fundamentals import Frame
 

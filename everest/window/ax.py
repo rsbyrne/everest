@@ -1,7 +1,7 @@
 import numpy as np
 import math
 
-from h5anchor import disk
+from everest.h5anchor import disk
 from .data import DataPile, DataSpread
 
 from .utilities import unique_list

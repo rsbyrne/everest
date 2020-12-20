@@ -1,7 +1,7 @@
 import weakref
 from functools import wraps, partial, cached_property
 
-import reseed
+from everest import reseed
 
 from ..ptolemaic import Ptolemaic
 from .vector import Vector

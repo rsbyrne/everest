@@ -1,7 +1,7 @@
 from itertools import product
 from collections import OrderedDict
 
-import wordhash
+from everest import wordhash
 
 def suite_list(**iterables):
     ks, vs = zip(*iterables.items())

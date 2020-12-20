@@ -1,4 +1,4 @@
-from funcy.map import Map
+from everest.funcy.map import Map
 
 from ..base import Datalike
 

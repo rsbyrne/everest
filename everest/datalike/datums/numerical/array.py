@@ -1,6 +1,6 @@
 from functools import cached_property
 
-from funcy.variable import Array as FnArray
+from everest.funcy.variable import Array as FnArray
 
 from .scalar import correspondences
 from .base import Numerical

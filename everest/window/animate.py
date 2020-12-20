@@ -3,8 +3,8 @@ import subprocess
 from subprocess import PIPE
 import shutil
 
-import simpli as mpi
-from h5anchor import disk
+from everest import simpli as mpi
+from everest.h5anchor import disk
 
 def animate(
         canvasses,

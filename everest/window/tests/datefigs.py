@@ -1,5 +1,5 @@
 import numpy as np
-import window
+from everest import window
 
 figs = []
 for i in range(3, 30):

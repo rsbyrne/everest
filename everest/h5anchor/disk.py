@@ -9,8 +9,8 @@ import time
 from contextlib import contextmanager
 from functools import wraps
 
-import simpli as mpi
-import reseed
+from everest import simpli as mpi
+from everest import reseed
 
 from .exceptions import *
 

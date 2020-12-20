@@ -1,5 +1,5 @@
-from ptolemaic import inner_class
-from datalike.datums.numerical.vector import Position
+from everest.ptolemaic import inner_class
+from everest.datalike.datums.numerical.vector import Position
 
 from .base import Flavour
 from ..frames._traversable import Traversable

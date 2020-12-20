@@ -7,7 +7,7 @@ class PleromaTest(unittest.TestCase):
 
     def test(self):
 
-        from ptolemaic.examples.vanilla import Vanilla
+        from everest.ptolemaic.examples.vanilla import Vanilla
 
         self.assertTrue(len(Vanilla.cases) == 1)
         self.assertTrue(Vanilla.default.vector.foo == 'foo')

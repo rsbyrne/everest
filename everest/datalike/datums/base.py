@@ -1,4 +1,4 @@
-from funcy.variable import Variable
+from everest.funcy.variable import Variable
 
 from ..base import Datalike
 from .exceptions import *
