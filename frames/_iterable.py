@@ -182,8 +182,6 @@ class Iterable(Prompter, Geometric):
         self.reset()
         self.go(*args, **kwargs)
 
-    def _process_loaded(self, *args, **kwargs):
-        return super()._process_loaded(*args, **kwargs)
     def _load_out(self, arg):
         if type(arg) is type:
             if issubclass(arg, StopIteration):

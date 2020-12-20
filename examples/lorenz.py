@@ -18,20 +18,19 @@ class Lorenz(Particles):
         super().__init__(**kwargs)
 
         x, y, z = (self.state['coords'][i:i+1] for i in range(3))
-        coords = self.state['coords']
-        chron = self.indices['chron']
+        self.coords = self.state['coords']
+        self.chron = self.indices['chron']
         def integrate():
-            coords[...] = (
+            self.coords[...] = (
                 x + dt * (s * (y - x)),
                 y + dt * (r * x - y - x * z),
                 z + dt * (x * y - b * z),
                 )
-            chron += dt
+            self.chron += dt
         self.integrate = integrate
 
     def _iterate(self):
-        # self.integrate()
-        super()._iterate()
+        self.integrate()
 
 # def integrate(cs, chron):
 #     cs += (

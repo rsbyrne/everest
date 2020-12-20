@@ -6,7 +6,7 @@ import numpy as np
 from ptolemaic.frames.stateful import Stateful
 from ptolemaic.frames.bythic import Bythic
 from ptolemaic.display import Reportable
-from funcy._map import SettableMap
+from funcy.map import SettableMap
 
 from ._configurator import Configurator
 from ..utilities import ordered_unpack
@@ -15,23 +15,31 @@ from ..exceptions import *
 class Configurable(Stateful, Bythic):
 
     @classmethod
-    def _class_construct(cls):
-        super()._class_construct()
-
+    def _configs_construct(cls):
         class Configs(Reportable, SettableMap):
             def __init__(self, frame):
                 self.state = frame.state
                 keys, values = zip(*frame.ghosts.configs.items())
-                super().__init__(key, values)
-            def __getitem__(self, key):
-                self.update(defaults)
+                values = tuple(self._process_value(v) for v in values)
+                super().__init__(keys, values)
+            def _process_value(self, v):
+                if isinstance(v, self.state.StateVar):
+                    v = Ellipsis
+                elif type(v) is tuple:
+                    _, v = v
+                return v
             def __setitem__(self, *args, **kwargs):
                 super().__setitem__(*args, **kwargs)
-                self.apply()
+                self.state.nullify()
             def apply(self):
-                self.state[...] = self.values()
-
+                self.state[...] = self
         cls.Configs = Configs
+        return
+
+    @classmethod
+    def _class_construct(cls):
+        super()._class_construct()
+        cls._configs_construct()
         return
 
     def __init__(self,
@@ -47,7 +55,6 @@ class Configurable(Stateful, Bythic):
 
     def reset(self):
         self.configs.reset()
-        super().reset()
 
     def _setitem(self, keyvals):
         super()._setitem(keyvals)
