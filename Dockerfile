@@ -3,20 +3,14 @@ MAINTAINER https://github.com/rsbyrne/
 
 USER root
 
-ENV SCIBASEDIR $MASTERUSERHOME/scibase
-ADD . $SCIBASEDIR
-RUN chown -R $MASTERUSER $SCIBASEDIR
+ENV EVERESTDIR $MASTERUSERHOME/everest
+ADD . $EVERESTDIR
+RUN chown -R $MASTERUSER $EVERESTDIR
 
 RUN apt update -y
 RUN apt-get update -y
 RUN apt upgrade -y
 RUN apt-get upgrade -y
-
-# Docker
-RUN apt-get install -y docker.io
-
-# Basic
-RUN apt install -y nodejs
 
 # Python
 RUN apt-get install -y python3-venv
@@ -24,6 +18,7 @@ RUN apt-get install -y python3-pip
 ENV PYTHONPATH "${PYTHONPATH}:$WORKSPACE"
 ENV PYTHONPATH "${PYTHONPATH}:$MOUNTDIR"
 ENV PYTHONPATH "${PYTHONPATH}:$BASEDIR"
+ENV PYTHONPATH "${PYTHONPATH}:$EVERESTDIR"
 
 # Production
 RUN pip3 install -U --no-cache-dir pytest
@@ -37,7 +32,6 @@ ENV OMPI_MCA_btl_vader_single_copy_mechanism "none"
 # Visualisation
 RUN pip3 install --no-cache-dir matplotlib
 RUN pip3 install --no-cache-dir Pillow
-RUN pip3 install --no-cache-dir bokeh
 
 # Programming
 RUN apt-get install -y graphviz
@@ -50,8 +44,10 @@ RUN pip3 install --no-cache-dir scipy
 RUN pip3 install --no-cache-dir pandas
 RUN pip3 install --no-cache-dir dask[complete]
 RUN pip3 install --no-cache-dir scikit-learn
+RUN pip3 install --no-cache-dir diversipy
 
 # Productivity
+RUN apt install -y nodejs
 RUN pip3 install --no-cache-dir jupyterlab
 
 # Publication

@@ -3,9 +3,8 @@ import warnings
 
 from everest.h5anchor import disk
 
-from .. import globevars
-from ..fundamentals import Schema
-from ..case import Case
+# from .. import globevars
+from ..fundamentals import Schema, Case
 from .exceptions import *
 
 class Frame(metaclass = Schema):
