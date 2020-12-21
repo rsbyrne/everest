@@ -1,12 +1,12 @@
-from collections import OrderedDict
+# from collections import OrderedDict
 import warnings
 
 from everest.h5anchor import disk
 
 from .. import globevars
-from ..exceptions import *
-from .schema import Schema
-from .case import Case
+from ..fundamentals import Schema
+from ..case import Case
+from .exceptions import *
 
 class Frame(metaclass = Schema):
 

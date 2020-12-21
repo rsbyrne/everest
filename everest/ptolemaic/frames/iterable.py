@@ -9,14 +9,14 @@ import weakref
 
 from everest.funcy import Fn, NullValueDetected
 from everest import wordhash
-from everest.ptolemaic import Case
-from everest.ptolemaic.frames.producer import LoadFail
-from everest.ptolemaic.frames.indexable import NotIndexlike
-from everest.ptolemaic.frames import Geometric
-from everest.ptolemaic.frames import Bythic
 
-from ._prompter import Prompter, _prompter_prompt_all
-from ..exceptions import *
+from ..fundamentals.case import Case
+from .producer import LoadFail
+from .indexable import NotIndexlike
+from .geometric import Geometric
+from .bythic import Bythic
+
+from .exceptions import *
 class IterableException(EverestException):
     pass
 class IterableMissingAsset(MissingAsset, IterableException):
@@ -44,7 +44,7 @@ def _iterable_initialise_if_necessary(func):
             return func(self, *args, **kwargs)
     return wrapper
 
-class Iterable(Prompter, Geometric):
+class Iterable(Geometric):
 
     def __init__(self,
             **kwargs

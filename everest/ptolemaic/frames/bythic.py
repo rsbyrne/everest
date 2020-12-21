@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from collections import deque
 
-from ..fundamentals import Frame
+from .base import Frame
 from .exceptions import *
 
 class LeftoverException(PtolemaicException, ValueError):

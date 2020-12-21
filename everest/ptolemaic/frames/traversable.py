@@ -1,7 +1,7 @@
-from ._iterable import Iterable
-from ._configurable import Configurable
+from .iterable import Iterable
+from .configurable import Configurable
 
-from ..exceptions import *
+from .exceptions import *
 
 class Traversable(Iterable, Configurable):
 

@@ -5,7 +5,7 @@ from everest.datalike.structures import \
     Assembly as _Assembly
 from everest.datalike.datums import Datum as _Datum
 
-from ..fundamentals import Frame
+from .base import Frame
 
 class Dataful(Frame):
 

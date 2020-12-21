@@ -3,14 +3,13 @@ from collections import OrderedDict
 
 import numpy as np
 
-from everest.ptolemaic.frames.stateful import Stateful
-from everest.ptolemaic.frames.bythic import Bythic
-from everest.ptolemaic.display import Reportable
 from everest.funcy.map import SettableMap
 
-from ._configurator import Configurator
-from ..utilities import ordered_unpack
-from ..exceptions import *
+from .stateful import Stateful
+from .bythic import Bythic
+from ..display import Reportable
+
+from .exceptions import *
 
 class Configurable(Stateful, Bythic):
 
