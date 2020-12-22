@@ -1,12 +1,3 @@
-# Requires:
-# simpli
-# funcy
-# wordhash
-# h5anchor
-
-import simpli as mpi
-from funcy import Fn
-from h5anchor import *
 
 #
 # # from .frames import load
