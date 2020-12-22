@@ -12,6 +12,9 @@ RUN apt-get update -y
 RUN apt upgrade -y
 RUN apt-get upgrade -y
 
+# Path
+ENV PATH "${PATH}:$MASTERUSERHOME/.local/bin"
+
 # Python
 RUN apt-get install -y python3-venv
 RUN apt-get install -y python3-pip
@@ -22,7 +25,6 @@ ENV PYTHONPATH "${PYTHONPATH}:$EVERESTDIR"
 
 # Production
 RUN pip3 install -U --no-cache-dir pytest
-ENV PYTHONPATH "${PYTHONPATH}:$MASTERUSERHOME/.local/bin"
 
 # MPI
 RUN apt-get install -y libopenmpi-dev
@@ -45,6 +47,10 @@ RUN pip3 install --no-cache-dir pandas
 RUN pip3 install --no-cache-dir dask[complete]
 RUN pip3 install --no-cache-dir scikit-learn
 RUN pip3 install --no-cache-dir diversipy
+
+# Maths
+RUN pip3 install --no-cache-dir mpmath
+RUN pip3 install --no-cache-dir sympy
 
 # Productivity
 RUN apt install -y nodejs
