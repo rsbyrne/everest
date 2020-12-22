@@ -56,4 +56,7 @@ RUN apt-get install -y pandoc
 # RUN pip3 install --no-cache-dir nbconvert
 RUN pip3 install --no-cache-dir -U jupyter-book
 
+# Other
+RUN jupyter lab build
+
 USER $MASTERUSER
