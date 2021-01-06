@@ -4,7 +4,7 @@ from collections.abc import MutableSequence
 
 import numpy as np
 
-from .utilities import unique_list
+from ..utilities import unique_list
 from .channel import DataChannel
 from .spread import DataSpread
 

@@ -7,7 +7,7 @@ from everest import simpli as mpi
 
 from . import disk
 H5Manager = disk.H5Manager
-from .globevars import *
+from . import globevars
 from .array import AnchorArray
 
 class LinkTo:
@@ -31,11 +31,7 @@ class Writer(H5Manager):
 
         mpi.dowrap(os.makedirs)(path, exist_ok = True)
 
-        from . import frames as framesmodule
-        self.framesmodule = framesmodule
-
     def _process_inp(self, inp):
-        global _BUILTTAG_, _CLASSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
         if isinstance(inp, Mapping): #or isinstance(inp, Grouper):
             # if isinstance(inp, Grouper):
             #     inp = {**inp}
@@ -51,23 +47,23 @@ class Writer(H5Manager):
         elif type(inp) is AnchorArray:
             return inp
         elif type(inp) is str:
-            return _STRINGTAG_ + inp
+            return globevars._STRINGTAG_ + inp
         elif type(inp) in {list, tuple, frozenset}:
             out = list()
             for sub in inp: out.append(self._process_inp(sub))
             assert len(out) == len(inp), "Mismatch in eval lengths!"
-            return _EVALTAG_ + str(type(inp)(out))
+            return globevars._EVALTAG_ + str(type(inp)(out))
         else:
             try:
                 out = str(inp)
                 if not inp == ast.literal_eval(out):
                     raise TypeError
-                return _EVALTAG_ + out
+                return globevars._EVALTAG_ + out
             except:
                 out = pickle.dumps(inp)
                 if not type(inp) == type(pickle.loads(out)):
                     raise TypeError
-                return _BYTESTAG_ + str(out)
+                return globevars._BYTESTAG_ + str(out)
 
     @disk.h5filewrap
     def add_dict(self, inDict, *names):

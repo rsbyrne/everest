@@ -1,3 +1,5 @@
+import collections
+
 from everest.wordhash import w_hash
 
 def flatten_dict(d, parent_key = '', sep = '_'):
@@ -11,6 +13,11 @@ def flatten_dict(d, parent_key = '', sep = '_'):
         else:
             items.append((new_key, v))
     return dict(items)
+
+def stack_dicts(md, *ds):
+    for k in md:
+        md[k] = md[k], *(d[k] for d in ds)
+    return md
 
 # def _unflatten_dict(host, key, val):
 #     splitkey = key.split('/')

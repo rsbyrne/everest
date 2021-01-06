@@ -3,20 +3,25 @@ import os
 import numpy as np
 import ast
 import pickle
+import warnings
 
 from everest import simpli as mpi
 
 from . import disk
+from .utilities import stack_dicts
 H5Manager = disk.H5Manager
 from .fetch import Fetch
 from .scope import Scope
-from .globevars import *
+# from .globevars import *
+from . import globevars
 from .exceptions import *
 from .array import AnchorArray
 
 class PathNotInFrameError(H5AnchorException, KeyError):
     pass
 class NotGroupError(H5AnchorException, KeyError):
+    pass
+class TagError(H5AnchorException, ValueError):
     pass
 
 class Reader(H5Manager):
@@ -89,11 +94,15 @@ class Reader(H5Manager):
     def _pre_seekresolve(self, inp, _indices = None):
         # expects h5filewrap
         if type(inp) is h5py.Group:
-            out = _GROUPTAG_ + inp.name
+            out = globevars._GROUPTAG_ + inp.name
         elif type(inp) is h5py.Dataset:
             if _indices is None:
                 _indices = Ellipsis
-            out = AnchorArray(inp[_indices], **dict(inp.attrs))
+            try:
+                out = AnchorArray(inp[_indices], **dict(inp.attrs))
+            except OSError:
+                warnings.warn("Possible corruption; returning empty: " + inp.name)
+                out = AnchorArray([], **dict(inp.attrs))
         elif type(inp) is dict:
             out = dict()
             for key, sub in sorted(inp.items()):
@@ -130,19 +139,18 @@ class Reader(H5Manager):
         elif isinstance(inp, np.ndarray):
             return inp
         elif type(inp) is str:
-            global _ADDRESSTAG_, _BYTESTAG_, _STRINGTAG_, _EVALTAG_
-            if inp.startswith(_ADDRESSTAG_):
-                address = self._process_tag(inp, _ADDRESSTAG_)
+            if inp.startswith(globevars._ADDRESSTAG_):
+                address = self._process_tag(inp, globevars._ADDRESSTAG_)
                 return self._getstr(address)
-            elif inp.startswith(_GROUPTAG_):
-                groupname = self._process_tag(inp, _GROUPTAG_)
+            elif inp.startswith(globevars._GROUPTAG_):
+                groupname = self._process_tag(inp, globevars._GROUPTAG_)
                 return self._getstr(os.path.join(groupname, '*'))
-            elif inp.startswith(_BYTESTAG_):
-                processed = self._process_tag(inp, _BYTESTAG_)
+            elif inp.startswith(globevars._BYTESTAG_):
+                processed = self._process_tag(inp, globevars._BYTESTAG_)
                 bytesStr = ast.literal_eval(processed)
                 return pickle.loads(bytesStr)
-            elif inp.startswith(_EVALTAG_):
-                processed = self._process_tag(inp, _EVALTAG_)
+            elif inp.startswith(globevars._EVALTAG_):
+                processed = self._process_tag(inp, globevars._EVALTAG_)
                 out = ast.literal_eval(processed)
                 if type(out) in {list, tuple, frozenset}:
                     procOut = list()
@@ -150,10 +158,12 @@ class Reader(H5Manager):
                         procOut.append(self._seekresolve(item))
                     out = type(out)(procOut)
                 return out
-            elif inp.startswith(_STRINGTAG_):
-                return self._process_tag(inp, _STRINGTAG_)
+            elif inp.startswith(globevars._STRINGTAG_):
+                return self._process_tag(inp, globevars._STRINGTAG_)
             else:
-                raise ValueError(inp)
+#                 raise TagError(inp)
+                warnings.warn(f"No recognisable tag on string: {inp[:32]}")
+                return inp
         else:
             raise TypeError(type(inp))
 
@@ -207,7 +217,10 @@ class Reader(H5Manager):
                             )
                 out[superkey] = result
         elif type(stop) is tuple:
-            raise NotYetImplemented
+            return stack_dicts(*(
+                self._getslice(slice(start, substop))
+                    for substop in stop
+                ))
         else:
             raise TypeError
         return out

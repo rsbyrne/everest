@@ -55,7 +55,7 @@ class H5Manager:
         return os.path.join(*keys)
     def open(self):
         return H5Wrap(self)
-    def merge_from(self, file2):
+    def incorporate(self, file2):
         merge(self, file2)
     def sub(self, *cwd):
         return self.__class__(
@@ -103,7 +103,9 @@ class AccessForbidden(H5AnchorException):
 def lock(filename, password = None):
     lockfilename = filename + '.lock'
     if not os.path.isdir(os.path.dirname(lockfilename)):
-        raise FileNotFoundError("Directory '" + os.path.dirname(lockfilename) + "' could not be found.")
+        raise FileNotFoundError(
+            "Directory '" + os.path.dirname(lockfilename) + "' could not be found."
+            )
     while True:
         try:
             with open(lockfilename, 'x') as f:
