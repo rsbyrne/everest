@@ -51,12 +51,12 @@ class Canvas(_Fig):
         rowNo, colNo = place
         index = self._calc_index(place)
         axObj = Ax(self, index = index, **kwargs)
-        self.axes[rowNo][colNo].append(axObj)
+        self.axs[rowNo][colNo].append(axObj)
         return axObj
 
     def clear(self):
         self.fig.clf()
-        self.axes = [
+        self.axs = [
             [[] for col in range(self.ncols)] \
                 for row in range(self.nrows)
             ]

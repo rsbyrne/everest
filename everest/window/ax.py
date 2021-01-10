@@ -92,7 +92,7 @@ class Ax:
             ax.facecolourVisible = not self.facecolourVisible
 
     def _get_axStack(self):
-        axStack = self.canvas.axes[self.rowNo][self.colNo]
+        axStack = self.canvas.axs[self.rowNo][self.colNo]
         if len(axStack):
             return axStack
         else:

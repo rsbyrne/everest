@@ -1,6 +1,6 @@
-from ._base import _Fadable, _Vanishable
+from ._base import _Fadable, _Vanishable, _Colourable
 
-class _GridController(_Fadable, _Vanishable):
+class _GridController(_Fadable, _Vanishable, _Colourable):
     pass
 
 class Grid(_GridController):
@@ -42,6 +42,7 @@ class GridSubs(_GridController):
             axis = self.dim,
             which = self.stature,
             alpha = alpha,
+            color = self.colour,
             )
 
 #

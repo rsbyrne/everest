@@ -1,6 +1,6 @@
-from ._base import _Vanishable
+from ._base import _Vanishable, _Colourable
 
-class _AxisController(_Vanishable):
+class _AxisController(_Vanishable, _Colourable):
     pass
 
 class Axes(_AxisController):
@@ -14,7 +14,14 @@ class Axes(_AxisController):
             })
         self.mplax = mplax
         self._title = ''
+        self._titledict = dict()
         self.update()
+    def _set_titlecolour(self, value):
+        self.titledict = dict(color = value)
+    def update(self):
+        super().update()
+        self._set_titlecolour(self.colour)
+        self.mplax.title.set(**self.titledict)
     def swap(self):
         for sub in self._subs.values():
             sub.swap()
@@ -25,6 +32,15 @@ class Axes(_AxisController):
     def title(self, val):
         self._title = val
         self.mplax.set_title(val)
+    @property
+    def titledict(self):
+        return self._titledict
+    @titledict.setter
+    def titledict(self, value):
+        if value is None:
+            self._titledict.clear()
+        else:
+            self._titledict.update(value)
 
 class Axis(_AxisController):
     _directions = dict(
@@ -55,8 +71,16 @@ class Axis(_AxisController):
             raise ValueError
         getattr(self.mplaxAxis, f'tick_{side}')()
         self.mplaxAxis.set_label_position(side)
+    def _set_colour(self, value):
+#         for side in self._sides:
+#             self.mplax.spines[side].set_color(self._defaultcolour)
+#         self.mplax.spines[self.side].set_color(value)
+        for side in self._sides:
+            self.mplax.spines[side].set_color(value)
+        self.mplaxAxis.label.set_color(value)
     def update(self):
         self._set_label(self.label)
+        self._set_colour(self.colour)
         visible = self.visible
         mplaxAxis = self.mplaxAxis
         mplaxAxis.label.set_visible(visible)

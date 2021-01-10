@@ -44,3 +44,23 @@ class _Fadable(_PropertyController):
     def alpha(self, value):
         self._alpha = float(value)
         self.update()
+
+class _Colourable(_PropertyController):
+    _defaultcolour = 'black'
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._colour = self._defaultcolour
+        self._colourMaster = self._defaultcolour
+    def _update_sub(self, sub):
+        super()._update_sub(sub)
+        sub._colourMaster = self.colour
+    @property
+    def colour(self):
+        if self._colourMaster == self._defaultcolour:
+            return self._colour
+        else:
+            return self._colourMaster
+    @colour.setter
+    def colour(self, value):
+        self._colour = self._defaultcolour if value is None else value
+        self.update()

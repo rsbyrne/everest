@@ -85,18 +85,18 @@ class DataChannel:
                 capped = (False, False),
                 **kwargs
                 ):
-            assert len(lims) == 2 and len(capped) == 2
-            (lLim, uLim), (lCap, uCap) = lims, capped
-            if not lLim is None:
-                if lCap:
-                    data = np.where(data < lLim, lLim, data)
-                else:
-                    data = np.delete(data, np.argwhere(data < lLim).flatten())
-            if not uLim is None:
-                if uCap:
-                    data = np.where(data > uLim, uLim, data)
-                else:
-                    data = np.delete(data, np.argwhere(data > uLim).flatten())
+#             assert len(lims) == 2 and len(capped) == 2
+#             (lLim, uLim), (lCap, uCap) = lims, capped
+#             if not lLim is None:
+#                 if lCap:
+#                     data = np.where(data < lLim, lLim, data)
+#                 else:
+#                     data = np.delete(data, np.argwhere(data < lLim).flatten())
+#             if not uLim is None:
+#                 if uCap:
+#                     data = np.where(data > uLim, uLim, data)
+#                 else:
+#                     data = np.delete(data, np.argwhere(data > uLim).flatten())
             return data, kwargs
 
         def __init__(self,
@@ -140,12 +140,25 @@ class DataChannel:
         @staticmethod
         def nice_tickLabels(tickVals):
             maxLog10 = math.log10(np.max(np.abs(tickVals)))
-            adjPower = - math.floor(maxLog10 / 3.) * 3
-            adjTicks = np.round(tickVals * 10. ** adjPower, 5)
-            suffix = ''
-            if abs(-adjPower) > 0:
-                suffix += 'E{0}'.format(-adjPower)
-            tickLabels = np.array([str(t) for t in adjTicks])
+            adjPower = round(math.floor(maxLog10) / 3.) * 3
+            if abs(adjPower) > 0:
+                suffix = f'E{adjPower}'
+                tickVals = np.round(tickVals * 10. ** -adjPower, 5)
+            else:
+                suffix = ''
+            def label(t):
+                st = str(float(t))
+                if st.endswith('.0'):
+                    st = st[:-2]
+                return st
+            tickLabels = np.array([label(t) for t in tickVals])
+            diffs = np.diff(tickVals)
+            if len(tickLabels) >= 3:
+                minProx = (1. / 3.) * diffs.mean()
+                if diffs[0] < minProx:
+                    tickLabels[1] = ''
+                if diffs[-1] < minProx:
+                    tickLabels[-2] = ''
             return tickLabels, suffix
 
         def nice_tickVals(self, nTicks, bases = {1, 2, 5}, origin = 0.):

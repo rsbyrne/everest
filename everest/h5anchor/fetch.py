@@ -116,12 +116,13 @@ class Fetch:
                     if np.all(result):
                         indices = '...'
                     elif np.any(result):
-                        countsPath = '/'.join(
-                            ['', superkey, result.metadata['indices']]
-                            )
-                        counts = context(countsPath)
-                        indices = counts[result.flatten()]
-                        indices = tuple(indices)
+#                         countsPath = '/'.join(
+#                             ['', superkey, result.metadata['indices']]
+#                             )
+#                         counts = context(countsPath)
+#                         indices = counts[result.flatten()]
+#                         indices = tuple(indices)
+                        indices = tuple(np.nonzero(result.flatten())[0])
                 elif result:
                     indices = '...'
                 if not indices is None:

@@ -202,19 +202,21 @@ class Reader(H5Manager):
             for superkey, indices in inScope:
                 result = self._getstr([superkey, stop])
                 if type(result) is AnchorArray:
-                    if 'indices' in result.metadata and not indices == '...':
-                        counts = self._getstr(
-                            [superkey, result.metadata['indices']]
-                            )
-                        maskArr = np.isin(
-                            counts,
-                            indices,
-                            assume_unique = True
-                            )
-                        result = AnchorArray(
-                            result[maskArr],
-                            **result.metadata
-                            )
+                    if not indices == '...':
+                        result = result[list(indices)]
+#                     if 'indices' in result.metadata and not indices == '...':
+#                         counts = self._getstr(
+#                             [superkey, result.metadata['indices']]
+#                             )
+#                         maskArr = np.isin(
+#                             counts,
+#                             indices,
+#                             assume_unique = True
+#                             )
+#                         result = AnchorArray(
+#                             result[maskArr],
+#                             **result.metadata
+#                             )
                 out[superkey] = result
         elif type(stop) is tuple:
             return stack_dicts(*(

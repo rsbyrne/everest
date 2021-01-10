@@ -1,8 +1,8 @@
 # from matplotlib.ticker import FixedLocator, FixedFormatter
 
-from ._base import _Vanishable
+from ._base import _Vanishable, _Colourable
 
-class _TickController(_Vanishable):
+class _TickController(_Vanishable, _Colourable):
     pass
 
 class Ticks(_TickController):
@@ -56,7 +56,16 @@ class TickSubs(_TickController):
             minor = self._minor,
             **kwargs
             )
+    def _set_colour(self, value, **kwargs):
+        self.mplax.tick_params(
+            axis = self.dim,
+            which = self.stature,
+            color = value,
+            labelcolor = value,
+            **kwargs,
+            )
     def update(self):
+        self._set_colour(self.colour)
         if self.visible:
             self._set_values(self.values)
             self._set_labels(self.labels)
