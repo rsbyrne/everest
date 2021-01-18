@@ -160,7 +160,7 @@ class Ax:
         drawFunc = getattr(self.ax, self._plotFuncs[variety])
         collection = drawFunc(
             *spread.drawArgs,
-            **spread.drawKwargs,
+            **{**kwargs, **spread.drawKwargs},
             )
         self.collections.append(collection)
 

@@ -1,5 +1,45 @@
 from sklearn.linear_model import LinearRegression
+import scipy as sp
 import numpy as np
+
+from scipy.signal import blackman
+from scipy.fft import rfft, rfftfreq
+
+def time_smooth(x, *ys, sampleFactor = 1, kind = 'linear'):
+    yield (ix := np.linspace(np.min(x), np.max(x), round(len(x) * sampleFactor)))
+    for y in ys:
+        yield sp.interpolate.interp1d(x, y, kind = kind)(ix)
+
+def time_fourier(
+        x, *ys,
+        sampleFactor = 1,
+        interpKind = 'linear',
+        minFreq = 'auto',
+        maxFreq = 'auto',
+        minAmps = None,
+        maxAmps = None,
+        ):
+    if minAmps is None: minAmps = [None for y in ys]
+    if maxAmps is None: maxAmps = [None for y in ys]
+    x, *ys = time_smooth(x, *ys, sampleFactor = sampleFactor, kind = interpKind)
+    N = len(x)
+    T = np.diff(x).mean()
+    freqs = rfftfreq(N, T)[: N // 2]
+    if minFreq is None: minFreq = min(freqs)
+    elif minFreq == 'auto': minFreq = (1 / np.ptp(x)) * 10
+    if maxFreq is None: maxFreq = max(freqs)
+    elif maxFreq == 'auto': maxFreq = (1 / T) / 10
+    mask = np.logical_and(freqs >= minFreq, freqs <= maxFreq)
+    freqs = freqs[mask]
+    w = blackman(N)
+    amps = []
+    for y, minAmp, maxAmp in zip(ys, minAmps, maxAmps):
+        y = y - y.mean()
+        amp = np.abs(rfft(y * w))[: N // 2]
+        if not minAmp is None: amp = np.where(amp < minAmp, 0, amp)
+        if not maxAmp is None: amp = np.where(amp > maxAmp, maxAmp, amp)
+        amps.append(amp[mask])
+    return (freqs, *amps)
 
 class Simulator:
 
@@ -46,3 +86,7 @@ class Simulator:
             pds = linreg.predict([x])[0]
             vals[ni] = x = x + pds * dt
         return ts, vals
+
+    def randsimulate(self, *args, **kwargs):
+        x = self.X[np.random.randint(self.X.shape[0])]
+        return self.simulate(x, *args, **kwargs)
