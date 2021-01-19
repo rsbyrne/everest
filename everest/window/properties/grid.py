@@ -1,37 +1,45 @@
 from ._base import _Fadable, _Vanishable, _Colourable
 
 class _GridController(_Fadable, _Vanishable, _Colourable):
-    pass
+    _defaultcolour = 'grey'
 
 class Grid(_GridController):
     def __init__(self,
             mplax,
             dims = ('x', 'y'),
+            dimsubs = None,
+            **subs,
             ):
-        super().__init__(**{
-            dim : GridParallels(mplax, dim)
-                for dim in dims
+        if dimsubs is None:
+            dimsubs = tuple(dict() for dim in dims)
+        subs.update({
+            dim : GridParallels(mplax, dim, **dimsub)
+                for dim, dimsub in zip(dims, dimsubs)
             })
+        super().__init__(**subs)
         self.update()
 
 class GridParallels(_GridController):
     def __init__(self,
             mplax,
             dim, # x, y, z
-            statures = ('major', 'minor')
+            statures = ('major', 'minor'),
+            **subs,
             ):
-        super().__init__(**{
+        subs.update({
             stature : GridSubs(mplax, dim, stature)
                 for stature in statures
             })
+        super().__init__(**subs)
 
 class GridSubs(_GridController):
     def __init__(self,
             mplax,
             dim, # x, y, z
             stature, # major, minor
+            **subs,
             ):
-        super().__init__()
+        super().__init__(**subs)
         self.mplax = mplax
         self.dim = dim
         self.stature = stature
@@ -44,48 +52,3 @@ class GridSubs(_GridController):
             alpha = alpha,
             color = self.colour,
             )
-
-#
-# class Axis:
-#     _dims = {
-#         0: 'x',
-#         1: 'y',
-#         2: 'z',
-#         }
-#     _allvocab = dict(
-#         x = dict(
-#             sides = ('left', 'right')
-#             ),
-#         y = dict(
-#             sides = ('bottom', 'top')
-#             ),
-#         z = dict(
-#             sides = 'front'
-#             )
-#         )
-#     def __init__(self,
-#             ax,
-#             dim,
-#             ):
-#         if not dim in self_.dims.values():
-#             dim = self._dims[dim]
-#         self.dim = dim
-#         self.ax = ax
-#         self.mplax = ax.ax
-#
-#     self.visible = True
-#     self.side = self.vocab['sides'][0]
-#
-#     self.tickValsMajor = []
-#     self.tickValsMinor = []
-#     self.tickValsMajorVisible = True
-#     self.tickValsMinorVisible = True
-#
-#     self.tickLabelsMajor = []
-#     self.tickLabelsMinor = []
-#     self.tickLabelsMajorVisible = []
-#     self.tickLabelsMinorVisible = []
-#
-#     @property
-#     def _vocab(self):
-#         return self._allvocab[self.dim]

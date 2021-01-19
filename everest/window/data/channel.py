@@ -162,15 +162,23 @@ class DataChannel:
             return tickLabels, suffix
 
         def nice_tickVals(self, nTicks, bases = {1, 2, 5}, origin = 0.):
-            if self.lims[0] == self.lims[1]:
-                return np.array(self.lims[0]), []
-            step = self.nice_interval(nTicks, bases)
-            lLim, uLim = self.nice_endpoints(step, origin)
-            nTicks = int((uLim - lLim) / step) + 1
-            tickVals = [lLim]
-            while tickVals[-1] < uLim:
-                tickVals.append(round(tickVals[-1] + step, 9))
-            tickVals = np.array(tickVals)
+            nTicks = max(3, nTicks)
+            tickValsChoices = []
+            for nT in (nTicks - 2, nTicks - 1, nTicks, nTicks + 1, nTicks + 2):
+                if self.lims[0] == self.lims[1]:
+                    return np.array(self.lims[0]), []
+                step = self.nice_interval(nT, bases)
+                lLim, uLim = self.nice_endpoints(step, origin)
+#                 nTicks = int((uLim - lLim) / step) + 1
+                tickVals = [lLim]
+                while tickVals[-1] < uLim:
+                    tickVals.append(round(tickVals[-1] + step, 9))
+                tickVals = np.array(tickVals)
+                tickValsChoices.append(tickVals)
+            choiceRatios = [abs(math.log(len(c) / nTicks)) for c in tickValsChoices]
+            print(choiceRatios)
+            choice = choiceRatios.index(min(choiceRatios))
+            tickVals = tickValsChoices[choice]
             minorTickVals = self.nice_minorTickVals(tickVals, step)
             tickVals = self._process_caps(tickVals)
             minorTickVals = self._process_caps(minorTickVals)

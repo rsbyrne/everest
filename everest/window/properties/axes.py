@@ -7,20 +7,31 @@ class Axes(_AxisController):
     def __init__(self,
             mplax,
             dims = ('x', 'y'),
+            dimsubs = None,
+            **subs,
             ):
-        super().__init__(**{
-            dim : Axis(mplax, dim)
-                for dim in dims
+        if dimsubs is None:
+            dimsubs = tuple(dict() for dim in dims)
+        subs.update({
+            dim : Axis(mplax, dim, **dimsub)
+                for dim, dimsub in zip(dims, dimsubs)
             })
+        super().__init__(**subs)
         self.mplax = mplax
         self._title = ''
         self._titledict = dict()
         self.update()
     def _set_titlecolour(self, value):
         self.titledict = dict(color = value)
+    def _set_spinecolour(self, value):
+        for spine in self.mplax.spines.values():
+            spine.set_color(value)
+    def _set_colour(self, value):
+        self._set_titlecolour(value)
+        self._set_spinecolour(value)
     def update(self):
         super().update()
-        self._set_titlecolour(self.colour)
+        self._set_colour(self.colour)
         self.mplax.title.set(**self.titledict)
     def swap(self):
         for sub in self._subs.values():
@@ -51,8 +62,9 @@ class Axis(_AxisController):
     def __init__(self,
             mplax,
             dim, # 'x', 'y', 'z'
+            **subs,
             ):
-        super().__init__()
+        super().__init__(**subs)
         self.dim = dim
         self.mplax = mplax
         self._label = ''
@@ -72,11 +84,7 @@ class Axis(_AxisController):
         getattr(self.mplaxAxis, f'tick_{side}')()
         self.mplaxAxis.set_label_position(side)
     def _set_colour(self, value):
-#         for side in self._sides:
-#             self.mplax.spines[side].set_color(self._defaultcolour)
-#         self.mplax.spines[self.side].set_color(value)
-        for side in self._sides:
-            self.mplax.spines[side].set_color(value)
+        self.mplax.spines[self.side].set_color(value)
         self.mplaxAxis.label.set_color(value)
     def update(self):
         self._set_label(self.label)
