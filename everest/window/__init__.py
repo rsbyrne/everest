@@ -4,3 +4,4 @@ from .ax import Ax
 from . import plot
 from . import animate
 from . import raster
+from .data import *

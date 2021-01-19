@@ -9,32 +9,56 @@ class Ticks(_TickController):
     def __init__(self,
             mplax,
             dims = ('x', 'y'),
+            dimsubs = None,
+            subs = None,
+            **kwargs,
             ):
-        super().__init__(**{
-            dim : TickParallels(mplax, dim)
-                for dim in dims
+        subs = dict() if subs is None else subs
+        if dimsubs is None:
+            dimsubs = tuple(dict() for dim in dims)
+        subs.update({
+            dim : TickParallels(mplax, dim, subs = dsubs)
+                for dim, dsubs in zip(dims, dimsubs)
             })
-        self.update()
+        super().__init__(
+            mplax,
+            subs = subs,
+            **kwargs
+            )
 
 class TickParallels(_TickController):
     def __init__(self,
             mplax,
             dim, # x, y, z
             statures = ('major', 'minor'),
+            subs = None,
+            **kwargs,
             ):
-        super().__init__(**{
+        subs = dict() if subs is None else subs
+        subs.update({
             stature : TickSubs(mplax, dim, stature)
                 for stature in statures
             })
+        super().__init__(
+            mplax,
+            subs = subs,
+            **kwargs
+            )
 
 class TickSubs(_TickController):
     def __init__(self,
             mplax,
             dim, # x, y, z
             stature, # major, minor
+            subs = None,
+            **kwargs,
             ):
-        super().__init__()
-        self.mplax = mplax
+        subs = dict() if subs is None else subs
+        super().__init__(
+            mplax,
+            subs = subs,
+            **kwargs
+            )
         self.dim = dim
         self.stature = stature
         self._minor = stature == 'minor'
@@ -65,6 +89,7 @@ class TickSubs(_TickController):
             **kwargs,
             )
     def update(self):
+        super().update()
         self._set_colour(self.colour)
         if self.visible:
             self._set_values(self.values)
@@ -114,3 +139,7 @@ class TickSubs(_TickController):
 #             stature,
 #             objType, # 'value', 'label'
 #             ):
+
+#####################
+ 
+# from matplotlib.ticker import FixedLocator, FixedFormatter

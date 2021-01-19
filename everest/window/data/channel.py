@@ -176,7 +176,6 @@ class DataChannel:
                 tickVals = np.array(tickVals)
                 tickValsChoices.append(tickVals)
             choiceRatios = [abs(math.log(len(c) / nTicks)) for c in tickValsChoices]
-            print(choiceRatios)
             choice = choiceRatios.index(min(choiceRatios))
             tickVals = tickValsChoices[choice]
             minorTickVals = self.nice_minorTickVals(tickVals, step)

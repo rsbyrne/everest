@@ -5,7 +5,7 @@ from everest.h5anchor import disk
 from .data import DataPile, DataSpread
 
 from .utilities import unique_list
-from .properties import Grid, Ticks, Axes
+from .properties import Props
 
 class Ax:
 
@@ -46,9 +46,11 @@ class Ax:
             self.dims = ('x', 'y')
             self.vol = False
 
-        self.grid = Grid(ax, self.dims)
-        self.ticks = Ticks(ax, self.dims)
-        self.axes = Axes(ax, self.dims)
+        self.props = Props(ax, self.dims)
+        self.props.update()
+#         self.grid = self.prop.grid
+#         self.ticks = self.prop.ticks
+#         self.axes = self.prop.axes
 
         self.pile = DataPile()
 
@@ -62,7 +64,7 @@ class Ax:
         self.ax = ax
         self.collections = []
 
-        self.axes.margin = 0.
+        self.props.spines.margin = 0.
 
         self.facecolour = None
         self.facecolourVisible = True
@@ -130,7 +132,7 @@ class Ax:
             data.auto_axis_configs(nTicks)
         axname = {0 : 'x', 1 : 'y', 2 : 'z'}[i]
         axis, ticks, grid = \
-            self.axes[axname], self.ticks[axname], self.grid[axname]
+            self.props.spines[axname], self.props.ticks[axname], self.props.grid[axname]
         axis.scale = scale
         axis.lims = lims
         ticks.major.set_values_labels(tickVals, tickLabels)

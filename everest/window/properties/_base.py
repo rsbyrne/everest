@@ -1,66 +1,103 @@
+import weakref
+from functools import reduce
+import operator
+
 class _PropertyController:
-    def __init__(self, **subs):
+    def __init__(self, mplax, subs = None):
+        self.mplax = mplax
+        subs = dict() if subs is None else subs
+        self._masters = list()
         self._subs = subs
+        selfRef = weakref.ref(self)
+        for sub in subs.values():
+            sub._masters.append(selfRef)
         self.__dict__.update(subs)
+    @property
+    def masters(self):
+        outs = []
+        for ref in self._masters:
+            out = ref()
+            if not out is None:
+                outs.append(out)
+        return tuple(outs)
     def update(self):
         for sub in self._subs.values():
-            self._update_sub(sub)
             sub.update()
-    def _update_sub(self, sub):
-        pass
     def __getitem__(self, key):
         return self._subs[key]
 
 class _Vanishable(_PropertyController):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._visible = True
-        self._visibleMaster = True
-    def _update_sub(self, sub):
-        super()._update_sub(sub)
-        sub._visibleMaster = self.visible
+    def __init__(self, mplax, visible = None, **kwargs):
+        super().__init__(mplax, **kwargs)
+        self._visible = visible
+    @property
+    def masterVisible(self):
+        for m in self.masters:
+            if isinstance(m, _Vanishable):
+                v = m.visible
+                if not v is None:
+                    return v
+        return None
     @property
     def visible(self):
-        return self._visible and self._visibleMaster
+        master = self.masterVisible
+        v = self._visible if master is None else master
+        if v is None:
+            raise ValueError(None)
+        return v
     @visible.setter
     def visible(self, value):
-        self._visible = bool(value)
+        self._visible = None if value is None else bool(value)
         self.update()
     def toggle(self):
         self.visible = not self.visible
 
 class _Fadable(_PropertyController):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._alpha = 1.
-        self._alphaMaster = 1.
-    def _update_sub(self, sub):
-        super()._update_sub(sub)
-        sub._alphaMaster = self.alpha
+    def __init__(self, mplax, alpha = 1., **kwargs):
+        super().__init__(mplax, **kwargs)
+        self._alpha = alpha
+    @property
+    def masterAlpha(self):
+        return reduce(
+            operator.mul,
+            (1, *(m.alpha for m in self.masters if isinstance(m, _Fadable)))
+            )
     @property
     def alpha(self):
-        return self._alpha * self._alphaMaster
+        return self._alpha * self.masterAlpha
     @alpha.setter
     def alpha(self, value):
         self._alpha = float(value)
         self.update()
 
 class _Colourable(_PropertyController):
-    _defaultcolour = 'black'
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._colour = self._defaultcolour
-        self._colourMaster = self._defaultcolour
-    def _update_sub(self, sub):
-        super()._update_sub(sub)
-        sub._colourMaster = self.colour
+    def __init__(self, mplax, colour = None, **kwargs):
+        super().__init__(mplax, **kwargs)
+        self._colour = colour
+    @property
+    def masterColour(self):
+        if len(self.masters):
+            for m in self.masters:
+                if isinstance(m, _Colourable):
+                    c = m.colour
+                    if not c is None:
+                        return c
+        return None
     @property
     def colour(self):
-        if self._colourMaster == self._defaultcolour:
-            return self._colour
+        if self._colour is None:
+            c = self.masterColour
         else:
-            return self._colourMaster
+            c = self._colour
+        if c is None:
+            raise ValueError(None)
+        return c
     @colour.setter
     def colour(self, value):
-        self._colour = self._defaultcolour if value is None else value
+        self._colour = value
         self.update()
+
+#         if self._colourMaster == self._defaultcolour:
+#             return self._colour
+#         else:
+#             return self._colourMaster

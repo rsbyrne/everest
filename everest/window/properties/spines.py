@@ -1,38 +1,63 @@
-from ._base import _Vanishable, _Colourable
+from ._base import _Vanishable, _Colourable, _Fadable
 
-class _AxisController(_Vanishable, _Colourable):
-    pass
-
-class Axes(_AxisController):
-    def __init__(self,
-            mplax,
-            dims = ('x', 'y'),
-            dimsubs = None,
-            **subs,
-            ):
-        if dimsubs is None:
-            dimsubs = tuple(dict() for dim in dims)
-        subs.update({
-            dim : Axis(mplax, dim, **dimsub)
-                for dim, dimsub in zip(dims, dimsubs)
-            })
-        super().__init__(**subs)
-        self.mplax = mplax
-        self._title = ''
-        self._titledict = dict()
-        self.update()
-    def _set_titlecolour(self, value):
-        self.titledict = dict(color = value)
+class _SpineController(_Vanishable, _Colourable, _Fadable):
+    def __init__(self, mplax, sides, **kwargs):
+        self._sides = sides
+        super().__init__(mplax, **kwargs)
+    @property
+    def spines(self):
+        return tuple(self.mplax.spines[k] for k in self._sides)
+    def _set_visible(self, value):
+        for spine in self.spines:
+            spine.set_visible(value)
+    def _set_alpha(self, value):
+        for spine in self.spines:
+            spine.set_alpha(value)
     def _set_spinecolour(self, value):
         for spine in self.mplax.spines.values():
             spine.set_color(value)
     def _set_colour(self, value):
-        self._set_titlecolour(value)
         self._set_spinecolour(value)
     def update(self):
         super().update()
         self._set_colour(self.colour)
+        self._set_visible(self.visible)
+        self._set_alpha(self.alpha)
+
+class Spines(_SpineController):
+    def __init__(self,
+            mplax,
+            dims = ('x', 'y'),
+            dimsubs = None,
+            subs = None,
+            **kwargs,
+            ):
+        subs = dict() if subs is None else subs
+        if dimsubs is None:
+            dimsubs = tuple(dict() for dim in dims)
+        subs.update({
+            dim : SpineParallels(mplax, dim, subs = dsubs)
+                for dim, dsubs in zip(dims, dimsubs)
+            })
+        super().__init__(
+            mplax,
+            tuple(mplax.spines.keys()),
+            subs = subs,
+            **kwargs
+            )
+        self._title = ''
+        self._titledict = dict()
+    def _set_titlecolour(self, value):
+        self.titledict = dict(color = value)
+    def _set_colour(self, value):
+        super()._set_colour(value)
+        self._set_titlecolour(value)
+    def _set_title(self, value):
+        self.mplax.set_title(value)
         self.mplax.title.set(**self.titledict)
+    def update(self):
+        super().update()
+        self._set_title(self.title)
     def swap(self):
         for sub in self._subs.values():
             sub.swap()
@@ -42,7 +67,7 @@ class Axes(_AxisController):
     @title.setter
     def title(self, val):
         self._title = val
-        self.mplax.set_title(val)
+        self.update()
     @property
     def titledict(self):
         return self._titledict
@@ -53,7 +78,7 @@ class Axes(_AxisController):
         else:
             self._titledict.update(value)
 
-class Axis(_AxisController):
+class SpineParallels(_SpineController):
     _directions = dict(
         x = ('bottom', 'top'),
         y = ('left', 'right'),
@@ -62,13 +87,18 @@ class Axis(_AxisController):
     def __init__(self,
             mplax,
             dim, # 'x', 'y', 'z'
-            **subs,
+            subs = None,
+            **kwargs,
             ):
-        super().__init__(**subs)
+        subs = dict() if subs is None else subs
+        super().__init__(
+            mplax,
+            self._directions[dim],
+            subs = subs,
+            **kwargs
+            )
         self.dim = dim
-        self.mplax = mplax
         self._label = ''
-        self._sides = self._directions[dim]
         self._side = self._sides[0]
         self._lims = None
         self._scale = 'linear'
@@ -84,11 +114,10 @@ class Axis(_AxisController):
         getattr(self.mplaxAxis, f'tick_{side}')()
         self.mplaxAxis.set_label_position(side)
     def _set_colour(self, value):
-        self.mplax.spines[self.side].set_color(value)
+        super()._set_colour(value)
         self.mplaxAxis.label.set_color(value)
-    def update(self):
-        self._set_label(self.label)
-        self._set_colour(self.colour)
+    def _set_visible(self, value):
+        super()._set_visible(value)
         visible = self.visible
         mplaxAxis = self.mplaxAxis
         mplaxAxis.label.set_visible(visible)
@@ -96,6 +125,9 @@ class Axis(_AxisController):
             tic.set_visible(visible)
         for tic in mplaxAxis.get_minor_ticks():
             tic.set_visible(visible)
+    def update(self):
+        super().update()
+        self._set_label(self.label)
         side = self.side
         try:
             self._set_side(side)
@@ -144,3 +176,18 @@ class Axis(_AxisController):
     def margin(self, val):
         self._margin = val
         getattr(self.mplax, f'set_{self.dim}margin')(val)
+
+# class Spine(_SpineController):
+#     def __init__(self,
+#             mplax,
+#             side,
+#             **kwargs,
+#             ):
+#         super().__init__(
+#             mplax,
+#             (side,),
+#             **kwargs
+#             )
+#     @property
+#     def spine(self):
+#         return self.mplax
