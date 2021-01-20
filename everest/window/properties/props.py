@@ -1,40 +1,62 @@
-from ._base import _Vanishable, _Colourable
+from ._base import _Vanishable, _Colourable, _Fillable, _Fadable
 from .edges import Edges
 from .grid import Grid
 from .ticks import Ticks
+from .legend import Legend
+from ._element import _MplText
 
-class _PropsController(_Vanishable, _Colourable):
-    pass
+class _PropsController(_Vanishable, _Colourable, _Fillable, _Fadable):
+    def __init__(self, mplax, **kwargs):
+        self.mplax = mplax
+        super().__init__(**kwargs)
+
+class AxTitle(_MplText):
+    def __init__(self, mplax, **kwargs):
+        self.mplax = mplax
+        super().__init__(**kwargs)
+    def _get_mplelement(self):
+        return self.mplax.title
 
 class Props(_PropsController):
+
     def __init__(self,
             mplax,
             dims = ('x', 'y'),
+            alpha = 1.,
             colour = 'black',
+            fill = 'white',
             visible = True,
             ):
-        grid = Grid(
+
+        super().__init__(
+            mplax,
+            alpha = alpha,
+            colour = colour,
+            visible = visible,
+            fill = fill,
+            )
+
+        self._add_sub(AxTitle(
+            mplax,
+            ), 'title')
+        self._add_sub(Grid(
             mplax,
             dims = dims,
             colour = 'grey',
             alpha = 0.5,
-            )
-        ticks = Ticks(
+            ), 'grid')
+        self._add_sub(Ticks(
             mplax,
             dims = dims,
-            )
-        edges = Edges(
+            ), 'ticks')
+        self._add_sub(Edges(
             mplax,
             dims = dims,
-            )
-        super().__init__(
+            ), 'edges')
+        self._add_sub(Legend(
             mplax,
-            colour = colour,
-            visible = visible,
-            )
-        self._add_sub(grid, 'grid')
-        self._add_sub(ticks, 'ticks')
-        self._add_sub(edges, 'edges')
+            ), 'legend')
+
         for dim in dims:
-            edges[dim]._add_sub(ticks[dim], 'ticks')
-            edges[dim]['primary']._add_sub(ticks[dim], 'ticks')
+            self['edges'][dim]._add_sub(self['ticks'][dim], 'ticks')
+            self['edges'][dim]['primary']._add_sub(self['ticks'][dim], 'ticks')

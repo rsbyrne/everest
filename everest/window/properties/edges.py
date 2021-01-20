@@ -1,4 +1,5 @@
 from ._base import _Vanishable, _Colourable, _Fadable
+from ._element import _MplElement, _MplText
 
 class _EdgeController(_Vanishable, _Colourable, _Fadable):
     _directions = dict(
@@ -6,6 +7,9 @@ class _EdgeController(_Vanishable, _Colourable, _Fadable):
         y = ('left', 'right'),
         z = ('front', 'back'),
         )
+    def __init__(self, mplax, **kwargs):
+        self.mplax = mplax
+        super().__init__(**kwargs)
 
 class Edges(_EdgeController):
     def __init__(self,
@@ -20,38 +24,20 @@ class Edges(_EdgeController):
         for dim in dims:
             sub = EdgeParallels(mplax, dim)
             self._add_sub(sub, dim)
-        self._title = ''
-        self._titledict = dict()
-    def _set_titlecolour(self, value):
-        self.titledict = dict(color = value)
-    def _set_colour(self, value):
-        self._set_titlecolour(value)
-    def _set_title(self, title, **kwargs):
-        self.mplax.set_title(title)
-        self.mplax.title.set(**kwargs)
-    def update(self):
-        super().update()
-        self._set_colour(self.colour)
-        self._set_title(self.title, **self.titledict)
     def swap(self):
         for sub in self._subs.values():
             sub.swap()
+
+class EdgeLabel(_MplText):
+    def __init__(self, mplax, dim, **kwargs):
+        self.mplax = mplax
+        self.dim = dim
+        super().__init__(**kwargs)
     @property
-    def title(self):
-        return self._title
-    @title.setter
-    def title(self, val):
-        self._title = val
-        self.update()
-    @property
-    def titledict(self):
-        return self._titledict
-    @titledict.setter
-    def titledict(self, value):
-        if value is None:
-            self._titledict.clear()
-        else:
-            self._titledict.update(value)
+    def mplaxAxis(self):
+        return getattr(self.mplax, f'{self.dim}axis')
+    def _get_mplelement(self):
+        return self.mplaxAxis.label
 
 class EdgeParallels(_EdgeController):
     _whichs = ('primary', 'secondary')
@@ -65,9 +51,10 @@ class EdgeParallels(_EdgeController):
             mplax,
             **kwargs
             )
+        self._add_sub(EdgeLabel(mplax, dim), 'label')
         for which in self._whichs:
-            sub = Edge(mplax, dim, which, swapped)
-            self._add_sub(sub, which)
+            self._add_sub(Edge(mplax, dim, which, swapped), which)
+        self['primary']._add_sub(self['label'], 'label')
         self._swapped = swapped
         self.dim = dim
         self._label = ''
@@ -92,8 +79,8 @@ class EdgeParallels(_EdgeController):
     @property
     def mplaxAxis(self):
         return getattr(self.mplax, f'{self.dim}axis')
-    def _set_label(self, *args, **kwargs):
-        getattr(self.mplax, f'set_{self.dim}label')(*args, **kwargs)
+#     def _set_label(self, *args, **kwargs):
+#         getattr(self.mplax, f'set_{self.dim}label')(*args, **kwargs)
     def _set_side(self, side):
         try:
             getattr(self.mplaxAxis, f'tick_{side}')()
@@ -102,15 +89,7 @@ class EdgeParallels(_EdgeController):
             pass
     def update(self):
         super().update()
-        self._set_label(self.label)
         self._set_side(self.side)
-    @property
-    def label(self):
-        return self._label
-    @label.setter
-    def label(self, val):
-        self._label = val
-        self.update()
     @property
     def lims(self):
         return self._lims
@@ -133,7 +112,7 @@ class EdgeParallels(_EdgeController):
         self._margin = val
         getattr(self.mplax, f'set_{self.dim}margin')(val)
 
-class Edge(_EdgeController):
+class Edge(_EdgeController, _MplElement):
     def __init__(self,
             mplax,
             dim, # 'x', 'y', 'z'
@@ -144,17 +123,12 @@ class Edge(_EdgeController):
         self.dim = dim
         self._swapped = swapped
         self._which = which
-        self._primary = which == 'primary'
         super().__init__(
             mplax,
             **kwargs
             )
-    @property
-    def isprimary(self):
-        return self._primary
-    @property
-    def mplaxAxis(self):
-        return getattr(self.mplax, f'{self.dim}axis')
+    def _get_mplelement(self):
+        return self.mplax.spines[self.side]
     @property
     def side(self):
         return self._directions[self.dim][
@@ -163,29 +137,6 @@ class Edge(_EdgeController):
     @property
     def swapped(self):
         return self._swapped
-    @property
-    def mplspine(self):
-        return self.mplax.spines[self.side]
-    def _set_visible(self, value):
-        self.mplspine.set_visible(value)
-        if self.isprimary:
-            mplaxAxis = self.mplaxAxis
-            mplaxAxis.label.set_visible(value)
-            for tic in mplaxAxis.get_major_ticks():
-                tic.set_visible(value)
-            for tic in mplaxAxis.get_minor_ticks():
-                tic.set_visible(value)
-    def _set_alpha(self, value):
-        self.mplspine.set_alpha(value)
-    def _set_colour(self, value):
-        self.mplspine.set_color(value)
-        if self.isprimary:
-            self.mplaxAxis.label.set_color(value)
-    def update(self):
-        super().update()
-        self._set_visible(self.visible)
-        self._set_alpha(self.alpha)
-        self._set_colour(self.colour)
 
 # class Spine(_SpineController):
 #     def __init__(self,

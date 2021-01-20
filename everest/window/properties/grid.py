@@ -1,7 +1,9 @@
 from ._base import _Fadable, _Vanishable, _Colourable
 
 class _GridController(_Fadable, _Vanishable, _Colourable):
-    ...
+    def __init__(self, mplax, **kwargs):
+        self.mplax = mplax
+        super().__init__(**kwargs)
 
 class Grid(_GridController):
     def __init__(self,

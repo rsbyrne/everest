@@ -1,9 +1,11 @@
 # from matplotlib.ticker import FixedLocator, FixedFormatter
 
-from ._base import _Vanishable, _Colourable
+from ._base import _Vanishable, _Colourable, _Fadable
 
-class _TickController(_Vanishable, _Colourable):
-    pass
+class _TickController(_Vanishable, _Colourable, _Fadable):
+    def __init__(self, mplax, **kwargs):
+        self.mplax = mplax
+        super().__init__(**kwargs)
 
 class Ticks(_TickController):
     def __init__(self,
@@ -51,6 +53,18 @@ class TickSubs(_TickController):
         self._values = []
         self._labels = []
         self._rotation = 0
+    @property
+    def mplaxAxis(self):
+        return getattr(self.mplax, f'{self.dim}axis')
+    @property
+    def mplticks(self):
+        return getattr(self.mplaxAxis, f"get_{self.stature}_ticks")()
+    @property
+    def mplticklines(self):
+        return self.mplaxAxis.get_ticklines(self._minor)
+    @property
+    def mplticklabels(self):
+        return self.mplaxAxis.get_ticklabels(self._minor)
     def _set_labels(self, labels, *args, **kwargs):
         getattr(self.mplax, f'set_{self.dim}ticklabels')(
             labels,
@@ -66,23 +80,26 @@ class TickSubs(_TickController):
             minor = self._minor,
             **kwargs
             )
-    def _set_colour(self, value, **kwargs):
-        self.mplax.tick_params(
-            axis = self.dim,
-            which = self.stature,
-            color = value,
-            labelcolor = value,
-            **kwargs,
-            )
+    def _set_colour(self, value):
+        for tickline in self.mplticklines:
+            tickline.set_markeredgecolor(value)
+        for ticklabel in self.mplticklabels:
+            ticklabel.set_color(value)
+    def _set_visible(self, value):
+        for tic in self.mplticks:
+            tic.set_visible(value)
+    def _set_alpha(self, value):
+        for tickline in self.mplticklines:
+            tickline.set_alpha(value)
+        for ticklabel in self.mplticklabels:
+            ticklabel.set_alpha(value)
     def update(self):
         super().update()
+        self._set_values(self.values)
+        self._set_labels(self.labels)
         self._set_colour(self.colour)
-        if self.visible:
-            self._set_values(self.values)
-            self._set_labels(self.labels)
-        else:
-            self._set_values([])
-            self._set_labels([])
+        self._set_visible(self.visible)
+        self._set_alpha(self.alpha)
     def set_values_labels(self, values, labels):
         self._values[:] = values
         self._labels[:] = labels
@@ -129,3 +146,13 @@ class TickSubs(_TickController):
 #####################
  
 # from matplotlib.ticker import FixedLocator, FixedFormatter
+
+
+
+#         if self.visible:
+#             self._set_values(self.values)
+#             self._set_labels(self.labels)
+#         else:
+#             self._set_values([])
+#             self._set_labels([])
+

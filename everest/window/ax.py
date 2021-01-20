@@ -138,7 +138,7 @@ class Ax:
         ticks.major.set_values_labels(tickVals, tickLabels)
         if not self.vol:
             ticks.minor.values = minorTickVals
-        axis.label = label
+        axis.label.text = label
         grid.alpha = alpha
         grid.minor.alpha = 0.5
         if hide:
@@ -160,11 +160,11 @@ class Ax:
         self.pile.append(spread)
         self._autoconfigure_axes()
         drawFunc = getattr(self.ax, self._plotFuncs[variety])
-        collection = drawFunc(
+        collections = drawFunc(
             *spread.drawArgs,
             **{**kwargs, **spread.drawKwargs},
             )
-        self.collections.append(collection)
+        self.collections.extend(collections)
 
     def clear(self):
         self.ax.clear()

@@ -3,8 +3,7 @@ from functools import reduce
 import operator
 
 class _PropertyController:
-    def __init__(self, mplax):
-        self.mplax = mplax
+    def __init__(self):
         self._masters = list()
         self._subs = dict()
     def _add_sub(self, sub, name):
@@ -26,12 +25,13 @@ class _PropertyController:
         return self._subs[key]
 
 class _Vanishable(_PropertyController):
-    def __init__(self, mplax, visible = None, **kwargs):
-        super().__init__(mplax, **kwargs)
+    def __init__(self, *args, visible = None, **kwargs):
+        super().__init__(*args, **kwargs)
         self._visible = visible
     @property
     def masterVisible(self):
-        for m in self.masters:
+        masters = self.masters
+        for m in masters[::-1]:
             if isinstance(m, _Vanishable):
                 v = m.visible
                 if not v is None:
@@ -53,8 +53,8 @@ class _Vanishable(_PropertyController):
         self.visible = not self.visible
 
 class _Fadable(_PropertyController):
-    def __init__(self, mplax, alpha = 1., **kwargs):
-        super().__init__(mplax, **kwargs)
+    def __init__(self, *args, alpha = 1., **kwargs):
+        super().__init__(*args, **kwargs)
         self._alpha = alpha
     @property
     def masterAlpha(self):
@@ -71,8 +71,8 @@ class _Fadable(_PropertyController):
         self.update()
 
 class _Colourable(_PropertyController):
-    def __init__(self, mplax, colour = None, **kwargs):
-        super().__init__(mplax, **kwargs)
+    def __init__(self, *args, colour = None, **kwargs):
+        super().__init__(*args, **kwargs)
         self._colour = colour
     @property
     def masterColour(self):
@@ -98,7 +98,30 @@ class _Colourable(_PropertyController):
         self._colour = value
         self.update()
 
-#         if self._colourMaster == self._defaultcolour:
-#             return self._colour
-#         else:
-#             return self._colourMaster
+class _Fillable(_PropertyController):
+    def __init__(self, *args, fill = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._fill = fill
+    @property
+    def masterFill(self):
+        masters = self.masters
+        if len(masters):
+            for m in masters[::-1]:
+                if isinstance(m, _Fillable):
+                    c = m.fill
+                    if not c is None:
+                        return c
+        return None
+    @property
+    def fill(self):
+        if self._fill is None:
+            c = self.masterFill
+        else:
+            c = self._fill
+        if c is None:
+            raise ValueError(None)
+        return c
+    @fill.setter
+    def fill(self, value):
+        self._fill = value
+        self.update()
