@@ -64,7 +64,7 @@ class Ax:
         self.ax = ax
         self.collections = []
 
-        self.props.spines.margin = 0.
+        self.props.edges.margin = 0.
 
         self.facecolour = None
         self.facecolourVisible = True
@@ -132,7 +132,7 @@ class Ax:
             data.auto_axis_configs(nTicks)
         axname = {0 : 'x', 1 : 'y', 2 : 'z'}[i]
         axis, ticks, grid = \
-            self.props.spines[axname], self.props.ticks[axname], self.props.grid[axname]
+            self.props.edges[axname], self.props.ticks[axname], self.props.grid[axname]
         axis.scale = scale
         axis.lims = lims
         ticks.major.set_values_labels(tickVals, tickLabels)

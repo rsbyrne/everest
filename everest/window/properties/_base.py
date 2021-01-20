@@ -3,15 +3,14 @@ from functools import reduce
 import operator
 
 class _PropertyController:
-    def __init__(self, mplax, subs = None):
+    def __init__(self, mplax):
         self.mplax = mplax
-        subs = dict() if subs is None else subs
         self._masters = list()
-        self._subs = subs
-        selfRef = weakref.ref(self)
-        for sub in subs.values():
-            sub._masters.append(selfRef)
-        self.__dict__.update(subs)
+        self._subs = dict()
+    def _add_sub(self, sub, name):
+        self._subs[name] = sub
+        setattr(self, name, sub)
+        sub._masters.append(weakref.ref(self))
     @property
     def masters(self):
         outs = []
@@ -40,11 +39,12 @@ class _Vanishable(_PropertyController):
         return None
     @property
     def visible(self):
-        master = self.masterVisible
-        v = self._visible if master is None else master
-        if v is None:
-            raise ValueError(None)
-        return v
+        if self._visible is None:
+            mv = self.masterVisible
+            if mv is None:
+                raise ValueError(None)
+            return mv
+        return self._visible
     @visible.setter
     def visible(self, value):
         self._visible = None if value is None else bool(value)
@@ -76,8 +76,9 @@ class _Colourable(_PropertyController):
         self._colour = colour
     @property
     def masterColour(self):
-        if len(self.masters):
-            for m in self.masters:
+        masters = self.masters
+        if len(masters):
+            for m in masters[::-1]:
                 if isinstance(m, _Colourable):
                     c = m.colour
                     if not c is None:

@@ -7,58 +7,44 @@ class Grid(_GridController):
     def __init__(self,
             mplax,
             dims = ('x', 'y'),
-            dimsubs = None,
-            subs = None,
             alpha = 0.5,
             **kwargs,
             ):
-        subs = dict() if subs is None else subs
-        if dimsubs is None:
-            dimsubs = tuple(dict() for dim in dims)
-        subs.update({
-            dim : GridParallels(mplax, dim, subs = dsubs)
-                for dim, dsubs in zip(dims, dimsubs)
-            })
         super().__init__(
             mplax,
-            subs = subs,
             alpha = alpha,
             **kwargs
             )
+        for dim in dims:
+            sub = GridParallels(mplax, dim)
+            self._add_sub(sub, dim)
 
 class GridParallels(_GridController):
+    _statures = ('major', 'minor')
     def __init__(self,
             mplax,
             dim, # x, y, z
-            statures = ('major', 'minor'),
-            subs = None,
             **kwargs,
             ):
-        subs = dict() if subs is None else subs
-        subs.update({
-            stature : GridSubs(mplax, dim, stature)
-                for stature in statures
-            })
         super().__init__(
             mplax,
-            subs = subs,
             **kwargs
             )
+        for stature in self._statures:
+            sub = GridSubs(mplax, dim, stature)
+            self._add_sub(sub, stature)
 
 class GridSubs(_GridController):
     def __init__(self,
             mplax,
             dim, # x, y, z
             stature, # major, minor
-            subs = None,
             alpha = None,
             **kwargs,
             ):
         alpha = dict(major = 1, minor = 0.5)[stature] if alpha is None else alpha
-        subs = dict() if subs is None else subs
         super().__init__(
             mplax,
-            subs = subs,
             alpha = alpha,
             **kwargs
             )

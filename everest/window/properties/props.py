@@ -1,5 +1,5 @@
 from ._base import _Vanishable, _Colourable
-from .spines import Spines
+from .edges import Edges
 from .grid import Grid
 from .ticks import Ticks
 
@@ -10,11 +10,9 @@ class Props(_PropsController):
     def __init__(self,
             mplax,
             dims = ('x', 'y'),
-            subs = None,
             colour = 'black',
             visible = True,
             ):
-        subs = dict() if subs is None else subs
         grid = Grid(
             mplax,
             dims = dims,
@@ -25,16 +23,18 @@ class Props(_PropsController):
             mplax,
             dims = dims,
             )
-        spines = Spines(
+        edges = Edges(
             mplax,
             dims = dims,
-            subs = dict(ticks = ticks),
-            dimsubs = tuple(dict(ticks = ticks[dim]) for dim in dims),
             )
-        subs.update(dict(ticks = ticks, spines = spines, grid = grid))
         super().__init__(
             mplax,
-            subs = subs,
             colour = colour,
             visible = visible,
             )
+        self._add_sub(grid, 'grid')
+        self._add_sub(ticks, 'ticks')
+        self._add_sub(edges, 'edges')
+        for dim in dims:
+            edges[dim]._add_sub(ticks[dim], 'ticks')
+            edges[dim]['primary']._add_sub(ticks[dim], 'ticks')
