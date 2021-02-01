@@ -19,6 +19,7 @@ class Ax:
             index = 0,
             projection = 'rectilinear',
             name = None,
+            mplkwargs = None,
             **kwargs
             ):
 
@@ -35,8 +36,11 @@ class Ax:
             index + 1,
             projection = projection,
             label = name,
-            **kwargs
+            **(dict() if mplkwargs is None else mplkwargs)
             )
+
+        self.position = ax.get_position()
+        self.inches = canvas.size * self.position.size
 
         # Probably need a more generic solution for this:
         if projection == '3d':
@@ -46,7 +50,7 @@ class Ax:
             self.dims = ('x', 'y')
             self.vol = False
 
-        self.props = Props(ax, self.dims)
+        self.props = Props(ax, self.dims, **kwargs)
         self.props.update()
 #         self.grid = self.prop.grid
 #         self.ticks = self.prop.ticks
@@ -162,9 +166,9 @@ class Ax:
         drawFunc = getattr(self.ax, self._plotFuncs[variety])
         collections = drawFunc(
             *spread.drawArgs,
-            **{**kwargs, **spread.drawKwargs},
+            **{**spread.drawKwargs, **kwargs},
             )
-        self.collections.extend(collections)
+        self.collections.append(collections)
 
     def clear(self):
         self.ax.clear()

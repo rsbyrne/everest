@@ -113,6 +113,16 @@ class DataChannel:
             self.lims = lims
             self.capped = capped
 
+        @property
+        def range(self):
+            lLim, uLim = self.lims
+            return uLim - lLim
+
+        @property
+        def norm(self):
+            lLim, uLim = self.lims
+            return (self.data - lLim) / self.range
+
         def nice_interval(self, nTicks, bases = {1, 2, 5}):
             valRange = self.lims[1] - self.lims[0]
             nomInterval = valRange / nTicks

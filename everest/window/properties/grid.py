@@ -61,3 +61,9 @@ class GridSubs(_GridController):
             alpha = self.alpha if self.visible else 0.,
             color = self.colour,
             )
+    def _set_colour(self, value):
+        ...
+    def _set_alpha(self, value):
+        ...
+    def _set_visible(self, value):
+        ...

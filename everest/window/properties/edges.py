@@ -1,5 +1,5 @@
 from ._base import _Vanishable, _Colourable, _Fadable
-from ._element import _MplElement, _MplText
+from ._element import _MplText, _MplLinear
 
 class _EdgeController(_Vanishable, _Colourable, _Fadable):
     _directions = dict(
@@ -112,7 +112,7 @@ class EdgeParallels(_EdgeController):
         self._margin = val
         getattr(self.mplax, f'set_{self.dim}margin')(val)
 
-class Edge(_EdgeController, _MplElement):
+class Edge(_EdgeController, _MplLinear):
     def __init__(self,
             mplax,
             dim, # 'x', 'y', 'z'

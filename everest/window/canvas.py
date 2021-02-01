@@ -12,17 +12,18 @@ class Canvas(_Fig):
             shape = (1, 1),
             size = (3, 3), # inches
             dpi = 100, # pixels per inch
-            facecolour = 'white',
-            edgecolour = 'black',
-            **kwargs
+            colour = 'black',
+            fill = 'white',
+            axprops = dict(),
+            mplkwargs = None,
             ):
 
         fig = Figure(
             figsize = size,
             dpi = dpi,
-            facecolor = facecolour,
-            edgecolor = edgecolour,
-            **kwargs
+            facecolor = fill,
+            edgecolor = colour,
+            **(dict() if mplkwargs is None else mplkwargs)
             )
 
         nrows, ncols = shape
@@ -38,6 +39,12 @@ class Canvas(_Fig):
 
         self.ax = self.make_ax
 
+        self.axprops = dict(
+            colour = colour,
+            fill = fill,
+            **(dict() if axprops is None else axprops)
+            )
+
         if not title is None:
             self.set_title(title)
 
@@ -50,7 +57,11 @@ class Canvas(_Fig):
     def make_ax(self, place = (0, 0), superimpose = False, **kwargs):
         rowNo, colNo = place
         index = self._calc_index(place)
-        axObj = Ax(self, index = index, **kwargs)
+        axObj = Ax(
+            self,
+            index = index,
+            **{**self.axprops, **kwargs}
+            )
         self.axs[rowNo][colNo].append(axObj)
         return axObj
 

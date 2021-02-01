@@ -1,14 +1,14 @@
 import weakref
 
-from ._base import _Vanishable, _Colourable, _Fadable, _Fillable
-from ._element import _MplElement, _MplText
+from ._base import _Vanishable, _Colourable, _Fadable, _Fillable, _Kwargs
+from ._element import _MplElement, _MplGeometry, _MplText
 
 class _LegendController(_Vanishable, _Colourable, _Fadable, _Fillable):
     def __init__(self, mplax, **kwargs):
         self.mplax = mplax
         super().__init__(**kwargs)
 
-class Legend(_LegendController, _MplElement):
+class Legend(_MplElement, _LegendController):
     def __init__(self,
             mplax,
             **kwargs,
@@ -16,8 +16,12 @@ class Legend(_LegendController, _MplElement):
         super().__init__(mplax, **kwargs)
         self._handles, self._labels = [], []
         self._mpllegend = None
+        self._kwargs = _Kwargs(self)
         self._add_sub(LegendFrame(self), 'frame')
         self._add_sub(LegendTitle(self), 'title')
+    @property
+    def kwargs(self):
+        return self._kwargs
     def _get_mplelement(self):
         if self._mpllegend is None:
             self._draw()
@@ -26,6 +30,7 @@ class Legend(_LegendController, _MplElement):
         self._mpllegend = self.mplax.legend(
             self.handles,
             self.labels,
+            **self.kwargs,
             )
     def _remove(self):
         if not self._mpllegend is None:
@@ -96,14 +101,11 @@ class LegendTitle(_LegendElementController, _MplText):
         super().update()
         self._legend.mpllegend.set_title(self.text)
 
-class LegendFrame(_LegendElementController, _Fillable):
+class LegendFrame(_LegendElementController, _MplGeometry):
     def __init__(self, legend, **kwargs):
         super().__init__(legend, 'frame', **kwargs)
     def update(self):
         super().update()
         self.mplelement.set_snap(True)
-        self._set_fill(self.fill)
-    def _set_fill(self, value):
-        self.mplelement.set_facecolor(value)
     def _set_colour(self, value):
         self.mplelement.set_edgecolor(value)

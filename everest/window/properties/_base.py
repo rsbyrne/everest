@@ -2,6 +2,25 @@ import weakref
 from functools import reduce
 import operator
 
+from .exceptions import MissingAsset
+
+class _Kwargs(dict):
+    def __init__(self, host, *args, **kwargs):
+        self._host = weakref.ref(host)
+        super().__init__(*args, **kwargs)
+    @property
+    def host(self):
+        return self._host()
+    def __setitem__(self, key, val):
+        super().__setitem__(key, val)
+        self.host.update()
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self.host.update()
+    def update(self, *args, **kwargs):
+        super().update(*args, **kwargs)
+        self.host.update()
+
 class _PropertyController:
     def __init__(self):
         self._masters = list()
@@ -51,6 +70,11 @@ class _Vanishable(_PropertyController):
         self.update()
     def toggle(self):
         self.visible = not self.visible
+    def update(self):
+        super().update()
+        self._set_visible(self.visible)
+    def _set_visible(self, value):
+        ...
 
 class _Fadable(_PropertyController):
     def __init__(self, *args, alpha = 1., **kwargs):
@@ -69,6 +93,11 @@ class _Fadable(_PropertyController):
     def alpha(self, value):
         self._alpha = float(value)
         self.update()
+    def update(self):
+        super().update()
+        self._set_alpha(self.alpha)
+    def _set_alpha(self, value):
+        ...
 
 class _Colourable(_PropertyController):
     def __init__(self, *args, colour = None, **kwargs):
@@ -97,6 +126,11 @@ class _Colourable(_PropertyController):
     def colour(self, value):
         self._colour = value
         self.update()
+    def update(self):
+        super().update()
+        self._set_colour(self.colour)
+    def _set_colour(self, value):
+        ...
 
 class _Fillable(_PropertyController):
     def __init__(self, *args, fill = None, **kwargs):
@@ -125,3 +159,10 @@ class _Fillable(_PropertyController):
     def fill(self, value):
         self._fill = value
         self.update()
+    def update(self):
+        super().update()
+        self._set_fill(self.fill)
+    def _set_fill(self, value):
+        ...
+
+# class _Writable(_PropertyController)

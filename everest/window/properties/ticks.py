@@ -65,6 +65,10 @@ class TickSubs(_TickController):
     @property
     def mplticklabels(self):
         return self.mplaxAxis.get_ticklabels(self._minor)
+    def update(self):
+        super().update()
+        self._set_values(self.values)
+        self._set_labels(self.labels)
     def _set_labels(self, labels, *args, **kwargs):
         getattr(self.mplax, f'set_{self.dim}ticklabels')(
             labels,
@@ -93,13 +97,6 @@ class TickSubs(_TickController):
             tickline.set_alpha(value)
         for ticklabel in self.mplticklabels:
             ticklabel.set_alpha(value)
-    def update(self):
-        super().update()
-        self._set_values(self.values)
-        self._set_labels(self.labels)
-        self._set_colour(self.colour)
-        self._set_visible(self.visible)
-        self._set_alpha(self.alpha)
     def set_values_labels(self, values, labels):
         self._values[:] = values
         self._labels[:] = labels

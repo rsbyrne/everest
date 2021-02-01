@@ -3,12 +3,14 @@ from .edges import Edges
 from .grid import Grid
 from .ticks import Ticks
 from .legend import Legend
-from ._element import _MplText
+from ._element import _MplText, _MplGeometry, _MplVanishable
 
-class _PropsController(_Vanishable, _Colourable, _Fillable, _Fadable):
+class _PropsController(_MplVanishable, _Colourable, _Fillable, _Fadable):
     def __init__(self, mplax, **kwargs):
         self.mplax = mplax
         super().__init__(**kwargs)
+    def _get_mplelement(self):
+        return self.mplax
 
 class AxTitle(_MplText):
     def __init__(self, mplax, **kwargs):
@@ -16,6 +18,15 @@ class AxTitle(_MplText):
         super().__init__(**kwargs)
     def _get_mplelement(self):
         return self.mplax.title
+
+class AxPatch(_MplGeometry):
+    def __init__(self, mplax, **kwargs):
+        self.mplax = mplax
+        super().__init__(**kwargs)
+    def _get_mplelement(self):
+        return self.mplax.patch
+    def _set_colour(self, value):
+        self.mplelement.set_edgecolor(value)
 
 class Props(_PropsController):
 
@@ -26,6 +37,7 @@ class Props(_PropsController):
             colour = 'black',
             fill = 'white',
             visible = True,
+            title = '',
             ):
 
         super().__init__(
@@ -38,6 +50,7 @@ class Props(_PropsController):
 
         self._add_sub(AxTitle(
             mplax,
+            text = title,
             ), 'title')
         self._add_sub(Grid(
             mplax,
@@ -55,7 +68,12 @@ class Props(_PropsController):
             ), 'edges')
         self._add_sub(Legend(
             mplax,
+            visible = False,
             ), 'legend')
+        self._add_sub(AxPatch(
+            mplax,
+            alpha = 0.,
+            ), 'patch')
 
         for dim in dims:
             self['edges'][dim]._add_sub(self['ticks'][dim], 'ticks')
