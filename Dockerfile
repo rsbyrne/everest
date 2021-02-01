@@ -53,7 +53,8 @@ RUN pip3 install --no-cache-dir mpmath
 RUN pip3 install --no-cache-dir sympy
 
 # Productivity
-RUN apt install -y nodejs
+#RUN apt install -y nodejs
+#RUN apt install -y npm
 RUN pip3 install --no-cache-dir jupyterlab
 
 # Publication
