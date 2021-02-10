@@ -2,6 +2,7 @@ from everest.datalike.structures import Assembly
 
 from ..display import Reportable
 from .dataful import Dataful
+# from .indexable import Indexable
 from .exceptions import *
 
 class Stateful(Dataful):

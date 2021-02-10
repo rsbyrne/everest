@@ -30,14 +30,6 @@ class Integral(Real, Discrete):
             ):
         super().__init__(*args, compType = compType, dtype = dtype, **kwargs)
 
-class Chron(Real):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, name = 'chron', **kwargs)
-
-class Count(Integral):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, name = 'count', **kwargs)
-
 correspondences = {
     numbers.Integral : Integral,
     numbers.Real : Real,

@@ -1,4 +1,4 @@
-from ..base import Descriptor
+from ..base import Datalike
 
-class Categorical(Descriptor):
+class Categorical(Datalike):
     pass

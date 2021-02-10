@@ -9,7 +9,4 @@ class Vector(Array):
         self.dim = self.shape[0]
 
 class Position(Vector):
-    from ...semantics.spacelike import Spacelike
-    @property
-    def semantics(self):
-        return self.Spacelike
+    from ...semantics.spacelike import Spacelike as semantic
