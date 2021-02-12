@@ -2,10 +2,10 @@ from everest.datalike.structures import Assembly
 
 from ..display import Reportable
 from .dataful import Dataful
-# from .indexable import Indexable
+from .indexable import Indexable
 from .exceptions import *
 
-class Stateful(Dataful):
+class Stateful(Indexable, Dataful):
 
     @classmethod
     def _stateVar_construct(cls):
@@ -17,26 +17,25 @@ class Stateful(Dataful):
     @classmethod
     def _state_construct(cls):
         class State(Reportable, Assembly):
-            def __init__(self, frame, **stateVars):
+            def __init__(self, frame, _stateKwargs = None, **stateVars):
                 self.StateVar = frame.StateVar
                 self.sourceInstanceID = frame.instanceID
                 self._frameRepr = repr(frame)
                 keys = tuple(stateVars.keys())
+                _stateKwargs = dict() if _stateKwargs is None else _stateKwargs
                 values = tuple(
-                    self._process_default(k, v)
+                    self._process_default(k, v, **_stateKwargs)
                         for k, v in stateVars.items()
                     )
                 super().__init__(keys, values)
-            def _process_default(self, k, v):
-                if isinstance(v, self.StateVar):
-                    out = v
-                elif type(v) is tuple:
+            def _process_default(self, k, v, **kwargs):
+                if type(v) is tuple:
                     varType, varVal = v
                     if not issubclass(varType, self.StateVar):
                         raise TypeError(varType)
-                    out = varType(varVal, name = k)
+                    out = varType(varVal, name = k, **kwargs)
                 else:
-                    out = self.StateVar(v, name = k)
+                    out = self.StateVar(v, name = k, **kwargs)
                 out.sourceInstanceID = self.sourceInstanceID
                 return out
             def __repr__(self):
@@ -52,11 +51,13 @@ class Stateful(Dataful):
         return
 
     def __init__(self,
+            *,
             _stateVars,
+            _stateKwargs = None,
             _outVars = None,
             **kwargs
             ):
-        self.state = self.State(self, **_stateVars)
+        self.state = self.State(self, _stateKwargs = _stateKwargs, **_stateVars)
         _outVars = [] if _outVars is None else _outVars
         _outVars.extend(self.state.values())
         super().__init__(_outVars = _outVars, **kwargs)

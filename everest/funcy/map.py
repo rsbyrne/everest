@@ -1,16 +1,21 @@
+from .exceptions import *
+
 from collections.abc import Mapping
 from collections import OrderedDict
 
 from .utilities import unpack_tuple, ordered_unpack
 from .derived import Derived
 from .basevar import Base
+from .base import Function
+from .seq.arbitrary import Arbitrary
 
 class Map(Derived, Mapping):
     def __init__(self, keys, values, /, **kwargs):
+        if not isinstance(keys, Function):
+            keys = Arbitrary(*keys)
+        if not isinstance(values, Function):
+            values = Arbitrary(*values)
         super().__init__(keys, values, **kwargs)
-        self._keys = keys
-        self._values = values
-        self.defaults = dict(zip(self._keys, self._values))
     def evaluate(self):
         return dict(unpack_tuple(*self._resolve_terms()))
     def __getitem__(self, key):
@@ -19,20 +24,23 @@ class Map(Derived, Mapping):
         return len(self.terms[0])
     def __iter__(self):
         yield from self.terms[0]
+    def _keyind(self, k):
+        return tuple(self).index(k)
 
 class SettableMap(Map, Base):
     def __init__(self, keys, values, /, **kwargs):
-        values = list(values)
-        super().__init__(keys, values, **kwargs)
+        super().__init__(keys, values)
+        self.defaults = dict(zip(*self.terms))
     def __setitem__(self, key, val):
-        for k, v in ordered_unpack(self._keys, key, val).items():
+        for k, v in ordered_unpack(self, key, val).items():
             self._setitem(k, self._process_setitem(v))
         self.update()
         self.refresh()
     def _process_setitem(self, v):
         return v
     def _setitem(self, k, v):
-        self._values[self._keys.index(k)] = v
+        raise NotYetImplemented
+        # self._values[self._keys.index(k)] = v
     def reset(self):
         for k in self:
             self[k] = self.defaults[k]
@@ -56,7 +64,7 @@ class VarMap(SettableMap):
                 refined.append(v)
             values = refined
         super().__init__(tuple(keys), tuple(values), **kwargs)
-        self.defaults = {k : v.memory for k, v in self.defaults.items()}
+        self.variables = values
     def _setitem(self, k, v):
         self[k].value = v
     def __delitem__(self, k):
@@ -64,6 +72,8 @@ class VarMap(SettableMap):
     def nullify(self):
         for k in self:
             del self[k]
+    def plain_get(self, k):
+        return self.variables[self._keyind(k)]
 
 class StackMap(VarMap):
     def __init__(self, keys, values, /, **kwargs):

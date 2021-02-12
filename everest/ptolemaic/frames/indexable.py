@@ -9,7 +9,7 @@ from everest.funcy import Fn
 from everest.funcy.variable import Scalar
 from everest import wordhash
 from everest.datalike.qualifieds.indexed import Counted
-from everest.datalike.datums.numerical.scalar import Count
+from everest.datalike.datums.numerical.index import Count
 
 from .producer import Producer, LoadFail
 from ..utilities import make_scalar

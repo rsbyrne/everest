@@ -3,6 +3,7 @@ from collections.abc import Iterator as abcIterator
 from collections import OrderedDict, deque
 from functools import partial, lru_cache, cached_property
 import numbers
+import weakref
 
 from everest.funcy import Fn
 from everest.datalike.base import Datalike
@@ -240,8 +241,10 @@ class Geometric(Indexable, Stateful, Bythic):
         return
 
     def __init__(self,
+            _stateKwargs = None,
             **kwargs,
             ):
+        _stateKwargs = dict() if _stateKwargs is None else _stateKwargs
         super().__init__(**kwargs)
         self.terminus = None
         self.iterator = partial(self.case.Iterator, self)

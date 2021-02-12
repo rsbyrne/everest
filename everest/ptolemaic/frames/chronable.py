@@ -2,7 +2,7 @@ import numbers
 import numpy as np
 
 from everest.datalike.qualifieds.indexed import Chroned
-from everest.datalike.datums.numerical.scalar import Chron
+from everest.datalike.datums.numerical.index import Chron
 
 from .indexable import Indexable
 

@@ -26,10 +26,12 @@ class Function:
 
     @classmethod
     def _value_resolve(cls, val):
-        try:
-            return val.value
-        except AttributeError:
-            return val
+        while True:
+            try:
+                val = val.value
+            except AttributeError:
+                break
+        return val
 
     def evaluate(self):
         raise MissingAsset
