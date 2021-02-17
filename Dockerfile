@@ -7,21 +7,8 @@ ENV EVERESTDIR $MASTERUSERHOME/everest
 ADD . $EVERESTDIR
 RUN chown -R $MASTERUSER $EVERESTDIR
 
-RUN apt update -y
-RUN apt-get update -y
-RUN apt upgrade -y
-RUN apt-get upgrade -y
-
-# Path
-ENV PATH "${PATH}:$MASTERUSERHOME/.local/bin"
-
 # Python
-RUN apt-get install -y python3-venv
-RUN apt-get install -y python3-pip
-ENV PYTHONPATH "${PYTHONPATH}:$WORKSPACE"
-ENV PYTHONPATH "${PYTHONPATH}:$MOUNTDIR"
-ENV PYTHONPATH "${PYTHONPATH}:$BASEDIR"
-ENV PYTHONPATH "${PYTHONPATH}:$EVERESTDIR"
+ENV PYTHONPATH "$EVERESTDIR:${PYTHONPATH}"
 
 # Production
 RUN pip3 install -U --no-cache-dir pytest
@@ -35,7 +22,7 @@ ENV OMPI_MCA_btl_vader_single_copy_mechanism "none"
 RUN pip3 install --no-cache-dir matplotlib
 RUN pip3 install --no-cache-dir Pillow
 
-# Programming
+# Debugging
 RUN apt-get install -y graphviz
 RUN pip3 install --no-cache-dir objgraph
 RUN pip3 install --no-cache-dir xdot
@@ -45,8 +32,12 @@ RUN pip3 install --no-cache-dir h5py
 RUN pip3 install --no-cache-dir scipy
 RUN pip3 install --no-cache-dir pandas
 RUN pip3 install --no-cache-dir dask[complete]
-RUN pip3 install --no-cache-dir scikit-learn
 RUN pip3 install --no-cache-dir diversipy
+
+# Machine Learning
+RUN pip3 install --no-cache-dir scikit-learn
+#RUN pip3 install --no-cache-dir torch torchvision
+#RUN pip3 install --no-cache-dir fastai
 
 # Maths
 RUN pip3 install --no-cache-dir mpmath
