@@ -1,3 +1,4 @@
+################################################################################
 import itertools
 from collections.abc import Iterable, Sized
 
@@ -82,3 +83,5 @@ def muddle(sequences):
                         yield row
         else:
             break
+
+################################################################################

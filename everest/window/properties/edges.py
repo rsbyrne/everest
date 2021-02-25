@@ -1,3 +1,4 @@
+################################################################################
 from ._base import _Vanishable, _Colourable, _Fadable
 from ._element import _MplText, _MplLinear
 
@@ -152,3 +153,4 @@ class Edge(_EdgeController, _MplLinear):
 #     @property
 #     def spine(self):
 #         return self.mplax
+################################################################################

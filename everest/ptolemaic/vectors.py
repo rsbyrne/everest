@@ -1,3 +1,4 @@
+################################################################################
 from itertools import product
 from collections import OrderedDict
 
@@ -39,3 +40,5 @@ class SchemaIterator:
         return self
     def __next__(self):
         return self.schema(**next(self.space))
+
+################################################################################

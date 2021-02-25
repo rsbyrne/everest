@@ -1,3 +1,4 @@
+################################################################################
 import unittest
 
 from everest.grouper import Grouper, GrouperSetAttrForbidden
@@ -46,3 +47,5 @@ class GrouperTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+################################################################################

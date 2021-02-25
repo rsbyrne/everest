@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property
 
 from .base import Function
@@ -9,3 +10,5 @@ class Thing(Function):
     @cached_property
     def value(self):
         return self._evaluate()
+
+################################################################################

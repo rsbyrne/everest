@@ -1,3 +1,4 @@
+################################################################################
 import weakref
 import subprocess
 import os
@@ -112,3 +113,5 @@ class Task(Boolean, Cycler):
                     subprocess.call(['sh', clipsh, outFilePath])
                 except:
                     pass
+
+################################################################################

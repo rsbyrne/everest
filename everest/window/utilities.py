@@ -1,3 +1,4 @@
+################################################################################
 from collections import OrderedDict
 
 def unique_list(listlike, func = None):
@@ -5,3 +6,5 @@ def unique_list(listlike, func = None):
     return OrderedDict(
         {e: None for e in listlike if func(e)}
         ).keys()
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 from .base import Function
 from .special import null
 from .exceptions import *
@@ -48,3 +49,5 @@ class Slot(Function):
     #             return GLOBEKWARGS.setdefault(key, GLOBEKWARGS[None].pop())
     #     except IndexError:
     #         return null
+
+################################################################################

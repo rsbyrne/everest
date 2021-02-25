@@ -1,3 +1,4 @@
+################################################################################
 from ..base import Seq
 
 class HyperCube(Seq):
@@ -29,3 +30,5 @@ def latin_hypercube(n, d, lower = 0, upper = 1):
 
 # class Bifurcate(HyperCube):
 #     def __init__(self, lower, upper, n)
+
+################################################################################

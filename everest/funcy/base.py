@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property
 
 from everest.wordhash import w_hash
@@ -233,3 +234,5 @@ class Function:
     #     return self.pipe_out(arg)
     # def __lshift__(self, arg):
     #     return arg.pipe_out(self)
+
+################################################################################

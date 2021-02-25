@@ -1,3 +1,5 @@
+################################################################################
+
 from collections import OrderedDict
 import inspect
 
@@ -107,3 +109,5 @@ class Inputs(OrderedDict):
             )
     def copy(self, *args, **kwargs):
         return type(self)(self.hierarchy, *args, name = self.name, **kwargs)
+
+################################################################################

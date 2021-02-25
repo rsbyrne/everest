@@ -1,3 +1,4 @@
+################################################################################
 import random
 import string
 import warnings
@@ -125,3 +126,5 @@ def choice(population, selections = 1):
 def randstring(length = 16):
     letters = string.ascii_lowercase
     return ''.join(choice(letters, length))
+
+################################################################################

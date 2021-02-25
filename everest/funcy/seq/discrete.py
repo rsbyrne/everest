@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property
 import numbers
 
@@ -71,3 +72,5 @@ class Procedural(Discrete):
         while self.runFn:
             self.n += step
             yield self.fn.value
+
+################################################################################

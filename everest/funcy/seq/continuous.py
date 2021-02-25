@@ -1,3 +1,4 @@
+################################################################################
 from everest import reseed
 
 from ..utilities import process_scalar
@@ -25,3 +26,5 @@ class Continuum(Continuous, Seeded):
             seed += 1
     def _seqLength(self):
         return inf
+
+################################################################################

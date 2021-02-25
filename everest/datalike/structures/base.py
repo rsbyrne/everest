@@ -1,3 +1,4 @@
+################################################################################
 from everest.funcy.map import Map
 
 from ..base import Datalike
@@ -10,3 +11,5 @@ class Structure(Datalike, Map):
     @property
     def data(self):
         return tuple(self[k] for k in self.dataKeys)
+
+################################################################################

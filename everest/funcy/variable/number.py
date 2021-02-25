@@ -1,3 +1,4 @@
+################################################################################
 from .base import Variable
 from ..special import null
 from .exceptions import *
@@ -48,3 +49,5 @@ class Number(Variable):
         self.memory **= arg
         self.refresh()
         return self
+
+################################################################################

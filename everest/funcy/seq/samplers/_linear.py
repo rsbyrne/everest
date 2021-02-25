@@ -1,3 +1,4 @@
+################################################################################
 from itertools import chain
 
 from ...constructor import Fn
@@ -15,3 +16,5 @@ class Bifurcate(_Algorithmic):
         valRange = uBnd - lBnd
         for v in chain.from_iterable(super()._iter()):
             yield v * valRange + lBnd
+
+################################################################################

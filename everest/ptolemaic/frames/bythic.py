@@ -1,3 +1,4 @@
+################################################################################
 from collections.abc import Iterator
 from collections import deque
 
@@ -41,3 +42,5 @@ class Bythic(Frame):
 
     def _bythic_changed_state_hook(self):
         pass
+
+################################################################################

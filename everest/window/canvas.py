@@ -1,3 +1,4 @@
+################################################################################
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -88,3 +89,5 @@ class Canvas(_Fig):
     def _show(self):
         FigureCanvas(self.fig)
         return self.fig
+
+################################################################################

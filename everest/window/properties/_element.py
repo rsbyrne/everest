@@ -1,3 +1,4 @@
+################################################################################
 import weakref
 
 from .exceptions import MissingAsset
@@ -59,3 +60,5 @@ class _MplText(_MplLinear):
         self._set_text(self.text)
     def _set_text(self, value):
         self.mpltext.set_text(self.text)
+
+################################################################################

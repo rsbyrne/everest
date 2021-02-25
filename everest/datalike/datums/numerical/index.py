@@ -1,3 +1,4 @@
+################################################################################
 from .scalar import Scalar, Real, Integral
 
 class Index(Scalar):
@@ -10,3 +11,5 @@ class Chron(Real, Index):
 class Count(Integral, Index):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, name = 'count', **kwargs)
+
+################################################################################

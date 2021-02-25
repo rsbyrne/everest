@@ -1,3 +1,4 @@
+################################################################################
 from collections.abc import Mapping
 from collections import OrderedDict
 import warnings
@@ -93,3 +94,5 @@ class Grouper(Mapping):
     @property
     def hashID(self):
         return w_hash(sorted(self.grouperDict.items()))
+
+################################################################################

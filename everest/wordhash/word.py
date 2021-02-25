@@ -1,3 +1,4 @@
+################################################################################
 import random
 import os
 import string
@@ -186,3 +187,5 @@ def get_random_proper(n = 1):
 @reseed
 def get_random_cityword():
     return '-'.join([random.choice(s) for s in [CITIES, WORDS]])
+
+################################################################################

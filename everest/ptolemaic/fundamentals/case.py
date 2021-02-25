@@ -1,3 +1,4 @@
+################################################################################
 import weakref
 from functools import wraps, partial, cached_property
 
@@ -80,3 +81,5 @@ class Case(Ptolemaic):
 #         return func(case, *args, **kwargs)
 #     wrapper._casemethod = True
 #     return wrapper
+
+################################################################################

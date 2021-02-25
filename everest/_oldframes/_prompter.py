@@ -1,3 +1,4 @@
+################################################################################
 import weakref
 from functools import wraps
 
@@ -68,3 +69,5 @@ class Prompter(Frame):
         self.promptees = Promptees(self)
 
         super().__init__(**kwargs)
+
+################################################################################

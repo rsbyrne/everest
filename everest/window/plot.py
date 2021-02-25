@@ -1,3 +1,4 @@
+################################################################################
 from .canvas import Canvas
 
 def draw(variety, *args, size = (3, 3), **kwargs):
@@ -9,3 +10,5 @@ def scatter(*args, **kwargs):
     return draw('scatter', *args, **kwargs)
 def line(*args, **kwargs):
     return draw('line', *args, **kwargs)
+
+################################################################################

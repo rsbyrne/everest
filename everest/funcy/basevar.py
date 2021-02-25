@@ -1,3 +1,4 @@
+################################################################################
 import weakref
 
 from .base import Function
@@ -13,4 +14,6 @@ class Base(Function):
         self.downstream.add(registrant)
     def refresh(self):
         for down in self.downstream:
-            down.update()
+            down.purge()
+
+################################################################################

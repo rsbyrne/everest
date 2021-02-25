@@ -1,3 +1,4 @@
+################################################################################
 from .base import Qualified
 from ..datums.numerical.index import Index
 
@@ -37,3 +38,5 @@ class Indexed(Qualified):
 #     def _indexVars(self):
 #         yield from super()._indexVars()
 #         yield self.chronVar
+
+################################################################################

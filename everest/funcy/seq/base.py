@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property
 from collections.abc import Iterable
 from itertools import product
@@ -92,3 +93,5 @@ class Seeded(Seq):
     #     return (self[i] for i in range(start, stop, step))
     # def __iter__(self):
     #     return (self[i] for i in range(len(self)))
+
+################################################################################

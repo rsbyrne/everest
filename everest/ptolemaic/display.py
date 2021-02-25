@@ -1,3 +1,4 @@
+################################################################################
 from collections.abc import Mapping
 
 from everest.wordhash import w_hash
@@ -25,3 +26,5 @@ class Reportable:
     @property
     def id(self):
         return self.hashID
+
+################################################################################

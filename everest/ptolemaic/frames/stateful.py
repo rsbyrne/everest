@@ -1,3 +1,4 @@
+################################################################################
 from everest.datalike.structures import Assembly
 
 from ..display import Reportable
@@ -140,3 +141,5 @@ class Stateful(Indexable, Dataful):
     #         add = self.state.out()
     #     outs.update(add)
     #     return outs
+
+################################################################################

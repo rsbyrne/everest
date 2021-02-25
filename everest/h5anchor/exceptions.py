@@ -1,3 +1,4 @@
+################################################################################
 from ..exceptions import *
 
 class H5AnchorException(Exception):
@@ -5,3 +6,5 @@ class H5AnchorException(Exception):
 
 class NotYetImplemented(H5AnchorException):
     pass
+
+################################################################################

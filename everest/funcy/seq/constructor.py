@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property, lru_cache
 import numbers
 from collections.abc import Sequence, Iterable
@@ -64,6 +65,10 @@ class SeqConstructor:
                     return arg
             else:
                 return self.discrete(arg)
+        elif type(arg) is dict:
+            if l := len(arg) != 1:
+                raise ValueError(f"Dict input to Fn constructor must be len 1, not {l}")
+            return self.map(list(arg.keys())[0], list(arg.values())[0])
         elif type(arg) is slice:
             start, stop, step = arg.start, arg.stop, arg.step
             if isinstance(step, numbers.Number):
@@ -83,6 +88,9 @@ class SeqConstructor:
             raise TypeError(
                 "Could not understand 'step' input of type:", type(step)
                 )
+        elif type(arg) is tuple:
+            if any((isinstance(subarg, Sequence) for subarg in arg)):
+                return self.op.muddle()
         elif isinstance(arg, Sequence):
             return self.arbitrary(*arg, **kwargs)
         else:
@@ -99,3 +107,5 @@ class SeqConstructor:
             except AttributeError:
                 pass
         raise AttributeError
+
+################################################################################

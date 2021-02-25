@@ -1,3 +1,4 @@
+################################################################################
 from functools import wraps
 import os
 
@@ -109,3 +110,5 @@ class Anchor:
 # At bottom to avoid circular reference:
 from .writer import Writer
 from .reader import Reader
+
+################################################################################

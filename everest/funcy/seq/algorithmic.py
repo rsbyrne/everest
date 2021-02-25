@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property
 
 from .base import Seq
@@ -24,3 +25,5 @@ class Algorithmic(_Algorithmic):
     def __init__(self, algorithm):
         self._algorithm = algorithm
         super().__init__(self.algorithm)
+
+################################################################################

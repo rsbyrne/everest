@@ -1,3 +1,4 @@
+################################################################################
 from ..special import *
 
 def seqlength(obj):
@@ -9,3 +10,5 @@ def seqlength(obj):
 def infinite_check(seq):
     if not len(seq) < inf:
         raise ValueError("Infinite sequence invalid.")
+
+################################################################################

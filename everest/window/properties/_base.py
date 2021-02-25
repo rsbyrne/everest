@@ -1,3 +1,4 @@
+################################################################################
 import weakref
 from functools import reduce
 import operator
@@ -166,3 +167,4 @@ class _Fillable(_PropertyController):
         ...
 
 # class _Writable(_PropertyController)
+################################################################################

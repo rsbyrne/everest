@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property, lru_cache
 import warnings
 
@@ -6,7 +7,6 @@ from .exceptions import *
 
 from .base import Function
 from .basevar import Base
-from .variable import Variable
 
 class Derived(Function):
 
@@ -29,7 +29,7 @@ class Derived(Function):
     def refresh_bases(self):
         for term in self.baseTerms:
             term.refresh()
-    def update(self):
+    def purge(self):
         try:
             del self.value
         except AttributeError:
@@ -186,3 +186,5 @@ class Derived(Function):
             return 'open:' + str((self.argslots, self.kwargslots))
         else:
             return super()._valstr()
+
+################################################################################

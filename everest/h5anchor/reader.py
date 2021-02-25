@@ -1,3 +1,4 @@
+################################################################################
 import h5py
 import os
 import numpy as np
@@ -254,3 +255,5 @@ class Reader(H5Manager):
             return [self._getitem(sub) for sub in inp]
         else:
             return self._getitem(inp)
+
+################################################################################

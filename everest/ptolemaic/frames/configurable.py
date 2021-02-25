@@ -1,3 +1,4 @@
+################################################################################
 from collections.abc import Mapping
 from collections import OrderedDict
 
@@ -157,3 +158,5 @@ class Configurable(Stateful, Bythic):
     #             self.configs[...] = self.reader[readpath]
     #     else:
     #         super()._load(arg, **kwargs)
+
+################################################################################

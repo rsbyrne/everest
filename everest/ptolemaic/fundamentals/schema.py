@@ -1,3 +1,4 @@
+################################################################################
 import weakref
 import inspect
 
@@ -50,3 +51,5 @@ class Schema(type, metaclass = Pleroma):
     def __call__(schema, *args, **kwargs):
         case = schema.get_case(*args, **kwargs)
         return case(*args, **kwargs)
+
+################################################################################

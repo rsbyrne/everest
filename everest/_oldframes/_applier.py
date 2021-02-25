@@ -1,3 +1,4 @@
+################################################################################
 from . import Frame
 from ..weaklist import WeakList
 
@@ -15,3 +16,5 @@ class Applier(Frame):
         for fn in self._pre_apply_fns: fn()
         for fn in self._apply_fns: fn(arg)
         for fn in self._post_apply_fns: fn()
+
+################################################################################

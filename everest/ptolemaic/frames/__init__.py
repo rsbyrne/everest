@@ -1,3 +1,4 @@
+################################################################################
 from .base import Frame
 
 from .bythic import Bythic
@@ -12,3 +13,5 @@ from .stateful import Stateful
 from .traversable import Traversable
 
 from .exceptions import *
+
+################################################################################

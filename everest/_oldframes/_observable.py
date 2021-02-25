@@ -1,3 +1,4 @@
+################################################################################
 from functools import wraps
 import weakref
 
@@ -139,3 +140,5 @@ class Observable(Producer):
 
 # At bottom to avoid circular reference
 from ._observer import Observer
+
+################################################################################

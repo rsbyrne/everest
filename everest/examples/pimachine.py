@@ -1,3 +1,4 @@
+################################################################################
 import numpy as np
 
 from everest.frames._iterable import Iterable
@@ -33,3 +34,5 @@ class PiMachine(Iterable):
         self.state = loadDict['pi']
 
 CLASS = PiMachine
+
+################################################################################

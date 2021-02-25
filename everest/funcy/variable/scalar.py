@@ -1,3 +1,4 @@
+################################################################################
 from numbers import Real, Integral
 
 from .number import Number
@@ -70,3 +71,5 @@ class Scalar(Number):
         self._prev = self.memory
         self.memory = val
         self._rectified = False
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 from ..exceptions import *
 
 class FuncyException(Exception):
@@ -34,3 +35,5 @@ class ClosureExceptions(FuncyException):
     pass
 class NothingToClose(ClosureExceptions):
     pass
+
+################################################################################

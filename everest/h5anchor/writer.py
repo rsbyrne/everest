@@ -1,3 +1,4 @@
+################################################################################
 import os
 import pickle
 import ast
@@ -135,3 +136,5 @@ class Writer(H5Manager):
         priorlen = dataset.shape[0]
         dataset.resize(priorlen + len(data), axis = 0)
         dataset[priorlen:] = data
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 from .base import Seq
 
 class Arbitrary(Seq):
@@ -12,3 +13,5 @@ class SettableArbitrary(Arbitrary):
         self.update()
         self.refresh()
         self.terms[index] = value
+
+################################################################################

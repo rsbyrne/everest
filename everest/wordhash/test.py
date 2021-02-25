@@ -1,3 +1,4 @@
+################################################################################
 import unittest
 
 from everest import wordhash
@@ -11,3 +12,5 @@ class WordhashTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+################################################################################

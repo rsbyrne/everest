@@ -1,3 +1,4 @@
+################################################################################
 from collections.abc import Mapping
 from collections import OrderedDict
 from functools import cached_property, lru_cache, wraps, partial
@@ -108,19 +109,6 @@ class Ops:
     def __call__(self, key, *args, **kwargs):
         return self[key](*args, **kwargs)
 
-def getitem(x, y):
-    return x[y]
-def call(x, y):
-    return x(y)
-def amp(x, y):
-    return x and y
-def bar(x, y):
-    return x or y
-def hat(x, y):
-    return (x or y) and not (x and y)
-# def exc(x, e, y):
-#     t
-
 import math
 import builtins
 import operator
@@ -134,13 +122,6 @@ from .seq import seqoperations
 sources = OrderedDict(
     _op = operations,
     _sop = seqoperations,
-    _basic = dict(
-        getitem = getitem,
-        call = call,
-        amp = amp,
-        bar = bar,
-        hat = hat,
-        ),
     _builtins = builtins,
     _operator = operator,
     _math = math,
@@ -155,3 +136,5 @@ from .operation import Operation
 from .seq.seqoperation import SeqOperation
 ops = Ops(sources, opclass = Operation)
 seqops = Ops(sources, opclass = SeqOperation)
+
+################################################################################

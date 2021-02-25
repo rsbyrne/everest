@@ -1,3 +1,4 @@
+################################################################################
 from everest.h5anchor.anchor import NoActiveAnchorError
 from everest.h5anchor.reader import PathNotInFrameError
 
@@ -53,3 +54,5 @@ class Stampable(Indexable):
         super()._save()
         self.writer.add(self.stamps, self.stampsKey)
         self.stamps_stored.clear()
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 from everest import reseed
 
 from ..exceptions import *
@@ -17,3 +18,5 @@ class Sampler:
         self.cls, self.args, self.kwargs = cls, args, kwargs
     def __call__(self, lBnd, uBnd):
         return self.cls(lBnd, uBnd, *self.args, **self.kwargs)
+
+################################################################################

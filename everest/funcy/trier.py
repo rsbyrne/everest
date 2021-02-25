@@ -1,3 +1,4 @@
+################################################################################
 from .derived import Derived
 from .exceptions import *
 
@@ -22,3 +23,5 @@ class Trier(Derived):
             return self.tryFunc.value
         except self.exception:
             return self.altVal
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 from .array import Array
 from .exceptions import *
 
@@ -10,3 +11,5 @@ class Vector(Array):
 
 class Position(Vector):
     from ...semantics.spacelike import Spacelike as semantic
+
+################################################################################

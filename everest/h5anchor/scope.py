@@ -1,3 +1,4 @@
+################################################################################
 import numpy as np
 from functools import reduce
 from collections.abc import Set
@@ -188,3 +189,5 @@ class Scope(Set, Hashable):
         return self.intersection(self, arg)
     def __xor__(self, arg): # ^
         return self.symmetric(self, arg)
+
+################################################################################

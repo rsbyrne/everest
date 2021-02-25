@@ -1,3 +1,4 @@
+################################################################################
 from collections.abc import Iterable
 from functools import cached_property, lru_cache
 import weakref
@@ -75,3 +76,5 @@ class SeqIterable(Iterable):
         return show_iter_vals(self)
     def __repr__(self):
         return f'SeqIterable({repr(self.seq)}) == {str(self)}'
+
+################################################################################

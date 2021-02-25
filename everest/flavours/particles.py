@@ -1,3 +1,4 @@
+################################################################################
 from everest.datalike.datums.numerical.vector import Position
 
 from .base import Flavour
@@ -11,3 +12,5 @@ class Particles(Flavour, Traversable, Chronable):
             ...
         cls.StateVar = StateVar
         return
+
+################################################################################

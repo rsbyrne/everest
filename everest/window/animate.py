@@ -1,3 +1,4 @@
+################################################################################
 import os
 import subprocess
 from subprocess import PIPE
@@ -62,3 +63,5 @@ def animate(
     finally:
         shutil.rmtree(tempDir, ignore_errors = True)
     return outputFilename
+
+################################################################################

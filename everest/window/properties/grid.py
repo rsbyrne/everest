@@ -1,3 +1,4 @@
+################################################################################
 from ._base import _Fadable, _Vanishable, _Colourable
 
 class _GridController(_Fadable, _Vanishable, _Colourable):
@@ -67,3 +68,4 @@ class GridSubs(_GridController):
         ...
     def _set_visible(self, value):
         ...
+################################################################################

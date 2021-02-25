@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property
 
 from everest.funcy.variable import Array as FnArray
@@ -13,3 +14,5 @@ class Array(Numerical, FnArray):
             if issubclass(dtype, abc):
                 return correspondences[abc]
         raise TypeError(dtype)
+
+################################################################################

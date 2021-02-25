@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property
 from collections import OrderedDict
 from collections.abc import Mapping
@@ -56,3 +57,5 @@ class DataSpread(Mapping):
             if not att is None:
                 out[outKey] = att.data
         return out
+
+################################################################################

@@ -1,3 +1,5 @@
+################################################################################
+
 from sklearn.linear_model import LinearRegression
 import scipy as sp
 import numpy as np
@@ -90,3 +92,5 @@ class Simulator:
     def randsimulate(self, *args, **kwargs):
         x = self.X[np.random.randint(self.X.shape[0])]
         return self.simulate(x, *args, **kwargs)
+
+################################################################################

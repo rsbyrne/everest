@@ -1,3 +1,4 @@
+################################################################################
 from ..base import Datalike
 
 class Qualified(Datalike):
@@ -16,3 +17,5 @@ class Qualified(Datalike):
     def qualKeys(self):
         for v in self.qualVars:
             yield v.name
+
+################################################################################

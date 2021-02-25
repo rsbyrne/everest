@@ -1,3 +1,4 @@
+################################################################################
 import numpy as np
 
 class AnchorArray(np.ndarray):
@@ -15,3 +16,5 @@ class AnchorArray(np.ndarray):
         # see InfoArray.__array_finalize__ for comments
         if obj is None: return
         self.metadata = getattr(obj, 'metadata', None)
+
+################################################################################

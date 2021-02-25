@@ -1,3 +1,4 @@
+################################################################################
 from functools import lru_cache
 
 from everest.wordhash import w_hash
@@ -36,3 +37,5 @@ class Ptolemaic:
         except AttributeError:
             self._hashID = w_hash(repr(self))
             return self._hashID
+
+################################################################################

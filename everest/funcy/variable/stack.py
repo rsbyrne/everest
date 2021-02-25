@@ -1,3 +1,4 @@
+################################################################################
 from collections.abc import MutableSequence
 from functools import cached_property
 from collections import deque
@@ -133,3 +134,5 @@ class Stack(Variable, MutableSequence):
 
     def _pipe_update(self):
         self.append(self.pipe.value)
+
+################################################################################

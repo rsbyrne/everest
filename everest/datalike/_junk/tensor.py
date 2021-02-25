@@ -1,3 +1,4 @@
+################################################################################
 from .exceptions import *
 from ..nested import Nested
 from .spatial import Spatial, Linear, Planar, Volar
@@ -54,3 +55,5 @@ class PlanarSpace(Space, PlanitoFilled):
     ...
 class VolarSpace(Space, VolitoFilled):
     ...
+
+################################################################################

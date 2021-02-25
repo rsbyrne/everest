@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property
 
 import numpy as np
@@ -53,3 +54,5 @@ class Array(Number):
         self.refresh()
     def __getitem__(self, index):
         return self.memory[index]
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 from collections.abc import Set
 
 from ..slot import Slot
@@ -40,3 +41,5 @@ class Sett(Slot, Set):
         raise ValueError("Meaningless to evaluate an abstract set.")
     def __call__(self, arg):
         return self.dtype(arg)
+
+################################################################################

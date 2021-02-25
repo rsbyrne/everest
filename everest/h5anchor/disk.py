@@ -1,3 +1,4 @@
+################################################################################
 import os
 import sys
 import shutil
@@ -270,3 +271,5 @@ def local_import_from_str(scriptString):
             as tempfile:
         imported = local_import(tempfile)
     return imported
+
+################################################################################

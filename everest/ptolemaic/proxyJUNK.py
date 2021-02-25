@@ -1,3 +1,4 @@
+################################################################################
 from everest.h5anchor import disk
 
 from .schema import Schema
@@ -123,3 +124,5 @@ class FrameProxy(Proxy):
     def __repr__(self):
         argstr = ', '.join([self.typeHash, self.inputsHash])
         return type(self).__name__ + '(' + argstr + ')'
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 from .exceptions import *
 
 
@@ -63,3 +64,5 @@ class Spaceseries(Embedded, Series):
 
 class Timeseries(Embedded, Series):
     metric = Temporal
+
+################################################################################

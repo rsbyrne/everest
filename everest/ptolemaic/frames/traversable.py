@@ -1,3 +1,4 @@
+################################################################################
 from .iterable import Iterable
 from .configurable import Configurable
 
@@ -41,3 +42,5 @@ class Traversable(Iterable, Configurable):
     #     self.configs[...] = configs
     #     if args:
     #         super().run(*args, **kwargs)
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 import weakref
 
 from ._base import _Vanishable, _Colourable, _Fadable, _Fillable, _Kwargs
@@ -109,3 +110,5 @@ class LegendFrame(_LegendElementController, _MplGeometry):
         self.mplelement.set_snap(True)
     def _set_colour(self, value):
         self.mplelement.set_edgecolor(value)
+
+################################################################################

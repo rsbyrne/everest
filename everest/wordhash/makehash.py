@@ -1,3 +1,4 @@
+################################################################################
 import hashlib
 import time
 from collections import OrderedDict
@@ -60,3 +61,5 @@ def w_hash(obj):
             wordlength = 2,
             phraselength = 2,
             )
+
+################################################################################

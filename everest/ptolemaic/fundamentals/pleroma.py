@@ -1,3 +1,4 @@
+################################################################################
 import weakref
 
 class Pleroma(type):
@@ -6,3 +7,5 @@ class Pleroma(type):
         return cls._preclasses[arg]
     def __setitem__(cls, key, val):
         cls._preclasses[key] = val
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 from ..basevar import Base
 from ..base import Function
 from ..special import null
@@ -75,3 +76,5 @@ class Variable(Base):
 
     def _pipe_update(self):
         self.value = self.pipe.value
+
+################################################################################

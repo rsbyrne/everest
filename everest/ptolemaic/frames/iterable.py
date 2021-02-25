@@ -1,3 +1,4 @@
+################################################################################
 from functools import wraps, cached_property
 import numbers
 import warnings
@@ -189,3 +190,5 @@ class Iterable(Geometric):
                     raise LoadFail
                 return self.load_index(self.terminus)
         return super()._load_out(arg)
+
+################################################################################

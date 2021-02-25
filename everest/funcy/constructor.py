@@ -1,3 +1,4 @@
+################################################################################
 from collections import OrderedDict
 from functools import cached_property, lru_cache
 
@@ -28,6 +29,10 @@ class _Fn:
     def slot(self):
         from .slot import Slot
         return Slot
+    @cached_property
+    def group(self):
+        from .group import Group
+        return Group
     @cached_property
     def exc(self):
         from ._trier import Trier
@@ -68,8 +73,7 @@ class _Fn:
         if len(args) == 0:
             return self.slot(**kwargs)
         elif len(args) > 1:
-            # return self.group(*args, **kwargs)
-            raise ValueError
+            return self.group(*args, **kwargs)
         else:
             arg = args[0]
             if len(kwargs) == 0 and isinstance(arg, self.base):
@@ -77,6 +81,8 @@ class _Fn:
                     return self.unseq(arg)
                 else:
                     return arg
+            elif type(arg) is dict:
+                return self.map(arg.keys(), arg.values())
             else:
                 try:
                     return self.var.construct_variable(*args, **kwargs)
@@ -94,3 +100,5 @@ class _Fn:
                 pass
         raise AttributeError
 Fn = _Fn()
+
+################################################################################

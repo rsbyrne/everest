@@ -1,3 +1,4 @@
+################################################################################
 from functools import wraps
 from contextlib import contextmanager
 import weakref
@@ -218,3 +219,5 @@ class Observer(Promptable):
     #         super()._prompt(prompter)
     #     else:
     #         raise AlreadyAttachedError
+
+################################################################################

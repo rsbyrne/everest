@@ -1,3 +1,4 @@
+################################################################################
 import numpy as np
 import os
 from PIL import Image
@@ -191,3 +192,5 @@ def animate(
     finally:
         shutil.rmtree(tempDir, ignore_errors = True)
     return outputFilename
+
+################################################################################

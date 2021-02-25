@@ -1,3 +1,4 @@
+################################################################################
 import math
 import numbers
 import numpy as np
@@ -451,3 +452,5 @@ class DataChannel:
     class Various(_Data):
         def __init__(self, data, **kwargs):
             super().__init__(data, **kwargs)
+
+################################################################################

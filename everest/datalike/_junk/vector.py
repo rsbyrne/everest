@@ -1,3 +1,4 @@
+################################################################################
 from .spatial import Spatial, Linear, Planar, Volar
 
 class Vector(Spatial):
@@ -11,3 +12,5 @@ class Planito(Vector, Planar):
 
 class Volito(Vector, Volar):
     ...
+
+################################################################################

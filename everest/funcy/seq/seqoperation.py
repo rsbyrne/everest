@@ -1,3 +1,4 @@
+################################################################################
 from itertools import starmap
 from functools import cached_property
 
@@ -43,3 +44,5 @@ class SeqOperation(Seq, Operation):
 
     def _titlestr(self):
         return f'[{super()._titlestr()}]'
+
+################################################################################

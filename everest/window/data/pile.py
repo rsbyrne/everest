@@ -1,3 +1,4 @@
+################################################################################
 from functools import cached_property
 from collections import OrderedDict
 from collections.abc import MutableSequence
@@ -57,3 +58,5 @@ class DataPile(MutableSequence):
     def insert(self, index, object):
         self._delself()
         self.datas.insert(index, DataSpread.convert(object))
+
+################################################################################

@@ -1,3 +1,4 @@
+################################################################################
 # from collections import OrderedDict
 import warnings
 
@@ -150,3 +151,5 @@ class Frame(metaclass = Schema):
     #     for k, (bases, attrs) in cls._caseClasses().items():
     #         helper = type(k, tuple(bases), attrs)
     #         setattr(cls.Case, k, helper)
+
+################################################################################

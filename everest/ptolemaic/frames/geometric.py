@@ -1,3 +1,4 @@
+################################################################################
 from collections.abc import Sequence, Collection, Iterable
 from collections.abc import Iterator as abcIterator
 from collections import OrderedDict, deque
@@ -313,3 +314,5 @@ class Geometric(Indexable, Stateful, Bythic):
             out += f'{nl}{indent}{header}{nl}{indent * 2}'
             out += f'{nl}{indent * 2}'.join(content)
         message(out)
+
+################################################################################

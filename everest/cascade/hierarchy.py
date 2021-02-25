@@ -1,3 +1,5 @@
+################################################################################
+
 import inspect
 from collections import OrderedDict
 from collections.abc import MutableMapping
@@ -108,3 +110,5 @@ def concatenate_hierarchy(d, parent_key = '', sep = '_'):
         else:
             items.append((new_key, v))
     return OrderedDict(items)
+
+################################################################################

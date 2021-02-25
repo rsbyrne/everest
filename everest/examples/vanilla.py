@@ -1,3 +1,4 @@
+################################################################################
 from everest.ptolemaic import Frame
 
 class Vanilla(Frame):
@@ -17,3 +18,5 @@ class Vanilla(Frame):
         super().__init__()
     def mymethod(self):
         print("Hello world!")
+
+################################################################################

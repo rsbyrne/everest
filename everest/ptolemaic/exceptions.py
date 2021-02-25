@@ -1,3 +1,4 @@
+################################################################################
 from ..exceptions import *
 
 class PtolemaicException(Exception):
@@ -10,3 +11,5 @@ class MissingAsset(PtolemaicException):
     pass
 
 from everest.funcy.exceptions import NullValueDetected
+
+################################################################################
