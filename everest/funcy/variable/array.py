@@ -1,11 +1,14 @@
 ################################################################################
+
+from .exceptions import *
+
 from functools import cached_property
 
 import numpy as np
 
 from .number import Number
 from ..special import null
-from .exceptions import *
+from ..ops import ops
 
 class Array(Number):
 
@@ -53,6 +56,6 @@ class Array(Number):
             self.memory[index] = val
         self.refresh()
     def __getitem__(self, index):
-        return self.memory[index]
+        return ops.getitem(self, index)
 
 ################################################################################

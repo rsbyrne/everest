@@ -1,6 +1,11 @@
 ################################################################################
+
 from collections import OrderedDict
+from collections.abc import Sequence
+from numbers import Number
 from functools import cached_property, lru_cache
+
+import numpy as np
 
 from .exceptions import *
 
@@ -69,25 +74,40 @@ class _Fn:
     def n(self):
         from .seq.nvar import N
         return N()
+    @cached_property
+    def slyce(self):
+        from .slyce import Slyce
+        return Slyce
     def __call__(self, *args, **kwargs):
         if len(args) == 0:
             return self.slot(**kwargs)
         elif len(args) > 1:
             return self.group(*args, **kwargs)
-        else:
+        else: # hence len(args) == 1
             arg = args[0]
             if len(kwargs) == 0 and isinstance(arg, self.base):
                 if isinstance(arg, self.seq.base):
                     return self.unseq(arg)
                 else:
                     return arg
+            elif type(arg) is tuple:
+                return self.group(*arg)
             elif type(arg) is dict:
                 return self.map(arg.keys(), arg.values())
+            elif type(arg) is set:
+                raise NotYetImplemented
+            elif type(arg) is slice:
+                return self.slyce(arg.start, arg.stop, arg.step)
+            elif any(isinstance(arg, typ) for typ in {
+                    Number,
+                    np.ndarray,
+                    np.generic,
+                    str,
+                    Sequence,
+                    }):
+                return self.var.construct_variable(*args, **kwargs)
             else:
-                try:
-                    return self.var.construct_variable(*args, **kwargs)
-                except ValueError:
-                    return self.thing(*args, **kwargs)
+                return self.thing(arg, **kwargs)
     def __getitem__(self, arg, **kwargs):
         return self.seq(arg, **kwargs)
     @lru_cache

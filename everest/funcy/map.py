@@ -1,4 +1,5 @@
 ################################################################################
+
 from .exceptions import *
 
 from collections.abc import Mapping, Collection
@@ -25,27 +26,21 @@ def unpack_gruples(ks, vs):
             yield k, v
 
 class Map(Derived, Mapping):
+
     def __init__(self, keys, values, /, **kwargs):
-        keys, values = (self._proc_inp(o) for o in (keys, values))
         super().__init__(keys, values, **kwargs)
         self._keys, self._values = self.terms
-    @staticmethod
-    def _proc_inp(inp):
-        if not isinstance(inp, Function):
-            if isinstance(inp, Collection):
-                inp = Group(*inp)
-            else:
-                inp = Group(inp)
-        return inp
+
     def evaluate(self):
         return dict(unpack_gruples(*self._resolve_terms()))
+
     def __getitem__(self, key):
         return ops.getitem(self, key)
-#         return self.value[self._value_resolve(key)]
     def _keyind(self, k):
         return tuple(self).index(k)
     def __iter__(self):
         return self._keys.__iter__()
     def __len__(self):
         return self._keys.__len__()
+
 ################################################################################

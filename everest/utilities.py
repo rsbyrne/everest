@@ -12,7 +12,7 @@ def add_headers(path, header = '#' * 80, footer = '#' * 80):
                 content = file.read()
                 file.seek(0, 0)
                 if not content.strip('\n').startswith(header):
-                    content = f"{header}\n{content}"
+                    content = f"{header}\n\n{content}"
                 if not content.strip('\n').endswith(footer):
-                    content = f"{content}\n{footer}\n"
+                    content = f"{content}\n\n{footer}\n"
                 file.write(content)

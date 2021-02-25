@@ -1,18 +1,19 @@
 ################################################################################
+
+from .exceptions import *
+
 from functools import cached_property
 from collections.abc import Iterable
 from itertools import product
 
 from everest import reseed
 
-from .. import Fn
 from ..base import Function
 from ..derived import Derived
 from ..special import *
 from .seqiterable import SeqIterable
 from .sequtils import seqlength
 from . import seqoperations as seqops
-from .exceptions import *
 
 class Seq(Derived, Iterable):
 
@@ -48,17 +49,29 @@ class Seq(Derived, Iterable):
 
     def op(self, *args, op, rev = False, **kwargs):
         if rev:
-            return Fn.seq.op(op, *(*args, self), **kwargs)
+            return self.Fn.seq.op(
+                op, *(*args, self),
+                **kwargs
+                )
         else:
-            return Fn.seq.op(op, self, *args, **kwargs)
+            return self.Fn.seq.op(
+                op, self, *args,
+                **kwargs
+                )
     def arithmop(self, *args, op, rev = False, **kwargs):
         if rev:
-            return Fn.seq.op(op, *(*args, self), style = 'muddle', **kwargs)
+            return self.Fn.seq.op(
+                op, *(*args, self),
+                style = 'muddle', **kwargs
+                )
         else:
-            return Fn.seq.op(op, self, *args, style = 'muddle', **kwargs)
+            return self.Fn.seq.op(
+                op, self, *args,
+                style = 'muddle', **kwargs
+                )
 
     def __getitem__(self, key):
-        return self.value[key]
+        return self.Fn.seq.op.getitem(self, key)
 
     @cached_property
     def chained(self):

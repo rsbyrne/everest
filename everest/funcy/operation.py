@@ -1,8 +1,8 @@
 ################################################################################
+
 from functools import partial
 
 from .derived import Derived
-from .group import Group
 from .utilities import kwargstr
 
 class Operation(Derived):
@@ -13,17 +13,10 @@ class Operation(Derived):
             op = None,
             **kwargs,
             ):
-        terms = (self._process_term(t) for t in terms)
         self.opfn = partial(op, **kwargs)
         self.opfn.__name__ = op.__name__
         self.opkwargs = kwargs
         super().__init__(*terms, op = op, **kwargs)
-    @staticmethod
-    def _process_term(term):
-        if type(term) is tuple:
-            return Group(*term)
-        else:
-            return term
 
     def evaluate(self):
         return self.opfn(*self._resolve_terms())

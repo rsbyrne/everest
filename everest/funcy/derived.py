@@ -1,4 +1,5 @@
 ################################################################################
+
 from functools import cached_property, lru_cache
 import warnings
 
@@ -7,6 +8,8 @@ from .exceptions import *
 
 from .base import Function
 from .basevar import Base
+from .generic import PRIMITIVETYPES
+from .thing import Thing
 
 class Derived(Function):
 
@@ -17,14 +20,18 @@ class Derived(Function):
         )
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            *(self._derived_process_arg(a) for a in args),
+            **kwargs
+            )
         for term in self.baseTerms:
             term.register_downstream(self)
-        # if not len(self.fnTerms):
-        #     warnings.warn(
-        #         "No fnTerms detected in this 'derived' function \
-        #         - did you expect this?"
-        #         )
+    @staticmethod
+    def _derived_process_arg(arg):
+        if any(isinstance(arg, typ) for typ in PRIMITIVETYPES):
+            return arg
+        else:
+            return Fn(arg)
 
     def refresh_bases(self):
         for term in self.baseTerms:
