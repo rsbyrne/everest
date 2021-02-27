@@ -1,11 +1,12 @@
 ################################################################################
 
 import itertools
-from collections.abc import Iterable, Sized
+# from collections.abc import Iterable
 
 from everest.reseed import Reseed
 
 from ..special import *
+from .seqiterable import SeqIterable
 
 def shuffled(sequence, seed = None):
     sequence = [*sequence]
@@ -13,18 +14,18 @@ def shuffled(sequence, seed = None):
     return sequence
 
 def chainiter(superseq):
-    seqs = (s if isinstance(s, Iterable) else (s,) for s in superseq)
+    seqs = (s if isinstance(s, SeqIterable) else (s,) for s in superseq)
     return itertools.chain.from_iterable(seqs)
 
 def productiter(superseq):
-    seqs = [s if isinstance(s, Iterable) else (s,) for s in superseq]
+    seqs = [s if isinstance(s, SeqIterable) else (s,) for s in superseq]
     return itertools.product(*seqs)
 
 def zipiter(superseq):
     seqs = []
     nIters = 0
     for s in superseq:
-        if isinstance(s, Iterable):
+        if isinstance(s, SeqIterable):
             seqs.append(iter(s))
             nIters += 1
         else:
@@ -54,7 +55,7 @@ def zipiter(superseq):
 
 def muddle(sequences):
     seqs = [
-        iter(s) if isinstance(s, Iterable) else iter((s,))
+        iter(s) if isinstance(s, SeqIterable) else iter((s,))
             for s in sequences
         ]
     prevs = [[next(s)] for s in seqs]

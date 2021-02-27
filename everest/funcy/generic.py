@@ -11,6 +11,7 @@ PRIMITIVETYPES = set((
     np.ndarray,
     ArrayType,
     type(None),
+    tuple,
     ))
 
 ################################################################################

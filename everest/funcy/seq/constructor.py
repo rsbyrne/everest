@@ -1,5 +1,7 @@
 ################################################################################
 
+from .exceptions import *
+
 from functools import cached_property, lru_cache
 import numbers
 from collections.abc import Sequence, Iterable
@@ -95,9 +97,6 @@ class SeqConstructor:
             raise TypeError(
                 "Could not understand 'step' input of type:", type(step)
                 )
-#         elif type(arg) is tuple:
-#             if any((isinstance(subarg, Sequence) for subarg in arg)):
-#                 return self.op.muddle()
         elif isinstance(arg, Sequence):
             if type(arg) is tuple:
                 if any(isinstance(a, self.base) for a in arg):
