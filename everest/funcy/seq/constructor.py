@@ -55,6 +55,10 @@ class SeqConstructor:
     def sampler(self):
         from .samplers import Sampler
         return Sampler
+    @cached_property
+    def group(self):
+        from .seqgroup import SeqGroup
+        return SeqGroup
     def __call__(self, arg, **kwargs):
         if isinstance(arg, self.derived):
             if kwargs:
@@ -63,15 +67,15 @@ class SeqConstructor:
                 if hasattr(arg, '_abstract'):
                     return self.algorithmic(arg)
                 else:
-                    return arg
+                    raise NotYetImplemented
             else:
                 return self.discrete(arg)
         elif type(arg) is dict:
-            if l := len(arg) != 1:
-                raise ValueError(
-                    f"Dict input to Fn constructor must be len 1, not {l}"
-                    )
-            return self.map(list(arg.keys())[0], list(arg.values())[0])
+            return self.map(
+                self.group(*arg.keys()),
+                self.group(*arg.values()),
+                **kwargs
+                )
         elif type(arg) is slice:
             start, stop, step = arg.start, arg.stop, arg.step
             if isinstance(step, numbers.Number):
@@ -95,6 +99,9 @@ class SeqConstructor:
 #             if any((isinstance(subarg, Sequence) for subarg in arg)):
 #                 return self.op.muddle()
         elif isinstance(arg, Sequence):
+            if type(arg) is tuple:
+                if any(isinstance(a, self.base) for a in arg):
+                    return self.group(*arg, **kwargs)
             return self.arbitrary(*arg, **kwargs)
         else:
             raise TypeError(

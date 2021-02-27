@@ -1,4 +1,5 @@
 ################################################################################
+
 from collections.abc import Iterable
 from functools import cached_property, lru_cache
 import weakref
@@ -41,6 +42,8 @@ class SeqIterable(Iterable):
 
     def __iter__(self):
         return self.seq._iter()
+    def __len__(self):
+        return len(self.seq)
 
     def __getitem__(self, arg):
         if isinstance(arg, slice):

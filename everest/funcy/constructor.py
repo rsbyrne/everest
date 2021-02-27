@@ -42,14 +42,14 @@ class _Fn:
     def exc(self):
         from ._trier import Trier
         return Trier
-    # @cached_property
-    # def group(self):
-    #     from ._group import Group
-    #     return Group
     @cached_property
     def seq(self):
         from .seq.constructor import SeqConstructor
         return SeqConstructor()
+    @cached_property
+    def unseq(self):
+        from .unseq import UnSeq
+        return UnSeq
     @cached_property
     def thing(self):
         from .thing import Thing
@@ -86,10 +86,7 @@ class _Fn:
         else: # hence len(args) == 1
             arg = args[0]
             if len(kwargs) == 0 and isinstance(arg, self.base):
-                if isinstance(arg, self.seq.base):
-                    return self.unseq(arg)
-                else:
-                    return arg
+                return arg
             elif type(arg) is tuple:
                 return self.group(*arg)
             elif type(arg) is dict:

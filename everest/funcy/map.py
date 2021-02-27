@@ -8,7 +8,6 @@ import itertools
 from .derived import Derived
 from .base import Function
 from .group import Group, Gruple
-from .ops import ops
 
 def unpack_gruples(ks, vs):
     for k, v in zip(ks, vs):
@@ -28,14 +27,12 @@ def unpack_gruples(ks, vs):
 class Map(Derived, Mapping):
 
     def __init__(self, keys, values, /, **kwargs):
-        super().__init__(keys, values, **kwargs)
+        super().__init__(tuple(keys), tuple(values), **kwargs)
         self._keys, self._values = self.terms
 
     def evaluate(self):
         return dict(unpack_gruples(*self._resolve_terms()))
 
-    def __getitem__(self, key):
-        return ops.getitem(self, key)
     def _keyind(self, k):
         return tuple(self).index(k)
     def __iter__(self):

@@ -1,4 +1,5 @@
 ################################################################################
+
 from itertools import chain
 
 from ...constructor import Fn

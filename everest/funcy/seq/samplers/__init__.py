@@ -1,7 +1,8 @@
 ################################################################################
-from everest import reseed
 
 from ..exceptions import *
+
+from everest import reseed
 
 from ._hypercube import Latin
 from ._linear import Bifurcate

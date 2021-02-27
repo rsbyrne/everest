@@ -13,7 +13,6 @@ from ..derived import Derived
 from ..special import *
 from .seqiterable import SeqIterable
 from .sequtils import seqlength
-from . import seqoperations as seqops
 
 class Seq(Derived, Iterable):
 
@@ -28,16 +27,16 @@ class Seq(Derived, Iterable):
 
     def evaluate(self):
         return self.seqIterable
-    def update(self):
-        super().update()
+    def purge(self):
+        super().purge()
         self.seqIterable._get_index.cache_clear()
         self.seqIterable._get_slice.cache_clear()
 
     def _iter(self):
         return iter(self._value_resolve(self.prime))
 
-    def __iter__(self):
-        return iter(self.value)
+#     def __iter__(self):
+#         return iter(self.value)
 
     @cached_property
     def seqTerms(self):
@@ -47,7 +46,9 @@ class Seq(Derived, Iterable):
     def __len__(self):
         return self._seqLength()
 
-    def op(self, *args, op, rev = False, **kwargs):
+    def op(self, *args, **kwargs):
+        return self.seqop(*args, **kwargs)
+    def seqop(self, *args, op, rev = False, **kwargs):
         if rev:
             return self.Fn.seq.op(
                 op, *(*args, self),
@@ -58,33 +59,21 @@ class Seq(Derived, Iterable):
                 op, self, *args,
                 **kwargs
                 )
-    def arithmop(self, *args, op, rev = False, **kwargs):
-        if rev:
-            return self.Fn.seq.op(
-                op, *(*args, self),
-                style = 'muddle', **kwargs
-                )
-        else:
-            return self.Fn.seq.op(
-                op, self, *args,
-                style = 'muddle', **kwargs
-                )
-
-    def __getitem__(self, key):
-        return self.Fn.seq.op.getitem(self, key)
+    def arithmop(self, *args, **kwargs):
+        return self.seqop(*args, **kwargs)
 
     @cached_property
     def chained(self):
-        return self.Fn.seq.op.chainiter(self)
+        return self.seqop.chainiter(self)
     @cached_property
     def permuted(self):
-        return self.Fn.seq.op.productiter(self)
+        return self.seqop.productiter(self)
     @cached_property
     def zipped(self):
-        return self.Fn.seq.op.zipiter(self)
+        return self.seqop.zipiter(self)
     @cached_property
     def muddled(self):
-        return self.Fn.seq.op.muddle(self)
+        return self.seqop.muddle(self)
 
 class Seeded(Seq):
     @cached_property

@@ -27,7 +27,7 @@ class Operation(Derived):
         kwargs = self.kwargs.copy()
         del kwargs['op']
         if kwargs:
-            return utilities.kwargstr(**kwargs)
+            return kwargstr(**kwargs)
         else:
             return ''
 

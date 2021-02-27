@@ -8,7 +8,6 @@ import numpy as np
 
 from .number import Number
 from ..special import null
-from ..ops import ops
 
 class Array(Number):
 
@@ -55,7 +54,7 @@ class Array(Number):
             self.memory = self._memory
             self.memory[index] = val
         self.refresh()
-    def __getitem__(self, index):
-        return ops.getitem(self, index)
+    def __len__(self):
+        return self.shape[0]
 
 ################################################################################

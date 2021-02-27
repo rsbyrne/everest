@@ -1,33 +1,18 @@
 ################################################################################
 
-from .base import Seq
-from .arbitrary import Arbitrary
-from .seqoperations import muddle
-from ..special import unkint
+from .seqoperation import SeqOperation
+from .seqgroup import SeqGroup
 from ..map import unpack_gruples
 
-class SeqMap(Seq):
+def mapple_op(ks, vs):
+    return dict(unpack_gruples(ks, vs))
 
-    def __init__(self,
-            keys,
-            values,
-            **kwargs
-            ):
-        keys, values = (self._seqmap_proc_term(term) for term in (keys, values))
-        super().__init__(keys, values, **kwargs)
-    @staticmethod
-    def _seqmap_proc_term(term):
-        if type(term) is tuple:
-            term = [term,]
-        if not isinstance(term, Seq):
-            term = Arbitrary(*term)
-        return term
+class SeqMap(SeqOperation):
 
-    def _iter(self):
-        ks, vs = self._resolve_terms()
-        for k, v in muddle([ks, vs]):
-            yield dict(unpack_tuple(k, v))
-    def _seqLength(self):
-        return unkint
+    def __init__(self, keys, values, **kwargs):
+        super().__init__(keys, values, op = mapple_op, **kwargs)
+
+    def _titlestr(self):
+        return '[Map]'
 
 ################################################################################
