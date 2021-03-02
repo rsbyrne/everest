@@ -289,11 +289,16 @@ class UnknownInteger(Unknown, int):
 null = Null()
 nullflt = NullFloat()
 nullint = NullInteger()
-inf = InfiniteInteger(True)
-ninf = InfiniteInteger(False)
+infint = InfiniteInteger(True)
+ninfint = InfiniteInteger(False)
+infflt = InfiniteFloat(True)
+ninflt = InfiniteFloat(False)
 unk = Unknown()
 unkflt = UnknownFloat()
 unkint = UnknownInteger()
+
+inf = infint
+ninf = ninfint
 
 # object.__add__(self, other)
 # object.__sub__(self, other)

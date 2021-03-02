@@ -1,6 +1,6 @@
 ################################################################################
 
-from collections import OrderedDict
+from collections import OrderedDict, Mapping
 import inspect
 
 from everest import wordhash
@@ -16,10 +16,10 @@ def align_inputs(defaults, *args, **kwargs):
         inputs[key] = arg
     return inputs
 
-class Inputs(OrderedDict):
+class Cascade(Hierarchy):
     _hashDepth = 2
     def __init__(self,
-            source,
+            source = None,
             *args,
             name = None,
             parent = None,
@@ -28,7 +28,12 @@ class Inputs(OrderedDict):
             **kwargs
             ):
         super().__init__()
-        if isinstance(source, Hierarchy):
+        if source is None:
+            hierarchy = Hierarchy(**kwargs)
+            kwargs.clear()
+        elif isinstance(source, Mapping):
+            hierarchy = Hierarchy(source)
+        elif isinstance(source, Hierarchy):
             hierarchy = source
         elif isinstance(source, type(self)):
             hierarchy = source.hierarchy
@@ -109,5 +114,7 @@ class Inputs(OrderedDict):
             )
     def copy(self, *args, **kwargs):
         return type(self)(self.hierarchy, *args, name = self.name, **kwargs)
+
+Inputs = Cascade
 
 ################################################################################

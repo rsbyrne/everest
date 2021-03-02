@@ -12,6 +12,7 @@ ENV PYTHONPATH "$EVERESTDIR:${PYTHONPATH}"
 
 # Production
 RUN pip3 install -U --no-cache-dir pytest
+RUN pip3 install --no-cache-dir mypy
 
 # MPI
 RUN apt-get install -y libopenmpi-dev
