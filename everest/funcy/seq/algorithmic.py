@@ -1,15 +1,15 @@
 ################################################################################
+
 from functools import cached_property
 
-from .base import Seq
-from ..variable import Scalar
-from ..special import *
+from .seq import Seq as _Seq
+from . import _Scalar
 
-class _Algorithmic(Seq):
+class _Algorithmic(_Seq):
     _algorithm = None
     @cached_property
     def n(self):
-        return Scalar(0, name = 'n')
+        return _Scalar(0, name = 'n')
     @cached_property
     def algorithm(self):
         return self._algorithm.close(_seq_n = self.n)

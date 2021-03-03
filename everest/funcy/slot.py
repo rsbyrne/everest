@@ -1,9 +1,9 @@
 ################################################################################
-from .base import Function
-from .special import null
+from .function import Function as _Function
+from . import special as _special
 from .exceptions import *
 
-class Slot(Function):
+class Slot(_Function):
 
     open = True
 
@@ -29,7 +29,7 @@ class Slot(Function):
         try:
             return self.tempVal
         except AttributeError:
-            return null
+            return _special.null
     @property
     def value(self):
         return self.evaluate()

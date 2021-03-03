@@ -1,10 +1,9 @@
 ################################################################################
-from ..basevar import Base
-from ..base import Function
-from ..special import null
+
+from . import _Base, _Function, _special
 from .exceptions import *
 
-class Variable(Base):
+class Variable(_Base):
 
     open = False
 
@@ -15,12 +14,11 @@ class Variable(Base):
         )
 
     def __init__(self,
-            *args,
-            _initVal = null,
+            _initVal = _special.null,
             **kwargs,
             ):
         self.memory = _initVal
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         try:
             self.rectify = lambda: None
         except:

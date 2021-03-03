@@ -2,15 +2,13 @@
 from functools import cached_property
 import numbers
 
-from everest import reseed
-
+from . import _reseed
 from ..variable import Scalar
 from ..special import *
-from .base import Seq, Seeded
-from .base import Seq
+from .seq import Seeded as _Seeded, Seq as _Seq
 from .exceptions import *
 
-class Discrete(Seq):
+class Discrete(_Seq):
     discrete = True
     def _iter(self):
         return (self._value_resolve(v) for v in self.prime)
@@ -31,7 +29,7 @@ class Regular(Discrete):
         start, stop, step = self._resolve_terms()
         return int((stop - start) / step) + 1
 
-class Shuffle(Seeded, Discrete):
+class Shuffle(_Seeded, Discrete):
     def __init__(self, start = 0, stop = 1, seed = None, **kwargs):
         start = 0 if start is None else start
         stop = 1 if stop is None else stop
@@ -43,7 +41,7 @@ class Shuffle(Seeded, Discrete):
         items = self._get_iterItems()
         while len(items):
             yield items.pop(
-                reseed.randint(0, len(items) - 1, seed = seed)
+                _reseed.randint(0, len(items) - 1, seed = seed)
                 )
             seed += 1
     def _get_iterItems(self):

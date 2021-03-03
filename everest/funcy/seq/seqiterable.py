@@ -5,7 +5,6 @@ from functools import cached_property, lru_cache
 import weakref
 import itertools
 
-from ..special import *
 from .exceptions import *
 
 def show_iter_vals(iterable):

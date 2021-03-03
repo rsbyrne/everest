@@ -1,4 +1,5 @@
 ################################################################################
+
 from collections.abc import Sequence, Mapping, Collection
 
 def construct_variable(*args, stack = False, **kwargs):
@@ -8,12 +9,13 @@ def construct_variable(*args, stack = False, **kwargs):
     if stack:
         return Stack(*args, **kwargs)
     totry = Scalar, Array
+    errors = []
     for kind in totry:
         try:
             return kind(*args, **kwargs)
-        except TypeError:
-            pass
-    raise TypeError
+        except TypeError as e:
+            errors.append(e)
+    raise TypeError(errors)
 
 def ordered_unpack(keys, arg1, arg2):
     keys = tuple(keys)

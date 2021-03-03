@@ -1,11 +1,13 @@
 ################################################################################
+
 from numbers import Real, Integral
 
-from .number import Number
-from ..special import null
+from .number import Number as _Number
+from . import _special
+
 from .exceptions import *
 
-class Scalar(Number):
+class Scalar(_Number):
 
     __slots__ = (
         'memory',
@@ -17,7 +19,6 @@ class Scalar(Number):
     def __init__(self,
             arg = None,
             /,
-            *args,
             dtype = None,
             **kwargs,
             ):
@@ -30,20 +31,18 @@ class Scalar(Number):
                 dtype = arg
             else:
                 raise TypeError(arg)
-            initVal = null
+            initVal = _special.null
         elif isinstance(arg, Real):
             dtype = type(arg) if dtype is None else dtype
             initVal = arg
         elif arg is None:
             if dtype is None:
                 raise ValueError("Insufficient inputs.")
-            initVal = null
+            initVal = _special.null
         else:
             raise TypeError(type(arg))
         super().__init__(
-            tuple(),
-            dtype,
-            *args,
+            dtype = dtype,
             _initVal = initVal,
             **kwargs
             )
@@ -57,7 +56,7 @@ class Scalar(Number):
                     if self.memory is Ellipsis:
                         self.memory = self._prev
                         self._rectified = True
-                    if self.memory is null:
+                    if self.memory is _special.null:
                         raise NullValueDetected
                     elif hasattr(self.memory, '_funcy_setvariable__'):
                         self.memory._funcy_setvariable__(self)

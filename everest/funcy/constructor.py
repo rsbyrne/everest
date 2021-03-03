@@ -24,7 +24,7 @@ class _Fn:
     #     return seqops
     @cached_property
     def base(self):
-        from .base import Function
+        from .function import Function
         return Function
     @cached_property
     def var(self):

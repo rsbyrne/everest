@@ -1,20 +1,17 @@
 ################################################################################
 
-from .exceptions import *
-
 from functools import cached_property
 from collections.abc import Iterable
 from itertools import product
 
-from everest import reseed
+from . import _reseed
+from . import _Derived
+from . import _special
+from .seqiterable import SeqIterable as _SeqIterable
 
-from ..base import Function
-from ..derived import Derived
-from ..special import *
-from .seqiterable import SeqIterable
-from .sequtils import seqlength
+from .exceptions import *
 
-class Seq(Derived, Iterable):
+class Seq(_Derived, Iterable):
 
     discrete = False
 
@@ -23,7 +20,7 @@ class Seq(Derived, Iterable):
 
     @cached_property
     def seqIterable(self):
-        return SeqIterable(self)
+        return _SeqIterable(self)
 
     def evaluate(self):
         return self.seqIterable
@@ -42,7 +39,7 @@ class Seq(Derived, Iterable):
     def seqTerms(self):
         return [t for t in self.fnTerms if isinstance(t, Seq)]
     def _seqLength(self):
-        return unkint
+        return _special.unkint
     def __len__(self):
         return self._seqLength()
 
@@ -78,7 +75,7 @@ class Seq(Derived, Iterable):
 class Seeded(Seq):
     @cached_property
     def _startseed(self):
-        return reseed.digits(12, seed = self._value_resolve(self.terms[-1]))
+        return _reseed.digits(12, seed = self._value_resolve(self.terms[-1]))
 
     # def __len__(self):
     #     return len(self.value[0])

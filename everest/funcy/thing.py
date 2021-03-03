@@ -1,9 +1,9 @@
 ################################################################################
 
-from .basevar import Base
+from .base import Base as _Base
 from .exceptions import *
 
-class Thing(Base):
+class Thing(_Base):
     def __init__(self, arg, **kwargs):
         super().__init__(arg, **kwargs)
     def evaluate(self):

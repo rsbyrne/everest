@@ -1,8 +1,10 @@
 ################################################################################
-from ..slot import Slot
+
+from . import _Slot
+
 from .exceptions import *
 
-class N(Slot):
+class N(_Slot):
     def __init__(self):
         super().__init__(name = '_seq_n')
     def evaluate(self):

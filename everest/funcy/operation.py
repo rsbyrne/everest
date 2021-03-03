@@ -2,10 +2,10 @@
 
 from functools import partial
 
-from .derived import Derived
+from .derived import Derived as _Derived
 from .utilities import kwargstr
 
-class Operation(Derived):
+class Operation(_Derived):
     __slots__ = ('opkwargs', 'opfn')
 
     def __init__(self,

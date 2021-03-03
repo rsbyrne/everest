@@ -1,15 +1,16 @@
 ################################################################################
+
 from collections.abc import MutableSequence
 from functools import cached_property
 from collections import deque
 
 import numpy as np
 
-from .number import Variable
-from ..special import null
+from .variable import Variable as _Variable
+
 from .exceptions import *
 
-class Stack(Variable, MutableSequence):
+class Stack(_Variable, MutableSequence):
 
     __slots__ = (
         'stored',
@@ -25,7 +26,6 @@ class Stack(Variable, MutableSequence):
             arg1,
             arg2 = None,
             /,
-            *args,
             blocklen = int(1e6),
             **kwargs
             ):
@@ -41,9 +41,8 @@ class Stack(Variable, MutableSequence):
             initData = None
             shape, dtype = arg1, arg2
         super().__init__(
-            shape,
-            dtype,
-            *args,
+            shape = shape,
+            dtype = dtype,
             **kwargs
             )
         self.stored = np.empty(

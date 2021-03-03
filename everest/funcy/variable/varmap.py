@@ -1,11 +1,12 @@
 ################################################################################
+
 from collections.abc import MutableMapping
 
-from ..map import Map
-from .base import Variable
-from .utilities import construct_variable, ordered_unpack
+from . import _Map
+from .variable import Variable as _Variable
+from . import utilities as _utilities 
 
-class VarMap(Map, MutableMapping):
+class VarMap(_Map, MutableMapping):
     def __init__(self, *args, **kwargs):
         values = tuple(self._proc_var(a) for a in args)
         keys = tuple(v.name for v in values)
@@ -18,8 +19,8 @@ class VarMap(Map, MutableMapping):
         if type(arg) is tuple:
             print(arg)
             k, v = arg
-            return construct_variable(v, name = k)
-        elif isinstance(arg, Variable):
+            return _utilities.construct_variable(v, name = k)
+        elif isinstance(arg, _Variable):
             return arg
         else:
             raise TypeError(type(arg))
@@ -30,7 +31,7 @@ class VarMap(Map, MutableMapping):
     def _setitem(self, k, v):
         self.plain_get(k).value = v
     def __setitem__(self, key, val):
-        for k, v in ordered_unpack(self, key, val).items():
+        for k, v in _utilities.ordered_unpack(self, key, val).items():
             self.plain_get(k).value = v
     def __delitem__(self, k):
         self.plain_get(k).nullify()
@@ -47,11 +48,11 @@ class StackMap(VarMap):
     def __init__(self, keys, values, /, **kwargs):
         refined = list()
         for k, v in zip(keys, values):
-            if isinstance(v, Variable):
+            if isinstance(v, _Variable):
                 if not v.name == k:
                     raise KeyError(v.name, k)
             else:
-                v = construct_variable(v, name = k, stack = True)
+                v = _utilities.construct_variable(v, name = k, stack = True)
             refined.append(v)
         super().__init__(tuple(keys), tuple(refined), **kwargs)
 

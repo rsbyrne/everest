@@ -3,29 +3,27 @@
 import itertools
 # from collections.abc import Iterable
 
-from everest.reseed import Reseed
-
-from ..special import *
-from .seqiterable import SeqIterable
+from . import _reseed
+from .seqiterable import SeqIterable as _SeqIterable
 
 def shuffled(sequence, seed = None):
     sequence = [*sequence]
-    Reseed.shuffle(sequence, seed = seed)
+    _reseed.Reseed.shuffle(sequence, seed = seed)
     return sequence
 
 def chainiter(superseq):
-    seqs = (s if isinstance(s, SeqIterable) else (s,) for s in superseq)
+    seqs = (s if isinstance(s, _SeqIterable) else (s,) for s in superseq)
     return itertools.chain.from_iterable(seqs)
 
 def productiter(superseq):
-    seqs = [s if isinstance(s, SeqIterable) else (s,) for s in superseq]
+    seqs = [s if isinstance(s, _SeqIterable) else (s,) for s in superseq]
     return itertools.product(*seqs)
 
 def zipiter(superseq):
     seqs = []
     nIters = 0
     for s in superseq:
-        if isinstance(s, SeqIterable):
+        if isinstance(s, _SeqIterable):
             seqs.append(iter(s))
             nIters += 1
         else:
@@ -55,7 +53,7 @@ def zipiter(superseq):
 
 def muddle(sequences):
     seqs = [
-        iter(s) if isinstance(s, SeqIterable) else iter((s,))
+        iter(s) if isinstance(s, _SeqIterable) else iter((s,))
             for s in sequences
         ]
     prevs = [[next(s)] for s in seqs]

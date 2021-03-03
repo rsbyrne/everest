@@ -6,10 +6,10 @@ from functools import cached_property
 
 import numpy as np
 
-from .number import Number
-from ..special import null
+from .number import Number as _Number
+from . import _special
 
-class Array(Number):
+class Array(_Number):
 
     __slots__ = (
         '_memory',
@@ -19,7 +19,6 @@ class Array(Number):
             arg1,
             arg2 = None,
             /,
-            *args,
             **kwargs
             ):
         if arg2 is None: # assume arg1 is or can be an array:
@@ -29,13 +28,12 @@ class Array(Number):
             dtype, shape = initVal.dtype.type, initVal.shape
             self._memory = initVal
         else:
-            initVal = null
+            initVal = _special.null
             shape, dtype = arg1, arg2
             self._memory = np.empty(shape, dtype)
         super().__init__(
-            shape,
-            dtype,
-            *args,
+            shape = shape,
+            dtype = dtype,
             _initVal = initVal,
             **kwargs
             )

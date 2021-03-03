@@ -1,7 +1,6 @@
 ################################################################################
-# Requires:
-# wordhash
-# reseed
+
+from .. import wordhash, reseed
 
 from .constructor import Fn
 # from . import misc

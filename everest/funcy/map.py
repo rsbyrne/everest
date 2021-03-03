@@ -5,9 +5,7 @@ from .exceptions import *
 from collections.abc import Mapping, Collection
 import itertools
 
-from .derived import Derived
-from .base import Function
-from .group import Group, Gruple
+from .derived import Derived as _Derived
 
 def unpack_gruples(ks, vs):
     for k, v in zip(ks, vs):
@@ -24,7 +22,7 @@ def unpack_gruples(ks, vs):
         else:
             yield k, v
 
-class Map(Derived, Mapping):
+class Map(_Derived, Mapping):
 
     def __init__(self, keys, values, /, **kwargs):
         super().__init__(tuple(keys), tuple(values), **kwargs)

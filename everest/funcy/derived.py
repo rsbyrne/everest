@@ -3,15 +3,13 @@
 from functools import cached_property, lru_cache
 import warnings
 
-from .constructor import Fn
 from .exceptions import *
 
-from .base import Function
-from .basevar import Base
-from .generic import PRIMITIVETYPES
-from .thing import Thing
+from .function import Function as _Function
+from .base import Base as _Base
+from .generic import PRIMITIVETYPES as _PRIMITIVETYPES
 
-class Derived(Function):
+class Derived(_Function):
 
     __slots__ = (
         '_slots',
@@ -26,12 +24,11 @@ class Derived(Function):
             )
         for term in self.baseTerms:
             term.register_downstream(self)
-    @staticmethod
-    def _derived_process_arg(arg):
-        if any(isinstance(arg, typ) for typ in PRIMITIVETYPES):
+    def _derived_process_arg(self, arg):
+        if any(isinstance(arg, typ) for typ in _PRIMITIVETYPES):
             return arg
         else:
-            return Fn(arg)
+            return self.Fn(arg)
 
     def refresh_bases(self):
         for term in self.baseTerms:
@@ -68,14 +65,14 @@ class Derived(Function):
         return argslots, kwargslots, argslots + len(kwargslots)
     @cached_property
     def fnTerms(self):
-        return [t for t in self.terms if isinstance(t, Function)]
+        return [t for t in self.terms if isinstance(t, _Function)]
     @cached_property
     def baseTerms(self):
         out = []
         for t in self.fnTerms:
             if isinstance(t, Derived):
                 out.extend(t.baseTerms)
-            if isinstance(t, Base):
+            if isinstance(t, _Base):
                 out.append(t)
         return list(set(out))
     @cached_property

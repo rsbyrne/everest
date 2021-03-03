@@ -1,8 +1,12 @@
 ################################################################################
 
-from ..base import Seq
+import numpy as np
+from diversipy.hycusampling import improved_lhd_matrix
 
-class HyperCube(Seq):
+from . import _Seq
+from . import _reseed
+
+class HyperCube(_Seq):
     pass
 
 class Latin(HyperCube):
@@ -16,12 +20,8 @@ class Latin(HyperCube):
     def _seqLength(self):
         return len(self.samples)
 
-import numpy as np
-from everest import reseed
-
-@reseed.reseed
+@_reseed.reseed
 def latin_hypercube(n, d, lower = 0, upper = 1):
-    from diversipy.hycusampling import improved_lhd_matrix
     lower, upper = (
         np.full(d, bnd) if not isinstance(bnd, np.ndarray)
             else bnd for bnd in (lower, upper)

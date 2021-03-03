@@ -1,8 +1,10 @@
 ################################################################################
-from .derived import Derived
+
+from .derived import Derived as _Derived
+
 from .exceptions import *
 
-class Trier(Derived):
+class Trier(_Derived):
     __slots__ = (
         'tryFunc',
         'altVal',
