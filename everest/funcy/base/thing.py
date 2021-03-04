@@ -1,13 +1,13 @@
 ################################################################################
 
-from .derived import Derived as _Derived
+from .base import Base as _Base
 
-class UnSeq(_Derived):
+from .exceptions import *
 
-    def __init__(self, seq, **kwargs):
-        super().__init__(seq, **kwargs)
-
+class Thing(_Base):
+    def __init__(self, arg, **kwargs):
+        super().__init__(arg, **kwargs)
     def evaluate(self):
-        return list(self.prime.value)
+        return self.prime
 
 ################################################################################

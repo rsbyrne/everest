@@ -3,13 +3,12 @@
 from functools import cached_property
 
 from .seq import Seq as _Seq
-from . import _Scalar
 
 class _Algorithmic(_Seq):
     _algorithm = None
     @cached_property
     def n(self):
-        return _Scalar(0, name = 'n')
+        return self.Fn(0, name = 'n')
     @cached_property
     def algorithm(self):
         return self._algorithm.close(_seq_n = self.n)

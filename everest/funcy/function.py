@@ -4,11 +4,11 @@ from .exceptions import *
 
 from functools import cached_property
 
-from . import wordhash
-from . import reseed
+from . import _wordhash, _reseed
 
-from . import utilities
-from .constructor import Fn
+from . import utilities as _utilities
+from . import generic as _generic
+from .constructor import Fn as _Fn
 
 class Function:
 
@@ -21,11 +21,16 @@ class Function:
         )
 
     def __init__(self, *terms, **kwargs):
-        self.terms = terms
+        self.terms = (self._function_init_process_term(t) for t in terms)
         self.kwargs = kwargs
-        if terms:
+        if len(self.terms):
             self.prime = self.terms[0]
         super().__init__()
+    def _function_init_process_term(self, arg):
+        if any(isinstance(arg, typ) for typ in _generic.PRIMITIVETYPES):
+            return arg
+        else:
+            return _Fn(arg)
 
     @classmethod
     def _value_resolve(cls, val):
@@ -51,9 +56,9 @@ class Function:
 
     def op(self, *args, op, rev = False, **kwargs):
         if rev:
-            return Fn.op(op, *(*args, self), **kwargs)
+            return _Fn.op(op, *(*args, self), **kwargs)
         else:
-            return Fn.op(op, self, *args, **kwargs)
+            return _Fn.op(op, self, *args, **kwargs)
     def arithmop(self, *args, **kwargs):
         return self.op(*args, **kwargs)
 
@@ -194,25 +199,24 @@ class Function:
         return self.valstr
     @cached_property
     def hashID(self):
-        return wordhash.w_hash(self.namestr)
+        return _wordhash.w_hash(self.namestr)
     @cached_property
     def _hashInt(self):
-        return reseed.digits(12, seed = self.hashID)
+        return _reseed.digits(12, seed = self.hashID)
     def __hash__(self):
         return self._hashInt
 
     def reduce(self, op = 'call'):
         target = self.terms[0]
         for term in self.terms[1:]:
-            target = Fn.op(op, target, term)
+            target = _Fn.op(op, target, term)
         return target
 
     def copy(self):
         return type(self(*self.terms, **self.kwargs))
 
-    @cached_property
+    @property
     def Fn(self):
-        from .constructor import Fn
         return Fn
 
     def __getitem__(self, key):

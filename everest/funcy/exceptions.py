@@ -1,4 +1,5 @@
 ################################################################################
+
 from ..exceptions import *
 
 class FuncyException(Exception):

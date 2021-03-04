@@ -1,11 +1,11 @@
 ################################################################################
 
-from .exceptions import *
-
 from collections.abc import Mapping, Collection
 import itertools
 
 from .derived import Derived as _Derived
+
+from .exceptions import *
 
 def unpack_gruples(ks, vs):
     for k, v in zip(ks, vs):

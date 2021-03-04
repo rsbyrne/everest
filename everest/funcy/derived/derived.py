@@ -3,11 +3,9 @@
 from functools import cached_property, lru_cache
 import warnings
 
-from .exceptions import *
+from . import _Function
 
-from .function import Function as _Function
-from .base import Base as _Base
-from .generic import PRIMITIVETYPES as _PRIMITIVETYPES
+from .exceptions import *
 
 class Derived(_Function):
 
@@ -18,19 +16,12 @@ class Derived(_Function):
         )
 
     def __init__(self, *args, **kwargs):
-        super().__init__(
-            *(self._derived_process_arg(a) for a in args),
-            **kwargs
-            )
+        assert len(args)
+        super().__init__(*args, **kwargs)
         for term in self.baseTerms:
             term.register_downstream(self)
-    def _derived_process_arg(self, arg):
-        if any(isinstance(arg, typ) for typ in _PRIMITIVETYPES):
-            return arg
-        else:
-            return self.Fn(arg)
 
-    def refresh_bases(self):
+    def refresh(self):
         for term in self.baseTerms:
             term.refresh()
     def purge(self):
@@ -72,7 +63,7 @@ class Derived(_Function):
         for t in self.fnTerms:
             if isinstance(t, Derived):
                 out.extend(t.baseTerms)
-            if isinstance(t, _Base):
+            else:
                 out.append(t)
         return list(set(out))
     @cached_property

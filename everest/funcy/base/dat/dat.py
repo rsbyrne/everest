@@ -1,8 +1,8 @@
 ################################################################################
 
-from .exceptions import *
-
 from . import _Base
+
+from .exceptions import *
 
 class Dat(_Base):
     def __init__(self,

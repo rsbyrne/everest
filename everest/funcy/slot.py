@@ -1,6 +1,8 @@
 ################################################################################
+
 from .function import Function as _Function
 from . import special as _special
+
 from .exceptions import *
 
 class Slot(_Function):
@@ -35,6 +37,8 @@ class Slot(_Function):
         return self.evaluate()
     def register_downstream(self, registrant):
         # self.downstream.add(registrant)
+        pass
+    def refresh(self):
         pass
 
     # def evaluate(self):

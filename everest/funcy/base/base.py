@@ -2,7 +2,7 @@
 
 import weakref
 
-from .function import Function as _Function
+from . import _Function
 
 class Base(_Function):
     def __init__(self, *, name: str, **kwargs) -> None:

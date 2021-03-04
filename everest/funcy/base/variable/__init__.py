@@ -1,9 +1,7 @@
 ################################################################################
 
-from ..function import Function as _Function
-from ..base import Base as _Base
-from ..map import Map as _Map
-from .. import special as _special
+from .. import _Function, _Map, _special
+from .. import Base as _Base
 
 from .variable import Variable
 from .number import Number

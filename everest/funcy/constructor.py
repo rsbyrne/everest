@@ -28,35 +28,35 @@ class _Fn:
         return Function
     @cached_property
     def var(self):
-        from .variable import Variable
+        from .base.variable import Variable
         return Variable
     @cached_property
     def slot(self):
-        from .slot import Slot
+        from .derived import Slot
         return Slot
     @cached_property
     def group(self):
-        from .group import Group
+        from .derived import Group
         return Group
     @cached_property
     def exc(self):
-        from ._trier import Trier
+        from .derived import Trier
         return Trier
     @cached_property
     def seq(self):
-        from .seq.constructor import SeqConstructor
+        from .derived.seq.constructor import SeqConstructor
         return SeqConstructor()
     @cached_property
     def unseq(self):
-        from .unseq import UnSeq
+        from .derived import UnSeq
         return UnSeq
     @cached_property
     def thing(self):
-        from .thing import Thing
+        from .derived import Thing
         return Thing
     @cached_property
     def map(self):
-        from .map import Map
+        from .derived import Map
         return Map
     @cached_property
     def inf(self):
@@ -76,7 +76,7 @@ class _Fn:
         return N()
     @cached_property
     def slyce(self):
-        from .slyce import Slyce
+        from .derived import Slyce
         return Slyce
     def __call__(self, *args, **kwargs):
         if len(args) == 0:

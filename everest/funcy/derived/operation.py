@@ -2,8 +2,10 @@
 
 from functools import partial
 
+from . import _utilities
 from .derived import Derived as _Derived
-from .utilities import kwargstr
+
+from .exceptions import *
 
 class Operation(_Derived):
     __slots__ = ('opkwargs', 'opfn')
@@ -27,14 +29,8 @@ class Operation(_Derived):
         kwargs = self.kwargs.copy()
         del kwargs['op']
         if kwargs:
-            return kwargstr(**kwargs)
+            return _utilities.kwargstr(**kwargs)
         else:
             return ''
 
-#         if type(op) is tuple:
-#             sops, op = op[:-1], op[-1]
-#             for sop in sops:
-#                 terms = Operation(*terms, op = sop)
-#                 if not type(terms) is tuple:
-#                     terms = terms,
 ################################################################################

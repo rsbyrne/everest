@@ -9,11 +9,11 @@ from collections.abc import Sequence, Iterable
 class SeqConstructor:
     @cached_property
     def base(self):
-        from .base import Seq
+        from .seq import Seq
         return Seq
     @cached_property
     def op(self):
-        from ..ops import seqops
+        from ...ops import seqops # Untidy import!
         return seqops
     @cached_property
     def continuum(self):

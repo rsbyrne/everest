@@ -5,6 +5,33 @@ from collections import OrderedDict
 from functools import cached_property, lru_cache, wraps, partial
 import inspect
 
+import math
+import builtins
+import operator
+import itertools
+import numpy
+import scipy
+import sklearn
+
+from . import _reseed
+from . import operations
+from .derived.seq import seqoperations
+from .derived.operation import Operation
+from .derived.seq.seqoperation import SeqOperation
+
+sources = OrderedDict(
+    _op = operations,
+    _sop = seqoperations,
+    _builtins = builtins,
+    _operator = operator,
+    _math = math,
+    _itertools = itertools,
+    rs = _reseed.Reseed,
+    np = numpy,
+    sp = scipy,
+    sk = sklearn,
+    )
+
 def op_wrap(func, *keys, opclass):
     @wraps(func)
     def subwrap(*args, **kwargs):
@@ -110,31 +137,6 @@ class Ops:
     def __call__(self, key, *args, **kwargs):
         return self[key](*args, **kwargs)
 
-import math
-import builtins
-import operator
-import itertools
-import numpy
-import scipy
-import sklearn
-from everest import reseed
-from . import operations
-from .seq import seqoperations
-sources = OrderedDict(
-    _op = operations,
-    _sop = seqoperations,
-    _builtins = builtins,
-    _operator = operator,
-    _math = math,
-    _itertools = itertools,
-    rs = reseed.Reseed,
-    np = numpy,
-    sp = scipy,
-    sk = sklearn,
-    )
-
-from .operation import Operation
-from .seq.seqoperation import SeqOperation
 ops = Ops(sources, opclass = Operation)
 seqops = Ops(sources, opclass = SeqOperation)
 

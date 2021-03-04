@@ -2,6 +2,8 @@
 
 from .derived import Derived as _Derived
 
+from .exceptions import *
+
 class Slyce(_Derived):
 
     def __init__(self, arg1, arg2 = None, arg3 = None, /, **kwargs):
