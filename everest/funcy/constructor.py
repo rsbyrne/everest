@@ -1,121 +1,66 @@
 ################################################################################
 
-from collections import OrderedDict
-from collections.abc import Sequence
-from numbers import Number
-from functools import cached_property, lru_cache
-
-import numpy as np
+from functools import (
+    cached_property as _cached_property,
+    lru_cache as _lru_cache
+    )
 
 from .exceptions import *
 
 class _Fn:
-    @cached_property
-    def op(self):
-        from .ops import ops
-        return ops
-    # @cached_property
-    # def elementop(self):
-    #     from .ops import elementops
-    #     return elementops
-    # @cached_property
-    # def seqop(self):
-    #     from .ops import seqops
-    #     return seqops
-    @cached_property
-    def base(self):
-        from .function import Function
-        return Function
-    @cached_property
-    def var(self):
-        from .base.variable import Variable
-        return Variable
-    @cached_property
-    def slot(self):
-        from .derived import Slot
-        return Slot
-    @cached_property
-    def group(self):
-        from .derived import Group
-        return Group
-    @cached_property
-    def exc(self):
-        from .derived import Trier
-        return Trier
-    @cached_property
+
+    from .function import Function
+    from . import base
+    from . import derived
+    from .ops import ops, seqops
+
+    from .special import (
+        null, nullflt, nullint,
+        infint, ninfint, infflt, ninflt, inf, ninf,
+        unk, unkflt, unkint,
+        )
+
+    def __call__(self, arg = None, /, *args, **kwargs) -> Function:
+        try:
+            if arg is None: # i.e. no args, hence not Derived
+                return self.base.construct_base(arg, *args, **kwargs)
+            elif arglen := len(args): # i.e. there are multiple args
+                return self.derived.Group(arg, *args, **kwargs)
+            else: # i.e. only one arg
+                if (argType := type(arg)) is tuple:
+                    return self.derived.Group(*arg, **kwargs)
+                elif isinstance(arg, self.Function):
+                    if len(kwargs):
+                        raise ValueError("Kwargs not expected.")
+                    return arg
+                elif argType is dict:
+                    return self.derived.Map(arg.keys(), arg.values())
+                elif argType is set:
+                    raise NotYetImplemented
+                elif argType is slice:
+                    return self.derived.slyce(arg.start, arg.stop, arg.step)
+                else:
+                    return self.base.construct_base(arg, *args, **kwargs)
+        except Exception as e:
+            raise ConstructFailure(
+                "Construct failed"
+                f" with args = {(arg, *args)}, kwargs = {kwargs}; {e}"
+                )
+
+    def __getitem__(self, arg, **kwargs):
+        return self.seq(arg, **kwargs)
+
+    @_cached_property
     def seq(self):
-        from .derived.seq.constructor import SeqConstructor
-        return SeqConstructor()
-    @cached_property
+        return self.derived.seq.SeqConstructor()
+    @_cached_property
+    def n(self):
+        return self.derived.seq.N()
+    @_cached_property
     def unseq(self):
         from .derived import UnSeq
         return UnSeq
-    @cached_property
-    def thing(self):
-        from .derived import Thing
-        return Thing
-    @cached_property
-    def map(self):
-        from .derived import Map
-        return Map
-    @cached_property
-    def inf(self):
-        from .special import inf
-        return inf
-    @cached_property
-    def ninf(self):
-        from .special import ninf
-        return ninf
-    @cached_property
-    def null(self):
-        from .special import null
-        return null
-    @cached_property
-    def n(self):
-        from .seq.nvar import N
-        return N()
-    @cached_property
-    def slyce(self):
-        from .derived import Slyce
-        return Slyce
-    def __call__(self, *args, **kwargs):
-        if len(args) == 0:
-            return self.slot(**kwargs)
-        elif len(args) > 1:
-            return self.group(*args, **kwargs)
-        else: # hence len(args) == 1
-            arg = args[0]
-            if len(kwargs) == 0 and isinstance(arg, self.base):
-                return arg
-            elif type(arg) is tuple:
-                return self.group(*arg)
-            elif type(arg) is dict:
-                return self.map(arg.keys(), arg.values())
-            elif type(arg) is set:
-                raise NotYetImplemented
-            elif type(arg) is slice:
-                return self.slyce(arg.start, arg.stop, arg.step)
-            elif any(isinstance(arg, typ) for typ in {
-                    Number,
-                    np.ndarray,
-                    np.generic,
-                    str,
-                    Sequence,
-                    }):
-                return self.var.construct_variable(*args, **kwargs)
-            else:
-                return self.thing(arg, **kwargs)
-    def __getitem__(self, arg, **kwargs):
-        return self.seq(arg, **kwargs)
-    @lru_cache
-    def __getattr__(self, key):
-        for sk in ('op', 'seq'):
-            source = getattr(self, sk)
-            try:
-                return getattr(source, key)
-            except AttributeError:
-                pass
-        raise AttributeError
+
 Fn = _Fn()
 
 ################################################################################

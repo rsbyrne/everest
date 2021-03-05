@@ -1,74 +1,119 @@
 ################################################################################
 
-from numbers import Real, Integral
+from numbers import Rational as _Rational, Integral as _Integral
+from typing import Optional as _Optional, Union as _Union
 
-from .number import Number as _Number
-from . import _special
+from . import _generic
+from .numerical import (
+    Numerical as _Numerical,
+    NumericalConstructFailure,
+    _check_dtype
+    )
 
 from .exceptions import *
 
-class Scalar(_Number):
+class ScalarConstructFailure(NumericalConstructFailure):
+    ...
+
+class Scalar(_Numerical, _generic.FuncyNumber):
 
     __slots__ = (
+        'shape',
         'memory',
         '_prev',
         'stack',
         '_rectified',
         )
 
-    def __init__(self,
-            arg = None,
-            /,
-            dtype = None,
-            **kwargs,
-            ):
-        if type(arg) is type:
-            if not dtype is None:
-                raise TypeError(
-                    "Cannot provide both kwarg 'dtype' and arg of type 'type'"
-                    )
-            if issubclass(arg, Real):
-                dtype = arg
-            else:
-                raise TypeError(arg)
-            initVal = _special.null
-        elif isinstance(arg, Real):
-            dtype = type(arg) if dtype is None else dtype
-            initVal = arg
-        elif arg is None:
-            if dtype is None:
-                raise ValueError("Insufficient inputs.")
-            initVal = _special.null
-        else:
-            raise TypeError(type(arg))
-        super().__init__(
-            dtype = dtype,
-            _initVal = initVal,
-            **kwargs
-            )
+    def __init__(self, *, initVal = None, **kwargs) -> None:
+        super().__init__(initVal = initVal, **kwargs)
+        self.shape = ()
         self._rectified = False
-        def rectify():
-            if not self._rectified:
-                try:
-                    self.memory = self.dtype(self.memory)
+
+    def rectify(self):
+        if not self._rectified:
+            try:
+                self.memory = self.dtype(self.memory)
+                self._rectified = True
+            except TypeError:
+                if self.memory is Ellipsis:
+                    self.memory = self._prev
                     self._rectified = True
-                except TypeError:
-                    if self.memory is Ellipsis:
-                        self.memory = self._prev
-                        self._rectified = True
-                    if self.memory is _special.null:
-                        raise NullValueDetected
-                    elif hasattr(self.memory, '_funcy_setvariable__'):
-                        self.memory._funcy_setvariable__(self)
-                        self.rectify()
-                    else:
-                        self.nullify()
-                        raise TypeError(self.memory)
-        self.rectify = rectify
+                if self.isnull:
+                    raise NullValueDetected
+                elif hasattr(self.memory, '_funcy_setvariable__'):
+                    self.memory._funcy_setvariable__(self)
+                    self.rectify()
+                else:
+                    self.nullify()
+                    raise TypeError(self.memory)
 
     def set_value(self, val):
         self._prev = self.memory
         self.memory = val
         self._rectified = False
+
+class ScalarRational(Scalar, _generic.FuncyRational):
+    def __init__(self, *, dtype = float, **kwargs) -> None:
+        super().__init__(dtype = dtype, **kwargs)
+
+class ScalarIntegral(Scalar, _generic.FuncyIntegral):
+    def __init__(self, *, dtype = int, **kwargs) -> None:
+        super().__init__(dtype = dtype, **kwargs)
+
+def construct_scalar(
+        arg: _Optional[_Union[type, _Rational]] = None,
+        /, *args, **kwargs
+        ) -> Scalar:
+    if len(args):
+        raise ScalarConstructFailure(
+            "Cannot pass multiple args to scalar constructor"
+            )
+    kwargs = kwargs.copy()
+    if not arg is None:
+        if (argType := type(arg)) is type or argType is str:
+            if 'dtype' in kwargs:
+                raise ScalarConstructFailure(
+                    "Cannot provide both arg-as-dtype and dtype kwarg"
+                    " to scalar constructor"
+                    )
+            kwargs['dtype'] = arg
+        else:
+            if 'initVal' in kwargs:
+                raise ScalarConstructFailure(
+                    "Cannot provide both arg-as-initVal"
+                    " and 'initVal' kwarg to scalar constructor."
+                    )
+            kwargs['initVal'] = arg
+            if not 'dtype' in kwargs:
+                kwargs['dtype'] = type(arg)
+    try:
+        dtype = kwargs['dtype']
+    except KeyError:
+        raise ScalarConstructFailure(
+            "No 'dtype' kwarg or arg interpretable as a datatype"
+            " was provided to scalar constructor."
+            )
+    try:
+        dtype = _check_dtype(dtype)
+    except TypeError as e:
+        raise ScalarConstructFailure(e)
+    if issubclass(dtype, _Rational):
+        try:
+            if issubclass(dtype, _Integral):
+                return ScalarIntegral(**kwargs)
+            else:
+                return ScalarRational(**kwargs)
+        except Exception as e:
+            raise ScalarConstructFailure(
+                "Scalar construct failed"
+                f" with args = {(arg, *args)}, kwargs = {kwargs};"
+                f" {e}"
+                )
+    else:
+        raise ScalarConstructFailure(
+            f"Provided dtype '{dtype}' not an acceptable type"
+            " for scalar constructor."
+            )
 
 ################################################################################

@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Collection
 import itertools
 
-from .derived import Derived as _Derived
+from . import _Derived
 
 from .exceptions import *
 

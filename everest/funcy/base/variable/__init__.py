@@ -1,17 +1,14 @@
 ################################################################################
 
-from .. import _Function, _Map, _special
+from .. import _Function, _special, _generic
 from .. import Base as _Base
 
 from .variable import Variable
-from .number import Number
+from .numerical import Numerical
 from .scalar import Scalar
 from .array import Array
 from .stack import Stack
-from .varmap import VarMap
-from .exceptions import VariableException
-from .utilities import construct_variable
 
-Variable.construct_variable = construct_variable
+from .utilities import construct_variable
 
 ################################################################################

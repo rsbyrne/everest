@@ -3,7 +3,7 @@
 from functools import cached_property, lru_cache
 import warnings
 
-from . import _Function
+from . import _Function, _generic, _construct_base
 
 from .exceptions import *
 
@@ -15,11 +15,19 @@ class Derived(_Function):
         '_kwargslots',
         )
 
-    def __init__(self, *args, **kwargs):
-        assert len(args)
-        super().__init__(*args, **kwargs)
+    def __init__(self, *terms, **kwargs):
+        assert len(terms)
+        self.terms = (self._derived_init_process_term(t) for t in terms)
+        super().__init__(*terms, **kwargs)
         for term in self.baseTerms:
             term.register_downstream(self)
+    def _derived_init_process_term(self, arg):
+        if isinstance(arg, _Function):
+            return arg
+        elif any(isinstance(arg, typ) for typ in _generic.PRIMITIVETYPES):
+            return arg
+        else:
+            return _construct_base(arg)
 
     def refresh(self):
         for term in self.baseTerms:
@@ -65,7 +73,7 @@ class Derived(_Function):
                 out.extend(t.baseTerms)
             else:
                 out.append(t)
-        return list(set(out))
+        return tuple(set(out))
     @cached_property
     def openTerms(self):
         return [t for t in self.fnTerms if t.open]

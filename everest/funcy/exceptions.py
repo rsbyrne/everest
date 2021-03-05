@@ -37,4 +37,7 @@ class ClosureExceptions(FuncyException):
 class NothingToClose(ClosureExceptions):
     pass
 
+class ConstructFailure(FuncyException):
+    pass
+
 ################################################################################

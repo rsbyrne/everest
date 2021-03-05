@@ -1,10 +1,10 @@
 ################################################################################
 
-from .exceptions import *
-
 from functools import cached_property, lru_cache
 import numbers
 from collections.abc import Sequence, Iterable
+
+from .exceptions import *
 
 class SeqConstructor:
     @cached_property

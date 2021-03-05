@@ -1,10 +1,46 @@
 ################################################################################
 
-from collections.abc import MutableMapping
+from collections.abc import Sequence, Mapping, MutableMapping, Collection
 
-from . import _Map
-from .variable import Variable as _Variable
-from . import utilities as _utilities 
+from .map import Map as _Map
+from . import _Variable, _construct_variable
+
+from .exceptions import *
+
+def ordered_unpack(keys, arg1, arg2):
+    keys = tuple(keys)
+    if arg1 is Ellipsis:
+        seqChoice = range(len(keys))
+        mapChoice = keys
+    elif type(arg1) is str:
+        seqChoice = [keys.index(arg1),]
+        mapChoice = [arg1,]
+    elif type(arg1) is int:
+        seqChoice = [arg1,]
+        mapChoice = [keys[arg1],]
+    elif type(arg1) is tuple:
+        if len(set([type(o) for o in arg1])) > 1:
+            raise ValueError
+        if type(arg1[0]) is str:
+            seqFn = lambda arg: keys.index(arg)
+            seqChoice = [seqFn(arg) for arg in arg1]
+            mapChoice = arg1
+        elif type(arg1[0] is int):
+            mapFn = lambda arg: keys[arg]
+            seqChoice = arg1
+            mapChoice = [mapFn(arg) for arg in arg1]
+        else:
+            raise TypeError
+    if type(arg2) is tuple:
+        out = dict((keys[i], arg2[i]) for i in seqChoice)
+    elif isinstance(arg2, Mapping):
+        out = dict((k, arg2[k]) for k in mapChoice)
+    else:
+        out = dict((keys[i], arg2) for i in seqChoice)
+    if arg1 is Ellipsis and type(arg2) is tuple:
+        if not len(arg2) == len(out):
+            raise IndexError("Not enough arguments.")
+    return out
 
 class VarMap(_Map, MutableMapping):
     def __init__(self, *args, **kwargs):
@@ -19,7 +55,7 @@ class VarMap(_Map, MutableMapping):
         if type(arg) is tuple:
             print(arg)
             k, v = arg
-            return _utilities.construct_variable(v, name = k)
+            return _construct_variable(v, name = k)
         elif isinstance(arg, _Variable):
             return arg
         else:
@@ -31,7 +67,7 @@ class VarMap(_Map, MutableMapping):
     def _setitem(self, k, v):
         self.plain_get(k).value = v
     def __setitem__(self, key, val):
-        for k, v in _utilities.ordered_unpack(self, key, val).items():
+        for k, v in ordered_unpack(self, key, val).items():
             self.plain_get(k).value = v
     def __delitem__(self, k):
         self.plain_get(k).nullify()

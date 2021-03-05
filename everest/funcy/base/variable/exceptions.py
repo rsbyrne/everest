@@ -2,7 +2,10 @@
 
 from ..exceptions import *
 
-class VariableException(FuncyException):
+class VariableException(BaseException):
+    pass
+
+class VariableConstructFailure(BaseConstructFailure, VariableException):
     pass
 
 ################################################################################

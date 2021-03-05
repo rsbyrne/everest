@@ -77,14 +77,14 @@ def reseed(func):
 
 @reseed
 def randint(low = 0, high = 9):
-    return random.randint(low, high)
+    return int(Reseed.rng.integers(low, high))
 def digits(n = 16, **kwargs):
     low = int(10 ** n)
     high = int(10 ** (n + 1)) - 1
     return randint(low, high, **kwargs)
 @reseed
 def randfloat(low = 0., high = 1.):
-    return random.random() * (high - low) + low
+    return float(Reseed.rng.random() * (high - low) + low)
 def randval(low = 0., high = 1., **kwargs):
     return type(low)(randfloat(low, high, **kwargs))
 @reseed

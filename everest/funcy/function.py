@@ -1,14 +1,12 @@
 ################################################################################
 
-from .exceptions import *
-
-from functools import cached_property
+from functools import cached_property as _cached_property
 
 from . import _wordhash, _reseed
 
 from . import utilities as _utilities
-from . import generic as _generic
-from .constructor import Fn as _Fn
+
+from .exceptions import *
 
 class Function:
 
@@ -21,16 +19,15 @@ class Function:
         )
 
     def __init__(self, *terms, **kwargs):
-        self.terms = (self._function_init_process_term(t) for t in terms)
+        self.terms = terms
         self.kwargs = kwargs
         if len(self.terms):
             self.prime = self.terms[0]
         super().__init__()
-    def _function_init_process_term(self, arg):
-        if any(isinstance(arg, typ) for typ in _generic.PRIMITIVETYPES):
-            return arg
-        else:
-            return _Fn(arg)
+    @_cached_property
+    def _Fn(self):
+        from .constructor import Fn as _Fn
+        return _Fn
 
     @classmethod
     def _value_resolve(cls, val):
@@ -43,22 +40,24 @@ class Function:
 
     def evaluate(self):
         raise MissingAsset
-    @cached_property
+    @_cached_property
     def value(self):
         return self.evaluate()
 
-    @cached_property
-    def name(self):
-        try:
-            return self.kwargs['name']
-        except KeyError:
-            return None
-
+    @_cached_property
+    def _ops(self):
+        from .ops import ops
+        return ops
+    @_cached_property
+    def _seqops(self):
+        from .ops import seqops
+        return seqops
     def op(self, *args, op, rev = False, **kwargs):
-        if rev:
-            return _Fn.op(op, *(*args, self), **kwargs)
-        else:
-            return _Fn.op(op, self, *args, **kwargs)
+        if rev: return self._ops(op, *(*args, self), **kwargs)
+        else: return self._ops(op, self, *args, **kwargs)
+    def seqop(self, *args, op, rev = False, **kwargs):
+        if rev: return self._seqops(op, *(*args, self), **kwargs)
+        else: return self._seqops(op, self, *args, **kwargs)
     def arithmop(self, *args, **kwargs):
         return self.op(*args, **kwargs)
 
@@ -161,12 +160,12 @@ class Function:
     def pipe_out(self, arg):
         raise NotYetImplemented
 
-    @cached_property
+    @_cached_property
     def titlestr(self):
         return f"funcy.{self._titlestr()}"
     def _titlestr(self):
         return type(self).__name__
-    @cached_property
+    @_cached_property
     def namestr(self):
         return self._namestr()
     def _namestr(self):
@@ -176,14 +175,14 @@ class Function:
             termstr = ', '.join(termstr(t) for t in self.terms)
             out += f'({termstr})'
         return out
-    @cached_property
+    @_cached_property
     def kwargstr(self):
         return self._kwargstr()
     def _kwargstr(self):
         if not len(self.kwargs):
             return ''
         else:
-            return utilities.kwargstr(**self.kwargs)
+            return _utilities.kwargstr(**self.kwargs)
     @property
     def valstr(self):
         return self._valstr()
@@ -197,10 +196,10 @@ class Function:
     def __str__(self):
         # return ' == '.join([self.namestr, self.valstr])
         return self.valstr
-    @cached_property
+    @_cached_property
     def hashID(self):
         return _wordhash.w_hash(self.namestr)
-    @cached_property
+    @_cached_property
     def _hashInt(self):
         return _reseed.digits(12, seed = self.hashID)
     def __hash__(self):
@@ -209,15 +208,11 @@ class Function:
     def reduce(self, op = 'call'):
         target = self.terms[0]
         for term in self.terms[1:]:
-            target = _Fn.op(op, target, term)
+            target = self._ops(op, target, term)
         return target
 
     def copy(self):
         return type(self(*self.terms, **self.kwargs))
-
-    @property
-    def Fn(self):
-        return Fn
 
     def __getitem__(self, key):
         return self.op(key, op = 'getitem')
@@ -226,67 +221,5 @@ class Function:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
-
-# from .seq import *
-
-
-    # def __len__(self):
-    #     return self._length
-    # @cached_property
-    # def _length(self):
-    #     if self.isSeq:
-    #         v = 1
-    #         for t in self.seqTerms:
-    #             v *= len(val)
-    #         return v
-    #     else:
-    #         return len(self.value)
-
-        # if self.isSeq:
-        #     its = [
-        #         [t,] if not isinstance(t, Iterable) else t
-        #             for t in self.terms
-        #         ]
-        #     for args in product(*its):
-        #         yield type(self)(*args, **self.kwargs)
-        # else:
-    # def __getitem__(self, key):
-    #     if self.isSeq:
-    #         return Seq.__getitem__(self, key)
-    #     else:
-    #         if key >= len(self):
-    #             raise IndexError
-    #         return self.get[key]
-
-
-
-    # @staticmethod
-    # def bool(arg):
-    #     return Operation(*args, op = bool)
-    # @staticmethod
-    # def all(*args):
-    #     return Operation(*args, op = all)
-    # @staticmethod
-    # def any(*args):
-    #     return Operation(*args, op = any)
-    # @staticmethod
-    # def not_fn(*args):
-    #     return Operation(*args, op = bool, invert = True)
-        # if type(arg) is list:
-        #     try:
-        #         arg = arg[0]
-        #     except IndexError:
-        #         arg = None
-        #     outcls = StackVariable
-        # else:
-        #     outcls = FixedVariable
-        # arg = convert(arg)
-        # if not isinstance(arg, FixedVariable):
-        #     raise FuncyException(arg)
-        # return outcls(self, **arg.kwargs)
-    # def __rshift__(self, arg):
-    #     return self.pipe_out(arg)
-    # def __lshift__(self, arg):
-    #     return arg.pipe_out(self)
 
 ################################################################################

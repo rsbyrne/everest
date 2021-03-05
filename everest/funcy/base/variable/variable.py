@@ -1,6 +1,7 @@
 ################################################################################
 
-from . import _Base, _Function, _special
+from . import _Base, _Function
+
 from .exceptions import *
 
 class Variable(_Base):
@@ -13,16 +14,12 @@ class Variable(_Base):
         'pipe',
         )
 
-    def __init__(self,
-            _initVal = _special.null,
-            **kwargs,
-            ):
-        self.memory = _initVal
+    def __init__(self, *, initVal, **kwargs):
+        self.memory = initVal
         super().__init__(**kwargs)
-        try:
-            self.rectify = lambda: None
-        except:
-            pass
+
+    def rectify(self):
+        raise MissingAsset
 
     @property
     def value(self):
@@ -35,7 +32,7 @@ class Variable(_Base):
         except TypeError:
             if val is Ellipsis:
                 return
-            elif isinstance(val, Function):
+            elif isinstance(val, _Function):
                 self.set_pipe(val)
             else:
                 try:

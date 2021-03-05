@@ -1,11 +1,9 @@
 ################################################################################
 
-from ..exceptions import *
+from .. import _Variable, _construct_variable, _generic
+from .. import Derived as _Derived
 
-class BaseException(FuncyException):
-    ...
-
-class BaseConstructFailure(ConstructFailure, BaseException):
-    ...
+from .map import Map
+from .varmap import VarMap
 
 ################################################################################

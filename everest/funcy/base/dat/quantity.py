@@ -1,11 +1,9 @@
 ################################################################################
 
-from ..exceptions import *
+from .dat import Dat as _Dat
 
-class BaseException(FuncyException):
-    ...
-
-class BaseConstructFailure(ConstructFailure, BaseException):
-    ...
+class Quantity(_Dat):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(shape = (), **kwargs)
 
 ################################################################################

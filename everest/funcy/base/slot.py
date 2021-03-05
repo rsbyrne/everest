@@ -1,11 +1,11 @@
 ################################################################################
 
-from .function import Function as _Function
-from . import special as _special
+from . import _special
+from .base import Base as _Base
 
 from .exceptions import *
 
-class Slot(_Function):
+class Slot(_Base):
 
     open = True
 
@@ -15,7 +15,7 @@ class Slot(_Function):
         'kwargslots',
         )
 
-    def __init__(self, name = None):
+    def __init__(self, *, name = None):
         self.slots = 1
         if name is None:
             self.argslots = 1
@@ -36,22 +36,8 @@ class Slot(_Function):
     def value(self):
         return self.evaluate()
     def register_downstream(self, registrant):
-        # self.downstream.add(registrant)
         pass
     def refresh(self):
         pass
-
-    # def evaluate(self):
-    #     key = self.name
-    #     try:
-    #         try:
-    #             if key is None:
-    #                 return GLOBEKWARGS[key].pop()
-    #             else:
-    #                 return GLOBEKWARGS[key]
-    #         except KeyError:
-    #             return GLOBEKWARGS.setdefault(key, GLOBEKWARGS[None].pop())
-    #     except IndexError:
-    #         return null
 
 ################################################################################
