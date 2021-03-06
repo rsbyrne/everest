@@ -3,9 +3,9 @@
 from typing import Optional as _Optional
 import weakref as _weakref
 
-from . import _Function, _reseed
+from . import _Function, _reseed, _generic
 
-class Base(_Function):
+class Base(_Function, _generic.FuncyDatalike):
     __slots__ = ('downstream', 'name')
     def __init__(self, *, name: _Optional[str] = None, **kwargs) -> None:
         self.downstream = _weakref.WeakSet()

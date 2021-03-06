@@ -9,7 +9,6 @@ from . import _generic
 from .numerical import (
     Numerical as _Numerical,
     NumericalConstructFailure,
-    _check_dtype
     )
 
 from .exceptions import *
@@ -20,7 +19,7 @@ class ArrayConstructFailure(NumericalConstructFailure):
 class Array(_Numerical, _generic.FuncyArray):
 
     __slots__ = (
-        'shape',
+        '_shape',
         '_memory',
         )
     def __init__(self, *, dtype, shape, initVal = _np.nan, **kwargs) -> None:
@@ -29,8 +28,11 @@ class Array(_Numerical, _generic.FuncyArray):
             dtype = dtype, shape = shape, initVal = initVal,
             **kwargs
             )
-        self.shape = shape
+        self._shape = shape
         self._memory = self.memory
+
+    def shape(self):
+        return self._shape
 
     def set_value(self, val):
         try:
@@ -67,7 +69,7 @@ def construct_array(
                     f"Exception when converting arg to numpy array type: {e}"
                     )
         if not 'shape' in kwargs: kwargs['shape'] = arg.shape
-        if not 'dtype' in kwargs: kwargs['dtype'] = arg.dtype
+        if not 'dtype' in kwargs: kwargs['dtype'] = arg.dtype.type
         if not 'initVal' in kwargs: kwargs['initVal'] = arg
     try:
         dtype = kwargs['dtype']
@@ -77,7 +79,7 @@ def construct_array(
             " was provided to array constructor."
             )
     try:
-        dtype = _check_dtype(dtype)
+        dtype = _Numerical._check_dtype(dtype)
     except TypeError as e:
         raise ArrayConstructFailure(e)
     try:

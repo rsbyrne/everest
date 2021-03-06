@@ -68,7 +68,6 @@ class Frame(metaclass = Schema):
         return self.man.rootreader
     @property
     def h5filename(self):
-        man = self.__class__._anchorManager.get_active()
         return self.man.h5filename
     def touch(self, name = None, path = None):
         conds = [o is None for o in (name, path)]

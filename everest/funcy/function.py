@@ -5,17 +5,18 @@ from functools import cached_property as _cached_property
 from . import _wordhash, _reseed
 
 from . import utilities as _utilities
+from .generic import FuncyEvaluable as _FuncyEvaluable
 
 from .exceptions import *
 
-class Function:
+class Function(_FuncyEvaluable):
 
     __slots__ = (
         'terms',
         'prime',
         'kwargs',
-        '__weakref__',
-        '__dict__',
+#         '__weakref__',
+#         '__dict__',
         )
 
     def __init__(self, *terms, **kwargs):
@@ -37,12 +38,6 @@ class Function:
             except AttributeError:
                 break
         return val
-
-    def evaluate(self):
-        raise MissingAsset
-    @_cached_property
-    def value(self):
-        return self.evaluate()
 
     @_cached_property
     def _ops(self):

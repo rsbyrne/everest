@@ -7,7 +7,6 @@ from . import _generic
 from .numerical import (
     Numerical as _Numerical,
     NumericalConstructFailure,
-    _check_dtype
     )
 
 from .exceptions import *
@@ -18,7 +17,6 @@ class ScalarConstructFailure(NumericalConstructFailure):
 class Scalar(_Numerical, _generic.FuncyNumber):
 
     __slots__ = (
-        'shape',
         'memory',
         '_prev',
         'stack',
@@ -27,7 +25,6 @@ class Scalar(_Numerical, _generic.FuncyNumber):
 
     def __init__(self, *, initVal = None, **kwargs) -> None:
         super().__init__(initVal = initVal, **kwargs)
-        self.shape = ()
         self._rectified = False
 
     def rectify(self):
@@ -54,12 +51,10 @@ class Scalar(_Numerical, _generic.FuncyNumber):
         self._rectified = False
 
 class ScalarRational(Scalar, _generic.FuncyRational):
-    def __init__(self, *, dtype = float, **kwargs) -> None:
-        super().__init__(dtype = dtype, **kwargs)
+    ...
 
 class ScalarIntegral(Scalar, _generic.FuncyIntegral):
-    def __init__(self, *, dtype = int, **kwargs) -> None:
-        super().__init__(dtype = dtype, **kwargs)
+    ...
 
 def construct_scalar(
         arg: _Optional[_Union[type, _Rational]] = None,
@@ -95,7 +90,7 @@ def construct_scalar(
             " was provided to scalar constructor."
             )
     try:
-        dtype = _check_dtype(dtype)
+        dtype = _Numerical._check_dtype(dtype)
     except TypeError as e:
         raise ScalarConstructFailure(e)
     if issubclass(dtype, _Rational):

@@ -21,6 +21,9 @@ class Variable(_Base):
     def rectify(self):
         raise MissingAsset
 
+    def evaluate(self):
+        return self.value
+
     @property
     def value(self):
         self.rectify()
