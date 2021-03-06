@@ -2,7 +2,10 @@
 
 import numbers as _numbers
 from array import ArrayType as _ArrayType
-from functools import cached_property as _cached_property
+from functools import (
+    cached_property as _cached_property,
+    lru_cache as _lru_cache
+    )
 
 import numpy as _np
 
@@ -32,6 +35,9 @@ class FuncySlice(_ABC):
     ...
 _ = FuncySlice.register(slice)
 
+class FuncyStruct(_ABC):
+    ...
+_ = FuncyStruct.register(tuple)
 
 
 class FuncyDatalike(_ABC):
@@ -109,6 +115,10 @@ class FuncyIterable(_ABC):
     ...
 _ = FuncyIterable.register(_collabc.Iterable)
 
+class FuncyIterator(_ABC):
+    ...
+_ = FuncyIterator.register(_collabc.Iterator)
+
 class FuncySized(_ABC):
     ...
 _ = FuncySized.register(_collabc.Sized)
@@ -135,6 +145,25 @@ _ = FuncyMapping.register(_collabc.Mapping)
 
 
 
+class FuncyIncisor(_ABC):
+    ...
+class FuncyStrictIncisor(FuncyIncisor):
+    ...
+_ = FuncyStrictIncisor.register(FuncyIntegral)
+_ = FuncyStrictIncisor.register(FuncyMapping)
+class FuncyDeepIncisor(FuncyIncisor, FuncyIterable):
+    ...
+_ = FuncyDeepIncisor.register(FuncyStruct)
+class FuncyBroadIncisor(FuncyIncisor):
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is FuncyBroadIncisor:
+            if any("__iter__" in B.__dict__ for B in C.__mro__):
+                return True
+        return NotImplemented
+_ = FuncyBroadIncisor.register(FuncySlice)
+_ = FuncyBroadIncisor.register(FuncySequence)
+
 class FuncyIncisable(FuncyDatalike):
     @property
     @_abstractmethod
@@ -147,24 +176,51 @@ class FuncyIncisable(FuncyDatalike):
     def atomic(self) -> bool:
         return self.depth == 0
     @_abstractmethod
-    def __getitem__(self, arg) -> FuncyDatalike:
+    def _getitem_strict(self, arg: FuncyStrictIncisor, /) -> FuncyDatalike:
         return None
-
+    @_abstractmethod
+    def _getitem_deep(self, arg: FuncyDeepIncisor, /) -> FuncyDatalike:
+        return None
+    @_abstractmethod
+    def _getitem_broad(self, arg: FuncyBroadIncisor, /) -> FuncyDatalike:
+        return None
+    @classmethod
+    def _incision_methods(cls):
+        yield from (
+            (FuncyStrictIncisor, cls._getitem_strict),
+            (FuncyDeepIncisor, cls._getitem_deep),
+            (FuncyBroadIncisor, cls._getitem_broad),
+            )
+    @classmethod
+    @_lru_cache
+    def _get_incision_method(cls, argType: type, /):
+        for typ, meth in cls._incision_methods():
+            if issubclass(argType, typ):
+                return meth
+        return NotImplemented
+    def __getitem__(self, arg: FuncyIncisor, /) -> FuncyDatalike:
+        argType = type(arg)
+        if not issubclass(argType, FuncyIncisor):
+            raise TypeError(
+                f"Incisor type {argType} is not a subclass of {FuncyIncisor}"
+                )
+        incisionMethod = self._get_incision_method(argType)
+        if incisionMethod is NotImplemented:
+            raise TypeError(f"FuncyIncisor type {argType} not accepted.")
+        return incisionMethod(self, arg)
+            
 class FuncyArray(FuncyIncisable):
     ...
 _ = FuncyArray.register(_np.ndarray)
 
-class FuncyIncisor(_ABC):
-    ...
-_ = FuncyIncisor.register(FuncySlice)
-_ = FuncyIncisor.register(FuncyIntegral)
+
 
 class FuncyEvaluable(_ABC):
     @_abstractmethod
-    def evaluate(self) -> object:
+    def evaluate(self) -> FuncyDatalike:
         return None
     @_cached_property
-    def value(self) -> object:
+    def value(self) -> FuncyDatalike:
         return self.evaluate()
 
 ################################################################################

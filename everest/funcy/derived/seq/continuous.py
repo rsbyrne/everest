@@ -1,9 +1,11 @@
 ################################################################################
 
-from . import _reseed
-from . import _utilities
+from . import _reseed, _special
 from . import _special
 from .seq import Seeded as _Seeded, Seq as _Seq
+
+def process_scalar(scal):
+    return scal.dtype.type(scal)
 
 class Continuous(_Seq):
     def _seqLength(self):
@@ -20,7 +22,7 @@ class Continuum(Continuous, _Seeded):
         while True:
             v = _reseed.rangearr(start, stop, seed = seed)
             if not len(v.shape):
-                v = _utilities.process_scalar(v)
+                v = process_scalar(v)
             yield v
             seed += 1
     def _seqLength(self):

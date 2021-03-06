@@ -5,6 +5,8 @@ from functools import cached_property, lru_cache
 import weakref
 import itertools
 
+from . import _generic
+
 from .exceptions import *
 
 def show_iter_vals(iterable):
@@ -14,7 +16,7 @@ def show_iter_vals(iterable):
         content += '...'
     return f'[{content}]'
 
-class IterSlice(Iterable):
+class IterSlice(Iterable, _generic.FuncySequence):
     def __init__(self, seq, start, stop, step):
         self.seq = seq
         self.start, self.stop, self.step = start, stop, step
@@ -30,7 +32,7 @@ class IterSlice(Iterable):
     def __repr__(self):
         return f'IterSlice == {str(self)}'
 
-class SeqIterable(Iterable):
+class SeqIterable(Iterable, _generic.FuncySequence):
 
     __slots__ = (
         'seq',

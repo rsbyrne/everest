@@ -2,14 +2,12 @@
 
 from functools import cached_property as _cached_property
 
-from . import _reseed
-from . import _Derived
-from . import _special
+from . import _reseed, _Derived, _special, _generic
 from .seqiterable import SeqIterable as _SeqIterable
 
 from .exceptions import *
 
-class Seq(_Derived):
+class Seq(_Derived, _generic.FuncySequence):
 
     discrete = False
 

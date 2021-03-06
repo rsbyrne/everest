@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Collection
 import itertools
 
-from . import _Derived
+from . import _Derived, _generic
 
 from .exceptions import *
 
@@ -22,7 +22,7 @@ def unpack_gruples(ks, vs):
         else:
             yield k, v
 
-class Map(_Derived, Mapping):
+class Map(_Derived, _generic.FuncyMapping):
 
     def __init__(self, keys, values, /, **kwargs):
         super().__init__(tuple(keys), tuple(values), **kwargs)

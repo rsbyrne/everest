@@ -1,11 +1,11 @@
 ################################################################################
+
 from functools import cached_property
 import numbers
 
-from . import _reseed
-from ..variable import Scalar
-from ..special import *
+from . import _reseed, _special
 from .seq import Seeded as _Seeded, Seq as _Seq
+
 from .exceptions import *
 
 class Discrete(_Seq):
@@ -18,7 +18,7 @@ class Discrete(_Seq):
 class Regular(Discrete):
     def __init__(self, start = 0, stop = inf, step = 1, **kwargs):
         if start is None: start = 0
-        if stop is None: stop = inf
+        if stop is None: stop = _special.inf
         if step is None: step = 1
         super().__init__(start, stop, step, **kwargs)
     def _iter(self):
@@ -58,7 +58,7 @@ class Procedural(Discrete):
     def __init__(self, fn, /, start = 0, stop = inf, step = 1, **kwargs):
         super().__init__(fn, start, stop, step, **kwargs)
         self.lenFn = start - stop
-        self.n = Scalar(int, name = 'n')
+        self.n = self.Fn(int, name = 'n')
         self.runFn = self.n < nmax
         self.fn = fn.close(n = self.n)
     def _seqLength(self):

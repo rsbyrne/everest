@@ -1,10 +1,11 @@
 ################################################################################
 
+from . import _generic
 from .derived import Derived as _Derived
 
 from .exceptions import *
 
-class UnSeq(_Derived):
+class UnSeq(_Derived, _generic.FuncySequence):
 
     def __init__(self, seq, **kwargs):
         super().__init__(seq, **kwargs)
