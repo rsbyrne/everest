@@ -115,6 +115,4 @@ class Cascade(Hierarchy):
     def copy(self, *args, **kwargs):
         return type(self)(self.hierarchy, *args, name = self.name, **kwargs)
 
-Inputs = Cascade
-
 ################################################################################

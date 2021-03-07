@@ -28,8 +28,8 @@ class Dat(_Base, _generic.FuncyIncisable):
     def context(self):
         return self._context
 
-class DatRed(Dat):
-    __slots__ = ('parent', 'argument')
+class DatChild(Dat):
+    __slots__ = ('_parent', '_incisor')
     def __init__(self,
             parent: Dat,
             incisor: _generic.FuncyIncisor,
@@ -38,15 +38,26 @@ class DatRed(Dat):
             context: tuple = (),
             **kwargs,
             ) -> None:
-        self.parent = parent
+        self._parent, self._incisor = parent, incisor
         super().__init__(
-            shape = parent.shape[1:],
             context = tuple((*context, parent)),
             incisor = incisor,
             **kwargs,
             )
-    def evaluate(self) -> _generic.FuncyDatalike:
-        return self.parent.value[self.argument]
+    @property
+    def parent(self):
+        return self._parent
+    @property
+    def incisor(self):
+        return self._incisor
+
+class DatSam(DatChild):
+    def __init__(self, parent: Dat, /, *args, **kwargs):
+        super().__init__(parent, *args, shape = parent.shape, **kwargs)
+
+class DatRed(DatChild):
+    def __init__(self, parent: Dat, /, *args, **kwargs):
+        super().__init__(parent, *args, shape = parent.shape[1:], **kwargs)
 
 class QuickDat(Dat):
     __slots__ = ('_value')

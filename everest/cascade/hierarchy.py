@@ -17,12 +17,29 @@ def get_callsourcelines(func):
     indent = ' ' * 4 * (int(i / 4) + 2)
     sourcelines = source.split('\n')
     sourcelines = [line.rstrip() for line in sourcelines]
-    callsourcelines = sourcelines[1: sourcelines.index(indent + '):')]
+    endNo = None
+    for lineNo, line in enumerate(sourcelines[1:]):
+        if line.startswith(indent + ')'):
+            endNo = lineNo + 1
+    if endNo is None:
+        raise ValueError("Could not find function definition endline.")
+    callsourcelines = sourcelines[1: endNo]
     callsourcelines = [
         remove_prefix(line, indent)
             for line in callsourcelines
         ]
     return callsourcelines
+
+class Req(inspect.Parameter.empty):
+    __slots__ = ('key', 'note')
+    def __init__(self, func, key):
+        self.key = key
+        try:
+            self.note = func.__annotations__[key]
+        except KeyError:
+            self.note = object
+    def __repr__(self):
+        return f"ReqArg({self.key}: {self.note})"
 
 def get_default_func_inputs(func):
     parameters = inspect.signature(func).parameters
@@ -31,17 +48,13 @@ def get_default_func_inputs(func):
     for key, val in out.items():
         default = val.default
         if default is inspect.Parameter.empty:
-            default = None
+            default = Req(func, key)
         out[key] = default
     argi = 0
     for key, val in parameters.items():
         if str(val)[:1] == '*':
             del out[key]
-        # elif str(val)[:1] == '*':
-        #     del out[key]
-        #     out['arg' + str(argi)] = val
-        #     argi += 1
-    return OrderedDict(out)
+    return out
 
 class Hierarchy(OrderedDict):
     def flatten(self):
@@ -81,11 +94,9 @@ def get_hierarchy(func):
             except ValueError:
                 pass
             line = line.rstrip(',')
-            if line in defaults:
-                key = line
-            else:
-                key = line.split('=')[0].strip()
-            if not key.startswith('*'):
+            key = line.split('=')[0].strip().split(':')[0].strip()
+            if key.isalnum():
+                assert key in defaults, key
                 addTo[key] = defaults[key]
     return hierarchy
 

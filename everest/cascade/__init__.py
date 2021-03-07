@@ -2,5 +2,6 @@
 
 from .hierarchy import *
 from .cascade import *
+from .inputs import *
 
 ################################################################################

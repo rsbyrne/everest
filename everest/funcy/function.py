@@ -3,7 +3,7 @@
 from functools import cached_property as _cached_property
 import weakref
 
-from . import _wordhash, _reseed
+from . import _wordhash, _reseed, _cascade
 
 from . import utilities as _utilities
 from .generic import FuncyEvaluable as _FuncyEvaluable
@@ -224,8 +224,9 @@ class Function(_FuncyEvaluable):
     def __str__(self):
         # return ' == '.join([self.namestr, self.valstr])
         return self.valstr
+
     def _hashID(self):
-        return _wordhash.w_hash(self.namestr)
+        return _wordhash.w_hash((self.__class__, self.terms, self.kwargs))
     @_cached_property
     def hashID(self):
         return self._hashID()
