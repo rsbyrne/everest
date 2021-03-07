@@ -42,7 +42,7 @@ def op_wrap(func, *keys, opclass):
         ])
     @wraps(func)
     def wrapper(*args, **kwargs):
-        return opclass(
+        return opclass._construct(
             *args,
             op = subwrap,
             **kwargs

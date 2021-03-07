@@ -83,7 +83,7 @@ def construct_array(
     except TypeError as e:
         raise ArrayConstructFailure(e)
     try:
-        return Array(**kwargs)
+        return Array._construct(**kwargs)
     except Exception as e:
         raise ArrayConstructFailure(
             "Array construct failed"

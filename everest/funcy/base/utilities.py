@@ -15,13 +15,13 @@ def construct_base(arg = None, /, *args, **kwargs) -> _Base:
         es.append(e)
     try:
         if arg is None:
-            return _Slot(**kwargs)
+            return _Slot._construct(**kwargs)
         elif len(args):
             raise BaseConstructFailure(
                 f"Too many args ({len(args) + 1}) provided to base constructor."
                 )
         else:
-            return _Thing(arg, **kwargs)
+            return _Thing._construct(arg, **kwargs)
     except Exception as e:
         es.append(e)
     raise BaseConstructFailure(

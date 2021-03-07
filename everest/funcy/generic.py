@@ -27,20 +27,28 @@ from abc import ABC as _ABC, abstractmethod as _abstractmethod
 
 
 
+from .exceptions import *
+class FuncyAbstractMethodException(FuncyException):
+    ...
+
+
 class FuncyNoneType(_ABC):
     ...
 _ = FuncyNoneType.register(type(None))
 
 class FuncySlice(_ABC):
-    ...
+    @_abstractmethod
+    def indices(self, length: int, /) -> tuple:
+        raise FuncyAbstractMethodException
+    def iterable(self, length):
+        return range(*self.indices(length))
 _ = FuncySlice.register(slice)
 
-class FuncyStruct(_ABC):
-    ...
-_ = FuncyStruct.register(tuple)
+
 
 
 class FuncyDatalike(_ABC):
+    _defaultdtype = object
     @classmethod
     def __subclasshook__(cls, C):
         if cls is FuncyDatalike:
@@ -139,9 +147,25 @@ class FuncySequence(FuncyReversible, FuncyCollection):
     ...
 _ = FuncySequence.register(_collabc.Sequence)
 
+class FuncyMutableSequence(FuncySequence):
+    ...
+_ = FuncyMutableSequence.register(_collabc.MutableSequence)
+
 class FuncyMapping(FuncyCollection):
     ...
 _ = FuncyMapping.register(_collabc.Mapping)
+
+class FuncyStruct(_ABC):
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is FuncyStruct:
+            if all((
+                    issubclass(C, FuncySequence),
+                    not issubclass(C, FuncyMutableSequence)
+                    )):
+                return True
+        return NotImplemented
+# _ = FuncyStruct.register(tuple)
 
 
 
@@ -150,17 +174,11 @@ class FuncyIncisor(_ABC):
 class FuncyStrictIncisor(FuncyIncisor):
     ...
 _ = FuncyStrictIncisor.register(FuncyIntegral)
-_ = FuncyStrictIncisor.register(FuncyMapping)
-class FuncyDeepIncisor(FuncyIncisor, FuncyIterable):
+class FuncyDeepIncisor(FuncyIncisor):
     ...
 _ = FuncyDeepIncisor.register(FuncyStruct)
 class FuncyBroadIncisor(FuncyIncisor):
-    @classmethod
-    def __subclasshook__(cls, C):
-        if cls is FuncyBroadIncisor:
-            if any("__iter__" in B.__dict__ for B in C.__mro__):
-                return True
-        return NotImplemented
+    ...
 _ = FuncyBroadIncisor.register(FuncySlice)
 _ = FuncyBroadIncisor.register(FuncySequence)
 
@@ -168,7 +186,7 @@ class FuncyIncisable(FuncyDatalike):
     @property
     @_abstractmethod
     def shape(self) -> tuple:
-        return None
+        raise FuncyAbstractMethodException
     @_cached_property
     def depth(self) -> int:
         return len(self.shape)
@@ -177,13 +195,13 @@ class FuncyIncisable(FuncyDatalike):
         return self.depth == 0
     @_abstractmethod
     def _getitem_strict(self, arg: FuncyStrictIncisor, /) -> FuncyDatalike:
-        return None
+        raise FuncyAbstractMethodException
     @_abstractmethod
     def _getitem_deep(self, arg: FuncyDeepIncisor, /) -> FuncyDatalike:
-        return None
+        raise FuncyAbstractMethodException        
     @_abstractmethod
     def _getitem_broad(self, arg: FuncyBroadIncisor, /) -> FuncyDatalike:
-        return None
+        raise FuncyAbstractMethodException
     @classmethod
     def _incision_methods(cls):
         yield from (
@@ -208,19 +226,40 @@ class FuncyIncisable(FuncyDatalike):
         if incisionMethod is NotImplemented:
             raise TypeError(f"FuncyIncisor type {argType} not accepted.")
         return incisionMethod(self, arg)
-            
+
 class FuncyArray(FuncyIncisable):
-    ...
+    def _get_redType(self):
+        if (depth := self.depth) == 1:
+            return self.dtype
+        else:
+            return self.__class__
 _ = FuncyArray.register(_np.ndarray)
-
-
 
 class FuncyEvaluable(_ABC):
     @_abstractmethod
     def evaluate(self) -> FuncyDatalike:
-        return None
+        raise FuncyAbstractMethodException
     @_cached_property
     def value(self) -> FuncyDatalike:
         return self.evaluate()
+
+#     @_cached_property
+#     def redType(self) -> FuncyDatalike:
+#         redType = self._get_redType()
+#         if not issubclass(redType, FuncyDatalike):
+#             raise TypeError(f"Reduction type {redType} is not Datalike.")
+#         if hasattr(redType, '_defaultdtype'):
+#             if not issubclass(
+#                     dtype := self.dtype,
+#                     redTypeDtype := redType._defaultdtype,
+#                     ):
+#                 raise TypeError(
+#                     f"Reduction dtype {redTypeDtype}"
+#                     f"is not a superclass of parent dtype {dtype}"
+#                     )
+#         return redType
+#     @_abstractmethod
+#     def _get_redType(self):
+#         raise FuncyAbstractMethodException
 
 ################################################################################

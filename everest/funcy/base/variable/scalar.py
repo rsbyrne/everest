@@ -96,9 +96,9 @@ def construct_scalar(
     if issubclass(dtype, _Rational):
         try:
             if issubclass(dtype, _Integral):
-                return ScalarIntegral(**kwargs)
+                return ScalarIntegral._construct(**kwargs)
             else:
-                return ScalarRational(**kwargs)
+                return ScalarRational._construct(**kwargs)
         except Exception as e:
             raise ScalarConstructFailure(
                 "Scalar construct failed"

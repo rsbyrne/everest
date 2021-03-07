@@ -1,6 +1,7 @@
 ################################################################################
 
 from functools import cached_property as _cached_property
+import weakref
 
 from . import _wordhash, _reseed
 
@@ -8,6 +9,22 @@ from . import utilities as _utilities
 from .generic import FuncyEvaluable as _FuncyEvaluable
 
 from .exceptions import *
+
+# class NameProxy(cls):
+#     def __init__(self, cls, *terms, **kwargs):
+#         self.cls, self.terms, self.kwargs = cls, terms, kwargs
+#     @property
+#     def kwargstr(self):
+#         return self.cls._kwargstr(self)
+#     @property
+#     def titlestr(self):
+#         return self.cls._titlestr(self)
+#     @property
+#     def namestr(self):
+#         return self.cls._namestr(self)
+#     @property
+#     def hashID(self):
+#         return self.cls._hashID(self)
 
 class Function(_FuncyEvaluable):
 
@@ -18,6 +35,22 @@ class Function(_FuncyEvaluable):
 #         '__weakref__',
 #         '__dict__',
         )
+
+    unique = False
+
+    _premade = weakref.WeakValueDictionary()
+
+    @classmethod
+    def _construct(cls, *terms, unique = False, **kwargs):
+        prox = cls(*terms, **kwargs)
+        if (unique or cls.unique):
+            return cls(*terms, **kwargs)
+        else:
+            try:
+                return cls._premade[prox.hashID]
+            except KeyError:
+                cls._premade[prox.hashID] = prox
+                return prox
 
     def __init__(self, *terms, **kwargs):
         self.terms = terms
@@ -191,9 +224,11 @@ class Function(_FuncyEvaluable):
     def __str__(self):
         # return ' == '.join([self.namestr, self.valstr])
         return self.valstr
+    def _hashID(self):
+        return _wordhash.w_hash(self.namestr)
     @_cached_property
     def hashID(self):
-        return _wordhash.w_hash(self.namestr)
+        return self._hashID()
     @_cached_property
     def _hashInt(self):
         return _reseed.digits(12, seed = self.hashID)
@@ -216,5 +251,11 @@ class Function(_FuncyEvaluable):
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    def __reduce__(self):
+        return (self._construct, (self.terms, self.kwargs))
+    @classmethod
+    def _unreduce(cls, terms, kwargs):
+        return cls._construct(*terms, **kwargs)
 
 ################################################################################

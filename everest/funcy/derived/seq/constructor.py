@@ -65,28 +65,28 @@ class SeqConstructor:
                 raise ValueError("Cannot specify kwargs when type is Seq.")
             if isinstance(arg, self.base):
                 if hasattr(arg, '_abstract'):
-                    return self.algorithmic(arg)
+                    return self.algorithmic._construct(arg)
                 else:
                     raise NotYetImplemented
             else:
-                return self.discrete(arg)
+                return self.discrete._construct(arg)
         elif type(arg) is dict:
             return self.map(
-                self.group(*arg.keys()),
-                self.group(*arg.values()),
+                self.group._construct(*arg.keys()),
+                self.group._construct(*arg.values()),
                 **kwargs
                 )
         elif type(arg) is slice:
             start, stop, step = arg.start, arg.stop, arg.step
             if isinstance(step, numbers.Number):
-                return self.regular(start, stop, step, **kwargs)
+                return self.regular._construct(start, stop, step, **kwargs)
             elif type(step) is str or step is None:
                 if any(isinstance(a, numbers.Integral) for a in (start, stop)):
-                    return self.shuffle(start, stop, step, **kwargs)
+                    return self.shuffle._construct(start, stop, step, **kwargs)
                 else:
-                    return self.continuum(start, stop, step, **kwargs)
+                    return self.continuum._construct(start, stop, step, **kwargs)
             elif isinstance(step, self.sampler):
-                return step(start, stop)
+                return step._construct(start, stop)
             # elif type(step) is type:
             #     if issubclass(step, self.sampler):
             #         return step()(start, stop)
@@ -98,8 +98,8 @@ class SeqConstructor:
         elif isinstance(arg, Sequence):
             if type(arg) is tuple:
                 if any(isinstance(a, self.base) for a in arg):
-                    return self.group(*arg, **kwargs)
-            return self.arbitrary(*arg, **kwargs)
+                    return self.group._construct(*arg, **kwargs)
+            return self.arbitrary._construct(*arg, **kwargs)
         else:
             raise TypeError(
                 "Could not understand seq input of type:", type(arg)

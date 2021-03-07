@@ -7,6 +7,7 @@ from .exceptions import *
 class Variable(_Base):
 
     open = False
+#     unique = False
 
     __slots__ = (
         'stack',

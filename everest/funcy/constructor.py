@@ -25,20 +25,20 @@ class _Fn:
             if arg is None: # i.e. no args, hence not Derived
                 return self.base.construct_base(arg, *args, **kwargs)
             elif arglen := len(args): # i.e. there are multiple args
-                return self.derived.Group(arg, *args, **kwargs)
+                return self.derived.Group._construct(arg, *args, **kwargs)
             else: # i.e. only one arg
                 if (argType := type(arg)) is tuple:
-                    return self.derived.Group(*arg, **kwargs)
+                    return self.derived.Group._construct(*arg, **kwargs)
                 elif isinstance(arg, self.Function):
                     if len(kwargs):
                         raise ValueError("Kwargs not expected.")
                     return arg
                 elif argType is dict:
-                    return self.derived.Map(arg.keys(), arg.values())
+                    return self.derived.Map._construct(arg.keys(), arg.values())
                 elif argType is set:
                     raise NotYetImplemented
                 elif argType is slice:
-                    return self.derived.slyce(arg.start, arg.stop, arg.step)
+                    return self.derived.slyce._construct(arg.start, arg.stop, arg.step)
                 else:
                     return self.base.construct_base(arg, *args, **kwargs)
         except Exception as e:

@@ -13,15 +13,12 @@ class Dat(_Base, _generic.FuncyIncisable):
             *,
             shape: tuple = (),
             context: tuple = (),
-            incisor: _Optional[_generic.FuncyIncisor, tuple] = None,
             **kwargs,
             ) -> None:
         self._shape = shape
         self._context = context
-        self._incisor = incisor
         super().__init__(
             context = self.context,
-            incisor = self.incisor,
             **kwargs
             )
     @property
@@ -30,40 +27,7 @@ class Dat(_Base, _generic.FuncyIncisable):
     @property
     def context(self):
         return self._context
-    
-#     def __getitem__(self, arg: _generic.FuncyIncisor, /) -> 'Dat':
-#         if self.atomic:
-#             raise IndexError("Cannot slice Dat of depth zero.")
-#         if (argType := type(arg)) is tuple:
-#             return self._get_tuple(*arg)
-#         elif isinstance(arg, _generic.FuncySlice):
-#             return self._get_slice(arg)
-#         else:
-#             return SubDat(self)
-#     def _get_tuple(self, arg, /, *args) -> 'Dat':
-#         depth = self.depth
-#         if (nArgs := 1 + len(args)) > depth:
-#             raise IndexError(
-#                 "Too many indices:"
-#                 f" provided == {nArgs}; max allowed == {depth}."
-#                 )
-#         raise NotYetImplemented
-#     def _get_slice(self, arg, /) -> 'Dat':
-#         raise NotYetImplemented
-    @classmethod
-    def _get_DatRed(self):
-        return DatRed
-    @_cached_property
-    def DatRed(self):
-        return self._get_DatRed()
-    @classmethod
-    def _get_DatOid(self)
-        return DatOid
-    @_cached_property
-    def DatOid(self):
-        return self._get_DatOid()
-class DatOid(Dat):
-    ...
+
 class DatRed(Dat):
     __slots__ = ('parent', 'argument')
     def __init__(self,
