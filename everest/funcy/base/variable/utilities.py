@@ -1,16 +1,17 @@
 ################################################################################
 
-from .scalar import construct_scalar as _construct_scalar
-from .array import construct_array as _construct_array
+from .scalar import Scalar as _Scalar
+from .array import Array as _Array
+from .misc import Misc as _Misc
 from .variable import Variable as _Variable
 
 from .exceptions import *
 
 def construct_variable(arg = None, /, *args, **kwargs) -> _Variable:
     es = []
-    for meth in (_construct_scalar, _construct_array):
+    for kind in (_Array, _Scalar, _Misc):
         try:
-            return meth(arg, *args, **kwargs)
+            return kind._construct(arg, *args, **kwargs)
         except VariableConstructFailure as e:
             es.append(e)
     raise VariableConstructFailure(

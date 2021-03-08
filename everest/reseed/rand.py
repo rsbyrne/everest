@@ -77,8 +77,11 @@ def reseed(func):
 
 @reseed
 def randint(low = 0, high = 9):
+    if high > (highest := 2 ** 63):
+        warnings.warn("High is too high; capping at 2 ** 63.")
+        high = min(high, highest)
     return int(Reseed.rng.integers(low, high))
-def digits(n = 16, **kwargs):
+def digits(n = 12, **kwargs):
     low = int(10 ** n)
     high = int(10 ** (n + 1)) - 1
     return randint(low, high, **kwargs)

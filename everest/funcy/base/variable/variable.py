@@ -1,13 +1,13 @@
 ################################################################################
 
-from . import _Base, _Function
+from . import _Base, _Function, _special
 
 from .exceptions import *
 
 class Variable(_Base):
 
     open = False
-#     unique = False
+    unique = True
 
     __slots__ = (
         'stack',
@@ -15,8 +15,9 @@ class Variable(_Base):
         'pipe',
         )
 
-    def __init__(self, *, initVal, **kwargs):
-        self.memory = initVal
+    def __init__(self, *, initVal = None, **kwargs):
+        self.memory = _special.null if initVal is None else initVal
+#         self.memory = initVal
         super().__init__(**kwargs)
 
     def rectify(self):

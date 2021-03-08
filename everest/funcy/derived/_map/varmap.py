@@ -18,6 +18,12 @@ def ordered_unpack(keys, arg1, arg2):
     elif type(arg1) is int:
         seqChoice = [arg1,]
         mapChoice = [keys[arg1],]
+    elif type(arg1) is list:
+        seqChoice = arg1
+        mapChoice = [keys[i] for i in seqChoice]
+    elif type(arg1) is slice:
+        seqChoice = list(range(*arg1.indices(len(keys))))
+        mapChoice = [keys[i] for i in seqChoice]
     elif type(arg1) is tuple:
         if len(set([type(o) for o in arg1])) > 1:
             raise ValueError
@@ -31,6 +37,8 @@ def ordered_unpack(keys, arg1, arg2):
             mapChoice = [mapFn(arg) for arg in arg1]
         else:
             raise TypeError
+    else:
+        raise TypeError(type(arg1))
     if type(arg2) is tuple:
         out = dict((keys[i], arg2[i]) for i in seqChoice)
     elif isinstance(arg2, Mapping):
@@ -49,17 +57,19 @@ class VarMap(_Map, MutableMapping):
         self.variables = values
         self.varNames = keys
         super().__init__(keys, values, **kwargs)
-        self.defaults = dict(zip(keys, (v.value for v in values)))
+        self.defaults = dict(zip(keys, (v.memory for v in values)))
     @staticmethod
     def _proc_var(arg):
         if type(arg) is tuple:
-            print(arg)
             k, v = arg
-            return _construct_variable(v, name = k)
+            if isinstance(v, _Variable):
+                return v
+            else:
+                return _construct_variable(v, name = k)
         elif isinstance(arg, _Variable):
             return arg
         else:
-            raise TypeError(type(arg))
+            raise TypeError(type(arg), arg)
     def __iter__(self):
         return iter(self.varNames)
     def __len__(self):

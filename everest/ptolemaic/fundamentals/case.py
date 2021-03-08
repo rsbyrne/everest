@@ -42,7 +42,7 @@ class Case(Ptolemaic):
         instance.inputs = self.vector
         instance.hashID = self.hashID
         instance.case = self
-        instanceID = str(reseed.digits(18))
+        instanceID = str(reseed.digits(12))
         instance.instanceID = instanceID
         self.instances[instance.instanceID] = instance
         vector = self.vector.copy(*args)

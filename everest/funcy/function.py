@@ -226,7 +226,7 @@ class Function(_FuncyEvaluable):
         return self.valstr
 
     def _hashID(self):
-        return _wordhash.w_hash((self.__class__, self.terms, self.kwargs))
+        return _wordhash.w_hash(repr(self))
     @_cached_property
     def hashID(self):
         return self._hashID()

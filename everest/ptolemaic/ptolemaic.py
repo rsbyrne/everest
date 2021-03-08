@@ -9,7 +9,7 @@ class Ptolemaic:
     def __new__(cls, *args, **kwargs):
         obj = super().__new__(cls)
         obj._callArgs = cls._process_callArgs(*args)
-        obj.instanceID = str(reseed.digits(18))
+        obj.instanceID = str(reseed.digits(12))
         argstr = ', '.join(repr(a) for a in obj._callArgs)
         return obj
     @staticmethod

@@ -4,7 +4,8 @@ from collections import OrderedDict
 
 import numpy as np
 
-from everest.funcy.map import SettableMap
+from everest.funcy.derived.map import VarMap
+from everest.funcy import Fn
 
 from .stateful import Stateful
 from .bythic import Bythic
@@ -16,17 +17,18 @@ class Configurable(Stateful, Bythic):
 
     @classmethod
     def _configs_construct(cls):
-        class Configs(Reportable, SettableMap):
+        class Configs(Reportable, VarMap):
             def __init__(self, frame):
                 self.state = frame.state
                 keys, values = zip(*frame.ghosts.configs.items())
-                values = tuple(self._process_value(v) for v in values)
-                super().__init__(keys, values)
-            def _process_value(self, v):
+                values = tuple(self._process_value(k, v) for k, v in zip(keys, values))
+                super().__init__(*zip(keys, values))
+            def _process_value(self, k, v):
                 if isinstance(v, self.state.StateVar):
                     v = Ellipsis
                 elif type(v) is tuple:
                     _, v = v
+                v = Fn(object, name = k, initVal = v)
                 return v
             def __setitem__(self, *args, **kwargs):
                 super().__setitem__(*args, **kwargs)

@@ -7,18 +7,18 @@ import numbers
 import weakref
 
 from everest.funcy import Fn
-from everest.datalike.base import Datalike
+# from everest.datalike.base import Datalike
 
 from ..fundamentals import Case
 from .producer import Producer
 from .stateful import Stateful
-from .indexable import Indexable
+# from .indexable import Indexable
 from .bythic import Bythic
 from .exceptions import *
 from ..ptolemaic import Ptolemaic
 from ..display import message
 
-class Geometric(Indexable, Stateful, Bythic):
+class Geometric(Stateful, Bythic):
 
     class GeometricException(PtolemaicException):
         pass
@@ -103,7 +103,7 @@ class Geometric(Indexable, Stateful, Bythic):
 
     @classmethod
     def _geometryClass_construct(cls):
-        class Geometry(Datalike, Ptolemaic):
+        class Geometry(Ptolemaic):
             # __slots__ = ('case', '_frame')
             def __init__(self, case, frame = None):
                 self.case = case

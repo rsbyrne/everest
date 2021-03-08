@@ -1,5 +1,17 @@
 ################################################################################
 
+from . import generic as _generic
+import itertools as _itertools
+
+def unpacker_zip(keys, vals):
+    if isinstance(keys, _generic.FuncyUnpackable):
+        if not isinstance(vals, _generic.FuncyUnpackable):
+            vals = _itertools.repeat(vals)
+        for subkeys, subvals in zip(keys, vals):
+            yield from unpacker_zip(subkeys, subvals)
+    else:
+        yield keys, vals
+
 def is_numeric(arg):
     try:
         _ = arg + 1

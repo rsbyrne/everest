@@ -7,10 +7,10 @@ import weakref
 import numpy as np
 
 from everest.funcy import Fn
-from everest.funcy.variable import Scalar
+from everest.funcy.base.variable import Scalar, ScalarIntegral
 from everest import wordhash
-from everest.datalike.qualifieds.indexed import Counted
-from everest.datalike.datums.numerical.index import Count
+# from everest.datalike.qualifieds.indexed import Counted
+# from everest.datalike.datums.numerical.index import Count
 
 from .producer import Producer, LoadFail
 from ..utilities import make_scalar
@@ -24,13 +24,13 @@ class NotIndexlike(TypeError, IndexableException):
 
 class Indexable(Producer):
 
-    @classmethod
-    def _datafulclass_construct(cls):
-        super()._datafulclass_construct()
-        class DatafulClass(cls.DatafulClass, Counted):
-            ...
-        cls.DatafulClass = DatafulClass
-        return
+#     @classmethod
+#     def _datafulclass_construct(cls):
+#         super()._datafulclass_construct()
+#         class DatafulClass(cls.DatafulClass, Counted):
+#             ...
+#         cls.DatafulClass = DatafulClass
+#         return
 
     @classmethod
     def _indexVar_construct(cls):
@@ -41,8 +41,9 @@ class Indexable(Producer):
 
     @classmethod
     def _countVar_construct(cls):
-        class CountVar(Count, cls.IndexVar):
-            ...
+        class CountVar(ScalarIntegral, cls.IndexVar):
+            def __init__(self, name = 'count', **kwargs):
+                super().__init__(name = name, **kwargs)
         cls.CountVar = CountVar
         return
 
@@ -59,12 +60,12 @@ class Indexable(Producer):
                 self.sourceInstanceID = frame.instanceID
                 self._frameRepr = repr(frame)
                 self.indexers = indexers
-                self._indexerDict = OrderedDict(
+                self._indexerDict = dict(
                     zip((i.name for i in self.indexers), self.indexers)
                     )
                 self._length = len(self.indexers)
                 self.master = indexers[0]
-                self.types = tuple(i.compType for i in indexers)
+                self.types = tuple(i.dtype for i in indexers)
 
             @property
             def frame(self):

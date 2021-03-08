@@ -2,6 +2,7 @@
 
 from collections import OrderedDict, Mapping
 import inspect
+import warnings
 
 from everest import wordhash
 
@@ -35,7 +36,7 @@ class Cascade(Hierarchy):
             hierarchy = Hierarchy(source)
         elif isinstance(source, Hierarchy):
             hierarchy = source
-        elif isinstance(source, type(self)):
+        elif isinstance(source, Cascade):
             hierarchy = source.hierarchy
         else:
             hierarchy = get_hierarchy(source)
@@ -51,7 +52,7 @@ class Cascade(Hierarchy):
                 key = key[1:]
             _ = self._check_key(key)
             if isinstance(val, Hierarchy):
-                sub = type(self)(
+                sub = Cascade(
                     val,
                     name = key,
                     parent = self,
@@ -113,6 +114,8 @@ class Cascade(Hierarchy):
             seed = repr(self)
             )
     def copy(self, *args, **kwargs):
-        return type(self)(self.hierarchy, *args, name = self.name, **kwargs)
+        if not type(self) is Cascade:
+            warnings.warn("Cascade-like object being copied is not being returned as original type.")
+        return Cascade(self.hierarchy, *args, name = self.name, **kwargs)
 
 ################################################################################

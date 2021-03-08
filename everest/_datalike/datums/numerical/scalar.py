@@ -3,7 +3,7 @@ import numbers
 
 import numpy as np
 
-from everest.funcy.variable import Scalar as FnScalar
+from everest.funcy.base.variable import Scalar as FnScalar
 
 from .base import Continuous, Discrete
 

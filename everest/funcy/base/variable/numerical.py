@@ -26,10 +26,10 @@ class Numerical(_Variable, _generic.FuncyNumerical):
 
     @_cached_property
     def nullVal(self):
-        if issubclass(self.dtype, _Integral):
-            self.nullVal = _special.nullint
+        if isinstance(self, _generic.FuncyIntegral):
+            return _special.nullint
         else:
-            self.nullVal = _special.nullflt
+            return _special.nullflt
 
     def nullify(self):
         self.memory = self.nullVal

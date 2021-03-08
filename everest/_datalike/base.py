@@ -1,5 +1,6 @@
 ################################################################################
-from everest.funcy.base import Function
+
+from everest.funcy import Function
 
 from .exceptions import *
 

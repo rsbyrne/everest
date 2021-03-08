@@ -32,11 +32,17 @@ class FuncyAbstractMethodException(FuncyException):
     ...
 
 
-class FuncyNoneType(_ABC):
+
+class FuncyGeneric(_ABC):
+    ...
+
+
+
+class FuncyNoneType(FuncyGeneric):
     ...
 _ = FuncyNoneType.register(type(None))
 
-class FuncySlice(_ABC):
+class FuncySlice(FuncyGeneric):
     @_abstractmethod
     def indices(self, length: int, /) -> tuple:
         raise FuncyAbstractMethodException
@@ -47,7 +53,7 @@ _ = FuncySlice.register(slice)
 
 
 
-class FuncyDatalike(_ABC):
+class FuncyDatalike(FuncyGeneric):
     _defaultdtype = object
     @classmethod
     def __subclasshook__(cls, C):
@@ -60,6 +66,8 @@ class FuncyDatalike(_ABC):
         if type(dtype) is str:
             import numpy as np
             dtype = eval(dtype)
+        if isinstance(dtype, _np.dtype):
+            dtype = _np.dtype.type
         if not type(dtype) is type:
             raise TypeError(
                 "Provided dtype"
@@ -87,7 +95,6 @@ class FuncyBool(FuncyDatalike):
     _defaultdtype = bool
 _ = FuncyBool.register(FuncyBool._defaultdtype)
 
-
 class FuncyNumerical(FuncyDatalike):
     _defaultdtype = _numbers.Number
 
@@ -111,27 +118,31 @@ class FuncyIntegral(FuncyRational):
     _defaultdtype = _numbers.Integral
 _ = FuncyIntegral.register(FuncyIntegral._defaultdtype)
 
+class FuncyArray(FuncyNumerical):
+    ...
+_ = FuncyArray.register(_np.ndarray)
+
 
 
 from collections import abc as _collabc
 
-class FuncyContainer(_ABC):
+class FuncyContainer(FuncyGeneric):
     ...
 _ = FuncyContainer.register(_collabc.Container)
 
-class FuncyIterable(_ABC):
+class FuncyIterable(FuncyGeneric):
     ...
 _ = FuncyIterable.register(_collabc.Iterable)
 
-class FuncyIterator(_ABC):
+class FuncyIterator(FuncyGeneric):
     ...
 _ = FuncyIterator.register(_collabc.Iterator)
 
-class FuncySized(_ABC):
+class FuncySized(FuncyGeneric):
     ...
 _ = FuncySized.register(_collabc.Sized)
 
-class FuncyCallable(_ABC):
+class FuncyCallable(FuncyGeneric):
     ...
 _ = FuncyCallable.register(_collabc.Callable)
 
@@ -139,7 +150,7 @@ class FuncyCollection(FuncySized, FuncyIterable, FuncyContainer):
     ...
 _ = FuncyCollection.register(_collabc.Collection)
 
-class FuncyReversible(_ABC):
+class FuncyReversible(FuncyGeneric):
     ...
 _ = FuncyReversible.register(_collabc.Reversible)
 
@@ -155,13 +166,24 @@ class FuncyMapping(FuncyCollection):
     ...
 _ = FuncyMapping.register(_collabc.Mapping)
 
-class FuncyStruct(_ABC):
+
+class FuncyUnpackable(FuncyGeneric):
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is FuncyUnpackable:
+            if issubclass(C, FuncyIterable):
+                if not issubclass(C, (tuple, str, FuncyDatalike)):
+                    return True
+        return NotImplemented
+
+class FuncyStruct(FuncyGeneric):
     @classmethod
     def __subclasshook__(cls, C):
         if cls is FuncyStruct:
             if all((
-                    issubclass(C, FuncySequence),
-                    not issubclass(C, FuncyMutableSequence)
+                    issubclass(C, FuncyCollection),
+                    not issubclass(C, FuncyMutableSequence),
+                    not issubclass(C, FuncyUnpackable),
                     )):
                 return True
         return NotImplemented
@@ -169,7 +191,7 @@ class FuncyStruct(_ABC):
 
 
 
-class FuncyIncisor(_ABC):
+class FuncyIncisor(FuncyGeneric):
     ...
 class FuncyStrictIncisor(FuncyIncisor):
     ...
@@ -180,13 +202,15 @@ _ = FuncyDeepIncisor.register(FuncyStruct)
 class FuncyBroadIncisor(FuncyIncisor):
     ...
 _ = FuncyBroadIncisor.register(FuncySlice)
-_ = FuncyBroadIncisor.register(FuncySequence)
+_ = FuncyBroadIncisor.register(FuncyUnpackable)
 
-class FuncyIncisable(FuncyDatalike):
+class FuncyIncisable(FuncyGeneric):
     @property
     @_abstractmethod
     def shape(self) -> tuple:
         raise FuncyAbstractMethodException
+    def __len__(self):
+        return self.shape[0]
     @_cached_property
     def depth(self) -> int:
         return len(self.shape)
@@ -198,7 +222,7 @@ class FuncyIncisable(FuncyDatalike):
         raise FuncyAbstractMethodException
     @_abstractmethod
     def _getitem_deep(self, arg: FuncyDeepIncisor, /) -> FuncyDatalike:
-        raise FuncyAbstractMethodException        
+        raise FuncyAbstractMethodException
     @_abstractmethod
     def _getitem_broad(self, arg: FuncyBroadIncisor, /) -> FuncyDatalike:
         raise FuncyAbstractMethodException
@@ -227,15 +251,7 @@ class FuncyIncisable(FuncyDatalike):
             raise TypeError(f"FuncyIncisor type {argType} not accepted.")
         return incisionMethod(self, arg)
 
-class FuncyArray(FuncyIncisable):
-    def _get_redType(self):
-        if (depth := self.depth) == 1:
-            return self.dtype
-        else:
-            return self.__class__
-_ = FuncyArray.register(_np.ndarray)
-
-class FuncyEvaluable(_ABC):
+class FuncyEvaluable(FuncyGeneric):
     @_abstractmethod
     def evaluate(self) -> FuncyDatalike:
         raise FuncyAbstractMethodException
@@ -243,6 +259,11 @@ class FuncyEvaluable(_ABC):
     def value(self) -> FuncyDatalike:
         return self.evaluate()
 
+#     def _get_redType(self):
+#         if (depth := self.depth) == 1:
+#             return self.dtype
+#         else:
+#             return self.__class__
 #     @_cached_property
 #     def redType(self) -> FuncyDatalike:
 #         redType = self._get_redType()

@@ -13,12 +13,13 @@ class Inputs(_Cascade):
             self._Inputs_sig = _inspect.signature(source)
         elif isinstance(source, Inputs):
             self._Inputs_sig = source._Inputs_sig
+        elif isinstance(source, _inspect.Signature):
+            self._Inputs_sig = source
         else:
             raise TypeError(
                 f"Inputs source must be FunctionType or Inputs type,"
                 f" not {type(source)}"
                 )
-        
         super().__init__(source, *args, **kwargs)
     @property
     def _Inputs_incomplete(self):
@@ -59,5 +60,7 @@ class Inputs(_Cascade):
         except KeyError:
             self._Inputs_unpack()
             return self.kwargs
+#     def copy(self, *args, **kwargs):
+#         return self.__class__(self._Inputs_sig, *args, name = self.name, **kwargs)
 
 ################################################################################

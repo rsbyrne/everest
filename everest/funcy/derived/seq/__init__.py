@@ -9,9 +9,7 @@ from .. import (
     Derived as _Derived,
     Operation as _Operation,
     )
-from .. import _Slot
-from ..group import Gruple as _Gruple
-from ..map.map import unpack_gruples as _unpack_gruples
+from .. import _Slot, _Gruple, _unpacker_zip
 
 from .constructor import SeqConstructor
 from .seq import Seq

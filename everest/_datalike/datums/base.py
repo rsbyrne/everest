@@ -1,5 +1,5 @@
 ################################################################################
-from everest.funcy.variable import Variable
+from everest.funcy.base.variable import Variable
 
 from ..base import Datalike
 from .exceptions import *

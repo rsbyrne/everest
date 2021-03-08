@@ -1,5 +1,5 @@
 ################################################################################
-from everest.funcy.map import VarMap
+from everest.funcy.derived.map import VarMap
 
 from .base import Structure
 

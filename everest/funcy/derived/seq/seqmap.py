@@ -1,10 +1,10 @@
 ################################################################################
 
 from .seqoperation import SeqOperation as _SeqOperation
-from . import _unpack_gruples
+from . import _unpacker_zip
 
 def mapple_op(ks, vs):
-    return dict(_unpack_gruples(ks, vs))
+    return dict(_unpacker_zip(ks, vs))
 
 class SeqMap(_SeqOperation):
 

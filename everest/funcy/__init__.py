@@ -10,4 +10,6 @@ from .constructor import Fn
 # from . import misc
 from .special import *
 
+from .function import Function
+
 ################################################################################

@@ -1,10 +1,12 @@
 ################################################################################
-from everest.datalike.base import Datalike as _Datalike
-from everest.datalike.structures import \
-    Ensemble as _Ensemble, \
-    Magazine as _Magazine, \
-    Assembly as _Assembly
-from everest.datalike.datums import Datum as _Datum
+# from everest.datalike.base import Datalike as _Datalike
+# from everest.datalike.structures import \
+#     Ensemble as _Ensemble, \
+#     Magazine as _Magazine, \
+#     Assembly as _Assembly
+# from everest.datalike.datums import Datum as _Datum
+from everest.funcy.derived.map import VarMap
+from everest.funcy.base.variable import Variable
 
 from .base import Frame
 
@@ -12,20 +14,20 @@ class Dataful(Frame):
 
     @classmethod
     def _datafulclass_construct(cls):
-        class DatafulClass(_Datalike):
+        class DatafulClass:
             ...
         cls.DatafulClass = DatafulClass
         return
 
     @classmethod
     def _dataclass_construct(cls):
-        class Ensemble(_Ensemble, cls.DatafulClass):
+        class Ensemble(cls.DatafulClass):
             ...
-        class Magazine(_Magazine, cls.DatafulClass):
+        class Magazine(cls.DatafulClass):
             ...
-        class Assembly(_Assembly, cls.DatafulClass):
+        class Assembly(cls.DatafulClass, VarMap):
             ...
-        class Datum(_Datum, cls.DatafulClass):
+        class Datum(cls.DatafulClass, Variable):
             ...
         cls.Ensemble = Ensemble
         cls.Magazine = Magazine
@@ -45,7 +47,7 @@ class Dataful(Frame):
             **kwargs,
             ):
         outVars = [] if _outVars is None else _outVars
-        self.data = self.Assembly(outVars)
+        self.data = self.Assembly(*outVars)
         super().__init__(**kwargs)
 
 ################################################################################

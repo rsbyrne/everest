@@ -3,7 +3,7 @@
 from functools import cached_property, lru_cache
 import warnings
 
-from . import _Function, _generic, _construct_base
+from . import _Function, _generic, _construct_base, _Gruple
 
 from .exceptions import *
 
@@ -17,7 +17,7 @@ class Derived(_Function):
 
     def __init__(self, *terms, **kwargs):
         assert len(terms)
-        self.terms = (self._derived_init_process_term(t) for t in terms)
+        self.terms = _Gruple(self._derived_init_process_term(t) for t in terms)
         super().__init__(*terms, **kwargs)
         for term in self.baseTerms:
             term.register_downstream(self)

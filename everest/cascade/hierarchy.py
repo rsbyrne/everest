@@ -42,7 +42,8 @@ class Req(inspect.Parameter.empty):
         return f"ReqArg({self.key}: {self.note})"
 
 def get_default_func_inputs(func):
-    parameters = inspect.signature(func).parameters
+    sig = inspect.signature(func)
+    parameters = sig.parameters
     out = parameters.copy()
     if 'self' in out: del out['self']
     for key, val in out.items():

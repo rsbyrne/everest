@@ -1,5 +1,5 @@
 ################################################################################
-from everest.funcy.map import Map
+from everest.funcy.derived.map import Map
 
 from ..base import Datalike
 
