@@ -1,10 +1,12 @@
 ################################################################################
 
-from . import _Base, _Function, _special
+from abc import abstractmethod as _abstractmethod
+
+from . import _Base, _Function, _special, _generic
 
 from .exceptions import *
 
-class Variable(_Base):
+class Variable(_Base, _generic.FuncyVariable):
 
     open = False
     unique = True
@@ -16,15 +18,12 @@ class Variable(_Base):
         )
 
     def __init__(self, *, initVal = None, **kwargs):
-        self.memory = _special.null if initVal is None else initVal
-#         self.memory = initVal
+        self.memory = initVal
         super().__init__(**kwargs)
 
+    @_abstractmethod
     def rectify(self):
-        raise MissingAsset
-
-    def evaluate(self):
-        return self.value
+        raise _generic.FuncyAbstractMethodException
 
     @property
     def value(self):
@@ -45,8 +44,6 @@ class Variable(_Base):
                 except AttributeError:
                     raise TypeError(type(val))
         self.refresh()
-    def set_value(self, val):
-        raise MissingAsset
 
     def add_stack(self):
         from .stack import Stack

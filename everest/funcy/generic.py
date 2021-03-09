@@ -193,16 +193,22 @@ class FuncyStruct(FuncyGeneric):
 
 class FuncyIncisor(FuncyGeneric):
     ...
-class FuncyStrictIncisor(FuncyIncisor):
+class FuncyShallowIncisor(FuncyIncisor):
+    ...
+class FuncyStrictIncisor(FuncyShallowIncisor):
     ...
 _ = FuncyStrictIncisor.register(FuncyIntegral)
-class FuncyDeepIncisor(FuncyIncisor):
-    ...
-_ = FuncyDeepIncisor.register(FuncyStruct)
-class FuncyBroadIncisor(FuncyIncisor):
+_ = FuncyStrictIncisor.register(FuncyString)
+_ = FuncyStrictIncisor.register(FuncyMapping)
+class FuncyBroadIncisor(FuncyShallowIncisor):
     ...
 _ = FuncyBroadIncisor.register(FuncySlice)
 _ = FuncyBroadIncisor.register(FuncyUnpackable)
+_ = FuncyBroadIncisor.register(type(Ellipsis))
+class FuncyDeepIncisor(FuncyIncisor):
+    ...
+_ = FuncyDeepIncisor.register(FuncyStruct)
+
 
 class FuncyIncisable(FuncyGeneric):
     @property
@@ -258,6 +264,21 @@ class FuncyEvaluable(FuncyGeneric):
     @_cached_property
     def value(self) -> FuncyDatalike:
         return self.evaluate()
+
+class FuncyVariable(FuncyEvaluable):
+    @property
+    @_abstractmethod
+    def value(self) -> object:
+        raise FuncyAbstractMethodException
+    @value.setter
+    @_abstractmethod
+    def value(self, val, /) -> None:
+        raise FuncyAbstractMethodException
+    @_abstractmethod
+    def set_value(self) -> None:
+        raise FuncyAbstractMethodException
+    def evaluate(self):
+        return self.value
 
 #     def _get_redType(self):
 #         if (depth := self.depth) == 1:
