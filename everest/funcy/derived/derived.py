@@ -2,6 +2,7 @@
 
 from abc import abstractmethod as _abstractmethod
 from functools import cached_property as _cached_property
+import math as _math
 
 from . import _Function, _generic, _construct_base, _Gruple
 from ._seqmerge import muddle as _muddle
@@ -44,6 +45,8 @@ class Derived(_Function):
         return (self._evaluate(s) for s in self._muddle_terms())
     def _seq_evaluate(self):
         return _SeqIterable(self)
+    def _seqLength(self):
+        return _math.prod(t._seqLength() for t in self.seqTerms)
     @_cached_property
     def evaluate(self):
         if self.isSeq: return self._seq_evaluate
