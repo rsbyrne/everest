@@ -44,7 +44,7 @@ class SeqIterable(Iterable, _generic.FuncySequence):
     def __iter__(self):
         return self.seq._iter()
     def __len__(self):
-        return len(self.seq)
+        return self.seq._seqLength()
 
     def __getitem__(self, arg):
         if isinstance(arg, slice):

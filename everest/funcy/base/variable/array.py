@@ -39,7 +39,7 @@ class Array(_Numerical, _generic.FuncyArray):
         skipcheck = False
         if not arg is None:
             try:
-                dtype = _Numerical._check_dtype(arg)
+                dtype = cls._check_dtype(arg)
                 if 'dtype' in kwargs:
                     raise ArrayConstructFailure(
                         f"Cannot provide dtype as both arg and kwarg."
@@ -83,7 +83,7 @@ class Array(_Numerical, _generic.FuncyArray):
                 )
         if not skipcheck:
             try:
-                dtype = _Numerical._check_dtype(dtype)
+                dtype = cls._check_dtype(dtype)
             except TypeError as e:
                 raise ArrayConstructFailure(e)
         try:

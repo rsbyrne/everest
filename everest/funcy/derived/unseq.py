@@ -10,7 +10,7 @@ class UnSeq(_Derived, _generic.FuncySequence):
     def __init__(self, seq, **kwargs):
         super().__init__(seq, **kwargs)
 
-    def evaluate(self):
+    def _evaluate(self):
         return list(self.prime.value)
 
 ################################################################################

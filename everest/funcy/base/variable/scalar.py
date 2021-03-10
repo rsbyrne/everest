@@ -58,7 +58,7 @@ class Scalar(_Numerical, _generic.FuncyNumber):
                 " was provided to scalar constructor."
                 )
         try:
-            dtype = _Numerical._check_dtype(dtype)
+            dtype = cls._check_dtype(dtype)
         except TypeError as e:
             raise ScalarConstructFailure(e)
         if issubclass(dtype, _Real):

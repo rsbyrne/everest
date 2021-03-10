@@ -12,9 +12,9 @@ from . import generic as _generic
 
 class Gruple(_generic.FuncyIncisable, _Collection):
     __slots__ = ('_shape', '_flatlen', '_contents')
-    def __init__(self, *args):
+    def __init__(self, args: _Iterable, /):
         self._contents = tuple(args)
-        self._shape = (len(args),)
+        self._shape = (len(self._contents),)
     @property
     def shape(self):
         return self._shape
@@ -60,7 +60,7 @@ class GrupleMap(Gruple, _Mapping):
         self._asdict = dict(pairs)
         self._keys = tuple(self._asdict.keys())
         self._values = tuple(self._asdict.values())
-        super().__init__(*self._keys)
+        super().__init__(self._keys)
     def _indconvert(self, ind: _Hashable, /, *, conAdd: int = 0) -> _Hashable:
         if ind in self._keys:
             ind = self._contents.index(ind) + conAdd

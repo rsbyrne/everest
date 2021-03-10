@@ -26,11 +26,12 @@ class Map(_Derived, _generic.FuncyMapping):
                 return _Group(*arg)
         raise TypeError(type(arg))
 
-    def evaluate(self) -> object:
-        return _GrupleMap(_unpacker_zip(*self._resolve_terms()))
+    def _evaluate(self, terms) -> object:
+        return _GrupleMap(_unpacker_zip(*terms))
 
     @property
     def rawValue(self) -> _GrupleMap:
+        assert not self.isSeq
         return _GrupleMap(
             _unpacker_zip(*(groups_resolve(t) for t in self.terms))
             )
@@ -46,11 +47,9 @@ class Map(_Derived, _generic.FuncyMapping):
     def __delitem__(self, ind: _generic.FuncyShallowIncisor, /) -> None:
         self[ind] = None
 
-    def _keyind(self, k):
-        return list(rawDict).index(k)
     def __iter__(self):
         return self._keys.__iter__()
     def __len__(self):
-        return len(self.rawDict)
+        return len(self.rawValue)
 
 ################################################################################

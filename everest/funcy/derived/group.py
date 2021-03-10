@@ -11,8 +11,8 @@ def groups_resolve(obj):
 
 class Group(_Derived, _generic.FuncyStruct):
 
-    def evaluate(self):
-        return _Gruple(*self._resolve_terms())
+    def _evaluate(self, terms):
+        return _Gruple(terms)
 
     def _plain_getitem(self, ind: _generic.FuncyShallowIncisor, /) -> object:
         return self.terms[self._value_resolve(ind)]

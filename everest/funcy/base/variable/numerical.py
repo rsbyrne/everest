@@ -6,6 +6,8 @@ from numbers import (
     Integral as _Integral
     )
 
+import numpy as _np
+
 from .variable import Variable as _Variable
 from . import _special, _generic
 
@@ -22,7 +24,13 @@ class Numerical(_Variable, _generic.FuncyNumerical):
 
     def __init__(self, *, dtype = None, initVal = None, **kwargs):
         self._dtype = dtype
-        super().__init__(dtype = self.dtype, initVal = initVal, **kwargs)
+        if type(dtype) is str:
+            dtypename = dtype
+        else:
+            dtypename = dtype.__name__
+            if issubclass(dtype, _np.generic):
+                dtypename = 'np.' + dtypename
+        super().__init__(dtype = dtypename, initVal = initVal, **kwargs)
 
     @_cached_property
     def nullVal(self):

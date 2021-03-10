@@ -7,6 +7,8 @@ from collections.abc import Sequence, Iterable
 from .exceptions import *
 
 class SeqConstructor:
+    from .seq import Seq
+    from .continuum 
     @cached_property
     def base(self):
         from .seq import Seq
@@ -81,10 +83,17 @@ class SeqConstructor:
             if isinstance(step, numbers.Number):
                 return self.regular._construct(start, stop, step, **kwargs)
             elif type(step) is str or step is None:
-                if any(isinstance(a, numbers.Integral) for a in (start, stop)):
-                    return self.shuffle._construct(start, stop, step, **kwargs)
+                if any(
+                        isinstance(a, numbers.Integral)
+                            for a in (start, stop)
+                        ):
+                    return self.shuffle._construct(
+                        start, stop, step, **kwargs
+                        )
                 else:
-                    return self.continuum._construct(start, stop, step, **kwargs)
+                    return self.continuum._construct(
+                        start, stop, step, **kwargs
+                        )
             elif isinstance(step, self.sampler):
                 return step._construct(start, stop)
             # elif type(step) is type:

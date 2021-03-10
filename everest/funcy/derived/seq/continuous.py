@@ -7,11 +7,11 @@ from .seq import Seeded as _Seeded, Seq as _Seq
 def process_scalar(scal):
     return scal.dtype.type(scal)
 
-class Continuous(_Seq):
+class _Continuous(_Seq):
     def _seqLength(self):
-        return inf
+        return _special.inf
 
-class Continuum(Continuous, _Seeded):
+class Continuum(_Continuous, _Seeded):
     def __init__(self, start = 0., stop = 1., step = None, **kwargs):
         start = 0. if start is None else start
         stop = 1. if stop is None else stop

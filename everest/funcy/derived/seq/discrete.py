@@ -1,8 +1,5 @@
 ################################################################################
 
-from functools import cached_property
-import numbers
-
 from . import _reseed, _special
 from .seq import Seeded as _Seeded, Seq as _Seq
 
@@ -16,7 +13,7 @@ class Discrete(_Seq):
         return len(self.prime)
 
 class Regular(Discrete):
-    def __init__(self, start = 0, stop = inf, step = 1, **kwargs):
+    def __init__(self, start = 0, stop = _special.inf, step = 1, **kwargs):
         if start is None: start = 0
         if stop is None: stop = _special.inf
         if step is None: step = 1
@@ -55,7 +52,7 @@ class Procedural(Discrete):
         'lenFn',
         'stopFn',
         )
-    def __init__(self, fn, /, start = 0, stop = inf, step = 1, **kwargs):
+    def __init__(self, fn, /, start = 0, stop = _special.inf, step = 1, **kwargs):
         super().__init__(fn, start, stop, step, **kwargs)
         self.lenFn = start - stop
         self.n = self.Fn(int, name = 'n')

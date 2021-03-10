@@ -4,15 +4,17 @@ from .. import (
     _reseed,
     _special,
     _generic,
+    _unpacker_zip,
+    _Gruple,
+    _Slot,
     )
-from .. import (
-    Derived as _Derived,
-    Operation as _Operation,
-    )
-from .. import _Slot, _Gruple, _unpacker_zip
+from .. import Derived as _Derived
 
-from .constructor import SeqConstructor
 from .seq import Seq
 from .nvar import N
+from .algorithmic import Algorithmic
+from .arbitrary import Arbitrary
+from .continuous import Continuum
+from .discrete import Discrete, Regular, Shuffle, Procedural
 
 ################################################################################

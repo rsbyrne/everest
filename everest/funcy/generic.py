@@ -1,5 +1,6 @@
 ################################################################################
 
+from abc import ABC as _ABC, abstractmethod as _abstractmethod
 import numbers as _numbers
 from array import ArrayType as _ArrayType
 from functools import (
@@ -9,32 +10,29 @@ from functools import (
 
 import numpy as _np
 
-
-
-
-PRIMITIVETYPES = set((
-    _numbers.Number,
-    str,
-    _np.ndarray,
-    _ArrayType,
-    type(None),
-    tuple,
-    ))
-
-
-
-from abc import ABC as _ABC, abstractmethod as _abstractmethod
-
-
-
 from .exceptions import *
 class FuncyAbstractMethodException(FuncyException):
     ...
 
 
+PRIMITIVETYPES = set((
+    int,
+    float,
+    complex,
+    str,
+    type(None),
+    tuple,
+    ))
+class Primitive(_ABC):
+    ...
+for typ in PRIMITIVETYPES:
+    _ = Primitive.register(typ)
+
+
 
 class FuncyGeneric(_ABC):
     ...
+
 
 
 
@@ -50,6 +48,10 @@ class FuncySlice(FuncyGeneric):
         return range(*self.indices(length))
 _ = FuncySlice.register(slice)
 
+
+
+class FuncySeqlike(FuncyGeneric):
+    ...
 
 
 
@@ -258,12 +260,10 @@ class FuncyIncisable(FuncyGeneric):
         return incisionMethod(self, arg)
 
 class FuncyEvaluable(FuncyGeneric):
+    @property
     @_abstractmethod
-    def evaluate(self) -> FuncyDatalike:
-        raise FuncyAbstractMethodException
-    @_cached_property
     def value(self) -> FuncyDatalike:
-        return self.evaluate()
+        raise FuncyAbstractMethodException
 
 class FuncyVariable(FuncyEvaluable):
     @property
@@ -277,8 +277,8 @@ class FuncyVariable(FuncyEvaluable):
     @_abstractmethod
     def set_value(self) -> None:
         raise FuncyAbstractMethodException
-    def evaluate(self):
-        return self.value
+
+
 
 #     def _get_redType(self):
 #         if (depth := self.depth) == 1:

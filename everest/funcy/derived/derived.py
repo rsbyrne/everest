@@ -1,9 +1,11 @@
 ################################################################################
 
-from functools import cached_property, lru_cache
-import warnings
+from abc import abstractmethod as _abstractmethod
+from functools import cached_property as _cached_property
 
 from . import _Function, _generic, _construct_base, _Gruple
+from ._seqmerge import muddle as _muddle
+from ._seqiterable import SeqIterable as _SeqIterable
 
 from .exceptions import *
 
@@ -17,17 +19,38 @@ class Derived(_Function):
 
     def __init__(self, *terms, **kwargs):
         assert len(terms)
-        self.terms = _Gruple(self._derived_init_process_term(t) for t in terms)
+        self.terms = _Gruple(self._derived_convert(t) for t in terms)
         super().__init__(*terms, **kwargs)
         for term in self.baseTerms:
             term.register_downstream(self)
-    def _derived_init_process_term(self, arg):
-        if isinstance(arg, _Function):
-            return arg
-        elif any(isinstance(arg, typ) for typ in _generic.PRIMITIVETYPES):
-            return arg
+
+    @staticmethod
+    def _derived_convert(obj):
+        if isinstance(obj, (_generic.Primitive, _Function)):
+            obj
         else:
-            return _construct_base(arg)
+            return _construct_base(obj)
+
+    @_abstractmethod
+    def _evaluate(self):
+        raise _generic.FuncyAbstractMethodException
+    def _resolve_terms(self):
+        return (self._value_resolve(t) for t in self.terms)
+    def _normal_evaluate(self):
+        return self._evaluate(self._resolve_terms())
+    def _muddle_terms(self):
+        return _muddle(self._resolve_terms())
+    def _iter(self):
+        return (self._evaluate(s) for s in self._muddle_terms())
+    def _seq_evaluate(self):
+        return _SeqIterable(self)
+    @_cached_property
+    def evaluate(self):
+        if self.isSeq: return self._seq_evaluate
+        else: return self._normal_evaluate
+    @_cached_property
+    def value(self):
+        return self.evaluate()
 
     def refresh(self):
         for term in self.baseTerms:
@@ -38,13 +61,11 @@ class Derived(_Function):
         except AttributeError:
             pass
 
-    def __call__(self, *args, **kwargs):
-        if args or kwargs:
-            return self._value_resolve(self.close(*args, **kwargs))
-        else:
-            return self.evaluate()
-    def _resolve_terms(self):
-        return (self._value_resolve(t) for t in self.terms)
+#     def __call__(self, *args, **kwargs):
+#         if args or kwargs:
+#             return self._value_resolve(self.close(*args, **kwargs))
+#         else:
+#             return self.evaluate()
     def _add_slots(self):
         self._argslots, self._kwargslots, self._slots = self._count_slots()
     def _count_slots(self):
@@ -62,10 +83,10 @@ class Derived(_Function):
                     )
                 argslots += term.argslots
         return argslots, kwargslots, argslots + len(kwargslots)
-    @cached_property
+    @_cached_property
     def fnTerms(self):
         return [t for t in self.terms if isinstance(t, _Function)]
-    @cached_property
+    @_cached_property
     def baseTerms(self):
         out = []
         for t in self.fnTerms:
@@ -74,31 +95,41 @@ class Derived(_Function):
             else:
                 out.append(t)
         return tuple(set(out))
-    @cached_property
+    @_cached_property
+    def derivedTerms(self):
+        return [t for t in self.fnTerms if not t in self.baseTerms]
+    @_cached_property
     def openTerms(self):
         return [t for t in self.fnTerms if t.open]
-    @cached_property
+    @_cached_property
+    def seqTerms(self):
+        return [t for t in self.derivedTerms if t.isSeq]
+    @_cached_property
+    def isSeq(self):
+        return bool(self.seqTerms)
+
+    @_cached_property
     def argslots(self):
         try:
             return self._argslots
         except AttributeError:
             self._add_slots()
             return self._argslots
-    @cached_property
+    @_cached_property
     def kwargslots(self):
         try:
             return self._kwargslots
         except AttributeError:
             self._add_slots()
             return self._kwargslots
-    @cached_property
+    @_cached_property
     def slots(self):
         try:
             return self._slots
         except AttributeError:
             self._add_slots()
             return self._slots
-    @cached_property
+    @_cached_property
     def slotVars(self):
         argVars, kwargVars = list(), OrderedDict()
         for term in self.fnTerms:
@@ -115,7 +146,7 @@ class Derived(_Function):
                     kwargList = kwargVars.setdefault(k, [])
                     kwargList.extend(v)
         return argVars, kwargVars
-    @cached_property
+    @_cached_property
     def open(self):
         return bool(self.slots)
     def allclose(self, arg):
@@ -124,7 +155,6 @@ class Derived(_Function):
             target = target.close(arg)
         assert not target.open
         return target
-    # @lru_cache()
     def close(self, *queryArgs, **queryKwargs):
         if not self.open:
             raise NothingToClose
@@ -183,11 +213,5 @@ class Derived(_Function):
             return outObj
         else:
             return outObj.value
-
-    def _valstr(self):
-        if self.open:
-            return 'open:' + str((self.argslots, self.kwargslots))
-        else:
-            return super()._valstr()
 
 ################################################################################
