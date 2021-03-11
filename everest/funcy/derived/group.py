@@ -14,6 +14,10 @@ class Group(_Derived, _generic.FuncyStruct):
     def _evaluate(self, terms):
         return _Gruple(terms)
 
+    @property
+    def rawValue(self) -> _Gruple:
+        return self._contents
+
     def _plain_getitem(self, ind: _generic.FuncyShallowIncisor, /) -> object:
         return self.terms[self._value_resolve(ind)]
     def __setitem__(self, ind: _generic.FuncyShallowIncisor, val: object, /):

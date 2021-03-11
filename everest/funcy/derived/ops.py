@@ -3,12 +3,30 @@
 import builtins as _builtins
 import operator as _operator
 import math as _math
-from functools import cached_property as _cached_property
+from functools import (
+    cached_property as _cached_property,
+    partial as _partial,
+    )
 
 from . import _generic, _Function, _Thing
 from .derived import Derived as _Derived
 from .group import Group as _Group
 from .map import Map as _Map
+
+
+SOURCES = (_builtins, _operator, _math)
+def _get_opfn(name):
+    global SOURCES
+    opfn = None
+    for source in SOURCES:
+        try:
+            opfn = getattr(source, name)
+            break
+        except AttributeError:
+            pass
+    if opfn is None:
+        raise AttributeError(name)
+    return opfn
 
 class _Ops(_Derived):
     ...
@@ -56,20 +74,20 @@ class GetAttr(_Get):
 class Op(_Ops):
     __slots__ = ('opfn', 'opkwargs')
     def __init__(self, *args, opkey: str, **kwargs):
-        opfn = None
-        for source in (_builtins, _operator, _math):
-            try:
-                opfn = getattr(source, opkey)
-                break
-            except AttributeError:
-                pass
-        if opfn is None:
-            raise AttributeError(opkey)
+        opfn = _get_opfn(opkey)
         kwargs['opkey'] = opkey
         super().__init__(*args, **kwargs)
         self.opkwargs = {k: v for k, v in self.kwargs.items() if not k == 'opkey'}
         self.opfn = opfn
     def _evaluate(self, terms):
         return self.opfn(*terms, **self.opkwargs)
+
+class _OpConstructor:
+    def __getattr__(self, name):
+        _ = _get_opfn(name)
+        return _partial(Op, opkey = name)
+    def __call__(self, *args, **kwargs):
+        return Op(*args, **kwargs)
+opConstructor = _OpConstructor()
 
 ################################################################################

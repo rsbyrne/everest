@@ -15,16 +15,13 @@ class _Fn:
     from .function import Function
     from . import base
     from . import derived
-    from .derived import seq
+    from .derived import seq, opConstructor as op
 
     from .special import (
         null, nullflt, nullint,
         infint, ninfint, infflt, ninflt, inf, ninf,
         unk, unkflt, unkint,
         )
-
-    def op(self, *args, opkey: str) -> derived.Op:
-        return self.derived.Op(*args, opkey = opkey)
 
     def __call__(self, arg = None, /, *args, **kwargs) -> Function:
         try:
@@ -100,6 +97,9 @@ class _Fn:
     @_cached_property
     def unseq(self):
         return self.derived.UnSeq
+
+    def __getattr__(self, name):
+        return getattr(self.op, name)
 
 Fn = _Fn()
 

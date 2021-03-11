@@ -19,7 +19,7 @@ from ..base.variable import Variable as _Variable, construct_variable as _constr
 from .derived import Derived
 from .group import Group
 from .map import Map
-from .ops import Call, GetItem, GetAttr, Op
+from .ops import Call, GetItem, GetAttr, Op, opConstructor
 from .slyce import Slyce
 from .unseq import UnSeq
 

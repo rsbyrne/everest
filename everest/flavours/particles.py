@@ -10,7 +10,10 @@ class Particles(Flavour, Traversable, Chronable):
     def _stateVar_construct(cls):
         super()._stateVar_construct()
         class StateVar(cls.StateVar, Array):
-            ...
+            _defaultdtype = float
+#             @classmethod
+#             def _construct(cls, *args, dtype = float, **kwargs):
+#                 super().__init__()
         cls.StateVar = StateVar
         return
 

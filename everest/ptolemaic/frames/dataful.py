@@ -5,7 +5,7 @@
 #     Magazine as _Magazine, \
 #     Assembly as _Assembly
 # from everest.datalike.datums import Datum as _Datum
-from everest.funcy.derived.map import VarMap
+from everest.funcy.derived import Map
 from everest.funcy.base.variable import Variable
 
 from .base import Frame
@@ -25,7 +25,7 @@ class Dataful(Frame):
             ...
         class Magazine(cls.DatafulClass):
             ...
-        class Assembly(cls.DatafulClass, VarMap):
+        class Assembly(cls.DatafulClass, Map):
             ...
         class Datum(cls.DatafulClass, Variable):
             ...
@@ -47,7 +47,7 @@ class Dataful(Frame):
             **kwargs,
             ):
         outVars = [] if _outVars is None else _outVars
-        self.data = self.Assembly(*outVars)
+        self.data = self.Assembly((v.name for v in outVars), outVars)
         super().__init__(**kwargs)
 
 ################################################################################

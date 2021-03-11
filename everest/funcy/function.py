@@ -283,14 +283,14 @@ class Function(_generic.FuncyEvaluable):
 
     #### BOOLEAN ####
 
-#     def __lt__(self, other):
-#     def __le__(self, other):
-#     def __eq__(self, other):
-#     def __ne__(self, other):
-#     def __gt__(self, other):
-#     def __ge__(self, other):
-#     def __bool__(self):
-#     def __hash__(self):
+    def __lt__(self, other): return self.v < other
+    def __le__(self, other): return self.v <= other
+    def __eq__(self, other): return self.v == other
+    def __ne__(self, other): return self.v != other
+    def __gt__(self, other): return self.v > other
+    def __ge__(self, other): return self.v >= other
+#     def __bool__(self): return bool(self.v)
+#     def __hash__(self): return hash(self.v)
 
     #### CALLS AND RETRIEVALS ####
 

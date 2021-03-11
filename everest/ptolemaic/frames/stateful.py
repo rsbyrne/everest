@@ -1,6 +1,6 @@
 ################################################################################
 # from everest.datalike.structures import Assembly
-from everest.funcy.derived.map import VarMap
+from everest.funcy.derived import Map
 
 from ..display import Reportable
 from .dataful import Dataful
@@ -18,7 +18,7 @@ class Stateful(Indexable, Dataful):
 
     @classmethod
     def _state_construct(cls):
-        class State(Reportable, VarMap):
+        class State(Reportable, Map):
             def __init__(self, frame, _stateKwargs = None, **stateVars):
                 self.StateVar = frame.StateVar
                 self.sourceInstanceID = frame.instanceID
@@ -29,13 +29,14 @@ class Stateful(Indexable, Dataful):
                     self._process_default(k, v, **_stateKwargs)
                         for k, v in stateVars.items()
                     )
-                super().__init__(*values)
+                self.variables = values
+                super().__init__(keys, values)
             def _process_default(self, k, v, **kwargs):
                 if type(v) is tuple:
                     varType, varVal = v
                     if not issubclass(varType, self.StateVar):
                         raise TypeError(varType)
-                    out = varType(varVal, name = k, **kwargs)
+                    out = varType._construct(varVal, name = k, **kwargs)
                 else:
                     out = self.StateVar._construct(v, name = k, **kwargs)
                 out.sourceInstanceID = self.sourceInstanceID

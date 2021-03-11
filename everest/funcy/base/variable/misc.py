@@ -39,7 +39,7 @@ class Misc(_Variable):
             raise MiscConstructFailure("No dtype provided.")
 
     def __init__(self, dtype = object, **kwargs):\
-        super().__init__(dtype = dtype, **kwargs)
+        super().__init__(dtype = str(dtype), **kwargs)
 
     def rectify(self):
         ...

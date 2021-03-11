@@ -86,6 +86,8 @@ class Array(_Numerical, _generic.FuncyArray):
                 dtype = cls._check_dtype(dtype)
             except TypeError as e:
                 raise ArrayConstructFailure(e)
+        if not len(kwargs['shape']):
+            raise ArrayConstructFailure("Arrays cannot be scalar.")
         try:
             return cls(**kwargs)
         except Exception as e:

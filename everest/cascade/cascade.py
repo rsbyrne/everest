@@ -114,8 +114,8 @@ class Cascade(Hierarchy):
             seed = repr(self)
             )
     def copy(self, *args, **kwargs):
-        if not type(self) is Cascade:
-            warnings.warn("Cascade-like object being copied is not being returned as original type.")
+#         if not type(self) is Cascade:
+#             warnings.warn("Cascade-like object being copied is not being returned as original type.")
         return Cascade(self.hierarchy, *args, name = self.name, **kwargs)
 
 ################################################################################
