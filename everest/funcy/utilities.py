@@ -1,16 +1,26 @@
 ################################################################################
 
-from . import generic as _generic
+from collections.abc import Mapping as _Mapping
 import itertools as _itertools
 
-def unpacker_zip(keys, vals):
-    if isinstance(keys, _generic.FuncyUnpackable):
-        if not isinstance(vals, _generic.FuncyUnpackable):
-            vals = _itertools.repeat(vals)
-        for subkeys, subvals in zip(keys, vals):
-            yield from unpacker_zip(subkeys, subvals)
+from . import generic as _generic
+
+def unpacker_zip(arg1, arg2, /):
+    arg1map, arg2map = (isinstance(arg, _Mapping) for arg in (arg1, arg2))
+    if arg1map and arg2map:
+        arg1, arg2 = zip(*((arg1[k], arg2[k]) for k in arg1 if k in arg2))
+        arg1, arg2 = iter(arg1), iter(arg2)
+    elif arg1map:
+        arg1 = arg1.values()
+    elif arg2map:
+        arg2 = arg2.values()
+    if isinstance(arg1, _generic.FuncyUnpackable):
+        if not isinstance(arg2, _generic.FuncyUnpackable):
+            arg2 = _itertools.repeat(arg2)
+        for sub1, sub2 in zip(arg1, arg2):
+            yield from unpacker_zip(sub1, sub2)
     else:
-        yield keys, vals
+        yield arg1, arg2
 
 def is_numeric(arg):
     try:

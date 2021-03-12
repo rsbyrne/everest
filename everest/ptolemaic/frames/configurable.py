@@ -32,9 +32,12 @@ class Configurable(Stateful, Bythic):
                 return v
             def __setitem__(self, *args, **kwargs):
                 super().__setitem__(*args, **kwargs)
-                self.state.nullify()
+                self.state[...] = None
             def apply(self):
                 self.state[...] = self
+            def __getattr__(self, name):
+                try: return self.rawValue[name]
+                except KeyError: raise AttributeError
         cls.Configs = Configs
         return
 
@@ -53,7 +56,17 @@ class Configurable(Stateful, Bythic):
             _stateVars = {**_stateVars, **self.ghosts.configs},
             **kwargs
             )
-        self.configs = self.Configs(self)
+        self._configs = self.Configs(self)
+
+    @property
+    def configs(self):
+        return self._configs
+    @configs.setter
+    def configs(self, val):
+        self._configs[...] = val
+    @configs.deleter
+    def configs(self):
+        self._configs[...] = None
 
     def reset(self):
         self.configs.reset()

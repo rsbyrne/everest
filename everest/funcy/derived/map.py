@@ -1,7 +1,7 @@
 ################################################################################
 
 import itertools as _itertools
-from collections.abc import Iterable as _Iterable
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 
 from . import _generic, _GrupleMap, _unpacker_zip
 from .group import Group as _Group, groups_resolve
@@ -43,16 +43,15 @@ class Map(_Derived, _generic.FuncyMapping):
     def __setitem__(self,
             ind: _generic.FuncyShallowIncisor, val : object, /
             ) -> None:
-        ind = self._value_resolve(ind)
-        if isinstance(val, Map): val = val.rawValue
-        if isinstance(val, _GrupleMap): val = val[ind]
+        ind, val = self._value_resolve(ind), self._value_resolve(val)
+        toSet = self.rawValue[ind]
         if isinstance(ind, _generic.FuncyStrictIncisor):
-            self.rawValue[ind].value = val
+            toSet.value = val
         else:
-            if isinstance(val, _GrupleMap): val = val.values()
-            got = self.rawValue[ind].values()
-            for subgot, subval in _unpacker_zip(got, val):
-                subgot.value = subval
+            if isinstance(val, _generic.FuncyUnpackable):
+                val = val[ind]
+            for s, v in _unpacker_zip(toSet, val):
+                s.value = v
     def __delitem__(self, ind: _generic.FuncyShallowIncisor, /) -> None:
         self[ind] = None
     def _set_value(self, val, /) -> None:

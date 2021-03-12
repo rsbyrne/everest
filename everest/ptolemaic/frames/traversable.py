@@ -25,7 +25,7 @@ class Traversable(Iterable, Configurable):
 
     def _initialise(self):
         super()._initialise()
-        self.configs.apply()
+        self.state = self.configs
 
     # @classmethod
     # def _frameClasses(cls):

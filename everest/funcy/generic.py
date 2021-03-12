@@ -274,9 +274,9 @@ class FuncyVariable(FuncyEvaluable):
     @_abstractmethod
     def value(self, val, /) -> None:
         raise FuncyAbstractMethodException
-    @_abstractmethod
-    def set_value(self) -> None:
-        raise FuncyAbstractMethodException
+    @value.deleter
+    def value(self) -> None:
+        self.value = None
 
 
 

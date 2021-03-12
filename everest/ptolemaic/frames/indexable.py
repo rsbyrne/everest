@@ -155,6 +155,9 @@ class Indexable(Producer):
                 try: return self.indexers[key]
                 except (TypeError, IndexError): pass
                 raise KeyError
+            def __getattr__(self, name):
+                try: return self[name]
+                except KeyError: raise AttributeError
             def __len__(self):
                 return self._length
             def __iter__(self):

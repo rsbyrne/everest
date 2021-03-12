@@ -1,4 +1,5 @@
 ################################################################################
+
 # from everest.datalike.structures import Assembly
 from everest.funcy.derived import Map
 
@@ -41,8 +42,13 @@ class Stateful(Indexable, Dataful):
                     out = self.StateVar._construct(v, name = k, **kwargs)
                 out.sourceInstanceID = self.sourceInstanceID
                 return out
+#             def __set__(self, obj, val):
+#                 self.__setitem__(..., val)
             def __repr__(self):
                 return f'{super().__repr__()}({self._frameRepr})'
+            def __getattr__(self, name):
+                try: return self.rawValue[name]
+                except KeyError: raise AttributeError
         cls.State = State
         return
 
@@ -60,10 +66,20 @@ class Stateful(Indexable, Dataful):
             _outVars = None,
             **kwargs
             ):
-        self.state = self.State(self, _stateKwargs = _stateKwargs, **_stateVars)
+        self._state = self.State(self, _stateKwargs = _stateKwargs, **_stateVars)
         _outVars = [] if _outVars is None else _outVars
         _outVars.extend(self.state.variables)
         super().__init__(_outVars = _outVars, **kwargs)
+
+    @property
+    def state(self):
+        return self._state
+    @state.setter
+    def state(self, val):
+        self._state[...] = val
+    @state.deleter
+    def state(self):
+        self._state[...] = None
 
     #
     # class State(Assembly):

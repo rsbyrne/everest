@@ -18,9 +18,9 @@ class Lorenz(Particles):
 
         super().__init__(**kwargs)
 
-        x, y, z = (self.state['coords'][i:i+1] for i in range(3))
-        self.coords = self.state['coords']
-        self.chron = self.indices['chron']
+        self.coords = self.state.coords
+        x, y, z = (self.coords.memory[i:i+1] for i in range(3)) # array views
+        self.chron = self.indices.chron
         def integrate():
             self.coords[...] = (
                 x + dt * (s * (y - x)),

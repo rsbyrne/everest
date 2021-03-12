@@ -118,6 +118,8 @@ class Array(_Numerical, _generic.FuncyArray):
         except NullValueDetected: # because self.memory is null
             self.memory = self._memory # reset to array-like memory
             self.memory[...] = val
+        except ValueError as e:
+            raise e(val)
 
     def __setitem__(self, index, val):
         try:
@@ -125,6 +127,9 @@ class Array(_Numerical, _generic.FuncyArray):
         except NullValueDetected:
             self.memory = self._memory
             self.memory[index] = val
+        except ValueError as e:
+            print(val)
+            raise e
         self.refresh()
     def __len__(self):
         return self.shape[0]
