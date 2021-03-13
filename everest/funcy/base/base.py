@@ -21,5 +21,20 @@ class Base(_Function, _generic.FuncyDatalike):
             down.purge()
     def _titlestr(self):
         return f"{super()._titlestr()} '{self.name}' "
+    @property
+    def isVar(self):
+        return False
+    @property
+    def isBase(self):
+        return True
+    @property
+    def isBaseVar(self):
+        return self.isVar
+    @property
+    def isSeq(self):
+        return False
+    @property
+    def isOpen(self):
+        return False
 
 ################################################################################

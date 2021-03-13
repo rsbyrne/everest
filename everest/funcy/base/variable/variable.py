@@ -15,6 +15,7 @@ class Variable(_Base, _generic.FuncyVariable):
         'stack',
         'memory',
         'pipe',
+        'index',
         )
 
     def __init__(self, *, initVal = None, **kwargs):
@@ -44,6 +45,9 @@ class Variable(_Base, _generic.FuncyVariable):
                 except AttributeError:
                     raise TypeError(type(val))
         self.refresh()
+    @_abstractmethod
+    def set_value(self, val):
+        raise _generic.FuncyAbstractMethodException
 
     def add_stack(self):
         from .stack import Stack
@@ -73,5 +77,9 @@ class Variable(_Base, _generic.FuncyVariable):
 
     def _pipe_update(self):
         self.value = self.pipe.value
+
+    @property
+    def isVar(self):
+        return True
 
 ################################################################################

@@ -7,8 +7,11 @@ from functools import (
     cached_property as _cached_property,
     lru_cache as _lru_cache
     )
+import itertools as _itertools
 
 import numpy as _np
+
+from . import utilities as _utilities
 
 from .exceptions import *
 class FuncyAbstractMethodException(FuncyException):
@@ -195,6 +198,10 @@ class FuncyStruct(FuncyGeneric):
 
 class FuncyIncisor(FuncyGeneric):
     ...
+class FuncyTrivialIncisor(FuncyIncisor):
+    ...
+_ = FuncyTrivialIncisor.register(type(Ellipsis))
+_ = FuncyTrivialIncisor.register(type(None))
 class FuncyShallowIncisor(FuncyIncisor):
     ...
 class FuncyStrictIncisor(FuncyShallowIncisor):
@@ -206,7 +213,6 @@ class FuncyBroadIncisor(FuncyShallowIncisor):
     ...
 _ = FuncyBroadIncisor.register(FuncySlice)
 _ = FuncyBroadIncisor.register(FuncyUnpackable)
-_ = FuncyBroadIncisor.register(type(Ellipsis))
 class FuncyDeepIncisor(FuncyIncisor):
     ...
 _ = FuncyDeepIncisor.register(FuncyStruct)
@@ -225,18 +231,48 @@ class FuncyIncisable(FuncyGeneric):
     @_cached_property
     def atomic(self) -> bool:
         return self.depth == 0
+    def _getitem_trivial(self, arg: FuncyTrivialIncisor, /) -> FuncyDatalike:
+        return self
     @_abstractmethod
     def _getitem_strict(self, arg: FuncyStrictIncisor, /) -> FuncyDatalike:
         raise FuncyAbstractMethodException
+    def _getitem_deep(self, args: FuncyDeepIncisor, /) -> FuncyDatalike:
+        if not len(args):
+            return self._getitem_trivial(args)
+        elif len(args) > self.depth:
+            raise ValueError("Cannot slice that deep.")
+        arg0, *argn = args
+        if arg0 is Ellipsis:
+            if Ellipsis in argn:
+                raise ValueError(
+                    "Only one Ellipsis permitted for deep incision."
+                    )
+            arg0 = (slice(None) for _ in range(self.depth - len(argn)))
+            arg0, *argn = (*arg0, *argn)
+        argn = tuple(argn)
+        if isinstance(arg0, FuncyBroadIncisor):
+            out = self._getitem_broad(arg0)
+            if len(argn):
+                return out._getitem_sub(*argn)
+            else:
+                return out
+        else:
+            return self._getitem_strict(arg0)[argn]
     @_abstractmethod
-    def _getitem_deep(self, arg: FuncyDeepIncisor, /) -> FuncyDatalike:
+    def _getitem_sub(self, arg0, /, *argn) -> FuncyDatalike:
         raise FuncyAbstractMethodException
     @_abstractmethod
     def _getitem_broad(self, arg: FuncyBroadIncisor, /) -> FuncyDatalike:
         raise FuncyAbstractMethodException
+    def _getitem_shallow(self, arg: FuncyShallowIncisor, /) -> FuncyDatalike:
+        if isinstance(arg, FuncyBroadIncisor):
+            return self._getitem_broad(arg)
+        else:
+            return self._getitem_strict(arg)
     @classmethod
     def _incision_methods(cls):
         yield from (
+            (FuncyTrivialIncisor, cls._getitem_trivial),
             (FuncyStrictIncisor, cls._getitem_strict),
             (FuncyDeepIncisor, cls._getitem_deep),
             (FuncyBroadIncisor, cls._getitem_broad),
@@ -258,6 +294,10 @@ class FuncyIncisable(FuncyGeneric):
         if incisionMethod is NotImplemented:
             raise TypeError(f"FuncyIncisor type {argType} not accepted.")
         return incisionMethod(self, arg)
+
+class FuncyShallowIncisable(FuncyIncisable):
+    def _getitem_sub(self, arg, end = False):
+        raise IndexError
 
 class FuncyEvaluable(FuncyGeneric):
     @property

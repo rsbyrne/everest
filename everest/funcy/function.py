@@ -5,6 +5,7 @@ import weakref as _weakref
 
 from . import _wordhash, _reseed
 from . import utilities as _utilities, generic as _generic
+from . gruple import Gruple as _Gruple, GrupleMap as _GrupleMap
 
 from .exceptions import *
 
@@ -59,13 +60,14 @@ class Function(_generic.FuncyEvaluable):
                 cls._premade[prox.hashID] = prox
                 return prox
 
-    def __init__(self, *terms, **kwargs):
-        self.terms = terms
+    def __init__(self, *terms, indices = None, **kwargs):
+        self.terms = _Gruple(terms)
         if not all(isinstance(v, _generic.Primitive) for v in kwargs.values()):
             raise TypeError(kwargs)
         self.kwargs = kwargs
         if len(self.terms):
             self.prime = self.terms[0]
+        if not indices is None: self.indices = indices
         super().__init__()
 
     @_cached_property
@@ -377,6 +379,36 @@ class Function(_generic.FuncyEvaluable):
         return bool(self.value)
     def __hash__(self):
         return self.hashInt
+
+    ### INDEXING & STORING ###
+
+    @property
+    def indices(self):
+        try:
+            return self._indices
+        except AttributeError:
+            raise AttributeError("No indices provided.")
+    @indices.setter
+    def indices(self, indices):
+        if hasattr(self, '_indices'):
+            self._indices.value = indices
+        else:
+            self.add_indices(indices)
+    def add_indices(self, indices, **kwargs):
+        if hasattr(self, '_indices'):
+            raise Exception(
+                "Function already has indices; remove them with del."
+                )
+        if isinstance(indices, Function):
+            self._indices = Function
+        else:
+            self._indices = self._Fn(
+                dict((v.name, v) for v in map(self._Fn, indices)),
+                **kwargs,
+                )
+    @indices.deleter
+    def indices(self):
+        del self._indices
 
     ### DUPLICATION & PICKLING ###
 

@@ -68,7 +68,7 @@ class Producer(Dataful):
                     except AttributeError:
                         shape = ()
                     storedList.append(np.empty((blocklen, *shape), t))
-                super().__init__(keys, storedList, name = name)
+#                 super().__init__(keys, storedList, name = name)
                 self.storedList = storedList
                 self.stored = dict(zip(keys, self.storedList))
                 self.primekey = keys[0]

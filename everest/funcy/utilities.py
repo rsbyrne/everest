@@ -46,4 +46,17 @@ def kwargstr(**kwargs):
 def process_scalar(scal):
     return scal.dtype.type(scal)
 
+# def delim_split(seq, /, sep = ...):
+#     g = []
+#     for el in seq:
+#         if el == sep:
+#             if g:
+#                 if not (len(g) == 1 and g[0] == sep):
+#                     yield tuple(g)
+#             g.clear()
+#         g.append(el)
+#     if g:
+#         if not (len(g) == 1 and g[0] == sep):
+#             yield tuple(g)
+
 ################################################################################

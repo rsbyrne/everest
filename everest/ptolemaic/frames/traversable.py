@@ -16,13 +16,6 @@ class Traversable(Iterable, Configurable):
         cls.Configs = Configs
         return
 
-    def __init__(self,
-            *args,
-            **kwargs
-            ):
-        super().__init__(*args, **kwargs)
-        self.configs.indices = self.indices
-
     def _initialise(self):
         super()._initialise()
         self.state = self.configs

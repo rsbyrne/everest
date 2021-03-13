@@ -13,7 +13,7 @@ from typing import Union as _Union, NoReturn as _NoReturn
 from . import generic as _generic
 from .utilities import unpacker_zip as _unpacker_zip
 
-class Gruple(_generic.FuncyIncisable, _Collection):
+class Gruple(_generic.FuncyShallowIncisable, _Collection):
     __slots__ = ('_shape', '_flatlen', '_contents')
     def __init__(self, args: _Iterable, /):
         self._contents = tuple(args)
@@ -39,8 +39,6 @@ class Gruple(_generic.FuncyIncisable, _Collection):
                 ind = [i for i, v in enumerate(ind) if v]
             vals = (self._contents[i] for i in ind)
         return self.__class__(vals)
-    def _getitem_deep(self, arg: tuple, /) -> _NoReturn:
-        raise ValueError("Too many levels in provided index.")
     def __contains__(self, arg: object, /):
         return self._contents.__contains__(arg)
     def __iter__(self):

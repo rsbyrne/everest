@@ -1,5 +1,6 @@
 ################################################################################
 
+import weakref as _weakref
 import inspect as _inspect
 from types import FunctionType as _FunctionType, MethodType as _MethodType
 from functools import cached_property as _cached_property
@@ -11,16 +12,13 @@ class Inputs(_Cascade):
     def __init__(self, source: _FunctionType, /, *args, **kwargs) -> None:
         if any(isinstance(source, t) for t in (_FunctionType, _MethodType)):
             self._Inputs_sig = _inspect.signature(source)
-        elif isinstance(source, Inputs):
-            self._Inputs_sig = source._Inputs_sig
-        elif isinstance(source, _inspect.Signature):
-            self._Inputs_sig = source
         else:
             raise TypeError(
                 f"Inputs source must be FunctionType or Inputs type,"
                 f" not {type(source)}"
                 )
         super().__init__(source, *args, **kwargs)
+        self._Inputs_source_ref = _weakref.ref(source)
     @property
     def _Inputs_incomplete(self):
         return tuple(v.key for v in self.values() if isinstance(v, _Req))
@@ -60,7 +58,10 @@ class Inputs(_Cascade):
         except KeyError:
             self._Inputs_unpack()
             return self.kwargs
-#     def copy(self, *args, **kwargs):
-#         return self.__class__(self._Inputs_sig, *args, name = self.name, **kwargs)
+    def copy(self, *args, **kwargs):
+        return self.__class__(
+            self._Inputs_source_ref(), *args,
+            name = self.name, **kwargs
+            )
 
 ################################################################################
