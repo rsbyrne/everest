@@ -28,8 +28,6 @@ from .exceptions import *
 class Function(_generic.FuncyEvaluable):
 
     __slots__ = (
-        'terms',
-        'prime',
         'kwargs',
 #         '__weakref__',
 #         '__dict__',
@@ -60,13 +58,10 @@ class Function(_generic.FuncyEvaluable):
                 cls._premade[prox.hashID] = prox
                 return prox
 
-    def __init__(self, *terms, indices = None, **kwargs):
-        self.terms = _Gruple(terms)
+    def __init__(self, indices = None, **kwargs):
         if not all(isinstance(v, _generic.Primitive) for v in kwargs.values()):
             raise TypeError(kwargs)
         self.kwargs = kwargs
-        if len(self.terms):
-            self.prime = self.terms[0]
         if not indices is None: self.indices = indices
         super().__init__()
 
@@ -78,15 +73,17 @@ class Function(_generic.FuncyEvaluable):
     class _Prx:
         __slots__ = ('_host')
         def __init__(self, host):
-            self._host = _weakref.ref(host)
+#             self._host = _weakref.ref(host)
+            self._host = host
         @property
         def host(self):
-            return self._host()
+#             return self._host()
+            return self._host
         @property
         def _Fn(self):
             return self.host._Fn
         def __repr__(self):
-            return f"funcy.Function._Prx({repr(self.host)})"
+            return f"funcy.Function._{self.__name__}({repr(self.host)})"
 
     class _V(_Prx):
 
@@ -219,11 +216,13 @@ class Function(_generic.FuncyEvaluable):
         def GetItem(self, arg, /) -> 'Function':
             return self._Fn.derived.GetItem(self.host, arg)
         def __getitem__(self, arg, /) -> 'Function':
+            arg = arg if type(arg) is tuple else (arg,)
+            arg = arg[0] if len(arg) == 1 else arg
             return self.GetItem(arg)
         def GetAttr(self, arg, /) -> 'Function':
             return self._Fn.derived.GetAttr(self.host, arg)
-        def __getattr__(self, name, /):
-            return self.GetAttr(name)
+#         def __getattr__(self, name, /):
+#             return self.GetAttr(name)
         def __len__(self):
             return self.op(opkey = 'len')
         def __contains__(self, item):
@@ -321,12 +320,7 @@ class Function(_generic.FuncyEvaluable):
     def namestr(self):
         return self._namestr()
     def _namestr(self):
-        out = self.titlestr + self.kwargstr
-        termstr = lambda t: t.namestr if hasattr(t, 'namestr') else str(t)
-        if len(self.terms):
-            termstr = ', '.join(termstr(t) for t in self.terms)
-            out += f'({termstr})'
-        return out
+        return self.titlestr + self.kwargstr
     @_cached_property
     def kwargstr(self):
         return self._kwargstr()

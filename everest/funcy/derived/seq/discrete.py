@@ -52,7 +52,10 @@ class Procedural(Discrete):
         'lenFn',
         'stopFn',
         )
-    def __init__(self, fn, /, start = 0, stop = _special.inf, step = 1, **kwargs):
+    def __init__(self,
+            fn, /,
+            start = 0, stop = _special.inf, step = 1, **kwargs
+            ):
         super().__init__(fn, start, stop, step, **kwargs)
         self.lenFn = start - stop
         self.n = self.Fn(int, name = 'n')

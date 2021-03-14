@@ -3,7 +3,7 @@
 import numbers as _numbers
 from collections.abc import Iterable as _Iterable
 
-from . import _Derived
+from . import _Derived, _generic
 from .seq import Seq as _Seq
 from .nvar import N as _N
 from .algorithmic import Algorithmic as _Algorithmic
@@ -19,6 +19,11 @@ from . import samplers as _samplers
 
 from .exceptions import *
 
+is_real = lambda s: all((
+    isinstance(s, _generic.FuncyReal),
+    not isinstance(s, _generic.FuncyIntegral),
+    ))
+
 def construct_seq(arg = None, /) -> _Seq:
     if isinstance(arg, _Derived):
         if hasattr(arg, '_abstract'):
@@ -27,25 +32,15 @@ def construct_seq(arg = None, /) -> _Seq:
             raise NotYetImplemented
     elif type(arg) is slice:
         start, stop, step = arg.start, arg.stop, arg.step
-        if isinstance(step, _numbers.Number):
-            return _Regular._construct(start, stop, step)
-        elif type(step) is str or step is None:
-            if any(
-                    isinstance(a, _numbers.Integral)
-                        for a in (start, stop)
-                    ):
-                return _Shuffle._construct(
-                    start, stop, step,
-                    )
+        if any(is_real(s) for s in (start, stop, step)):
+            return _Continuum._construct(start, stop, step)
+        else:
+            if isinstance(step, _samplers.Sampler):
+                return step._construct(start, stop)
+            elif isinstance(step, _generic.FuncyString):
+                return _Shuffle._construct(start, stop, step)
             else:
-                return _Continuum._construct(
-                    start, stop, step,
-                    )
-        elif isinstance(step, _samplers.Sampler):
-            return step._construct(start, stop)
-        raise TypeError(
-            "Could not understand 'step' input of type:", type(step)
-            )
+                return _Regular._construct(start, stop, step)
     elif isinstance(arg, _Iterable):
         return _Arbitrary._construct(*arg)
     else:

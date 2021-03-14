@@ -57,10 +57,10 @@ class _Get(_Ops):
             /,
             **kwargs,
             ) -> None:
-        if not isinstance(getObj, _Function):
-            getObj = _Thing(getObj)
-        if not isinstance(getArg, _Function):
-            getArg = _Thing(getArg)
+#         if not isinstance(getObj, _Function):
+#             getObj = _Thing(getObj)
+#         if not isinstance(getArg, _Function):
+#             getArg = _Thing(getArg)
         super().__init__(getObj, getArg, **kwargs)
 class GetItem(_Get):
     def _evaluate(self, terms):

@@ -51,9 +51,9 @@ def zipiter(superseq):
                 stopped.clear()
             yield tuple(out)
 
-def muddle(sequences):
+def muddle(sequences, *, checkType = _Iterable):
     seqs = [
-        iter(s) if isinstance(s, _Iterable) else iter((s,))
+        iter(s) if isinstance(s, checkType) else iter((s,))
             for s in sequences
         ]
     prevs = [[next(s)] for s in seqs]

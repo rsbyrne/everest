@@ -3,8 +3,10 @@
 from abc import ABC as _ABC, abstractmethod as _abstractmethod
 from functools import (
     cached_property as _cached_property,
-    lru_cache as _lru_cache
+    lru_cache as _lru_cache,
+    reduce as _reduce
     )
+import operator as _operator
 
 from . import _special
 from .datalike import *
@@ -15,7 +17,7 @@ class FuncyUnpackable(FuncyGeneric):
     @classmethod
     def __subclasshook__(cls, C):
         if cls is FuncyUnpackable:
-            if issubclass(C, FuncyIterable):
+            if issubclass(C, FuncyIterable) and not issubclass(C, FuncyMapping):
                 if not issubclass(C, (tuple, str, FuncyDatalike)):
                     return True
         return NotImplemented
@@ -28,6 +30,8 @@ class FuncyStruct(FuncyGeneric):
                     issubclass(C, FuncyCollection),
                     not issubclass(C, FuncyMutableSequence),
                     not issubclass(C, FuncyUnpackable),
+                    not issubclass(C, FuncyMapping),
+                    not issubclass(C, FuncyString),
                     )):
                 return True
         return NotImplemented
@@ -55,12 +59,16 @@ class FuncyDeepIncisor(FuncyIncisor):
 _ = FuncyDeepIncisor.register(FuncyStruct)
 
 
+
+
+
 class FuncyIncisable(FuncyGeneric):
-    def __init__(self, *args, incisions = (), **kwargs):
-        self._incisions = incisions
+    def __init__(self, *args, incisors = (), **kwargs):
+        self._incisors = incisors
+        super().__init__(*args, **kwargs)
     @property
-    def incisions(self):
-        return self._incisions
+    def incisors(self):
+        return self._incisors
     @property
     @_abstractmethod
     def shape(self) -> tuple:
@@ -72,25 +80,27 @@ class FuncyIncisable(FuncyGeneric):
     def atomic(self) -> bool:
         return self.depth == 0
     @property
-    def sister(self) -> type:
-        return self.__class__
+    def sibling(self) -> type:
+        return FuncyBroadIncision
     @property
-    def daughter(self) -> type:
-        return self.sister
+    def child(self) -> type:
+        return self.sibling
+    @property
+    def subincision(self) -> type:
+        return FuncySubIncision
     @_abstractmethod
     def _getitem_strict(self, arg: FuncyStrictIncisor, /) -> FuncyDatalike:
         raise FuncyAbstractMethodException
     @_abstractmethod
-    def _getitem_sub(self, arg0 = Ellipsis, /, *argn):
+    def _getitem_sub(self, arg0 = Ellipsis, /, *argn) -> 'FuncySubIncision':
         raise FuncyAbstractMethodException
     def _getitem_trivial(self, arg: FuncyTrivialIncisor, /) -> FuncyDatalike:
         return self
-    def _getitem_deep(self, *args) -> FuncyDatalike:
-        if not len(args):
+    def _getitem_deep(self, arg0 = None, /, *argn) -> FuncyDatalike:
+        if arg0 is None:
             return self._getitem_trivial(args)
-        elif len(args) > self.depth:
+        elif len(argn) + 1 > self.depth:
             raise ValueError("Cannot slice that deep.")
-        arg0, *argn = args
         if arg0 is Ellipsis:
             if Ellipsis in argn:
                 raise ValueError(
@@ -105,44 +115,44 @@ class FuncyIncisable(FuncyGeneric):
         else:
             return cut._getitem_sub(*argn)
     def _getitem_broad(self, arg: FuncyBroadIncisor, /):
-        return self.sister(incisions = (*self.incisions, arg))
+        return self.sibling(source = self, incisor = arg)
     def _getitem_shallow(self, arg: FuncyShallowIncisor, /):
         if isinstance(arg, FuncyBroadIncisor):
             return self._getitem_broad(arg)
         else:
             return self._getitem_strict(arg)
-    def _getitem_funcy(self, arg):
-        return self[arg.value]
     @classmethod
     def _incision_methods(cls):
         yield from (
-            (FuncyEvaluable, cls._getitem_funcy),
             (FuncyTrivialIncisor, cls._getitem_trivial),
-            (FuncyStrictIncisor, cls._getitem_strict),
             (FuncyDeepIncisor, cls._getitem_deep),
             (FuncyBroadIncisor, cls._getitem_broad),
+            (FuncyStrictIncisor, cls._getitem_strict),
             )
     @classmethod
     @_lru_cache
-    def _get_incision_method(cls, argType: type, /):
+    def _get_incision_method_from_type(cls, argType: type, /):
         for typ, meth in cls._incision_methods():
             if issubclass(argType, typ):
                 return meth
         return NotImplemented
+    @classmethod
+    def _get_incision_method(cls, arg, /):
+        return cls._get_incision_method_from_type(type(arg))
     def __getitem__(self, args: FuncyIncisor, /):
         if not type(args) is tuple:
             args = (args,)
         if len(args) == 1:
-            argType = type(args[0])
+            toCheck = args[0]
         else:
-            argType = type(args)
-        if not issubclass(argType, FuncyIncisor):
+            toCheck = args
+        if not issubclass(type(toCheck), FuncyIncisor):
             raise TypeError(
                 f"Incisor type {argType} is not a subclass of {FuncyIncisor}"
                 )
-        incisionMethod = self._get_incision_method(argType)
+        incisionMethod = self._get_incision_method(toCheck)
         if incisionMethod is NotImplemented:
-            raise TypeError(f"FuncyIncisor type {argType} not accepted.")
+            raise TypeError(f"FuncyIncisor type {type(toCheck)} not accepted.")
         return incisionMethod(self, *args)
     def __len__(self):
         if self.shape:
@@ -151,6 +161,42 @@ class FuncyIncisable(FuncyGeneric):
             return _special.nullint
     def __iter__(self):
         return (self[i] for i in range(len(self)))
+
+class FuncyBroadIncision(FuncyIncisable):
+    def __init__(self, *args, source, incisor, **kwargs):
+        self._source, self._incisor = source, incisor
+        super().__init__(*args, **kwargs)
+    @property
+    def incisor(self):
+        return self._incisor
+    @property
+    def source(self):
+        return self._source
+    @property
+    def sibling(self):
+        return self.__class__
+    @property
+    def child(self):
+        return self.source.child
+    @property
+    def subincision(self):
+        return self.source.subincision
+    def _getitem_strict(self, arg: FuncyStrictIncisor, /) -> FuncyDatalike:
+        raise NotYetImplemented
+    def _getitem_broad(self, arg: FuncyBroadIncisor, /):
+        incisor = self.incisor[arg]
+        return self.sibling(source = self.source, incisor = incisor)
+
+class FuncySubIncision(FuncyIncisable):
+    def __init__(self, *args, parent, **kwargs):
+        self._parent = parent
+        super().__init__(*args, **kwargs)
+    @property
+    def parent(self):
+        return self._parent
+    @property
+    def shape(self) -> tuple:
+        raise FuncyAbstractMethodException
 
 class FuncyShallowIncisable(FuncyIncisable):
     @property

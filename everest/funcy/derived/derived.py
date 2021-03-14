@@ -14,6 +14,8 @@ from .exceptions import *
 class Derived(_Function):
 
     __slots__ = (
+        'terms',
+        'prime',
         '_slots',
         '_argslots',
         '_kwargslots',
@@ -22,16 +24,17 @@ class Derived(_Function):
     def __init__(self, *terms, **kwargs):
         assert len(terms)
         self.terms = _Gruple(self._derived_convert(t) for t in terms)
-        super().__init__(*terms, **kwargs)
+        if len(self.terms):
+            self.prime = self.terms[0]
+        super().__init__(**kwargs)
         for term in self.baseVarTerms:
             term.register_downstream(self)
 
-    @staticmethod
-    def _derived_convert(obj):
-        if isinstance(obj, (_generic.Primitive, _Function)):
-            obj
+    def _derived_convert(self, obj):
+        if isinstance(obj, _generic.Primitive):
+            return obj
         else:
-            return _construct_base(obj)
+            return self._Fn(obj)
 
     @_abstractmethod
     def _evaluate(self):
@@ -42,14 +45,17 @@ class Derived(_Function):
     def _normal_evaluate(self):
         return self._evaluate(self._resolve_terms())
     def _muddle_terms(self):
-        return _muddle(self._resolve_terms())
+        return _muddle(self._resolve_terms(), checkType = _SeqIterable)
     def _iter(self):
         return (self._evaluate(s) for s in self._muddle_terms())
     @_lru_cache(1)
     def _seq_evaluate(self):
         return _SeqIterable(self)
     def _seqLength(self):
-        return _math.prod(t._seqLength() for t in self.seqTerms)
+        if self.isSeq:
+            return _math.prod(t._seqLength() for t in self.seqTerms)
+        else:
+            raise ValueError("This function is not a sequence.")
     @_cached_property
     def evaluate(self):
         if self.isSeq: return self._seq_evaluate
@@ -73,6 +79,38 @@ class Derived(_Function):
             term.refresh()
     def purge(self):
         self.evaluate.cache_clear()
+
+    @property
+    def shape(self):
+        return (self._seqLength(),)
+    @property
+    def depth(self) -> int:
+        return _special.unkint
+
+    class _Sub(_Function._Prx, _generic.FuncyIncisable):
+        @property
+        def shape(self) -> tuple:
+            return self.host.shape
+        @property
+        def depth(self) -> int:
+            return self.host.depth
+        def _getitem_strict(self, arg):
+            return self._Fn.seq.SeqElement(self.host, arg)
+        def _getitem_broad(self, arg):
+            return self._Fn.seq.SeqSwathe(self.host, arg)
+        def _getitem_deep(self, arg0, *argn):
+            return self[arg0][argn]
+        def _getitem_sub(self, *args):
+            return self.host[args]
+#         def __getitem__(self, arg):
+
+    @property
+    def sub(self):
+        try:
+            return self._sub
+        except AttributeError:
+            self._sub = self._Sub(self)
+            return self._sub
 
 #     def __call__(self, *args, **kwargs):
 #         if args or kwargs:
@@ -126,7 +164,7 @@ class Derived(_Function):
         return bool(self.seqTerms)
     @_cached_property
     def seqTerms(self):
-        return _Gruple(t for t in self.derivedTerms if t.isSeq)
+        return _Gruple(t for t in self.fnTerms if t.isSeq)
     @_cached_property
     def isSeq(self):
         return bool(self.seqTerms)
@@ -248,5 +286,10 @@ class Derived(_Function):
             return outObj
         else:
             return outObj.value
+
+    def _namestr(self):
+        termstr = lambda t: t.namestr if hasattr(t, 'namestr') else str(t)
+        termstr = ', '.join(termstr(t) for t in self.terms)
+        return super()._namestr() + f'({termstr})'
 
 ################################################################################
