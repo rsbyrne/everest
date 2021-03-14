@@ -19,6 +19,8 @@ class InfiniteFloat(Infinite, float):
         return obj
     def __float__(self):
         return float('inf') if self._posArg else float('-inf')
+    def __repr__(self):
+        return 'infflt' if float(self) > 0 else 'ninfflt'
 
 class InfiniteInteger(Infinite, int):
 
@@ -128,9 +130,9 @@ class InfiniteInteger(Infinite, int):
 
     def __repr__(self):
         if self._posArg:
-            return 'inf'
+            return 'infint'
         else:
-            return 'ninf'
+            return '-infint'
 
 class BadNumber(numbers.Number):
 
@@ -293,7 +295,7 @@ nullint = NullInteger()
 infint = InfiniteInteger(True)
 ninfint = InfiniteInteger(False)
 infflt = InfiniteFloat(True)
-ninflt = InfiniteFloat(False)
+ninfflt = InfiniteFloat(False)
 unk = Unknown()
 unkflt = UnknownFloat()
 unkint = UnknownInteger()

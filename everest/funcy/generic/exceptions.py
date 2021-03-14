@@ -2,4 +2,7 @@
 
 from ..exceptions import *
 
+class FuncyAbstractMethodException(FuncyException):
+    ...
+
 ################################################################################

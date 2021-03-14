@@ -1,11 +1,10 @@
 ################################################################################
 
-from collections.abc import Iterable
-from functools import cached_property, lru_cache
-import weakref
-import itertools
+from collections.abc import Iterable as _Iterable
+from functools import lru_cache as _lru_cache
+import itertools as _itertools
 
-from . import _generic
+from . import generic as _generic
 
 from .exceptions import *
 
@@ -16,15 +15,15 @@ def show_iter_vals(iterable):
         content += '...'
     return f'[{content}]'
 
-class IterSlice(Iterable, _generic.FuncySequence):
+class IterSlice(_Iterable, _generic.FuncySequence):
     def __init__(self, seq, start, stop, step):
         self.seq = seq
         self.start, self.stop, self.step = start, stop, step
     def __iter__(self):
-        return itertools.islice(self.seq, self.start, self.stop, self.step)
+        return _itertools.islice(self.seq, self.start, self.stop, self.step)
     def __getitem__(self, key):
         if type(key) is slice:
-            return itertools.islice(self, key.start, key.stop, key.step)
+            return _itertools.islice(self, key.start, key.stop, key.step)
         else:
             return (v[key] for v in self)
     def __str__(self):
@@ -32,7 +31,7 @@ class IterSlice(Iterable, _generic.FuncySequence):
     def __repr__(self):
         return f'IterSlice == {str(self)}'
 
-class SeqIterable(Iterable, _generic.FuncySequence):
+class SeqIterable(_Iterable, _generic.FuncySequence):
 
     __slots__ = (
         'seq',
@@ -53,13 +52,13 @@ class SeqIterable(Iterable, _generic.FuncySequence):
             return self._get_tuple(arg)
         else:
             return self._get_index(arg)
-    # @lru_cache
+    # @_lru_cache
     def _get_tuple(self, target):
         out = self
         for st in target:
             out = out[st]
         return out
-    @lru_cache
+    @_lru_cache
     def _get_index(self, target):
         it, i = iter(self), -1
         try:
@@ -72,7 +71,7 @@ class SeqIterable(Iterable, _generic.FuncySequence):
                 raise IndexError
         except StopIteration:
             raise IndexError(target)
-    @lru_cache
+    @_lru_cache
     def _get_slice(self, start, stop, step):
         return IterSlice(self, start, stop, step)
 

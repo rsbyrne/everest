@@ -14,6 +14,8 @@ from ..base import (
     construct_base as _construct_base,
     Thing as _Thing,
     )
+from ..seqmerge import muddle as _muddle
+from ..seqiterable import SeqIterable as _SeqIterable
 from ..base.variable import Variable as _Variable, construct_variable as _construct_variable
 
 from .derived import Derived
@@ -22,5 +24,6 @@ from .map import Map
 from .ops import Call, GetItem, GetAttr, Op, opConstructor
 from .slyce import Slyce
 from .unseq import UnSeq
+from .construct import construct_derived
 
 ################################################################################

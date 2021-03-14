@@ -9,6 +9,6 @@ from .scalar import Scalar, ScalarIntegral, ScalarReal
 from .array import Array
 from .stack import Stack
 
-from .utilities import construct_variable
+from .construct import construct_variable
 
 ################################################################################

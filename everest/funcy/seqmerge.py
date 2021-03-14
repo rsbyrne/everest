@@ -1,6 +1,6 @@
 ################################################################################
 
-import itertools
+import itertools as _itertools
 from collections.abc import Iterable as _Iterable
 
 from . import _reseed
@@ -13,11 +13,11 @@ def shuffled(sequence, seed = None):
 
 def chainiter(superseq):
     seqs = (s if isinstance(s, _Iterable) else (s,) for s in superseq)
-    return itertools.chain.from_iterable(seqs)
+    return _itertools.chain.from_iterable(seqs)
 
 def productiter(superseq):
     seqs = [s if isinstance(s, _Iterable) else (s,) for s in superseq]
-    return itertools.product(*seqs)
+    return _itertools.product(*seqs)
 
 def zipiter(superseq):
     seqs = []
@@ -27,7 +27,7 @@ def zipiter(superseq):
             seqs.append(iter(s))
             nIters += 1
         else:
-            seqs.append(itertools.repeat(s))
+            seqs.append(_itertools.repeat(s))
     if not nIters:
         raise StopIteration
     stopped = []
@@ -70,7 +70,7 @@ def muddle(sequences):
                     pass
         if activei:
             for i in range(len(activei)):
-                for comb in itertools.combinations(activei, i + 1):
+                for comb in _itertools.combinations(activei, i + 1):
                     toprod = []
                     for ai in range(len(seqs)):
                         if ai in comb:
@@ -79,7 +79,7 @@ def muddle(sequences):
                             toprod.append(prevs[ai][:-1])
                         else:
                             toprod.append(prevs[ai])
-                    for row in itertools.product(*toprod):
+                    for row in _itertools.product(*toprod):
                         yield row
         else:
             break
