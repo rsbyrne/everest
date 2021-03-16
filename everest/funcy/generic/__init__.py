@@ -3,6 +3,7 @@
 from .. import (
     utilities as _utilities,
     special as _special,
+    seqmerge as _seqmerge,
     )
 
 from .primitive import *

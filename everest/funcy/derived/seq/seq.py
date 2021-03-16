@@ -42,22 +42,9 @@ class _SeqIncised(_Derived):
 
 class SeqSwathe(_SeqIncised, Seq):
     _incisionType = _generic.FuncyBroadIncisor
-    def __init__(self, seq, incisor, /, **kwargs):
-        if not isinstance(incisor, self._Fn.Function):
-            incisor = self._Fn[incisor]
-        super().__init__(seq, incisor, **kwargs)
-    def _seqLength(self):
-        return min()
     def _iter(self):
-        indices, values = iter(self.incisor.value), iter(self.seq.value)
-        ti = next(indices)
-        for i, v in enumerate(values):
-            if i == ti:
-                yield v
-                try:
-                    ti = next(indices)
-                except StopIteration:
-                    break
+        seq, incisor = self._value_resolve(seq), self._value_resolve(incisor)
+        return seq[incisor]
 
 class SeqElement(_SeqIncised):
     _incisionType = _generic.FuncyStrictIncisor
@@ -72,5 +59,23 @@ class Seeded(Seq):
     @_cached_property
     def _startseed(self):
         return _reseed.digits(12, seed = self._value_resolve(self.terms[-1]))
+
+#     def __init__(self, seq, incisor, /, **kwargs):
+#         if not isinstance(incisor, self._Fn.Function):
+#             if isinstance(incisor)
+#             incisor = self._Fn[incisor]
+#         super().__init__(seq, incisor, **kwargs)
+#     def _seqLength(self):
+#         return min()
+#     def _iter(self):
+#         indices, values = iter(self.incisor.value), iter(self.seq.value)
+#         ti = next(indices)
+#         for i, v in enumerate(values):
+#             if i == ti:
+#                 yield v
+#                 try:
+#                     ti = next(indices)
+#                 except StopIteration:
+#                     break
 
 ################################################################################
