@@ -211,8 +211,9 @@ class FuncyBroadIncision(FuncyIncision):
             incisor.start, incisor.stop, incisor.step
             )
     def _iter_getkeys(self):
-        seqs = iter(self.incisor), enumerate(self.source)
-        for i, (ii, v) in _seqmerge.muddle(seqs):
+        for i, (ii, v) in _seqmerge.muddle(
+                (self.incisor, self.source.items())
+                ):
             if i == ii:
                 yield v
     def __iter__(self):
