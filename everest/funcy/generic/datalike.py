@@ -50,6 +50,7 @@ _ = FuncyString.register(FuncyString._defaultdtype)
 class FuncyBool(FuncyDatalike):
     _defaultdtype = bool
 _ = FuncyBool.register(FuncyBool._defaultdtype)
+_ = FuncyBool.register(_np.bool_)
 
 class FuncyNumerical(FuncyDatalike):
     _defaultdtype = _numbers.Number

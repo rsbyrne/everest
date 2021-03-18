@@ -27,9 +27,6 @@ class SeqIterable(_generic.FuncyIncisable):
     @property
     def shape(self):
         return (self._seqLength())
-    @property
-    def sibling(self):
-        return SeqIterableSlice
     def __iter__(self):
         return self.seq._iter
 
@@ -37,10 +34,5 @@ class SeqIterable(_generic.FuncyIncisable):
         return show_iter_vals(self)
     def __repr__(self):
         return f'{self.__name__}({repr(self.seq)})'
-
-class SeqIterableSlice(SeqIterable, _generic.FuncyBroadIncision):
-    ...
-class SeqIterableSub(SeqIterable, _generic.FuncySubIncision):
-    ...
 
 ################################################################################

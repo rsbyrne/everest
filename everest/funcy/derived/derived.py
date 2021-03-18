@@ -7,7 +7,10 @@ from functools import (
     )
 import math as _math
 
-from . import _Function, _generic, _construct_base, _Gruple, _SeqIterable, _muddle
+from . import (
+    _Function, _generic, _construct_base,
+    _Gruple, _SeqIterable, _muddle,
+    )
 
 from .exceptions import *
 
