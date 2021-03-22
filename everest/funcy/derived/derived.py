@@ -14,7 +14,7 @@ from . import (
 
 from .exceptions import *
 
-class Derived(_Function):
+class Derived(_Function, _generic.FuncyPotentiallySeqlike):
 
     __slots__ = (
         'terms',
@@ -90,7 +90,7 @@ class Derived(_Function):
     def depth(self) -> int:
         return _special.unkint
 
-    class _Sub(_Function._Prx, _generic.FuncyIncisable):
+    class _Sub(_Function._Prx, _generic.FuncySoftIncisable):
         @property
         def shape(self) -> tuple:
             return self.host.shape
@@ -109,6 +109,7 @@ class Derived(_Function):
 
     @property
     def sub(self):
+        raise NotYetImplemented
         try:
             return self._sub
         except AttributeError:

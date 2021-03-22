@@ -7,7 +7,7 @@ from . import _reseed, _Derived, _special, _generic
 
 from .exceptions import *
 
-class Seq(_Derived, _generic.FuncyBroadIncisor):
+class Seq(_generic.FuncySeqlike, _Derived):
 
     discrete = False
     isSeq = True

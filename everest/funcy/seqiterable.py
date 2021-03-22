@@ -11,7 +11,7 @@ def show_iter_vals(iterable):
         content += ' ...'
     return f'[{content}]'
 
-class SeqIterable(_generic.FuncyIncisable):
+class SeqIterable(_generic.FuncySoftIncisable):
 
     __slots__ = '_seq',
 
@@ -22,17 +22,17 @@ class SeqIterable(_generic.FuncyIncisable):
     def seq(self):
         return self._seq
     @property
-    def _seqLength(self):
+    def seqLength(self):
         return self.seq._seqLength()
     @property
     def shape(self):
-        return (self._seqLength())
+        return (self.seqLength,)
     def __iter__(self):
-        return self.seq._iter
+        return self.seq._iter()
 
     def __str__(self):
         return show_iter_vals(self)
     def __repr__(self):
-        return f'{self.__name__}({repr(self.seq)})'
+        return f'{self.__class__.__name__}({repr(self.seq)})'
 
 ################################################################################

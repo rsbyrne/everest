@@ -19,9 +19,6 @@ class FuncySlice(FuncyGeneric):
         return range(*self.indices(length))
 _ = FuncySlice.register(slice)
 
-class FuncySeqlike(FuncyGeneric):
-    ...
-
 class FuncyEvaluable(FuncyGeneric):
     @property
     @_abstractmethod

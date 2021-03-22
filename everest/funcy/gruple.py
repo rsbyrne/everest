@@ -13,10 +13,13 @@ from typing import Union as _Union, NoReturn as _NoReturn
 from . import generic as _generic
 from .utilities import unpacker_zip as _unpacker_zip
 
-class _Gruple(_generic.FuncyShallowIncisable, _Sequence):
+class _Gruple(_generic.FuncySoftIncisable, _Sequence):
     @property
-    def broadincision(self):
-        return GrupleSwathe
+    def incisionTypes(self):
+        return {
+            **super().incisionTypes,
+            'broad': GrupleSwathe,
+            }
     @property
     def flatlen(self):
         try:
@@ -70,8 +73,11 @@ class GrupleSwathe(_Gruple, _generic.FuncyBroadIncision):
 
 class _GrupleMap(_Gruple, _Mapping):
     @property
-    def broadincision(self):
-        return GrupleMapSwathe
+    def incisionTypes(self):
+        return {
+            **super().incisionTypes,
+            'broad': GrupleMapSwathe,
+            }
     def _metricTypes(self):
         yield from super()._metricTypes()
         yield object

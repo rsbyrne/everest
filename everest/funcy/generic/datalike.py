@@ -121,4 +121,14 @@ class FuncyMapping(FuncyCollection):
     ...
 _ = FuncyMapping.register(_collabc.Mapping)
 
+class FuncyPotentiallySeqlike(FuncyGeneric):
+    @property
+    @_abstractmethod
+    def isSeq(self) -> bool:
+        raise FuncyAbstractMethodException
+class FuncySeqlike(FuncyPotentiallySeqlike, FuncyIterable):
+    @property
+    def isSeq(self):
+        return True
+
 ################################################################################
