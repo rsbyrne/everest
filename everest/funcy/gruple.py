@@ -6,6 +6,7 @@ from collections.abc import (
     Mapping as _Mapping,
     Hashable as _Hashable,
     )
+from abc import abstractmethod as _abstractmethod
 import operator as _operator
 import itertools as _itertools
 from typing import Union as _Union, NoReturn as _NoReturn
@@ -13,13 +14,20 @@ from typing import Union as _Union, NoReturn as _NoReturn
 from . import generic as _generic
 from .utilities import unpacker_zip as _unpacker_zip
 
+def strict_expose(self, v):
+    return self._incision_finalise(v)
+
 class _Gruple(_generic.FuncySoftIncisable, _Sequence):
     @property
     def incisionTypes(self):
         return {
             **super().incisionTypes,
+            'strict': strict_expose,
             'broad': GrupleSwathe,
             }
+    def _metric_types(self):
+        yield from super()._metric_types()
+        yield object
     @property
     def flatlen(self):
         try:
@@ -53,19 +61,29 @@ class Gruple(_Gruple):
     def __init__(self, args: _Iterable, /):
         self._contents = tuple(args)
         super().__init__()
-    def __iter__(self):
-        yield from self._contents
+    @property
+    def contents(self):
+        return self._contents
+    def _incision_finalise(self, arg0, /):
+        return self.contents[arg0]
     def copy(self):
         return self.__class__(*self._contents)
     @property
     def shape(self):
         return (len(self._contents),)
+    def _metrics(self):
+        yield from super()._metrics()
+        yield self.contents
     def __repr__(self):
         return f'Gruple{list(self)}'
     def __str__(self):
         return self.__repr__()
 
 class GrupleSwathe(_Gruple, _generic.FuncyBroadIncision):
+    def _metrics(self):
+        yield from super()._metrics()
+        srcCon = self.source.contents
+        yield (srcCon[i] for i in self._iter())
     def __repr__(self):
         return f'Swath({repr(self.source)}[{repr(self.incisor)}])'
     def __str__(self):
@@ -78,9 +96,6 @@ class _GrupleMap(_Gruple, _Mapping):
             **super().incisionTypes,
             'broad': GrupleMapSwathe,
             }
-    def _metricTypes(self):
-        yield from super()._metricTypes()
-        yield object
     @classmethod
     def _rich(cls, self, other, /, *, opkey: str) -> 'GrupleMap':
         keys = self._keys
@@ -91,24 +106,31 @@ class _GrupleMap(_Gruple, _Mapping):
         return cls(zip(keys, vals))
 
 class GrupleMap(_GrupleMap):
-    __slots__ = ('_asdict', '_keys', '_values')
+    __slots__ = ('_keys', '_values')
     def __init__(self, pairs, /) -> None:
-        self._asdict = dict(pairs)
-        self._keys = Gruple(self._asdict.keys())
-        self._values = Gruple(self._asdict.values())
+        _keys, _values = zip(*pairs)
+        self._keys, self._values = Gruple(_keys), Gruple(_values)
         super().__init__()
+    @property
+    def contents(self):
+        return self._values
+    def _incision_finalise(self, arg0, /):
+        return self.contents[arg0]
     @property
     def shape(self):
         return (len(self._keys),)
     def _metrics(self):
         yield from super()._metrics()
         yield self._keys
-    def __iter__(self):
-        yield from self._values
     def __repr__(self):
-        return f'GrupleMap{self._asdict}'
+        return f'GrupleMap{list(zip(self._keys, self._values))}'
 
 class GrupleMapSwathe(_GrupleMap, GrupleSwathe):
-    ...
+    @property
+    def contents(self):
+        return self.source.contents
+    def _metrics(self):
+        yield from super()._metrics()
+        yield self.source._keys[self.incisor]
 
 ################################################################################

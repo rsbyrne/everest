@@ -129,7 +129,7 @@ class FuncyIncisable(FuncySequence):
         return dict(
             trivial = type(self),
             sub = FuncySubIncision,
-            single = FuncySingleIncision,
+#             single = FuncySingleIncision,
             deep = FuncyDeepIncision,
             )
     def _get_incision_type(self, arg: str, /):
@@ -168,12 +168,12 @@ class FuncyIncisable(FuncySequence):
         nArgs = len(args)
         if nArgs == 0:
             return self
-        elif nArgs == 1:
-            return self[args[0]]
+#         elif nArgs == 1:
+#             return self[args[0]]
         else:
             args = process_ellipsis(args, len(self.shape), filler = IgnoreDim)
             if (nArgs := len(args)) < (nLevels := self.nLevels):
-                args = tuple((*args, *(ignoredim for _ in range(level - nArgs))))
+                args = tuple((*args, *(ignoredim for _ in range(nLevels - nArgs))))
             enum = enumerate(args)
             for i, arg in enum:
                 if not isinstance(arg, IgnoreDim):
@@ -238,12 +238,6 @@ class FuncyIncisable(FuncySequence):
     @property
     def _levelLength(self):
         return self.shape[self.nLevels - 1]
-    @property
-    def _supershape(self):
-        return self.shape[:self.nLevels - 1]
-    @property
-    def _subshape(self):
-        return self.shape[self.nLevels - 1:]
     def _iters(self):
         return (level._iter() for level in self._levels())
     def _alliter(self):
@@ -280,13 +274,17 @@ class FuncyHardIncisable(FuncyIncisable):
 class FuncySoftIncisable(FuncyIncisable):
     @property
     def incisionTypes(self):
-        return {**super().incisionTypes, 'broad': FuncyBroadIncision}
+        return {
+            **super().incisionTypes,
+            'strict': FuncyStrictIncision,
+            'broad': FuncyBroadIncision,
+            }
     def _getitem_strict(self, arg, /):
         meti = self._get_meti(arg)
         for mets, v in self._items():
             if arg == mets[meti]:
-                return self._get_incision_type('single')(self, v)
-        raise IndexError
+                return self._get_incision_type('strict')(self, v)
+        raise IndexError(arg)
     def _getitem_broad(self, arg: FuncyBroadIncisor, /):
         if type(arg) is slice:
             if arg == slice(None):
@@ -365,18 +363,18 @@ class FuncyShallowIncision(FuncyIncision):
         return _special.unkint
     @property
     def shape(self):
-        source = self.source
+        shape = super().shape
         return tuple((
-            *source._supershape,
+            *shape[:self.nLevels - 1],
             self._levelLength,
-            *source._subshape,
+            *shape[self.nLevels:],
             ))
     def _levels(self):
         *levels, _ = super()._levels()
         yield from levels
         yield self
 
-class FuncySingleIncision(FuncyShallowIncision):
+class FuncyStrictIncision(FuncyShallowIncision):
     @property
     def _levelLength(self):
         return 1
