@@ -1,5 +1,3 @@
-################################################################################
-
 from abc import ABC as _ABC, abstractmethod as _abstractmethod
 from collections import abc as _collabc
 from functools import (
@@ -80,48 +78,11 @@ class FuncyDeepIncisor(FuncyIncisor):
     ...
 _ = FuncyDeepIncisor.register(FuncyStruct)
 
-class FuncySubIncisor(FuncyDeepIncisor):
-    ...
-subinc = FuncySubIncisor()
-
 # class FuncyRelegatedIncisor(FuncyIncisor):
 #     def __init__(self, incisor):
 #         self.incisor = incisor
 #     def __call__(self):
 #         return self.incisor
-
-class IgnoreDim:
-    ...
-ignoredim = IgnoreDim()
-
-def process_ellipsis(args: tuple, depth: int, /, filler = _partial(slice, None)):
-    nArgs = len(args)
-    if nArgs == 0:
-        return args
-    elif nArgs == 1:
-        if args[0] is Ellipsis:
-            return tuple(filler() for _ in range(depth))
-        else:
-            return args
-    elif nArgs < depth:
-        nEllipses = len(tuple(el for el in args if el is Ellipsis))
-        if nEllipses == 0:
-            return args
-        elif nEllipses == 1:
-            out = []
-            for arg in args:
-                if arg is Ellipsis:
-                    for _ in range(depth - nArgs):
-                        out.append(filler())
-                else:
-                    out.append(arg)
-            return tuple(out)
-        else:
-            raise IndexError(f"Too many ellipses ({nEllipses} > 1)")
-    elif nArgs == depth:
-        return args
-    else:
-        raise IndexError(f"Too many args ({nArgs} > {depth})")
 
 class FuncyIncisable(FuncySequence):
     @property
@@ -130,7 +91,6 @@ class FuncyIncisable(FuncySequence):
             trivial = type(self),
             sub = FuncySubIncision,
             single = FuncySingleIncision,
-            deep = FuncyDeepIncision,
             )
     def _get_incision_type(self, arg: str, /):
         return self.incisionTypes[arg]
@@ -140,13 +100,8 @@ class FuncyIncisable(FuncySequence):
             (FuncyEvaluable, cls._getitem_evaluable),
             (_collabc.Generator, cls._getitem_generator),
             (FuncyTrivialIncisor, cls._getitem_trivial),
-            (FuncySubIncisor, cls._getitem_sub),
             (FuncyDeepIncisor, cls._getitem_deep),
             )
-    @property
-    def incisors(self):
-        return
-        yield
     @classmethod
     def _get_incision_method(cls, arg, /):
         argType = type(arg)
@@ -162,32 +117,19 @@ class FuncyIncisable(FuncySequence):
             arg: FuncyTrivialIncisor = None, /
             ) -> FuncyDatalike:
         return self
-    def _getitem_sub(self, _, /):
-        return self._get_incision_type('sub')(self)
     def _getitem_deep(self, args) -> FuncyDatalike:
         nArgs = len(args)
         if nArgs == 0:
-            return self
+            return self._get_incision_type('sub')(self)
         elif nArgs == 1:
             return self[args[0]]
         else:
-            args = process_ellipsis(args, len(self.shape), filler = IgnoreDim)
-            if (nArgs := len(args)) < (nLevels := self.nLevels):
-                args = tuple((*args, *(ignoredim for _ in range(level - nArgs))))
-            enum = enumerate(args)
-            for i, arg in enum:
-                if not isinstance(arg, IgnoreDim):
-                    break
-                return self # because every dim was ignored
-            cut = self._get_level(i)[arg]
-            for i, arg in enum:
-                cut = cut[subinc] # go next level down
-                if not (precut := self._get_level(i)) is None:
-                    for inc in precut.incisors:
-                        cut = cut[inc]
-                if not isinstance(arg, IgnoreDim):
-                    cut = cut[arg]
-            return self._get_incision_type('deep')(cut)
+            arg0, *argn = process_ellipsis(args, self.depth)
+            cut = self[arg0]
+            if not isinstance(cut, self._get_incision_type('single')):
+                cut = cut[()]
+            argn = argn[0] if len(argn) == 1 else tuple(argn)
+            return cut[argn]
     def __getitem__(self, arg: FuncyIncisor, /):
         incisionMethod = self._get_incision_method(arg)
         if incisionMethod is NotImplemented:
@@ -205,9 +147,10 @@ class FuncyIncisable(FuncySequence):
     @_abstractmethod
     def shape(self):
         raise FuncyAbstractMethodException
-    @property
-    def depth(self):
-        return len(self.shape)
+    def _iters(self) -> 'Generator[Generator]':
+        yield self._iter()
+    def _alliter(self):
+        return _seqmerge.muddle(self._iters())
     def _metrics(self) -> 'Generator[tuple]':
         yield self._iter()
     def _items(self):
@@ -222,32 +165,21 @@ class FuncyIncisable(FuncySequence):
         return 0
     def __len__(self):
         return self.shape[0]
-    def _levels(self):
-        yield self
     @property
-    def levels(self):
-        return dict(enumerate(self._levels()))
-    def _get_level(self, i):
-        try:
-            return self.levels[i]
-        except KeyError:
-            return None
+    def depth(self):
+        return len(self.shape)
     @property
-    def nLevels(self):
-        return len(self.levels)
+    def level(self):
+        return 0
     @property
     def _levelLength(self):
-        return self.shape[self.nLevels - 1]
+        return self.shape[self.level]
     @property
     def _supershape(self):
-        return self.shape[:self.nLevels - 1]
+        return self.shape[:self.level]
     @property
     def _subshape(self):
-        return self.shape[self.nLevels - 1:]
-    def _iters(self):
-        return (level._iter() for level in self._levels())
-    def _alliter(self):
-        return _seqmerge.muddle(self._iters())
+        return self.shape[self.level + 1:]
     def __iter__(self):
         return (self._incision_finalise(*o) for o in self._alliter())
 
@@ -308,7 +240,36 @@ class FuncySoftIncisable(FuncyIncisable):
         yield from super()._metric_types()
         yield FuncyIntegral
 
-class FuncyIncision(FuncyIncisable):
+def process_ellipsis(args: tuple, depth: int, /):
+    nArgs = len(args)
+    if nArgs == 0:
+        return args
+    elif nArgs == 1:
+        if args[0] is Ellipsis:
+            return tuple(slice(None) for _ in range(depth))
+        else:
+            return args
+    elif nArgs < depth:
+        nEllipses = len(tuple(el for el in args if el is Ellipsis))
+        if nEllipses == 0:
+            return args
+        elif nEllipses == 1:
+            out = []
+            for arg in args:
+                if arg is Ellipsis:
+                    for _ in range(depth - nArgs):
+                        out.append(slice(None))
+                else:
+                    out.append(arg)
+            return tuple(out)
+        else:
+            raise IndexError(f"Too many ellipses ({nEllipses} > 1)")
+    elif nArgs == depth:
+        return args
+    else:
+        raise IndexError(f"Too many args ({nArgs} > {depth})")
+
+class FuncyIncisionlike(FuncyIncisable):
     def __init__(self, source, /, *args, **kwargs):
         self._source = source
         super().__init__(*args, **kwargs)
@@ -318,8 +279,13 @@ class FuncyIncision(FuncyIncisable):
     @property
     def shape(self):
         return self.source.shape
-    def _levels(self):
-        return self.source._levels()
+    @property
+    @_abstractmethod
+    def level(self):
+        raise FuncyAbstractMethodException
+    @_abstractmethod
+    def _iters(self) -> 'Generator[Generator]':
+        raise FuncyAbstractMethodException
     def _get_incision_type(self, arg: str, /):
         return self.source._get_incision_type(arg)
     def _get_incision_method(self, arg, /):
@@ -334,35 +300,25 @@ class FuncyIncision(FuncyIncisable):
     def _incision_finalise(self, *args):
         return self.source._incision_finalise(*args)
 
-class FuncyDeepIncision(FuncyIncision):
-    def __getitem__(self, arg, /):
-        if not type(arg) is tuple:
-            arg = (arg,)
-        return super().__getitem__(arg)
-    def _iter(self):
-        raise Exception("Cannot manually iterate FuncyDeepIncision")
-
-class FuncySubIncision(FuncyIncision):
-    def _levels(self):
-        yield from super()._levels()
-        yield self
+class FuncySubIncision(FuncyIncisionlike):
+    @property
+    def level(self):
+        return self.source.level + 1
+    def _iters(self) -> 'Generator[Generator]':
+        yield from self.source._iters()
+        yield self._iter()
     def _iter(self) -> 'Generator':
         return range(self._levelLength)
 
-class FuncyShallowIncision(FuncyIncision):
+class FuncyIncision(FuncyIncisionlike):
     def __init__(self, source, incisor, /, *args, **kwargs):
         self._incisor = incisor
         super().__init__(source, *args, **kwargs)
     @property
     def incisor(self):
         return self._incisor
-    @property
-    def incisors(self):
-        yield from self.source.incisors
-        yield self.incisor
-    @property
-    def _levelLength(self):
-        return _special.unkint
+
+class FuncyShallowIncision(FuncyIncision):
     @property
     def shape(self):
         source = self.source
@@ -371,10 +327,16 @@ class FuncyShallowIncision(FuncyIncision):
             self._levelLength,
             *source._subshape,
             ))
-    def _levels(self):
-        *levels, _ = super()._levels()
-        yield from levels
-        yield self
+    @property
+    def level(self):
+        return self.source.level
+    @property
+    def _levelLength(self):
+        return _special.unkint
+    def _iters(self) -> 'Generator[Generator]':
+        *iters, _ = self.source._iters()
+        yield from iters
+        yield self._iter()
 
 class FuncySingleIncision(FuncyShallowIncision):
     @property
@@ -382,8 +344,15 @@ class FuncySingleIncision(FuncyShallowIncision):
         return 1
     def _iter(self):
         return self.incisor
+    def __getitem__(self, arg):
+        return super().__getitem__(()).__getitem__(arg)
 
 class FuncySeqIncision(FuncyShallowIncision, FuncySoftIncisable):
+    @property
+    def level(self):
+        level = super().level
+        assert level == 0
+        return level
     def _iter(self) -> 'Generator':
         return ((inc,) for inc in self.incisor)
 
@@ -458,4 +427,48 @@ class FuncyBroadIncision(FuncyShallowIncision, FuncySoftIncisable):
             self._iterFn = iterFn
             return iterFn()
 
-################################################################################
+# class FuncySingleIncision(FuncyIncision):
+#     @property
+#     def shape(self):
+#         source = self.source
+#         return tuple((
+#             *source._supershape,
+#             1,
+#             *source._subshape,
+#             ))
+#     @property
+#     def level(self):
+#         source = self.source
+#         if isinstance(source, FuncySubIncision):
+#             return source.level
+#         else:
+#             return source.level + 1
+# #         return self.source.level + 1
+#     def _iters(self) -> 'Generator[Generator]':
+#         *iters, _ = self.source._iters()
+#         yield from iters
+#         yield self.incisor
+#     def _iter(self) -> 'Generator':
+#         raise TypeError(f"Cannot iterate through {type(self)}.")
+
+# class FuncySubIncision(FuncyIncisionlike):
+#     @property
+#     def level(self):
+#         return self.source.level + 1
+#     def _iters(self) -> 'Generator[Generator]':
+#         yield from self.source._iters()
+#         yield self._iter()
+#     def _iter(self) -> 'Generator':
+#         return range(self._levelLength)
+    
+#     def _superiter(self):
+#         return self.source._iter()
+# #     def _subiter(self):
+        
+#     def _iter(self):
+#         for superkeys, subkeys _seqmerge.muddle(
+#             (self.source._iter(), range(self._levelLength()))
+#             )
+
+
+""
