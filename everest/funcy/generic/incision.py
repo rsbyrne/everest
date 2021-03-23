@@ -325,10 +325,10 @@ class FuncyIncision(FuncyIncisable):
         if meth is NotImplemented:
             meth = self.source._get_incision_method(arg)
         return meth
-    def _get_meti(self, arg):
-        return self.source._get_meti(arg)
-    def _metrics(self):
-        return self.source._metrics()
+#     def _get_meti(self, arg):
+#         return self.source._get_meti(arg)
+#     def _metrics(self):
+#         return self.source._metrics()
     def _incision_finalise(self, *args):
         return self.source._incision_finalise(*args)
 

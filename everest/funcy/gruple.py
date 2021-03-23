@@ -79,15 +79,17 @@ class Gruple(_Gruple):
     def __str__(self):
         return self.__repr__()
 
-class GrupleSwathe(_Gruple, _generic.FuncyBroadIncision):
-    def _metrics(self):
-        yield from super()._metrics()
-        srcCon = self.source.contents
-        yield (srcCon[i] for i in self._iter())
+class _GrupleSwathe(_Gruple, _generic.FuncyBroadIncision):
     def __repr__(self):
         return f'Swath({repr(self.source)}[{repr(self.incisor)}])'
     def __str__(self):
         return str(list(self))
+
+class GrupleSwathe(_GrupleSwathe):
+    def _metrics(self):
+        yield from super()._metrics()
+        srcCon = self.source.contents
+        yield (srcCon[i] for i in self._iter())
 
 class _GrupleMap(_Gruple, _Mapping):
     @property
@@ -125,12 +127,16 @@ class GrupleMap(_GrupleMap):
     def __repr__(self):
         return f'GrupleMap{list(zip(self._keys, self._values))}'
 
-class GrupleMapSwathe(_GrupleMap, GrupleSwathe):
-    @property
-    def contents(self):
-        return self.source.contents
+class GrupleMapSwathe(_GrupleMap, _GrupleSwathe):
     def _metrics(self):
         yield from super()._metrics()
         yield self.source._keys[self.incisor]
+
+#     @property
+#     def keys(self):
+#         return self._keys
+#     @property
+#     def value(self):
+#         return self.
 
 ################################################################################
