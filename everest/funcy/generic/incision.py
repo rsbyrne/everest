@@ -128,7 +128,7 @@ def process_ellipsis(
     else:
         raise IndexError(f"Too many args ({nArgs} > {depth})")
 
-class FuncyIncisable(FuncySequence, FuncyEvaluable):
+class FuncyIncisable(FuncySequence):
     @property
     def incisionTypes(self):
         return dict(
@@ -198,15 +198,15 @@ class FuncyIncisable(FuncySequence, FuncyEvaluable):
     def __iter__(self):
         for _, o in zip(range(1_000), self._prime_indices()):
             yield self._incision_finalise(o)
-    @property
-    def value(self) -> object:
-        return iter(self) 
-    @value.setter
-    def value(self, val, /) -> None:
-        raise AttributeError
-    @value.deleter
-    def value(self) -> None:
-        raise AttributeError
+#     @property
+#     def value(self) -> object:
+#         return iter(self) 
+#     @value.setter
+#     def value(self, val, /) -> None:
+#         raise AttributeError
+#     @value.deleter
+#     def value(self) -> None:
+#         raise AttributeError
 
 class FuncyDeepIncisable(FuncyIncisable):
     @property
@@ -247,7 +247,7 @@ class FuncyDeepIncisable(FuncyIncisable):
                         cut = cut[inc]
                 if not isinstance(arg, IgnoreDim):
                     cut = cut[arg]
-            return self._get_incision_type('deep')(cut)
+            return self._get_incision_type('deep')(cut.truesource, cut.levels)
     @property
     @_abstractmethod
     def shape(self):
@@ -343,6 +343,11 @@ class FuncyIncision(FuncyDeepIncisable):
     def source(self):
         return self._source
     @property
+    def truesource(self):
+        source = self.source
+        if isinstance(source, FuncyIncision): return source.truesource
+        else: return source
+    @property
     def shape(self):
         return self.source.shape
     def _levels(self):
@@ -355,10 +360,18 @@ class FuncyIncision(FuncyDeepIncisable):
         if meth is NotImplemented:
             meth = self.source._get_incision_method(arg)
         return meth
-    def _incision_finalise(self, *args):
-        return self.source._incision_finalise(*args)
+    def _incision_finalise(self, args):
+        return self.source._incision_finalise(args)
 
 class FuncyDeepIncision(FuncyIncision):
+    def __init__(self, source, levels, /, *args, **kwargs):
+        self._inheritedLevels = {**levels}
+        super().__init__(source, *args, **kwargs)
+    @property
+    def shape(self):
+        return self.levels[self.nLevels - 1].shape
+    def _levels(self):
+        yield from self._inheritedLevels.values()
     def __getitem__(self, arg, /):
         if not type(arg) is tuple:
             arg = (arg,)
@@ -371,7 +384,7 @@ class FuncyDeepIncision(FuncyIncision):
         yield object
     def __iter__(self):
         for _, o in zip(range(1_000), self._prime_indices()):
-            yield self._incision_finalise(*o)
+            yield self._incision_finalise(o)
 
 class FuncySubIncision(FuncyIncision):
     def _levels(self):
@@ -416,10 +429,10 @@ class FuncyStrictIncision(FuncyShallowIncision):
     def _index_sets(self):
         yield (self.incisor,)
     def _index_types(self):
-        yield object
-    @property
-    def value(self) -> object:
-        return tuple(iter(self))[0]
+        yield objectaa
+#     @property
+#     def value(self) -> object:
+#         return tuple(iter(self))[0]
 
 class FuncySeqIncision(FuncyShallowIncision, FuncySoftIncisable):
     def __len__(self):

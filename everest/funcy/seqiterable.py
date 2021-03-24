@@ -28,6 +28,7 @@ class SeqIterable(_generic.FuncySoftIncisable):
     def __init__(self, seq, /, *args, **kwargs):
         self._seq = seq
         super().__init__(*args, **kwargs)
+
     @property
     def seq(self):
         return self._seq
