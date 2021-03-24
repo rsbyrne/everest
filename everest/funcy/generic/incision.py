@@ -128,7 +128,7 @@ def process_ellipsis(
     else:
         raise IndexError(f"Too many args ({nArgs} > {depth})")
 
-class FuncyIncisable(FuncySequence):
+class FuncyIncisable(FuncySequence, FuncyEvaluable):
     @property
     def incisionTypes(self):
         return dict(
@@ -189,12 +189,24 @@ class FuncyIncisable(FuncySequence):
         for _, o in zip(range(1_000), self._indices()):
             yield o
     def _prime_indices(self):
-        yield from next(self._index_sets())
+        try:
+            yield from next(self._index_sets())
+        except StopIteration:
+            yield from ()
     def __len__(self):
         return 0
     def __iter__(self):
         for _, o in zip(range(1_000), self._prime_indices()):
             yield self._incision_finalise(o)
+    @property
+    def value(self) -> object:
+        return iter(self) 
+    @value.setter
+    def value(self, val, /) -> None:
+        raise AttributeError
+    @value.deleter
+    def value(self) -> None:
+        raise AttributeError
 
 class FuncyDeepIncisable(FuncyIncisable):
     @property
@@ -244,7 +256,7 @@ class FuncyDeepIncisable(FuncyIncisable):
     def depth(self):
         return len(self.shape)
     def __len__(self):
-        return self.shape[0]
+        return self.shape[self.nLevels - 1]
     def _levels(self):
         yield self
     @property
@@ -259,12 +271,9 @@ class FuncyDeepIncisable(FuncyIncisable):
     def nLevels(self):
         return len(self.levels)
     @property
-    def _levelLength(self):
-        return self.shape[self.nLevels - 1]
-    @property
     def _levelTractable(self):
         return not isinstance(
-            self._levelLength,
+            self.__len__(),
             (_special.Unknown, _special.Null)
             )
 
@@ -319,7 +328,7 @@ class FuncySoftIncisable(FuncyDeepIncisable):
     def _index_sets(self):
         yield from super()._index_sets()
         if self._levelTractable:
-            yield range(self._levelLength)
+            yield range(self.__len__())
         else:
             yield _itertools.count()
     def _index_types(self):
@@ -338,8 +347,9 @@ class FuncyIncision(FuncyDeepIncisable):
         return self.source.shape
     def _levels(self):
         return self.source._levels()
-    def _get_incision_type(self, arg: str, /):
-        return self.source._get_incision_type(arg)
+    @property
+    def incisionTypes(self):
+        return {**self.source.incisionTypes, **super().incisionTypes}
     def _get_incision_method(self, arg, /):
         meth = super()._get_incision_method(arg)
         if meth is NotImplemented:
@@ -359,13 +369,16 @@ class FuncyDeepIncision(FuncyIncision):
             ))
     def _index_types(self):
         yield object
+    def __iter__(self):
+        for _, o in zip(range(1_000), self._prime_indices()):
+            yield self._incision_finalise(*o)
 
 class FuncySubIncision(FuncyIncision):
     def _levels(self):
         yield from super()._levels()
         yield self
     def _index_sets(self) -> 'Generator[Generator]':
-        yield range(self._levelLength)
+        yield range(self.__len__())
         yield from super()._index_sets()
     def _index_types(self):
         yield object
@@ -382,15 +395,14 @@ class FuncyShallowIncision(FuncyIncision):
     def incisors(self):
         yield from self.source.incisors
         yield self.incisor
-    @property
-    def _levelLength(self):
+    def __len__(self):
         return _special.unkint
     @property
     def shape(self):
         shape = super().shape
         return tuple((
             *shape[:self.nLevels - 1],
-            self._levelLength,
+            self.__len__(),
             *shape[self.nLevels:],
             ))
     def _levels(self):
@@ -399,27 +411,26 @@ class FuncyShallowIncision(FuncyIncision):
         yield self
 
 class FuncyStrictIncision(FuncyShallowIncision):
-    @property
-    def _levelLength(self):
+    def __len__(self):
         return 1
     def _index_sets(self):
         yield (self.incisor,)
     def _index_types(self):
         yield object
-#     def _indices(self):
-#         return (self._incisor)
+    @property
+    def value(self) -> object:
+        return tuple(iter(self))[0]
 
 class FuncySeqIncision(FuncyShallowIncision, FuncySoftIncisable):
-    ...
-#     def _index_sets(self):
-#         yield from super()._index_sets()
-#         if self._levelTractable:
-#             yield range(self._levelLength)
-#         else:
-#             yield _itertools.count()
-#     def _index_types(self):
-#         yield from super()._index_types()
-#         yield FuncyIntegral
+    def __len__(self):
+        try: return len(self.incisor)
+        except AttributeError: return super().__len__()
+    def _index_sets(self):
+        yield self.incisor
+        yield from super()._index_sets()
+    def _index_types(self):
+        yield object
+        yield from super()._index_types()
 
 class FuncyBroadIncision(FuncyShallowIncision, FuncySoftIncisable):
     def _indices_getslice(self):
