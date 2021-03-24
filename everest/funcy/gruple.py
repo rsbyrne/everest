@@ -13,35 +13,45 @@ from .utilities import unpacker_zip as _unpacker_zip
 def strict_expose(self, ind):
     return self._incision_finalise(ind)
 
+def flatlen(gruple):
+    n = 0
+    for c in gruple.pyLike:
+        try:
+            n += c.flatlen
+        except AttributeError:
+            if isinstance(c, _generic.FuncyUnpackable):
+                n += len(c)
+            else:
+                n += 1
+    return n
+
 class _Gruple(_generic.FuncySoftIncisable, _Sequence):
+
     @property
     def incisionTypes(self):
         return {
             **super().incisionTypes,
             'strict': strict_expose,
-            'broad': GrupleSwathe,
+            'broad': self._swatheType
             }
+
     @property
-    def pyLike(self):
-        return self._pyLike
-    def _incision_finalise(self, arg0, /):
-        return self.pyLike[arg0]
+    def pyLike(self): return self._pyLike
+    @property
+    def pyType(self): return list
+    @property
+    def shape(self): return (len(self.pyLike),)
+    @property
+    def _swatheType(self): return GrupleSwathe
+
     @property
     def flatlen(self):
         try:
             return self._flatlen
         except AttributeError:
-            n = 0
-            for c in self.pyLike:
-                try:
-                    n += c.flatlen
-                except AttributeError:
-                    if isinstance(c, _generic.FuncyUnpackable):
-                        n += len(c)
-                    else:
-                        n += 1
-            self._flatlen = n
-            return n
+            self._flatlen = _flatlen = flatlen(self)
+            return _flatlen
+
     @classmethod
     def _rich(cls, self, other, /, *, opkey: str) -> 'Gruple':
         opfn = getattr(_operator, opkey)
@@ -54,41 +64,34 @@ class _Gruple(_generic.FuncySoftIncisable, _Sequence):
     def __gt__(self, other): return self._rich(self, other, opkey = 'gt')
     def __ge__(self, other): return self._rich(self, other, opkey = 'ge')
 
-class Gruple(_Gruple):
-    def __init__(self, args: _Iterable, /):
-        self._pyLike = list(args)
-        super().__init__()
-    @property
-    def shape(self):
-        return (len(self.pyLike),)
-    def _index_sets(self):
-        yield iter(self.pyLike)
-    def _index_types(self):
-        yield object
     def __repr__(self):
-        return f'Gruple{self.pyLike}'
+        return f'{type(self).__name__}{self.pyLike}'
     def __str__(self):
-        return self.__repr__()
+        return str(self.pyLike)
 
-class _GrupleSwathe(_Gruple, _generic.FuncyBroadIncision):
+class Gruple(_Gruple):
+    def __init__(self, arg: _Iterable):
+        self._pyLike = self.pyType(arg)
+        super().__init__()
+    def _index_sets(self): yield iter(self.pyLike)
+    def _index_types(self): yield object
+    def _incision_finalise(self, arg0, /): return self.pyLike[arg0]
+
+class GrupleSwathe(_generic.FuncyBroadIncision, _Gruple):
     @property
     def pyLike(self):
         return self.source.pyLike
     def __repr__(self):
-        return f'Swath({repr(self.source)}[{repr(self.incisor)}])'
+        return f'Swathe({repr(self.source)}[{repr(self.incisor)}])'
     def __str__(self):
-        return str(list(self))
-
-class GrupleSwathe(_GrupleSwathe):
-    ...
+        return str(self.pyType(self))
 
 class _GrupleMap(_Gruple, _Mapping):
     @property
-    def incisionTypes(self):
-        return {
-            **super().incisionTypes,
-            'broad': GrupleMapSwathe,
-            }
+    def pyType(self): return dict
+    @property
+    def _swatheType(self):
+        return GrupleMapSwathe
     @classmethod
     def _rich(cls, self, other, /, *, opkey: str) -> 'GrupleMap':
         keys = self._keys
@@ -98,21 +101,10 @@ class _GrupleMap(_Gruple, _Mapping):
         vals = Gruple._rich(self._values, other, opkey = opkey)
         return cls(zip(keys, vals))
 
-class GrupleMap(_GrupleMap):
-    def __init__(self, pairs, /) -> None:
-        self._pyLike = dict(pairs)
-        super().__init__()
-    @property
-    def shape(self):
-        return (len(self.pyLike),)
-    def _index_sets(self):
-        yield iter(self.pyLike)
-    def _index_types(self):
-        yield object
-    def __repr__(self):
-        return f'GrupleMap{self.pyLike}'
+class GrupleMap(_GrupleMap, Gruple):
+    ...
 
-class GrupleMapSwathe(_GrupleMap, _GrupleSwathe):
+class GrupleMapSwathe(_GrupleMap, GrupleSwathe):
     ...
 
 ################################################################################
