@@ -101,15 +101,10 @@ class Derived(_Function, _generic.FuncyPotentiallySeqlike):
             return self._Fn.seq.SeqElement(self.host, arg)
         def _getitem_broad(self, arg):
             return self._Fn.seq.SeqSwathe(self.host, arg)
-        def _getitem_deep(self, arg0, *argn):
-            return self[arg0][argn]
-        def _getitem_sub(self, *args):
-            return self.host[args]
-#         def __getitem__(self, arg):
-
+        def _incision_finalise(self, *args):
+            assert False
     @property
     def sub(self):
-        raise NotYetImplemented
         try:
             return self._sub
         except AttributeError:

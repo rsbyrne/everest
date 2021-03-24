@@ -73,8 +73,6 @@ class Gruple(_Gruple):
     def __init__(self, arg: _Iterable):
         self._pyLike = self.pyType(arg)
         super().__init__()
-    def _index_sets(self): yield iter(self.pyLike)
-    def _index_types(self): yield object
     def _incision_finalise(self, arg0, /): return self.pyLike[arg0]
 
 class GrupleSwathe(_generic.FuncyBroadIncision, _Gruple):
@@ -102,7 +100,8 @@ class _GrupleMap(_Gruple, _Mapping):
         return cls(zip(keys, vals))
 
 class GrupleMap(_GrupleMap, Gruple):
-    ...
+    def _index_sets(self): yield iter(self.pyLike)
+    def _index_types(self): yield object
 
 class GrupleMapSwathe(_GrupleMap, GrupleSwathe):
     ...

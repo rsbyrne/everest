@@ -11,9 +11,19 @@ def show_iter_vals(iterable):
         content += ' ...'
     return f'[{content}]'
 
+def strict_expose(self, ind):
+    return self._incision_finalise(ind)
+
 class SeqIterable(_generic.FuncySoftIncisable):
 
     __slots__ = '_seq',
+
+    @property
+    def incisionTypes(self):
+        return {
+            **super().incisionTypes,
+            'strict': strict_expose,
+            }
 
     def __init__(self, seq, /, *args, **kwargs):
         self._seq = seq
@@ -27,8 +37,13 @@ class SeqIterable(_generic.FuncySoftIncisable):
     @property
     def shape(self):
         return (self.seqLength,)
-    def __iter__(self):
-        return self.seq._iter()
+
+    def _index_sets(self):
+        yield self.seq._iter()
+        yield from super()._index_sets()
+    def _index_types(self):
+        yield object
+        yield from super()._index_types()
 
     def __str__(self):
         return show_iter_vals(self)

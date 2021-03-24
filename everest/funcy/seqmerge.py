@@ -56,7 +56,10 @@ def muddle(sequences, *, checkType = _Iterable):
         iter(s) if isinstance(s, checkType) else iter((s,))
             for s in sequences
         ]
-    prevs = [[next(s)] for s in seqs]
+    try:
+        prevs = [[next(s)] for s in seqs]
+    except StopIteration:
+        return [()]
     activei = list(range(len(seqs)))
     yield tuple(p[0] for p in prevs)
     while True:

@@ -11,6 +11,7 @@ from functools import (
 import itertools as _itertools
 import operator as _operator
 import weakref as _weakref
+import warnings as _warnings
 
 from . import _special, _seqmerge
 from .datalike import *
@@ -95,7 +96,10 @@ class IgnoreDim:
     ...
 ignoredim = IgnoreDim()
 
-def process_ellipsis(args: tuple, depth: int, /, filler = _partial(slice, None)):
+def process_ellipsis(
+        args: tuple, depth: int, /,
+        filler = _partial(slice, None)
+        ):
     nArgs = len(args)
     if nArgs == 0:
         return args
@@ -129,9 +133,6 @@ class FuncyIncisable(FuncySequence):
     def incisionTypes(self):
         return dict(
             trivial = type(self),
-            sub = FuncySubIncision,
-            strict = FuncyStrictIncision,
-            deep = FuncyDeepIncision,
             )
     def _get_incision_type(self, arg: str, /):
         return self.incisionTypes[arg]
@@ -141,9 +142,6 @@ class FuncyIncisable(FuncySequence):
             (FuncyEvaluable, cls._getitem_evaluable),
             (_collabc.Generator, cls._getitem_generator),
             (FuncyTrivialIncisor, cls._getitem_trivial),
-            (FuncySubIncisor, cls._getitem_sub),
-            (FuncyDeepIncisor, cls._getitem_deep),
-            (FuncyStrictIncisor, cls._getitem_strict),
             )
     @classmethod
     def _get_incision_method(cls, arg, /):
@@ -164,6 +162,54 @@ class FuncyIncisable(FuncySequence):
             arg: FuncyTrivialIncisor = None, /
             ) -> FuncyDatalike:
         return self
+    def _incision_finalise(self, arg):
+        return arg
+    @property
+    def incisors(self):
+        return
+        yield
+    def _index_sets(self) -> 'Generator[Generator]':
+        return
+        yield
+    def _index_types(self) -> 'Generator[type]':
+        return
+        yield
+    def _get_indi(self, arg, /):
+        argType = type(arg)
+        for i, typ in list(enumerate(self._index_types()))[::-1]:
+            if issubclass(argType, typ):
+                return i
+        raise TypeError(
+            f"Incisor type {type(self)}"
+            f" cannot be incised by arg type {type(arg)}"
+            )
+    def _indices(self) -> 'Generator[tuple]':
+        return zip(*self._index_sets())
+    def indices(self):
+        for _, o in zip(range(1_000), self._indices()):
+            yield o
+    def _prime_indices(self):
+        yield from next(self._index_sets())
+    def __len__(self):
+        return 0
+    def __iter__(self):
+        for _, o in zip(range(1_000), self._prime_indices()):
+            yield self._incision_finalise(o)
+
+class FuncyDeepIncisable(FuncyIncisable):
+    @property
+    def incisionTypes(self):
+        return {**super().incisionTypes, **dict(
+            sub = FuncySubIncision,
+            deep = FuncyDeepIncision,
+            )}
+    @classmethod
+    def _incision_methods(cls):
+        yield from (
+            (FuncySubIncisor, cls._getitem_sub),
+            (FuncyDeepIncisor, cls._getitem_deep),
+            )
+        yield from super()._incision_methods()
     def _getitem_sub(self, _, /):
         return self._get_incision_type('sub')(self)
     def _getitem_deep(self, args) -> FuncyDatalike:
@@ -190,12 +236,6 @@ class FuncyIncisable(FuncySequence):
                 if not isinstance(arg, IgnoreDim):
                     cut = cut[arg]
             return self._get_incision_type('deep')(cut)
-    @_abstractmethod
-    def _getitem_strict(self, arg, /):
-        raise FuncyAbstractMethodException
-    @_abstractmethod
-    def _incision_finalise(self, *args):
-        raise FuncyAbstractMethodException
     @property
     @_abstractmethod
     def shape(self):
@@ -203,29 +243,6 @@ class FuncyIncisable(FuncySequence):
     @property
     def depth(self):
         return len(self.shape)
-    @property
-    def incisors(self):
-        return
-        yield
-    def _index_sets(self) -> 'Generator[Generator]':
-        return
-        yield
-    def _index_types(self):
-        return
-        yield
-    def _get_indi(self, arg, /):
-        argType = type(arg)
-        for i, typ in list(enumerate(self._index_types()))[::-1]:
-            if issubclass(argType, typ):
-                return i
-        raise TypeError(
-            f"Incisor type {type(self)}"
-            f" cannot be incised by arg type {type(arg)}"
-            )
-    def _indices(self) -> 'Generator[tuple]':
-        return zip(*self._index_sets())
-    def _prime_indices(self):
-        return (inds[0] for inds in self._indices())
     def __len__(self):
         return self.shape[0]
     def _levels(self):
@@ -250,44 +267,44 @@ class FuncyIncisable(FuncySequence):
             self._levelLength,
             (_special.Unknown, _special.Null)
             )
-    def _alliter(self):
-        return _seqmerge.muddle((
-            level._prime_indices() for level in self._levels()
-            ))
-    def __iter__(self):
-        return (self._incision_finalise(*o) for o in self._alliter())
 
-class FuncyHardIncisable(FuncyIncisable):
+class FuncyHardIncisable(FuncyDeepIncisable):
     @property
     def incisionTypes(self):
-        return {**super().incisionTypes, 'seq': FuncySeqIncision}
-    def _getitem_seq(self, arg, /):
-        return self._get_incision_type('seq')(self, arg)
+        return {**super().incisionTypes, **dict(
+            seq = FuncySeqIncision,
+            declarative = FuncyStrictIncision,
+            )}
     @classmethod
     def _incision_methods(cls):
-        yield from super()._incision_methods()
         yield from (
-            (FuncyDeclarativeIncisor, cls._getitem_strict),
+            (FuncyDeclarativeIncisor, cls._getitem_declarative),
             (FuncyUnpackable, cls._getitem_seq),
             )
+        yield from super()._incision_methods()
+    def _getitem_seq(self, arg, /):
+        return self._get_incision_type('seq')(self, arg)
+    def _getitem_declarative(self):
+        return self._get_incision_type('declarative')(self, arg)
     @classmethod
     def _get_incision_method(cls, arg, /):
         if isinstance(arg, FuncyPotentiallySeqlike):
             if arg.isSeq:
                 return cls._getitem_seq
         return super()._get_incision_method(arg)
-    def _indices(self) -> 'Generator[tuple]':
-        raise TypeError("Cannot iterate through HardIncisable.")
-    def __iter__(self):
-        raise TypeError("Cannot iterate through HardIncisable.")
 
-class FuncySoftIncisable(FuncyIncisable):
+class FuncySoftIncisable(FuncyDeepIncisable):
     @property
     def incisionTypes(self):
-        return {
-            **super().incisionTypes,
-            'broad': FuncyBroadIncision,
-            }
+        return {**super().incisionTypes, **dict(
+            broad = FuncyBroadIncision,
+            strict = FuncyStrictIncision,
+            )}
+    @classmethod
+    def _incision_methods(cls):
+        yield (FuncyStrictIncisor, cls._getitem_strict)
+        yield (FuncyBroadIncisor, cls._getitem_broad)
+        yield from super()._incision_methods()
     def _getitem_strict(self, arg, /):
         indi = self._get_indi(arg)
         for inds in self._indices():
@@ -299,10 +316,6 @@ class FuncySoftIncisable(FuncyIncisable):
             if arg == slice(None):
                 return self
         return self._get_incision_type('broad')(self, arg)
-    @classmethod
-    def _incision_methods(cls):
-        yield from super()._incision_methods()
-        yield (FuncyBroadIncisor, cls._getitem_broad)
     def _index_sets(self):
         yield from super()._index_sets()
         if self._levelTractable:
@@ -313,7 +326,7 @@ class FuncySoftIncisable(FuncyIncisable):
         yield from super()._index_types()
         yield FuncyIntegral
 
-class FuncyIncision(FuncyIncisable):
+class FuncyIncision(FuncyDeepIncisable):
     def __init__(self, source, /, *args, **kwargs):
         self._source = source
         super().__init__(*args, **kwargs)
@@ -323,9 +336,6 @@ class FuncyIncision(FuncyIncisable):
     @property
     def shape(self):
         return self.source.shape
-    def _index_types(self):
-        yield from self.source._index_types()
-        yield from super()._index_types()
     def _levels(self):
         return self.source._levels()
     def _get_incision_type(self, arg: str, /):
@@ -343,8 +353,12 @@ class FuncyDeepIncision(FuncyIncision):
         if not type(arg) is tuple:
             arg = (arg,)
         return super().__getitem__(arg)
-    def _indices(self) -> 'Generator[tuple]':
-        raise Exception("Cannot manually iterate FuncyDeepIncision")
+    def _index_sets(self):
+        yield _seqmerge.muddle((
+            level._prime_indices() for level in self._levels()
+            ))
+    def _index_types(self):
+        yield object
 
 class FuncySubIncision(FuncyIncision):
     def _levels(self):
@@ -353,6 +367,9 @@ class FuncySubIncision(FuncyIncision):
     def _index_sets(self) -> 'Generator[Generator]':
         yield range(self._levelLength)
         yield from super()._index_sets()
+    def _index_types(self):
+        yield object
+        yield from super()._index_types()
 
 class FuncyShallowIncision(FuncyIncision):
     def __init__(self, source, incisor, /, *args, **kwargs):
@@ -385,12 +402,24 @@ class FuncyStrictIncision(FuncyShallowIncision):
     @property
     def _levelLength(self):
         return 1
-    def _indices(self) -> 'Generator[tuple]':
-        yield self.incisor #!
+    def _index_sets(self):
+        yield (self.incisor,)
+    def _index_types(self):
+        yield object
+#     def _indices(self):
+#         return (self._incisor)
 
 class FuncySeqIncision(FuncyShallowIncision, FuncySoftIncisable):
-    def _indices(self) -> 'Generator[tuple]':
-        return ((inc,) for inc in self.incisor)
+    ...
+#     def _index_sets(self):
+#         yield from super()._index_sets()
+#         if self._levelTractable:
+#             yield range(self._levelLength)
+#         else:
+#             yield _itertools.count()
+#     def _index_types(self):
+#         yield from super()._index_types()
+#         yield FuncyIntegral
 
 class FuncyBroadIncision(FuncyShallowIncision, FuncySoftIncisable):
     def _indices_getslice(self):
@@ -464,8 +493,13 @@ class FuncyBroadIncision(FuncyShallowIncision, FuncySoftIncisable):
             (*srcinds, *slfinds)
                 for srcinds, slfinds in zip(
                     iterFn(),
-                    super()._indices()
+                    zip(*super()._index_sets()),
                     )
             )
+    def _index_sets(self):
+        return zip(*self._indices())
+    def _index_types(self):
+        yield from self.source._index_types()
+        yield from super()._index_types()
 
 ################################################################################

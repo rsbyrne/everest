@@ -25,24 +25,25 @@ class _SeqIncised(_Derived):
     _incisionType = _generic.FuncyIncisor
     def __init__(self, seq, incisor, /, **kwargs):
         super().__init__(seq, incisor, **kwargs)
-        self.seq, self.incisor = self.terms
-        if isinstance(self.seq, self._Fn.Function):
-            if not self.seq.isSeq:
+        seq, inc = self.terms
+        if isinstance(seq, self._Fn.Function):
+            if not seq.isSeq:
                 raise TypeError("Seq input must be .isSeq!")
         else:
             raise TypeError(
                 "Seq input must be a Function or convertable to one,"
-                f" not {type(self.seq)}"
+                f" not {type(seq)}"
                 )
-        if not isinstance(self.incisor, self._incisionType):
+        if not isinstance(incisor, self._incisionType):
             raise TypeError(
                 "Incisor input must be a subclass of FuncyBroadIncisor,"
-                f" not {type(self.incisor)}"
+                f" not {type(incisor)}"
                 )
 
 class SeqSwathe(_SeqIncised, Seq):
     _incisionType = _generic.FuncyBroadIncisor
     def _iter(self):
+        seq, incisor = self.terms
         seq, incisor = self._value_resolve(seq), self._value_resolve(incisor)
         return seq[incisor]
 

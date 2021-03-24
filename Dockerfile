@@ -24,6 +24,7 @@ RUN pip3 install --no-cache-dir matplotlib
 RUN pip3 install --no-cache-dir Pillow
 
 # Debugging
+RUN apt-get install -y cloc
 RUN apt-get install -y graphviz
 RUN pip3 install --no-cache-dir objgraph
 RUN pip3 install --no-cache-dir xdot
