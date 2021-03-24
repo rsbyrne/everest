@@ -4,6 +4,7 @@ from abc import ABC as _ABC, abstractmethod as _abstractmethod
 from collections import abc as _collabc
 from functools import (
     lru_cache as _lru_cache,
+    cached_property as _cached_property,
     reduce as _reduce,
     partial as _partial,
     )
@@ -129,7 +130,7 @@ class FuncyIncisable(FuncySequence):
         return dict(
             trivial = type(self),
             sub = FuncySubIncision,
-#             single = FuncySingleIncision,
+            strict = FuncyStrictIncision,
             deep = FuncyDeepIncision,
             )
     def _get_incision_type(self, arg: str, /):
@@ -142,11 +143,8 @@ class FuncyIncisable(FuncySequence):
             (FuncyTrivialIncisor, cls._getitem_trivial),
             (FuncySubIncisor, cls._getitem_sub),
             (FuncyDeepIncisor, cls._getitem_deep),
+            (FuncyStrictIncisor, cls._getitem_strict),
             )
-    @property
-    def incisors(self):
-        return
-        yield
     @classmethod
     def _get_incision_method(cls, arg, /):
         argType = type(arg)
@@ -154,6 +152,10 @@ class FuncyIncisable(FuncySequence):
             if issubclass(argType, typ):
                 return meth
         return NotImplemented
+    def __getitem__(self, arg: FuncyIncisor, /):
+        incisionMethod = self._get_incision_method(arg)
+        if incisionMethod is NotImplemented: raise TypeError(arg, type(arg))
+        return incisionMethod(self, arg)
     def _getitem_generator(self, arg):
         raise NotYetImplemented
     def _getitem_evaluable(self, arg, /):
@@ -168,12 +170,12 @@ class FuncyIncisable(FuncySequence):
         nArgs = len(args)
         if nArgs == 0:
             return self
-#         elif nArgs == 1:
-#             return self[args[0]]
         else:
             args = process_ellipsis(args, len(self.shape), filler = IgnoreDim)
             if (nArgs := len(args)) < (nLevels := self.nLevels):
-                args = tuple((*args, *(ignoredim for _ in range(nLevels - nArgs))))
+                args = tuple((
+                    *args, *(ignoredim for _ in range(nLevels - nArgs))
+                    ))
             enum = enumerate(args)
             for i, arg in enum:
                 if not isinstance(arg, IgnoreDim):
@@ -188,15 +190,8 @@ class FuncyIncisable(FuncySequence):
                 if not isinstance(arg, IgnoreDim):
                     cut = cut[arg]
             return self._get_incision_type('deep')(cut)
-    def __getitem__(self, arg: FuncyIncisor, /):
-        incisionMethod = self._get_incision_method(arg)
-        if incisionMethod is NotImplemented:
-            raise TypeError(
-                f"FuncyIncisor type {typ} not accepted."
-                )
-        return incisionMethod(self, arg)
     @_abstractmethod
-    def _iter(self) -> 'Generator':
+    def _getitem_strict(self, arg, /):
         raise FuncyAbstractMethodException
     @_abstractmethod
     def _incision_finalise(self, *args):
@@ -208,18 +203,29 @@ class FuncyIncisable(FuncySequence):
     @property
     def depth(self):
         return len(self.shape)
-    def _metrics(self) -> 'Generator[tuple]':
-        yield self._iter()
-    def _items(self):
-        return zip(zip(*self._metrics()), self._iter())
-    def _metric_types(self):
-        yield type(None) # nothing is a subclass of None
-    def _get_meti(self, arg, /):
+    @property
+    def incisors(self):
+        return
+        yield
+    def _index_sets(self) -> 'Generator[Generator]':
+        return
+        yield
+    def _index_types(self):
+        return
+        yield
+    def _get_indi(self, arg, /):
         argType = type(arg)
-        for i, typ in enumerate(self._metric_types()):
+        for i, typ in list(enumerate(self._index_types()))[::-1]:
             if issubclass(argType, typ):
                 return i
-        return 0
+        raise TypeError(
+            f"Incisor type {type(self)}"
+            f" cannot be incised by arg type {type(arg)}"
+            )
+    def _indices(self) -> 'Generator[tuple]':
+        return zip(*self._index_sets())
+    def _prime_indices(self):
+        return (inds[0] for inds in self._indices())
     def __len__(self):
         return self.shape[0]
     def _levels(self):
@@ -238,10 +244,16 @@ class FuncyIncisable(FuncySequence):
     @property
     def _levelLength(self):
         return self.shape[self.nLevels - 1]
-    def _iters(self):
-        return (level._iter() for level in self._levels())
+    @property
+    def _levelTractable(self):
+        return not isinstance(
+            self._levelLength,
+            (_special.Unknown, _special.Null)
+            )
     def _alliter(self):
-        return _seqmerge.muddle(self._iters())
+        return _seqmerge.muddle((
+            level._prime_indices() for level in self._levels()
+            ))
     def __iter__(self):
         return (self._incision_finalise(*o) for o in self._alliter())
 
@@ -255,7 +267,7 @@ class FuncyHardIncisable(FuncyIncisable):
     def _incision_methods(cls):
         yield from super()._incision_methods()
         yield from (
-            (FuncyDeclarativeIncisor, cls._getitem_declarative),
+            (FuncyDeclarativeIncisor, cls._getitem_strict),
             (FuncyUnpackable, cls._getitem_seq),
             )
     @classmethod
@@ -264,9 +276,7 @@ class FuncyHardIncisable(FuncyIncisable):
             if arg.isSeq:
                 return cls._getitem_seq
         return super()._get_incision_method(arg)
-    def _getitem_declarative(self, arg, /):
-        return self._incision_finalise(arg)
-    def _iter(self) -> 'Generator':
+    def _indices(self) -> 'Generator[tuple]':
         raise TypeError("Cannot iterate through HardIncisable.")
     def __iter__(self):
         raise TypeError("Cannot iterate through HardIncisable.")
@@ -276,14 +286,13 @@ class FuncySoftIncisable(FuncyIncisable):
     def incisionTypes(self):
         return {
             **super().incisionTypes,
-            'strict': FuncyStrictIncision,
             'broad': FuncyBroadIncision,
             }
     def _getitem_strict(self, arg, /):
-        meti = self._get_meti(arg)
-        for mets, v in self._items():
-            if arg == mets[meti]:
-                return self._get_incision_type('strict')(self, v)
+        indi = self._get_indi(arg)
+        for inds in self._indices():
+            if arg == inds[indi]:
+                return self._get_incision_type('strict')(self, inds[0])
         raise IndexError(arg)
     def _getitem_broad(self, arg: FuncyBroadIncisor, /):
         if type(arg) is slice:
@@ -293,17 +302,15 @@ class FuncySoftIncisable(FuncyIncisable):
     @classmethod
     def _incision_methods(cls):
         yield from super()._incision_methods()
-        yield from (
-            (FuncyBroadIncisor, cls._getitem_broad),
-            (FuncyStrictIncisor, cls._getitem_strict),
-            )
-    def _iter(self) -> 'Generator':
-        return range(self._levelLength)
-    def _metrics(self) -> 'Generator[tuple]':
-        yield from super()._metrics()
-        yield _itertools.count()
-    def _metric_types(self):
-        yield from super()._metric_types()
+        yield (FuncyBroadIncisor, cls._getitem_broad)
+    def _index_sets(self):
+        yield from super()._index_sets()
+        if self._levelTractable:
+            yield range(self._levelLength)
+        else:
+            yield _itertools.count()
+    def _index_types(self):
+        yield from super()._index_types()
         yield FuncyIntegral
 
 class FuncyIncision(FuncyIncisable):
@@ -316,6 +323,9 @@ class FuncyIncision(FuncyIncisable):
     @property
     def shape(self):
         return self.source.shape
+    def _index_types(self):
+        yield from self.source._index_types()
+        yield from super()._index_types()
     def _levels(self):
         return self.source._levels()
     def _get_incision_type(self, arg: str, /):
@@ -325,10 +335,6 @@ class FuncyIncision(FuncyIncisable):
         if meth is NotImplemented:
             meth = self.source._get_incision_method(arg)
         return meth
-#     def _get_meti(self, arg):
-#         return self.source._get_meti(arg)
-#     def _metrics(self):
-#         return self.source._metrics()
     def _incision_finalise(self, *args):
         return self.source._incision_finalise(*args)
 
@@ -337,15 +343,16 @@ class FuncyDeepIncision(FuncyIncision):
         if not type(arg) is tuple:
             arg = (arg,)
         return super().__getitem__(arg)
-    def _iter(self):
+    def _indices(self) -> 'Generator[tuple]':
         raise Exception("Cannot manually iterate FuncyDeepIncision")
 
 class FuncySubIncision(FuncyIncision):
     def _levels(self):
         yield from super()._levels()
         yield self
-    def _iter(self) -> 'Generator':
-        return range(self._levelLength)
+    def _index_sets(self) -> 'Generator[Generator]':
+        yield range(self._levelLength)
+        yield from super()._index_sets()
 
 class FuncyShallowIncision(FuncyIncision):
     def __init__(self, source, incisor, /, *args, **kwargs):
@@ -378,63 +385,62 @@ class FuncyStrictIncision(FuncyShallowIncision):
     @property
     def _levelLength(self):
         return 1
-    def _iter(self):
-        return self.incisor
+    def _indices(self) -> 'Generator[tuple]':
+        yield self.incisor #!
 
 class FuncySeqIncision(FuncyShallowIncision, FuncySoftIncisable):
-    def _iter(self) -> 'Generator':
+    def _indices(self) -> 'Generator[tuple]':
         return ((inc,) for inc in self.incisor)
 
 class FuncyBroadIncision(FuncyShallowIncision, FuncySoftIncisable):
-    def _iter_getslice(self):
-        inc = self.incisor
+    def _indices_getslice(self):
+        inc, src = self.incisor, self.source
         return _itertools.islice(
-            self.source._iter(),
+            src._indices(),
             inc.start, inc.stop, inc.step
             )
-    def _iter_getinterval(self):
-        inc = self.incisor
+    def _indices_getinterval(self):
+        inc, src = self.incisor, self.source
         start, stop, step = inc.start, inc.stop, inc.step
         start = 0 if start is None else start
         stop = _special.infint if stop is None else stop
-        startmeti, stopmeti, stepmeti = (
-            self._get_meti(s) for s in (start, stop, step)
-            )
-        it = iter(self.source._items())
+        starti, stopi, stepi = (src._get_indi(s) for s in (start, stop, step))
+        it = src._indices()
         started = False
         stopped = False
         try:
             while not started:
-                mets, v = next(it)
-                started = mets[startmeti] >= start
+                inds = next(it)
+                started = inds[starti] >= start
             if step is None:
                 inner_loop = lambda _: next(it)
             else:
-                def inner_loop(mets):
+                def inner_loop(inds):
                     stepped = False
-                    thresh = mets[stepmeti] + step
+                    thresh = inds[stepi] + step
                     while not stepped:
-                        mets, v = next(it)
-                        stepped = mets[stepmeti] >= thresh
-                    return mets, v
+                        inds = next(it)
+                        stepped = inds[stepi] >= thresh
+                    return inds
             while not stopped:
-                yield v
-                mets, v = inner_loop(mets)
-                stopped = mets[stopmeti] >= stop
+                yield inds
+                inds = inner_loop(inds)
+                stopped = inds[stopi] >= stop
         except StopIteration:
             pass
-    def _iter_getkeys(self):
-        for i, (mets, v) in _seqmerge.muddle(
-                (self.incisor, self.source._items())
-                ):
-            met = mets[self._get_meti(i)]
-            if i == met:
-                yield v
-    def _iter_getmask(self):
-        return (v for v, mask in zip(self.source._iter(), self.incisor) if mask)
-    def _iter(self) -> 'Generator':
+    def _indices_getkeys(self):
+        inc, src = self.incisor, self.source
+        for i, inds in _seqmerge.muddle((inc, src._indices())):
+            if i == inds[src._get_indi(i)]:
+                yield inds
+    def _indices_getmask(self):
+        inc, src = self.incisor, self.source
+        for mask, inds in zip(src._indices(), inc):
+            if mask:
+                yield inds
+    def _indices(self) -> 'Generator[tuple]':
         try:
-            return self._iterFn()
+            iterFn = self._iterFn
         except AttributeError:
             incisor = self.incisor
             if isinstance(incisor, FuncySlice):
@@ -443,17 +449,23 @@ class FuncyBroadIncision(FuncyShallowIncision, FuncySoftIncisable):
                         isinstance(s, (FuncyNoneType, FuncyIntegral))
                             for s in ss
                         ):
-                    iterFn = self._iter_getslice
+                    iterFn = self._indices_getslice
                 else:
-                    iterFn = self._iter_getinterval
+                    iterFn = self._indices_getinterval
             elif isinstance(incisor, FuncyIterable):
                 if all(isinstance(i, FuncyBool) for i in incisor):
-                    iterFn = self._iter_getmask
+                    iterFn = self._indices_getmask
                 else:
-                    iterFn = self._iter_getkeys
+                    iterFn = self._indices_getkeys
             else:
                 raise TypeError(incisor, type(incisor))
             self._iterFn = iterFn
-            return iterFn()
+        return (
+            (*srcinds, *slfinds)
+                for srcinds, slfinds in zip(
+                    iterFn(),
+                    super()._indices()
+                    )
+            )
 
 ################################################################################

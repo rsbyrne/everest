@@ -13,7 +13,7 @@ class Base(_Function, _generic.FuncyDatalike):
         if name is None:
             name = f"anon_{_reseed.randint(1e11, 1e12 - 1)}"
         self.name = name
-        super().__init__(**kwargs)
+        super().__init__(name = name, **kwargs)
     def register_downstream(self, registrant):
         self.downstream.add(registrant)
     def refresh(self):
