@@ -293,7 +293,7 @@ class FuncyHardIncisable(FuncyDeepIncisable):
         yield from super()._incision_methods()
     def _getitem_seq(self, arg, /):
         return self._get_incision_type('seq')(self, arg)
-    def _getitem_declarative(self):
+    def _getitem_declarative(self, arg):
         return self._get_incision_type('declarative')(self, arg)
     @classmethod
     def _get_incision_method(cls, arg, /):

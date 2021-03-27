@@ -4,9 +4,16 @@ import weakref as _weakref
 import inspect as _inspect
 from types import FunctionType as _FunctionType, MethodType as _MethodType
 from functools import cached_property as _cached_property
+from itertools import zip_longest as _zip_longest
 
 from .cascade import Cascade as _Cascade
 from .hierarchy import Req as _Req
+
+def align_args(atup, btup):
+    return tuple(
+        b if a is None else a
+            for a, b in _zip_longest(atup, btup)
+        )
 
 class Inputs(_Cascade):
     def __init__(self, source: _FunctionType, /, *args, **kwargs) -> None:
@@ -60,8 +67,8 @@ class Inputs(_Cascade):
             return self.kwargs
     def copy(self, *args, **kwargs):
         return self.__class__(
-            self._Inputs_source_ref(), *args,
-            name = self.name, **kwargs
+            self._Inputs_source_ref(), *align_args(args, self.args),
+            name = self.name, **{**self.kwargs, **kwargs},
             )
 
 ################################################################################
