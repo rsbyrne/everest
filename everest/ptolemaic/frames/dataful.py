@@ -1,4 +1,4 @@
-################################################################################
+###############################################################################
 # from everest.datalike.base import Datalike as _Datalike
 # from everest.datalike.structures import \
 #     Ensemble as _Ensemble, \
@@ -50,4 +50,4 @@ class Dataful(Frame):
         self.data = self.Assembly((v.name for v in outVars), outVars)
         super().__init__(**kwargs)
 
-################################################################################
+###############################################################################

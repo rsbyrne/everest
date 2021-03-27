@@ -1,4 +1,4 @@
-################################################################################
+###############################################################################
 
 from abc import ABC as _ABC, abstractmethod as _abstractmethod
 from collections import abc as _collabc
@@ -526,4 +526,4 @@ class FuncyBroadIncision(FuncyShallowIncision, FuncySoftIncisable):
         yield from self.source._index_types()
         yield from super()._index_types()
 
-################################################################################
+###############################################################################

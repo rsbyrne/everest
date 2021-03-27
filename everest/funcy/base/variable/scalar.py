@@ -1,4 +1,4 @@
-################################################################################
+###############################################################################
 
 from numbers import Real as _Real, Integral as _Integral
 from typing import Optional as _Optional, Union as _Union
@@ -119,4 +119,4 @@ class ScalarIntegral(Scalar, _generic.FuncyIntegral):
     def __init__(self, *, dtype = int, **kwargs):
         super().__init__(dtype = dtype, **kwargs)
 
-################################################################################
+###############################################################################
