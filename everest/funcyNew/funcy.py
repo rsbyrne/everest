@@ -1,8 +1,11 @@
 ###############################################################################
 
-from abc import (ABC as _ABC, abstractmethod as _abstractmethod)
 
-class FuncyABC(_ABC):
-    ...
+
+class Funcy:
+
+    @property
+    def value(self):
+
 
 ###############################################################################
