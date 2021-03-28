@@ -1,4 +1,6 @@
 ###############################################################################
+''''''
+###############################################################################
 
 from functools import cached_property as _cached_property
 import weakref as _weakref
@@ -90,7 +92,7 @@ class Function(_generic.FuncyEvaluable):
         """This object defers almost all calls made to it"""
         """ to the underlying value."""
         """ Use it to easily construct large Function objects."""
-        
+
         def op(self, *args, rev = False, **kwargs):
             if rev: return self._Fn.op(*(*args, self.host), **kwargs)
             else: return self._Fn.op(self.host, *args, **kwargs)
@@ -233,7 +235,7 @@ class Function(_generic.FuncyEvaluable):
         return self._V(self)
 
     #### Deferring methods to v ####
-    
+
     def __add__(self, other): return self.v + other
     def __sub__(self, other): return self.v - other
     def __mul__(self, other): return self.v * other
@@ -415,4 +417,6 @@ class Function(_generic.FuncyEvaluable):
     def _unreduce(cls, terms, kwargs):
         return cls._construct(*terms, **kwargs)
 
+###############################################################################
+''''''
 ###############################################################################

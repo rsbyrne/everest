@@ -1,4 +1,6 @@
 ###############################################################################
+''''''
+###############################################################################
 
 from abc import abstractmethod as _abstractmethod
 from functools import (
@@ -291,4 +293,6 @@ class Derived(_Function, _generic.FuncyPotentiallySeqlike):
         termstr = ', '.join(termstr(t) for t in self.terms)
         return super()._namestr() + f'({termstr})'
 
+###############################################################################
+''''''
 ###############################################################################
