@@ -1,14 +1,13 @@
 ###############################################################################
-''''''
+'''Defines the overarching exceptions inherited by all Everest code.'''
 ###############################################################################
 
 class EverestException(Exception):
-    pass
+    '''Parent exception of all Everest exceptions.'''
 class MissingAsset(EverestException):
-    pass
+    '''Signals that something needs to be provided.'''
 class NotYetImplemented(EverestException):
-    pass
+    '''Dev exception for a feature not yet implemented.'''
 
 ###############################################################################
-''''''
 ###############################################################################

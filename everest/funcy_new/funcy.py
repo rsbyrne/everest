@@ -1,13 +1,13 @@
 ###############################################################################
-'''Defines the parent class of all Funcy objects.'''
+'''Defines the parent class of all funcy objects.'''
 ###############################################################################
 
-class Funcy:
+from .abstract.general import FuncyEvaluable as _FuncyEvaluable
+
+class Funcy(_FuncyEvaluable):
     '''
     Parent class of all Funcy objects.
     '''
-    def __init__(self, )
-
 
 ###############################################################################
 ###############################################################################

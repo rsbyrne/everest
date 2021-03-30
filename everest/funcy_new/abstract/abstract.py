@@ -1,12 +1,11 @@
 ###############################################################################
-''''''
+'''Defines the base class for all funcy abstract classes.'''
 ###############################################################################
 
-from abc import (ABC as _ABC, abstractmethod as _abstractmethod)
+from abc import ABC as _ABC
 
 class FuncyABC(_ABC):
-    ...
+    '''The base class of all funcy abstract classes.'''
 
 ###############################################################################
-''''''
 ###############################################################################
