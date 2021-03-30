@@ -511,7 +511,7 @@ class FuncyBroadIncision(FuncyShallowIncision, FuncySoftIncisable):
                 yield inds
     def _indices_getmask(self):
         inc, src = self.incisor, self.source
-        for mask, inds in zip(src.indices(), inc):
+        for mask, inds in zip(inc, src.indices()):
             if mask:
                 yield inds
     def _get_iter_fn(self):
