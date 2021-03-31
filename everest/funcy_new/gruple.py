@@ -16,8 +16,8 @@ from .incision import (
 from . import abstract as _abstract
 from .utilities import unpacker_zip as _unpacker_zip
 
-def strict_expose(ind, self):
-    return self(ind)
+# def strict_expose(ind, self):
+#     return self(ind)
 
 def flatlen(gruple):
     _n = 0
@@ -40,7 +40,7 @@ class _Gruple(_FuncySoftIncisable, _Sequence):
     def incisiontypes(self):
         return {
             **super().incisiontypes,
-            'strict': strict_expose,
+            # 'strict': strict_expose,
             'soft': self._swathetype
             }
 
@@ -77,6 +77,12 @@ class _Gruple(_FuncySoftIncisable, _Sequence):
         if len(self) < 10:
             return str(self.pytype(self))
         return f"[{str(self[:3])[1:-1]} ... {self.endval}]"
+
+    def __getitem__(self, arg, /):
+        out = super().__getitem__(arg)
+        if out.length == 1:
+            return tuple(out)[0]
+        return out
 
 class Gruple(_Gruple):
     def __init__(self, arg: _Iterable, *args, lev = None, **kwargs):
@@ -115,8 +121,8 @@ class _GrupleMap(_Gruple, _Mapping):
         return cls(zip(keys, vals))
     def __str__(self):
         if len(self) < 10:
-            return str(self.pytype(**self))
-        initial = str(self[:3])[1:-1]
+            return str({**self})
+        initial = str({**self[:3]})[1:-1]
         final = f"{repr(self.endind[0])}: {repr(self.endval)}"
         return '{' + f"{initial} ... {final}" + '}'
 

@@ -30,33 +30,20 @@ class FuncyIncision(_FuncyIncisable):
         if hasattr(src := self.source, 'truesource'):
             return src.truesource
         return src
-    def lengths(self):
-        yield from self.source.lengths()
+    @property
+    def mimicsource(self):
+        return self.levelsource
     def levels(self):
         yield from self.source.levels()
     @property
     def depth(self):
         return self.source.depth
-    @property
-    def incisiontypes(self):
-        return {**self.source.incisiontypes, **super().incisiontypes}
-    def get_incision_method(self, arg, /):
-        meth = super().get_incision_method(arg)
-        if meth is NotImplemented:
-            meth = self.source.get_incision_method(arg)
-        return meth
     def __call__(self, *args, **kwargs):
         return self.truesource(*args, **kwargs)
 
 class FuncyDeepIncision(FuncyIncision):
-    def __init__(self, levels, /, *args, **kwargs):
-        self._inheritedlevels = levels = {**levels}
-        assert all(hasattr(lev, 'indices') for lev in levels.values())
-        super().__init__(*args, **kwargs)
-    def lengths(self):
-        yield from self.levelsdict[self.nlevels - 1].lengths()
     def levels(self):
-        yield from self._inheritedlevels.values()
+        return self.source.levels()
     @property
     def length(self):
         return _reduce(_mul, (lev.length for lev in self.levels()), 1)
@@ -75,20 +62,27 @@ class FuncySubIncision(FuncyIncision):
     @property
     def levelsource(self):
         return self
-    def lengths(self):
-        yield from super().lengths()
-        yield self.length
+    @property
+    def mimicsource(self):
+        if isinstance(src := self.source, FuncyIncision):
+            return src.levelsource
+        return src
     def levels(self):
         yield from super().levels()
         yield self
     @property
     def depth(self):
         return super().depth - 1
+    @property
+    def incisiontypes(self):
+        return self.mimicsource.incisiontypes
+    def get_incision_method(self, arg, /):
+        return self.mimicsource.get_incision_method(arg)
 
 class FuncySoftSubIncision(FuncySubIncision, _FuncySoftIncisable):
     ...
 
-class FuncyShallowIncision(FuncyIncision):
+class FuncyShallowIncision(FuncyIncision, _FuncySoftIncisable):
     def __init__(self, incisor, /, *args, **kwargs):
         self.incisor = incisor
         super().__init__(*args, **kwargs)
@@ -108,15 +102,26 @@ class FuncyShallowIncision(FuncyIncision):
         *levels, _ = super().levels()
         yield from levels
         yield self
+    @property
+    def incisiontypes(self):
+        return {
+            **self.source.incisiontypes,
+            **super().incisiontypes,
+            }
+    def get_incision_method(self, arg, /):
+        meth = super().get_incision_method(arg)
+        if meth is NotImplemented:
+            meth = self.source.get_incision_method(arg)
+        return meth
 
 class FuncyStrictIncision(FuncyShallowIncision):
     _length = 1
     def indices(self):
         yield self.incisor
 
-class FuncyBroadIncision(FuncyShallowIncision, _FuncySoftIncisable):
+class FuncyBroadIncision(FuncyShallowIncision):
     def __init__(self, incisor, /, *args, **kwargs):
-        super().__init__(incisor, *args, length = len(incisor), **kwargs)
+        super().__init__(incisor, *args, lev = len(incisor), **kwargs)
     def index_sets(self):
         yield self.incisor
         yield from super().index_sets()
@@ -124,7 +129,7 @@ class FuncyBroadIncision(FuncyShallowIncision, _FuncySoftIncisable):
         yield object
         yield from super().index_types()
 
-class FuncySoftIncision(FuncyShallowIncision, _FuncySoftIncisable):
+class FuncySoftIncision(FuncyShallowIncision):
 
     _length = None
 

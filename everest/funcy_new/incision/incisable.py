@@ -12,17 +12,14 @@ from . import _special, _abstract
 
 from . import incisor as _incisor
 
-IgnoreDim = type('IgnoreDim', (object,), dict())
-ignoredim = IgnoreDim()
-
 # DefaultObj = type('DefaultObj', (object,), dict())
 # defaultobj = DefaultObj()
 
 def process_depth(
         args: tuple, depth: int, /,
-        filler = _partial(slice, None)
+        filler = _incisor.trivial,
         ):
-    args = tuple(args)
+    args = tuple(arg if arg != slice(None) else filler for arg in args)
     if (not depth < _special.infint) and (Ellipsis in args):
         raise ValueError("Cannot use ellipsis when depth is infinite.")
     nargs = len(args)
@@ -30,7 +27,7 @@ def process_depth(
         return args
     if nargs == 1:
         if args[0] is Ellipsis:
-            return tuple(filler() for _ in range(depth))
+            return tuple(filler for _ in range(depth))
         return args
     if nargs < depth:
         nellipses = len(tuple(el for el in args if el is Ellipsis))
@@ -41,13 +38,13 @@ def process_depth(
             for arg in args:
                 if arg is Ellipsis:
                     for _ in range(depth - nargs):
-                        out.append(filler())
+                        out.append(filler)
                 else:
                     out.append(arg)
             return tuple(out)
         raise IndexError(f"Too many ellipses ({nellipses} > 1)")
     if nargs == depth:
-        return args
+        return tuple(filler if arg is Ellipsis else arg for arg in args)
     raise IndexError(
         f"Not enough depth to accommodate requested levels:"
         f" levels = {nargs} > depth = {depth})"
@@ -57,6 +54,7 @@ class FuncyIncisable:
     _length = NotImplemented
     _maxcount = 1_000_000
     _depth = _special.infint
+    _sub = None
     def __init__(self, *args, lev = None, **kwargs):
         subkw = self._subkwargs = dict()
         if not lev is None:
@@ -122,32 +120,21 @@ class FuncyIncisable:
         nargs = len(args)
         if nargs == 0:
             return self
-        args = process_depth(args, self.depth, filler = IgnoreDim)
+        args = process_depth(args, self.depth)
         if (nargs := len(args)) < (nlevels := self.nlevels):
             args = tuple((
-                *args, *(ignoredim for _ in range(nlevels - nargs))
+                *args, *(_incisor.trivial for _ in range(nlevels - nargs))
                 ))
-        enum = enumerate(args)
-        i, arg = None, None
-        for i, arg in enum:
-            if not isinstance(arg, IgnoreDim):
-                break
-            return self # because every dim was ignored
-        assert i is not None
-        cut = self._get_level(i)[arg]
-        for i, arg in enum:
-            cut = cut[_incisor.subinc] # go next level down
-            if not (precut := self._get_level(i)) is None:
-                if hasattr(precut, 'incisors'):
-                    for inc in precut.incisors:
-                        cut = cut[inc]
-            if not isinstance(arg, IgnoreDim):
-                cut = cut[arg]
-        if isinstance(cut, _incisiontypes.FuncyIncision):
-            truesource = cut.truesource
-        else:
-            truesource = cut
-        return self._get_incision_type('deep')(cut.levelsdict, truesource)
+        argiter, levels = iter(args), self.levels()
+        cursor = next(levels)[next(argiter)]
+        for arg, lev in _itertools.zip_longest(argiter, levels):
+            cursor = cursor[_incisor.subinc]
+            if hasattr(lev, 'incisors'):
+                for inc in lev.incisors:
+                    cursor = cursor[inc]
+            print(arg)
+            cursor = cursor[arg]
+        return self._get_incision_type('deep')(cursor)
     def _getitem_broad(self, arg, /):
         return self._get_incision_type('broad')(arg, self)
     def _getitem_strict(self, arg, /):

@@ -12,7 +12,9 @@ class FuncyIncisor(_FuncyABC):
     ...
 
 class FuncyTrivialIncisor(FuncyIncisor):
-    ...
+    def __repr__(self):
+        return 'trivial'
+trivial = FuncyTrivialIncisor()
 
 class FuncyShallowIncisor(FuncyIncisor):
     ...
