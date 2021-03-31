@@ -115,7 +115,7 @@ class _GrupleMap(_Gruple, _Mapping):
         return cls(zip(keys, vals))
     def __str__(self):
         if len(self) < 10:
-            return str(self.pytype(zip(self.indices(), list(self))))
+            return str(self.pytype(**self))
         initial = str(self[:3])[1:-1]
         final = f"{repr(self.endind[0])}: {repr(self.endval)}"
         return '{' + f"{initial} ... {final}" + '}'

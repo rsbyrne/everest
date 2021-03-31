@@ -253,7 +253,7 @@ class FuncySoftIncisable(FuncyIncisable):
     def allindices(self) -> 'Generator[tuple]':
         return zip(*self.index_sets())
     def indices(self):
-        return next(self.index_sets())
+        return iter(next(self.index_sets()))
     def __iter__(self):
         return (
             self(ind)
