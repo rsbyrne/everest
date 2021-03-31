@@ -132,7 +132,6 @@ class FuncyIncisable:
             if hasattr(lev, 'incisors'):
                 for inc in lev.incisors:
                     cursor = cursor[inc]
-            print(arg)
             cursor = cursor[arg]
         return self._get_incision_type('deep')(cursor)
     def _getitem_broad(self, arg, /):
