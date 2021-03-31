@@ -32,7 +32,7 @@ def ur_convert(obj: _Funcy):
     elif isinstance(obj, _FuncyPrimitive):
         cls = _Non
     if cls is None:
-        raise TypeError(f"Couldn't process object {obj}")
+        raise TypeError(f"Couldn't convert object {obj} to Ur type.")
     return cls(obj)
 
 ###############################################################################

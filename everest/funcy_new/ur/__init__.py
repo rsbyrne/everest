@@ -4,6 +4,7 @@
 
 from ..funcy import Funcy as _Funcy
 from ..abstract import FuncyPrimitive as _FuncyPrimitive
+from .. import utilities as _utilities
 
 from .ur import Ur
 from .dat import Dat
