@@ -11,7 +11,7 @@ import operator as _operator
 
 from .incision import (
     FuncySoftIncisable as _FuncySoftIncisable,
-    FuncyBroadIncision as _FuncyBroadIncision,
+    FuncySoftIncision as _FuncySoftIncision,
     )
 from . import abstract as _abstract
 from .utilities import unpacker_zip as _unpacker_zip
@@ -41,7 +41,7 @@ class _Gruple(_FuncySoftIncisable, _Sequence):
         return {
             **super().incisiontypes,
             'strict': strict_expose,
-            'broad': self._swathetype
+            'soft': self._swathetype
             }
 
     @property
@@ -79,16 +79,18 @@ class _Gruple(_FuncySoftIncisable, _Sequence):
         return f"[{str(self[:3])[1:-1]} ... {self.endval}]"
 
 class Gruple(_Gruple):
-    def __init__(self, arg: _Iterable, *args, **kwargs):
+    def __init__(self, arg: _Iterable, *args, lev = None, **kwargs):
         self.pylike = self.pytype(arg)
-        super().__init__(*args, length = len(self.pylike), **kwargs)
+        if lev is None:
+            lev = len(self.pylike)
+        super().__init__(*args, lev = lev, **kwargs)
     def __call__(self, arg0, /, *argn):
         out = self.pylike[arg0]
         for arg in argn:
             out = out[arg]
         return out
 
-class GrupleSwathe(_FuncyBroadIncision, _Gruple):
+class GrupleSwathe(_FuncySoftIncision, _Gruple):
     @property
     def pylike(self):
         return self.source.pylike
@@ -101,7 +103,7 @@ class _GrupleMap(_Gruple, _Mapping):
     def _swathetype(self):
         return GrupleMapSwathe
     def __iter__(self):
-        return self.prime_indices()
+        return self.indices()
     @classmethod
     def rich(cls, self, other, /, *, opkey: str) -> 'GrupleMap':
         keys = self.pylike.keys()
@@ -113,7 +115,7 @@ class _GrupleMap(_Gruple, _Mapping):
         return cls(zip(keys, vals))
     def __str__(self):
         if len(self) < 10:
-            return str(self.pytype(zip(self.prime_indices(), list(self))))
+            return str(self.pytype(zip(self.indices(), list(self))))
         initial = str(self[:3])[1:-1]
         final = f"{repr(self.endind[0])}: {repr(self.endval)}"
         return '{' + f"{initial} ... {final}" + '}'

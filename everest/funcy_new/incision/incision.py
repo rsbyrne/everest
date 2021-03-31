@@ -3,6 +3,8 @@
 ###############################################################################
 
 import itertools as _itertools
+from functools import reduce as _reduce
+from operator import mul as _mul
 
 from . import _special, _seqmerge, _abstract
 
@@ -19,76 +21,88 @@ class FuncyIncision(_FuncyIncisable):
     def source(self):
         return self._source
     @property
-    def truesource(self):
-        source = self.source
-        if isinstance(source, FuncyIncision):
-            return source.truesource
-        return source
-    @property
     def levelsource(self):
-        if isinstance(src := self.source, FuncySubIncision):
-            return src
-        else:
-            return self.truesource
+        if hasattr(src := self.source, 'levelsource'):
+            return src.levelsource
+        return src
+    @property
+    def truesource(self):
+        if hasattr(src := self.source, 'truesource'):
+            return src.truesource
+        return src
+    def lengths(self):
+        yield from self.source.lengths()
     def levels(self):
-        return self.source.levels()
+        yield from self.source.levels()
+    @property
+    def depth(self):
+        return self.source.depth
     @property
     def incisiontypes(self):
         return {**self.source.incisiontypes, **super().incisiontypes}
-    def _get_incision_method(self, arg, /):
-        meth = super()._get_incision_method(arg)
+    def get_incision_method(self, arg, /):
+        meth = super().get_incision_method(arg)
         if meth is NotImplemented:
-            meth = self.source._get_incision_method(arg)
+            meth = self.source.get_incision_method(arg)
         return meth
     def __call__(self, *args, **kwargs):
         return self.truesource(*args, **kwargs)
 
 class FuncyDeepIncision(FuncyIncision):
     def __init__(self, levels, /, *args, **kwargs):
-        self._inheritedlevels = {**levels}
+        self._inheritedlevels = levels = {**levels}
+        assert all(hasattr(lev, 'indices') for lev in levels.values())
         super().__init__(*args, **kwargs)
     def lengths(self):
         yield from self.levelsdict[self.nlevels - 1].lengths()
     def levels(self):
         yield from self._inheritedlevels.values()
+    @property
+    def length(self):
+        return _reduce(_mul, (lev.length for lev in self.levels()), 1)
     def __getitem__(self, arg, /):
         if not isinstance(arg, tuple):
             arg = (arg,)
         return super().__getitem__(arg)
-    def index_sets(self):
-        yield _seqmerge.muddle((
-            level.prime_indices() for level in self.levels()
+    def indices(self):
+        return _seqmerge.muddle((
+            level.indices() for level in self.levels()
             ))
-    def index_types(self):
-        yield object
-    def __call__(self, args, **kwargs):
-        return super().__call__(*args, **kwargs)
+    def __iter__(self):
+        return (self(*inds) for inds in self.indices())
 
 class FuncySubIncision(FuncyIncision):
     @property
-    def parentlevel(self):
-        return self.levelsdict[self.nlevels - 2]
-    @property
     def levelsource(self):
-        return self.parentlevel.levelsource
+        return self
     def lengths(self):
-        yield from self.source.lengths()
+        yield from super().lengths()
         yield self.length
     def levels(self):
         yield from super().levels()
         yield self
-    def index_sets(self) -> 'Generator[Generator]':
-        yield from self.levelsource.index_sets()
-    def index_types(self) -> 'Generator[type]':
-        yield from self.levelsource.index_types()
+    @property
+    def depth(self):
+        return super().depth - 1
+
+class FuncySoftSubIncision(FuncySubIncision, _FuncySoftIncisable):
+    ...
 
 class FuncyShallowIncision(FuncyIncision):
     def __init__(self, incisor, /, *args, **kwargs):
         self.incisor = incisor
         super().__init__(*args, **kwargs)
     @property
+    def subkwargs(self):
+        return self.levelsource.subkwargs
+    @property
+    def _sourceincisors(self):
+        if isinstance(src := self.source, FuncyShallowIncision):
+            return src.incisors
+        return ()
+    @property
     def incisors(self):
-        yield from self.source.incisors
+        yield from self._sourceincisors
         yield self.incisor
     def levels(self):
         *levels, _ = super().levels()
@@ -97,12 +111,10 @@ class FuncyShallowIncision(FuncyIncision):
 
 class FuncyStrictIncision(FuncyShallowIncision):
     _length = 1
-    def index_sets(self):
-        yield (self.incisor,)
-    def index_types(self):
-        yield object
+    def indices(self):
+        yield self.incisor
 
-class FuncySequenceIncision(FuncyShallowIncision, _FuncySoftIncisable):
+class FuncyBroadIncision(FuncyShallowIncision, _FuncySoftIncisable):
     def __init__(self, incisor, /, *args, **kwargs):
         super().__init__(incisor, *args, length = len(incisor), **kwargs)
     def index_sets(self):
@@ -112,14 +124,17 @@ class FuncySequenceIncision(FuncyShallowIncision, _FuncySoftIncisable):
         yield object
         yield from super().index_types()
 
-class FuncyBroadIncision(FuncyShallowIncision, _FuncySoftIncisable):
+class FuncySoftIncision(FuncyShallowIncision, _FuncySoftIncisable):
+
+    _length = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.iter_fn = self._get_iter_fn()
     def _indices_getslice(self):
         inc, src = self.incisor, self.source
         return _itertools.islice(
-            src.indices(),
+            src.allindices(),
             inc.start, inc.stop, inc.step
             )
     def _indices_getinterval(self):
@@ -128,7 +143,7 @@ class FuncyBroadIncision(FuncyShallowIncision, _FuncySoftIncisable):
         start = 0 if start is None else start
         stop = _special.infint if stop is None else stop
         starti, stopi, stepi = (src.get_indi(s) for s in (start, stop, step))
-        itr = src.indices()
+        itr = src.allindices()
         started = False
         stopped = False
         try:
@@ -153,12 +168,12 @@ class FuncyBroadIncision(FuncyShallowIncision, _FuncySoftIncisable):
             pass
     def _indices_getkeys(self):
         inc, src = self.incisor, self.source
-        for i, inds in _seqmerge.muddle((inc, src.indices())):
+        for i, inds in _seqmerge.muddle((inc, src.allindices())):
             if i == inds[src.get_indi(i)]:
                 yield inds
     def _indices_getmask(self):
         inc, src = self.incisor, self.source
-        for mask, inds in zip(inc, src.indices()):
+        for mask, inds in zip(inc, src.allindices()):
             if mask:
                 yield inds
     def _get_iter_fn(self):

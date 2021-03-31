@@ -13,7 +13,6 @@ class FuncyIncisor(_FuncyABC):
 
 class FuncyTrivialIncisor(FuncyIncisor):
     ...
-_ = FuncyTrivialIncisor.register(type(Ellipsis))
 
 class FuncyShallowIncisor(FuncyIncisor):
     ...
@@ -22,25 +21,20 @@ class FuncyStrictIncisor(FuncyShallowIncisor):
     ...
 _ = FuncyStrictIncisor.register(_datalike.FuncyIntegral)
 _ = FuncyStrictIncisor.register(_datalike.FuncyString)
+_ = FuncyStrictIncisor.register(_datalike.FuncyMapping)
 
-class FuncyDeclarativeIncisor(FuncyStrictIncisor):
+class FuncySoftIncisor(FuncyShallowIncisor):
     ...
-_ = FuncyDeclarativeIncisor.register(_datalike.FuncyMapping)
+_ = FuncySoftIncisor.register(_general.FuncySlice)
 
-class FuncyBroadIncisor(FuncyShallowIncisor):
+class FuncyBroadIncisor(FuncySoftIncisor):
     ...
 _ = FuncyBroadIncisor.register(_structures.FuncyUnpackable)
-
-class FuncySeqIncisor(FuncyBroadIncisor):
-    ...
-
-class FuncySoftIncisor(FuncyBroadIncisor):
-    ...
-_ = FuncyBroadIncisor.register(_general.FuncySlice)
 
 class FuncyDeepIncisor(FuncyIncisor):
     ...
 _ = FuncyDeepIncisor.register(_structures.FuncyStruct)
+_ = FuncyDeepIncisor.register(type(Ellipsis))
 
 class FuncySubIncisor(FuncyDeepIncisor):
     ...
