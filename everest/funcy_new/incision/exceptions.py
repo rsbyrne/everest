@@ -1,14 +1,11 @@
 ###############################################################################
-'''
-This package defines the abstract types
-that objects in the funcy ecosystem must conform to.
-'''
+'''Defines the exceptions anticipated by the incision protocol.'''
 ###############################################################################
 
-from .primitive import *
-from .general import *
-from .datalike import *
-from .structures import *
+from ..exceptions import FuncyException, NotYetImplemented
+
+class IncisionException(FuncyException):
+    '''Parent exception of all exceptions thrown by the incision protocol.'''
 
 ###############################################################################
 ###############################################################################

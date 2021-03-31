@@ -1,14 +1,18 @@
 ###############################################################################
 '''
-This package defines the abstract types
-that objects in the funcy ecosystem must conform to.
+The package defining the 'incision protocol'.
 '''
 ###############################################################################
 
-from .primitive import *
-from .general import *
-from .datalike import *
-from .structures import *
+from .. import (
+    special as _special,
+    seqmerge as _seqmerge,
+    abstract as _abstract,
+    )
+
+from .incisor import *
+from .incisable import *
+from .incision import *
 
 ###############################################################################
 ###############################################################################
