@@ -1,5 +1,5 @@
 ###############################################################################
-'''The module defining the parent class of the Misc Variable type.'''
+'''The module defining the Misc Variable type.'''
 ###############################################################################
 
 from .variable import Variable as _Variable

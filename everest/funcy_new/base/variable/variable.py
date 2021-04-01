@@ -1,5 +1,5 @@
 ###############################################################################
-'''The module defining the parent class of all Variable Base types.'''
+'''The module defining the parent class of all 'Variable' Base types.'''
 ###############################################################################
 
 from abc import abstractmethod as _abstractmethod

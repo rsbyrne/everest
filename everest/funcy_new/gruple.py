@@ -84,6 +84,8 @@ class _Gruple(_FuncySoftIncisable, _Sequence):
             return tuple(out)[0]
         return out
 
+_ = _abstract.primitive.FuncyPrimitive.register(_Gruple)
+
 class Gruple(_Gruple):
     def __init__(self, arg: _Iterable, *args, lev = None, **kwargs):
         self.pylike = self.pytype(arg)

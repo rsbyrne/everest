@@ -25,18 +25,15 @@ def get_opfn(name: str):
     return opfn
 
 class Operation(_Derived):
-    def __init__(self,
-            callargs: _abstract.structures.FuncyStruct = _special.emptyseq,
-            callkwargs: _abstract.structures.FuncyMapping = _special.emptymap,
-            /, *, opkey: str,
-            ):
-        if not isinstance(callargs, (_Funcy, _special.Empty)):
-            callargs = tuple(callargs)
-            callargs = _Group(callargs) if callargs else _special.emptyseq
-        if not isinstance(callkwargs, (_Funcy, _special.Empty)):
-            callkwargs = dict(callkwargs)
+    def __init__(self, callargs, callkwargs, /, *, opkey):
+        if not isinstance(callargs, _Funcy):
+            if callargs:
+                callargs = _Group(*callargs)
+            else:
+                callargs = _special.emptyseq
+        if not isinstance(callkwargs, _Funcy):
             if callkwargs:
-                callkwargs = _Map(callkwargs.keys(), callkwargs.values())
+                callkwargs = _Map(*zip(*dict(callkwargs).items()))
             else:
                 callkwargs = _special.emptymap
         super().__init__(callargs, callkwargs, opkey = opkey)
@@ -46,7 +43,7 @@ class Operation(_Derived):
 def operation(name: str):
     '''Partial constructor for Operation.'''
     def construct(*args, **kwargs):
-        return Operation(args, kwargs, opkey = name)
+        return Operation(list(args), list(kwargs), opkey = name)
     return construct
 
 ###############################################################################

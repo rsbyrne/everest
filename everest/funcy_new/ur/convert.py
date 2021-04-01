@@ -19,8 +19,12 @@ def convert(obj: _Funcy):
     if isinstance(obj, _Funcy):
         if isinstance(obj, _Ur):
             return obj
-        if hasattr(obj, "terms"): # hence is Derived
+        terms = None
+        if isinstance(obj, tuple):
+            terms = obj
+        elif hasattr(obj, "terms"): # hence is Derived
             terms = obj.terms
+        if not terms is None:
             if all(isinstance(t, _Non) for t in terms):
                 cls = _Non
             elif any(isinstance(t, _Inc) for t in terms):
@@ -34,12 +38,13 @@ def convert(obj: _Funcy):
     elif isinstance(obj, _abstract.primitive.FuncyPrimitive):
         cls = _Non
     if cls is None:
-        raise TypeError(f"Couldn't convert object {obj} to Ur type.")
-    out = cls(obj)
+        raise TypeError(
+            f"Couldn't convert object {obj} of type {type(obj)} to Ur type."
+            )
+    obj = cls(obj)
     if cls is _Non:
-        if evaluable(out):
-            return out.value
-    return out
+        return obj.value
+    return obj
 
 ###############################################################################
 ###############################################################################
