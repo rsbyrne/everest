@@ -8,7 +8,7 @@ class Ur(_Funcy):
     '''The parent class of all funcy 'ur' types.'''
     def __init__(self, wrapped, /, *args, **kwargs):
         self.wrapped = wrapped
-        self.terms = list(wrapped.terms)
+        self.terms = wrapped.terms
         super().__init__(wrapped, *args, **kwargs)
     def get_value(self):
         return self.wrapped.get_value()

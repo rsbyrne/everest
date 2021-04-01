@@ -40,7 +40,7 @@ class Call(_Ops):
             callKwargs: _generic.FuncyMapping = (),
             /,
             **kwargs,
-            ) -> None:           
+            ) -> None:
         if not isinstance(callArgs, _Function):
             if not len(callArgs): callArgs = _Thing(tuple())
             else: callArgs = _Group(*callArgs)

@@ -194,7 +194,7 @@ class FuncySoftIncision(FuncyShallowIncision):
                     ):
                 return self._indices_getslice
             return self._indices_getinterval
-        if isinstance(incisor, _abstract.datalike.FuncyIterable):
+        if isinstance(incisor, _abstract.structures.FuncyIterable):
             if all(isinstance(i, _abstract.datalike.FuncyBool) for i in incisor):
                 return self._indices_getmask
             return self._indices_getkeys

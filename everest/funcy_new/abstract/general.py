@@ -8,31 +8,23 @@ from .abstract import FuncyABC as _FuncyABC
 from .exceptions import FuncyAbstractMethodException
 
 class FuncyEvaluable(_FuncyABC):
-    '''
-    Funcy Evaluables are immutable types hosting potentially immutable data,
-    accessed through a .value property that may be cached.
-    '''
-    @property
-    @_abstractmethod
-    def value(self) -> None:
-        '''The value of the evaluable.'''
-        raise FuncyAbstractMethodException
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is FuncyEvaluable:
+            if any('value' in B.__dict__ for B in C.__mro__):
+                return True
+        return NotImplemented
+
+def evaluable(arg):
+    return isinstance(arg, FuncyEvaluable)
 
 class FuncyVariable(FuncyEvaluable):
-    '''
-    An Evaluable whose value may be manually changed
-    using the descriptor protocol.
-    '''
-    @property
-    @_abstractmethod
-    def value(self) -> object:
-        raise FuncyAbstractMethodException
-    @value.setter
-    def value(self, val) -> None:
-        raise FuncyAbstractMethodException
-    @value.deleter
-    def value(self) -> None:
-        self.value = None
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is FuncyVariable:
+            if any('set_value' in B.__dict__ for B in C.__mro__):
+                return True
+        return NotImplemented
 
 class FuncyNoneType(_FuncyABC):
     ...

@@ -2,9 +2,7 @@
 ''''''
 ###############################################################################
 
-from abc import abstractmethod as _abstractmethod
 import numbers as _numbers
-from collections import abc as _collabc
 from functools import cached_property as _cached_property
 
 import numpy as _np
@@ -43,8 +41,6 @@ class FuncyDatalike(_FuncyABC):
         except AttributeError:
             return self._defaultdtype
 
-
-
 class FuncyString(FuncyDatalike):
     _defaultdtype = str
 _ = FuncyString.register(FuncyString._defaultdtype)
@@ -80,48 +76,6 @@ _ = FuncyIntegral.register(FuncyIntegral._defaultdtype)
 class FuncyArray(FuncyNumerical):
     ...
 _ = FuncyArray.register(_np.ndarray)
-
-
-
-class FuncyContainer(_FuncyABC):
-    ...
-_ = FuncyContainer.register(_collabc.Container)
-
-class FuncyIterable(_FuncyABC):
-    ...
-_ = FuncyIterable.register(_collabc.Iterable)
-
-class FuncyIterator(_FuncyABC):
-    ...
-_ = FuncyIterator.register(_collabc.Iterator)
-
-class FuncySized(_FuncyABC):
-    ...
-_ = FuncySized.register(_collabc.Sized)
-
-class FuncyCallable(_FuncyABC):
-    ...
-_ = FuncyCallable.register(_collabc.Callable)
-
-class FuncyCollection(FuncySized, FuncyIterable, FuncyContainer):
-    ...
-_ = FuncyCollection.register(_collabc.Collection)
-
-class FuncyReversible(_FuncyABC):
-    ...
-_ = FuncyReversible.register(_collabc.Reversible)
-
-class FuncySequence(FuncyReversible, FuncyCollection):
-    ...
-_ = FuncySequence.register(_collabc.Sequence)
-
-class FuncyMutableSequence(FuncySequence):
-    ...
-_ = FuncyMutableSequence.register(_collabc.MutableSequence)
-
-class FuncyMapping(FuncyCollection):
-    ...
-_ = FuncyMapping.register(_collabc.Mapping)
 
 ###############################################################################
 ###############################################################################

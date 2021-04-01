@@ -2,7 +2,7 @@
 '''The module defining the constructor for all funcy 'ur' types.'''
 ###############################################################################
 
-from . import _Funcy, _FuncyPrimitive
+from . import _Funcy, _abstract
 
 from .ur import Ur as _Ur
 from .dat import Dat as _Dat
@@ -11,7 +11,9 @@ from .non import Non as _Non
 from .seq import Seq as _Seq
 from .var import Var as _Var
 
-def ur_convert(obj: _Funcy):
+evaluable = _abstract.general.evaluable
+
+def convert(obj: _Funcy):
     '''The constructor for all funcy 'ur' types.'''
     cls = None
     if isinstance(obj, _Funcy):
@@ -29,11 +31,15 @@ def ur_convert(obj: _Funcy):
                 cls = _Seq
             elif any(isinstance(t, _Dat) for t in terms):
                 cls = _Dat
-    elif isinstance(obj, _FuncyPrimitive):
+    elif isinstance(obj, _abstract.primitive.FuncyPrimitive):
         cls = _Non
     if cls is None:
         raise TypeError(f"Couldn't convert object {obj} to Ur type.")
-    return cls(obj)
+    out = cls(obj)
+    if cls is _Non:
+        if evaluable(out):
+            return out.value
+    return out
 
 ###############################################################################
 ###############################################################################

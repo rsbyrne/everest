@@ -3,8 +3,12 @@
 ###############################################################################
 
 from ..funcy import Funcy as _Funcy
-from ..ur import ur_convert as _ur_convert
-from ..abstract import FuncyPrimitive as _FuncyPrimitive
+from .. import (
+    abstract as _abstract,
+    gruple as _gruple,
+    special as _special,
+    ur as _ur,
+    )
 
 ###############################################################################
 ###############################################################################

@@ -5,6 +5,7 @@
 from functools import wraps
 import numbers
 import sys
+from collections import abc as collabc
 
 from .exceptions import FuncyException
 
@@ -16,6 +17,29 @@ class InfiniteValueDetected(FuncyValueError):
     '''Infinite value error related to a Funcy asset.'''
 class UnknownValueDetected(FuncyValueError):
     '''Unknown value error related to a Funcy asset.'''
+
+class Empty(collabc.Container):
+    def __iter__(self):
+        yield from ()
+    def __len__(self):
+        return 0
+    def __repr__(self):
+        return 'empty'
+    def __contains__(self, *_):
+        return False
+class EmptySequence(Empty, collabc.Sequence):
+    def __getitem__(self, _):
+        raise IndexError
+    def __repr__(self):
+        return super().__repr__() + 'seq'
+class EmptyMapping(Empty, collabc.Mapping):
+    def __getitem__(self, _):
+        raise IndexError
+    def __repr__(self):
+        return super().__repr__() + 'map'
+empty = Empty()
+emptyseq = EmptySequence()
+emptymap = EmptyMapping()
 
 class Infinite(numbers.Number):
     def __init__(self, pos = True):

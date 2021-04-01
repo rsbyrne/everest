@@ -3,8 +3,11 @@
 ###############################################################################
 
 from ..funcy import Funcy as _Funcy
-from ..abstract import FuncyPrimitive as _FuncyPrimitive
-from .. import utilities as _utilities
+from .. import (
+    abstract as _abstract,
+    utilities as _utilities,
+    gruple as _gruple,
+    )
 
 from .ur import Ur
 from .dat import Dat
@@ -13,7 +16,7 @@ from .non import Non
 from .seq import Seq
 from .var import Var
 
-from .convert import ur_convert
+from .convert import convert
 
 ###############################################################################
 ###############################################################################

@@ -2,6 +2,8 @@
 '''The module describing the 'primitive' types understood by funcy.'''
 ###############################################################################
 
+from . import _special
+
 from .abstract import FuncyABC as _FuncyABC
 
 PRIMITIVETYPES = set((
@@ -11,6 +13,7 @@ PRIMITIVETYPES = set((
     str,
     type(None),
     tuple,
+    _special.Empty,
     ))
 
 class FuncyPrimitive(_FuncyABC):

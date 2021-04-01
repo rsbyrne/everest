@@ -23,7 +23,7 @@ class FuncyStrictIncisor(FuncyShallowIncisor):
     ...
 _ = FuncyStrictIncisor.register(_datalike.FuncyIntegral)
 _ = FuncyStrictIncisor.register(_datalike.FuncyString)
-_ = FuncyStrictIncisor.register(_datalike.FuncyMapping)
+_ = FuncyStrictIncisor.register(_structures.FuncyMapping)
 
 class FuncySoftIncisor(FuncyShallowIncisor):
     ...
