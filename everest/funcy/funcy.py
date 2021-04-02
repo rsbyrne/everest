@@ -13,7 +13,7 @@ class Funcy(_ABC):
     @property
     def value(self):
         try:
-            self.get_value()
+            return self.get_value()
         except AttributeError as exc:
             raise TypeError(
                 "Value getting not supported for this Funcy function."
