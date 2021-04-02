@@ -2,7 +2,7 @@
 '''Defines the parent class of all funcy objects.'''
 ###############################################################################
 
-from abc import ABC as _ABC, abstractmethod as _abstractmethod
+from abc import ABC as _ABC
 
 class Funcy(_ABC):
     '''
@@ -10,28 +10,30 @@ class Funcy(_ABC):
     '''
     def __init__(self, *args, **kwargs):
         self._initargs, self._initkwargs = args, kwargs
-    @_abstractmethod
-    def get_value(self):
-        ...
     @property
     def value(self):
-        return self.get_value()
+        try:
+            self.get_value()
+        except AttributeError as exc:
+            raise TypeError(
+                "Value getting not supported for this Funcy function."
+                ) from exc
     @value.setter
     def value(self, val, /):
         try:
             self.set_value(val)
-        except AttributeError:
+        except AttributeError as exc:
             raise TypeError(
                 "Value deleting not supported for this Funcy function."
-                )
+                ) from exc
     @value.deleter
     def value(self):
         try:
             self.del_value()
-        except AttributeError:
+        except AttributeError as exc:
             raise TypeError(
                 "Value deleting not supported for this Funcy function."
-                )
+                ) from exc
     def __str__(self):
         return str(self.value)
     @classmethod
