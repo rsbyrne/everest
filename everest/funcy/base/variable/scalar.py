@@ -1,17 +1,17 @@
 ###############################################################################
-'''The module defining the Misc Variable type.'''
+'''The module defining the 'Scalar' Variable type.'''
 ###############################################################################
 
 from .variable import Variable as _Variable
 
-class Misc(_Variable):
-    _value = None
-    def get_value(self):
-        return self._value
-    def set_value(self, val, /):
-        self._value = val
-    def del_value(self):
-        self._value = None
+class Scalar(_Variable):
+    dtype = None
+    def rectify(self):
+        content = self.content
+        self.content = self.dtype(content)
+
+class Integral(Scalar):
+    dtype = int
 
 ###############################################################################
 ###############################################################################
