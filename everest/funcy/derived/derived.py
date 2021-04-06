@@ -14,11 +14,6 @@ class Derived(_Funcy):
         obj.__init__(*args, **kwargs)
         return _ur.convert(obj)
     def __init__(self, *terms, **kwargs):
-        if not all(
-                isinstance(v, _abstract.FuncyPrimitive)
-                    for v in kwargs.values()
-                ):
-            raise TypeError("Kwargs must all be Primitive type.")
         terms = _gruple.Gruple(_ur.convert(t) for t in terms)
         kwargs = _gruple.GrupleMap(kwargs.items())
         self.terms, self.kwargs = terms, kwargs

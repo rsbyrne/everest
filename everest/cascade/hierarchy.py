@@ -53,13 +53,15 @@ def get_default_func_inputs(func):
         if default is inspect.Parameter.empty:
             default = Req(func, key)
         out[key] = default
-    argi = 0
     for key, val in parameters.items():
         if str(val)[:1] == '*':
             del out[key]
     return out
 
 class Hierarchy(OrderedDict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parent = self
     def flatten(self):
         return flatten_hierarchy(self)
     def concatenate(self):
@@ -78,6 +80,7 @@ def get_hierarchy(func):
     level = 0
     prevAddTo = None
     addTo = hierarchy
+    addTo.parent = addTo
     for line in callsourcelines:
         indent = level * ' ' * 4
         while not line.startswith(indent):

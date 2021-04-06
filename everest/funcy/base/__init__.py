@@ -4,7 +4,11 @@
 
 from .. import _reseed
 from ..funcy import Funcy as _Funcy
-from .. import abstract as _abstract
+from .. import (
+    abstract as _abstract,
+    incision as _incision,
+    utilities as _utilities,
+    )
 
 ###############################################################################
 ###############################################################################

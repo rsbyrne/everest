@@ -3,13 +3,36 @@
 ###############################################################################
 
 from abc import ABC as _ABC
+import pickle as _pickle
+import inspect
 
-class Funcy(_ABC):
+from . import abstract as _abstract
+
+# def align_inputs(func, args, kwargs):
+#     inspect.getsi
+
+
+
+class Funcy(_ABC, metaclass = Meta):
     '''
     Parent class of all Funcy objects.
     '''
-    def __init__(self, *args, **kwargs):
-        self._initargs, self._initkwargs = args, kwargs
+    args, kwargs = (), {}
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls)
+        obj.args, obj.kwargs = args, kwargs
+        return obj
+    @classmethod
+    def _process_args(cls, *args):
+        return args
+    @classmethod
+    def _process_kwargs(cls, **kwargs):
+        if not all(
+                isinstance(v, _abstract.FuncyPrimitive)
+                    for v in kwargs.values()
+                ):
+            raise TypeError("Kwargs must all be Primitive type.")
+        return kwargs
     @property
     def value(self):
         try:
@@ -36,16 +59,33 @@ class Funcy(_ABC):
                 ) from exc
     def __str__(self):
         return str(self.value)
+    def __repr__(self):
+        return f"{self.__class__.__name__}{self.kwargs}{self.args}"
     @classmethod
-    def _unreduce(cls, args, kwargs, state):
-        obj = cls(*args, **kwargs)
+    def _unreduce(cls, args, kwargs):
+        return cls(*args, **kwargs)
+    @property
+    def pickletup(self):
         try:
-            obj.set_value(state)
+            return self._pickletup
         except AttributeError:
-            pass
-        return obj
+            pickletup = self._pickletup = (
+                self._unreduce,
+                (self.args, self.kwargs)
+                )
     def __reduce__(self):
-        return (self._unreduce, (self._initargs, self._initkwargs, self.value))
+        return self.pickletup
+    @property
+    def hashID(self):
+        try:
+            return self._hashID
+        except AttributeError:
+            return _wordhash.w_hash(self.pickletup)
+    def __hash__(self):
+        try:
+            return self._hashint
+        except AttributeError:
+            return int(_reseed.digits(12, seed = self.hashID))
 
 ###############################################################################
 ###############################################################################

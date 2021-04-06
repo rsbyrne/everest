@@ -2,6 +2,8 @@
 ''''''
 ###############################################################################
 
+from .. import wordhash
+
 from .hierarchy import *
 from .cascade import *
 from .inputs import *

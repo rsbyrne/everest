@@ -5,7 +5,6 @@
 import weakref as _weakref
 import inspect as _inspect
 from types import FunctionType as _FunctionType, MethodType as _MethodType
-from functools import cached_property as _cached_property
 from itertools import zip_longest as _zip_longest
 
 from .cascade import Cascade as _Cascade
@@ -74,5 +73,4 @@ class Inputs(_Cascade):
             )
 
 ###############################################################################
-''''''
 ###############################################################################

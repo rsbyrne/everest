@@ -2,11 +2,9 @@
 ''''''
 ###############################################################################
 
-from collections import OrderedDict, Mapping
-import inspect
-import warnings
+from collections.abc import Mapping
 
-from everest import wordhash
+from . import wordhash
 
 from .hierarchy import get_hierarchy, Hierarchy
 
@@ -70,8 +68,8 @@ class Cascade(Hierarchy):
             self.update(new)
         else:
             if not ignoreLeftovers:
-                assert not len(args)
-                assert not len(kwargs)
+                assert not args
+                assert not kwargs
     def _check_key(self, key):
         if key in dir(self):
             raise ValueError("Cannot use reserved key name:", key)
@@ -97,8 +95,10 @@ class Cascade(Hierarchy):
         else:
             pass
     def __getattr__(self, key):
-        try: return self[key]
-        except KeyError: raise AttributeError
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError
     def __setattr__(self, key, val):
         if key in self:
             self[key] = val
@@ -122,5 +122,4 @@ class Cascade(Hierarchy):
             )
 
 ###############################################################################
-''''''
 ###############################################################################

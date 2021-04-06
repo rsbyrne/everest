@@ -9,12 +9,12 @@ from collections.abc import (
     )
 import operator as _operator
 
-from .incision import (
-    FuncySoftIncisable as _FuncySoftIncisable,
-    FuncySoftIncision as _FuncySoftIncision,
-    )
-from . import abstract as _abstract
-from .utilities import unpacker_zip as _unpacker_zip
+from . import _abstract, _utilities, _incision
+from .base import Base as _Base
+
+_FuncySoftIncisable = _incision.FuncySoftIncisable
+_FuncySoftIncision = _incision.FuncySoftIncision
+_unpacker_zip = _utilities.unpacker_zip
 
 # def strict_expose(ind, self):
 #     return self(ind)
@@ -53,26 +53,8 @@ class _Gruple(_FuncySoftIncisable, _Sequence):
         '''Returns the sum of the flatlengths of all unpackable contents.'''
         return flatlen(self)
 
-    @classmethod
-    def rich(cls, self, other, /, *, opkey: str) -> 'Gruple':
-        opfn = getattr(_operator, opkey)
-        boolzip = (opfn(s, o) for s, o in _unpacker_zip(self, other))
-        return cls(boolzip)
-    def __lt__(self, other):
-        return self.rich(self, other, opkey = 'lt')
-    def __le__(self, other):
-        return self.rich(self, other, opkey = 'le')
-    def __eq__(self, other):
-        return self.rich(self, other, opkey = 'eq')
-    def __ne__(self, other):
-        return self.rich(self, other, opkey = 'ne')
-    def __gt__(self, other):
-        return self.rich(self, other, opkey = 'gt')
-    def __ge__(self, other):
-        return self.rich(self, other, opkey = 'ge')
-
     def __repr__(self):
-        return f'{type(self).__name__}{str(self)}'
+        return super().__repr__() + '==' + str(self)
     def __str__(self):
         if len(self) < 10:
             return str(self.pytype(self))
@@ -97,6 +79,23 @@ class Gruple(_Gruple):
         for arg in argn:
             out = out[arg]
         return out
+    @classmethod
+    def rich(cls, self, other, /, *, opkey: str) -> 'Gruple':
+        opfn = getattr(_operator, opkey)
+        boolzip = (opfn(s, o) for s, o in _unpacker_zip(self, other))
+        return cls(boolzip)
+    def __lt__(self, other):
+        return self.rich(self, other, opkey = 'lt')
+    def __le__(self, other):
+        return self.rich(self, other, opkey = 'le')
+    def __eq__(self, other):
+        return self.rich(self, other, opkey = 'eq')
+    def __ne__(self, other):
+        return self.rich(self, other, opkey = 'ne')
+    def __gt__(self, other):
+        return self.rich(self, other, opkey = 'gt')
+    def __ge__(self, other):
+        return self.rich(self, other, opkey = 'ge')
 
 class GrupleSwathe(_FuncySoftIncision, _Gruple):
     @property
