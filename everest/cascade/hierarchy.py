@@ -2,112 +2,93 @@
 ''''''
 ###############################################################################
 
-import inspect
-from collections import OrderedDict
-from collections.abc import MutableMapping
+import string as _string
+import inspect as _inspect
+from collections.abc import MutableMapping as _MutableMapping
 
-def remove_prefix(mystr, prefix):
-    if mystr.startswith(prefix):
-        return mystr[len(prefix):]
-    return mystr
-
-def get_callsourcelines(func):
-    source = inspect.getsource(func)
-    for i, chr in enumerate(source):
-        if chr != ' ': break
-    assert i % 4 == 0
-    indent = ' ' * 4 * (int(i / 4) + 2)
-    sourcelines = source.split('\n')
-    sourcelines = [line.rstrip() for line in sourcelines]
-    endNo = None
-    for lineNo, line in enumerate(sourcelines[1:]):
-        if line.startswith(indent + ')'):
-            endNo = lineNo + 1
-    if endNo is None:
-        raise ValueError("Could not find function definition endline.")
-    callsourcelines = sourcelines[1: endNo]
-    callsourcelines = [
-        remove_prefix(line, indent)
-            for line in callsourcelines
+def get_sourcelines(func):
+    source = _inspect.getsource(func)
+    source = source[:source.index(':\n')]
+    lines = source.split('\n')
+    line0 = lines[0]
+    return [
+        line0[line0.index('(')+1:],
+        *(line.rstrip() for line in lines[1:]),
         ]
-    return callsourcelines
 
-class Req(inspect.Parameter.empty):
-    __slots__ = ('key', 'note')
-    def __init__(self, func, key):
-        self.key = key
-        try:
-            self.note = func.__annotations__[key]
-        except KeyError:
-            self.note = object
-    def __repr__(self):
-        return f"ReqArg({self.key}: {self.note})"
+def get_defaults(func):
+    params = _inspect.signature(func).parameters
+    return {name: p.default for name, p in params.items()}
 
-def get_default_func_inputs(func):
-    sig = inspect.signature(func)
-    parameters = sig.parameters
-    out = parameters.copy()
-    if 'self' in out: del out['self']
-    for key, val in out.items():
-        default = val.default
-        if default is inspect.Parameter.empty:
-            default = Req(func, key)
-        out[key] = default
-    for key, val in parameters.items():
-        if str(val)[:1] == '*':
-            del out[key]
-    return out
+def get_paramlevels(func):
 
-class Hierarchy(OrderedDict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.parent = self
-    def flatten(self):
-        return flatten_hierarchy(self)
-    def concatenate(self):
-        return concatenate_hierarchy(self)
-    def remove_ghosts(self):
-        for k, v in list(self.items()):
-            if k.startswith('_'):
-                del self[k]
-            elif isinstance(v, type(self)):
-                v.remove_ghosts()
+    plainchars = _string.ascii_lowercase + _string.digits + '_,=:/* '
+    sourcelines = get_sourcelines(func)
 
-def get_hierarchy(func):
-    callsourcelines = get_callsourcelines(func)
-    defaults = get_default_func_inputs(func)
-    hierarchy = Hierarchy()
-    level = 0
-    prevAddTo = None
-    addTo = hierarchy
-    addTo.parent = addTo
-    for line in callsourcelines:
-        indent = level * ' ' * 4
-        while not line.startswith(indent):
-            level -= 1
-            indent = level * ' ' * 4
-            addTo = addTo.parent
-        line = remove_prefix(line, indent).rstrip(',')
-        if line.startswith('#'):
-            tag = line[1:].strip()
-            level += 1
-            newLevel = addTo.setdefault(tag, Hierarchy())
-            newLevel.parent = addTo
-            addTo = newLevel
-        elif not line.startswith(' '):
-            try:
-                line = line[:line.index('#')].strip()
-            except ValueError:
-                pass
-            line = line.rstrip(',')
-            key = line.split('=')[0].strip().split(':')[0].strip()
-            if key.isalnum():
-                assert key in defaults, key
-                addTo[key] = defaults[key]
-    return hierarchy
+    sig = _inspect.signature(func)
+    params = sig.parameters
+
+    assert params
+    keys = iter(params)
+    key = next(keys)
+    mode = None
+    paramslist = list()
+    indentslist = list()
+
+    for lineno, line in enumerate(sourcelines):
+
+        charno = 0
+        for charno, char in enumerate(line):
+            if char != ' ':
+                break
+        assert charno % 4 == 0, (charno, line)
+        indentslist.append(charno // 4)
+        line = line.lstrip(' ')
+
+        if line[0] == '#':
+            line = line.lstrip('#').strip(' ')
+            paramslist.append(line)
+            continue
+        lineparams = list()
+        paramslist.append(lineparams)
+
+        clean = ''
+        for char in line:
+            if mode == '#':
+                mode = None
+                break
+            special = False if char in plainchars else char
+            if mode is None:
+                if special:
+                    mode = special
+                else:
+                    clean += char
+            else:
+                if special:
+                    if any((
+                            special == ')' and mode == '(',
+                            special == ']' and mode == '[',
+                            special == '}' and mode == '{',
+                            special in ("'", '"') and special == mode,
+                            )):
+                        mode = None
+        for chunk in clean.split(','):
+            if key in chunk:
+                lineparams.append(params[key])
+                try:
+                    key = next(keys)
+                except StopIteration:
+                    break
+
+    indentslist = [
+        indent - 2 if indent > 0 else indent
+            for indent in indentslist
+        ]
+
+    return list(zip(indentslist, paramslist))
 
 def flatten_hierarchy(hierarchy):
-    return OrderedDict(_flatten_hierarchy(hierarchy))
+    return dict(_flatten_hierarchy(hierarchy))
 def _flatten_hierarchy(hierarchy):
     for k, v in hierarchy.items():
         if isinstance(v, Hierarchy):
@@ -122,12 +103,50 @@ def concatenate_hierarchy(d, parent_key = '', sep = '_'):
     parent_key = parent_key.strip(sep)
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, MutableMapping):
+        if isinstance(v, _MutableMapping):
             items.extend(concatenate_hierarchy(v, new_key, sep).items())
         else:
             items.append((new_key, v))
-    return OrderedDict(items)
+    return dict(items)
+
+class Hierarchy(dict):
+    parent = None
+    def __init__(self, *args, __parent__ = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parent = __parent__
+    def flatten(self):
+        return flatten_hierarchy(self)
+    def concatenate(self):
+        return concatenate_hierarchy(self)
+    def remove_ghosts(self):
+        for key, val in list(self.items()):
+            if key.startswith('_'):
+                del self[key]
+            elif isinstance(val, type(self)):
+                val.remove_ghosts()
+    def sub(self, key):
+        self[key] = subhier = type(self)(__parent__ = self)
+        return subhier
+
+def get_hierarchy(func):
+    hierarchy = Hierarchy()
+    currentlev = 0
+    addto = hierarchy
+    for level, content in get_paramlevels(func):
+        if isinstance(content, str):
+            if level == currentlev:
+                addto = addto.sub(content)
+                currentlev += 1
+            continue
+        if level <= currentlev:
+            while level < currentlev:
+                currentlev -= 1
+                addto = addto.parent
+            for param in content:
+                addto[param.name] = param
+        else:
+            raise Exception("Level hierarchies not analysable.")
+    return hierarchy
 
 ###############################################################################
-''''''
 ###############################################################################
