@@ -2,90 +2,10 @@
 ''''''
 ###############################################################################
 
-import string as _string
-import inspect as _inspect
+from . import _reseed
+
+from functools import lru_cache as _lru_cache
 from collections.abc import MutableMapping as _MutableMapping
-
-def get_sourcelines(func):
-    source = _inspect.getsource(func)
-    source = source[:source.index(':\n')]
-    lines = source.split('\n')
-    line0 = lines[0]
-    return [
-        line0[line0.index('(')+1:],
-        *(line.rstrip() for line in lines[1:]),
-        ]
-
-def get_defaults(func):
-    params = _inspect.signature(func).parameters
-    return {name: p.default for name, p in params.items()}
-
-def get_paramlevels(func):
-
-    plainchars = _string.ascii_lowercase + _string.digits + '_,=:/* '
-    sourcelines = get_sourcelines(func)
-
-    sig = _inspect.signature(func)
-    params = sig.parameters
-
-    assert params
-    keys = iter(params)
-    key = next(keys)
-    mode = None
-    paramslist = list()
-    indentslist = list()
-
-    for lineno, line in enumerate(sourcelines):
-
-        charno = 0
-        for charno, char in enumerate(line):
-            if char != ' ':
-                break
-        assert charno % 4 == 0, (charno, line)
-        indentslist.append(charno // 4)
-        line = line.lstrip(' ')
-
-        if line[0] == '#':
-            line = line.lstrip('#').strip(' ')
-            paramslist.append(line)
-            continue
-        lineparams = list()
-        paramslist.append(lineparams)
-
-        clean = ''
-        for char in line:
-            if mode == '#':
-                mode = None
-                break
-            special = False if char in plainchars else char
-            if mode is None:
-                if special:
-                    mode = special
-                else:
-                    clean += char
-            else:
-                if special:
-                    if any((
-                            special == ')' and mode == '(',
-                            special == ']' and mode == '[',
-                            special == '}' and mode == '{',
-                            special in ("'", '"') and special == mode,
-                            )):
-                        mode = None
-        for chunk in clean.split(','):
-            if key in chunk:
-                lineparams.append(params[key])
-                try:
-                    key = next(keys)
-                except StopIteration:
-                    break
-
-    indentslist = [
-        indent - 2 if indent > 0 else indent
-            for indent in indentslist
-        ]
-
-    return list(zip(indentslist, paramslist))
 
 def flatten_hierarchy(hierarchy):
     return dict(_flatten_hierarchy(hierarchy))
@@ -109,14 +29,35 @@ def concatenate_hierarchy(d, parent_key = '', sep = '_'):
             items.append((new_key, v))
     return dict(items)
 
+class Item:
+    key: str = None
+    _value = None
+    def __init__(self, key, val, /):
+        self.key = key
+        self._value = val
+    @property
+    def value(self):
+        return self._value
+    @value.setter
+    def value(self, newval):
+        self._value = newval
+    def __str__(self):
+        return repr(self.value)
+    def __repr__(self):
+        return f'{type(self).__name__}({self.key}: {str(self)})'
+
 class Hierarchy(dict):
     parent = None
+    subs = None
+    hashint = None
     def __init__(self, *args, __parent__ = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.parent = __parent__
-    def flatten(self):
+        self.subs = dict()
+        self.hashint = _reseed.digits()
+    def flatten(self) -> dict:
         return flatten_hierarchy(self)
-    def concatenate(self):
+    def concatenate(self) -> dict:
         return concatenate_hierarchy(self)
     def remove_ghosts(self):
         for key, val in list(self.items()):
@@ -124,29 +65,69 @@ class Hierarchy(dict):
                 del self[key]
             elif isinstance(val, type(self)):
                 val.remove_ghosts()
-    def sub(self, key):
-        self[key] = subhier = type(self)(__parent__ = self)
+    def sub(self, key) -> 'Hierarchy':
+        self.subs[key] = subhier = type(self)(__parent__ = self)
+        super().__setitem__(key, subhier)
         return subhier
-
-def get_hierarchy(func):
-    hierarchy = Hierarchy()
-    currentlev = 0
-    addto = hierarchy
-    for level, content in get_paramlevels(func):
-        if isinstance(content, str):
-            if level == currentlev:
-                addto = addto.sub(content)
-                currentlev += 1
-            continue
-        if level <= currentlev:
-            while level < currentlev:
-                currentlev -= 1
-                addto = addto.parent
-            for param in content:
-                addto[param.name] = param
+    def __getitem__(self, arg, /):
+        out = self.raw_getitem(arg)
+        if isinstance(out, Item):
+            return out.value
+        return out
+    @_lru_cache
+    def raw_getitem(self, arg) -> Item:
+        if isinstance(arg, tuple):
+            out = self
+            for subarg in arg:
+                out = out.raw_getitem(subarg)
+            return out
+        try:
+            return super().__getitem__(arg)
+        except KeyError as exc:
+            for sub in self.subs.values():
+                try:
+                    return sub.raw_getitem(arg)
+                except KeyError:
+                    pass
+            raise KeyError from exc
+    def __setitem__(self, key, val):
+        try:
+            targ = self.raw_getitem(key)
+            if isinstance(targ, Item):
+                targ.value = val
+            else:
+                raise ValueError("Cannot manually set hierarchy.")
+        except KeyError:
+            if isinstance(val, Hierarchy):
+                sub = self.sub(key)
+                for subkey, subval in val.items():
+                    sub[subkey] = subval
+            else:
+                super().__setitem__(key, Item(key, val))
+    def __hash__(self):
+        return self.hashint
+    def __repr__(self):
+        return type(self).__name__ + super().__repr__()
+    def _repr_pretty_(self, p, cycle):
+        typnm = type(self).__name__
+        if cycle:
+            p.text(typnm + '{...}')
         else:
-            raise Exception("Level hierarchies not analysable.")
-    return hierarchy
-
+            with p.group(4, typnm + '({', '})'):
+                for idx, (key, val) in enumerate(self.items()):
+                    if isinstance(val, Item):
+                        val = val.value
+                    if idx:
+                        p.text(',')
+                    p.breakable()
+                    p.pretty(key)
+                    p.text(': ')
+                    p.pretty(val)
+                p.breakable()
+    def copy(self):
+        out = type(self)()
+        for key, val in self.items():
+            out[key] = val
+        return out
 ###############################################################################
 ###############################################################################

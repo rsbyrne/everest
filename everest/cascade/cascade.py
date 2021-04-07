@@ -6,7 +6,7 @@ from collections.abc import Mapping
 
 from . import wordhash
 
-from .hierarchy import get_hierarchy, Hierarchy
+from .hierarchy import Hierarchy
 
 def align_inputs(defaults, *args, **kwargs):
     inputs = defaults.copy()
@@ -39,7 +39,7 @@ class Cascade(Hierarchy):
         elif isinstance(source, Cascade):
             hierarchy = source.hierarchy
         else:
-            hierarchy = get_hierarchy(source)
+            raise TypeError(f"Source not recognised: {source}")
         if removeGhosts:
             hierarchy.remove_ghosts()
         self.hierarchy = hierarchy
@@ -97,8 +97,8 @@ class Cascade(Hierarchy):
     def __getattr__(self, key):
         try:
             return self[key]
-        except KeyError:
-            raise AttributeError
+        except KeyError as exc:
+            raise AttributeError from exc
     def __setattr__(self, key, val):
         if key in self:
             self[key] = val
