@@ -103,6 +103,8 @@ class Hierarchy(dict):
                 for subkey, subval in val.items():
                     sub[subkey] = subval
             else:
+                if isinstance(val, Item):
+                    val = val.value
                 super().__setitem__(key, Item(key, val))
     def __hash__(self):
         return self.hashint
@@ -129,5 +131,6 @@ class Hierarchy(dict):
         for key, val in self.items():
             out[key] = val
         return out
+
 ###############################################################################
 ###############################################################################
