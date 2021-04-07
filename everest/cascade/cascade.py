@@ -2,124 +2,28 @@
 ''''''
 ###############################################################################
 
-from collections.abc import Mapping
+from .hierarchy import Hierarchy as _Hierarchy
 
-from . import wordhash
-
-from .hierarchy import Hierarchy
-
-def align_inputs(defaults, *args, **kwargs):
-    inputs = defaults.copy()
-    inputs.update(kwargs)
-    for arg, key in zip(args, list(inputs)[:len(args)]):
-        if key in kwargs:
-            raise ValueError("Two values deduced for key:", key)
-        inputs[key] = arg
-    return inputs
-
-class Cascade(Hierarchy):
-    _hashDepth = 2
-    def __init__(self,
-            source = None,
-            *args,
-            name = None,
-            parent = None,
-            ignoreLeftovers = False,
-            removeGhosts = True,
-            **kwargs
-            ):
-        super().__init__()
-        if source is None:
-            hierarchy = Hierarchy(**kwargs)
-            kwargs.clear()
-        elif isinstance(source, Mapping):
-            hierarchy = Hierarchy(source)
-        elif isinstance(source, Hierarchy):
-            hierarchy = source
-        elif isinstance(source, Cascade):
-            hierarchy = source.hierarchy
-        else:
-            raise TypeError(f"Source not recognised: {source}")
-        if removeGhosts:
-            hierarchy.remove_ghosts()
-        self.hierarchy = hierarchy
-        self.subs = []
-        self.name = name
-        self.parent = parent
-        self._ignoreLeftovers = ignoreLeftovers
-        for key, val in self.hierarchy.items():
-            if key.startswith('_'):
-                key = key[1:]
-            _ = self._check_key(key)
-            if isinstance(val, Hierarchy):
-                sub = Cascade(
-                    val,
-                    name = key,
-                    parent = self,
-                    ignoreLeftovers = ignoreLeftovers,
-                    removeGhosts = removeGhosts,
-                    )
-                self.subs.append(sub)
-                setattr(self, key, sub)
-        if parent is None:
-            flat = self.hierarchy.flatten()
-            self.update(flat)
-            new = align_inputs(flat, *args, **kwargs)
-            self.update(new)
-        else:
-            if not ignoreLeftovers:
-                assert not args
-                assert not kwargs
-    def _check_key(self, key):
-        if key in dir(self):
-            raise ValueError("Cannot use reserved key name:", key)
-        return key in self.hierarchy.flatten()
-    def __setitem__(self, key, val, caller = None):
-        caller = self if caller is None else caller
-        if key.startswith('_'):
-            key = key[1:]
-        check = self._check_key(key)
-        if check:
-            super().__setitem__(key, val)
-            for sub in self.subs:
-                if not sub is caller:
-                    try:
-                        sub.__setitem__(key, val, self)
-                    except KeyError:
-                        pass
-            if not self.parent is None:
-                if not self.parent is caller:
-                    self.parent.__setitem__(key, val, self)
-        elif not self._ignoreLeftovers:
-            raise KeyError
-        else:
-            pass
+class Cascade(_Hierarchy):
+    def is_attribute(self, key):
+        return key in dir(type(self))
     def __getattr__(self, key):
+        if self.is_attribute(key):
+            return super().__getattr__(key)
         try:
             return self[key]
         except KeyError as exc:
             raise AttributeError from exc
     def __setattr__(self, key, val):
-        if key in self:
-            self[key] = val
-        else:
+        if self.is_attribute(key):
             super().__setattr__(key, val)
-    def __repr__(self):
-        header = type(self).__name__ + '{' + str(self.name) + '}'
-        contentRows = ((k + ' = ' + str(v)) for k, v in self.items())
-        content = '(\n    ' + '\n    '.join(contentRows) + '\n    )'
-        return header + content
-    @property
-    def hashID(self):
-        return wordhash.get_random_english(
-            self._hashDepth,
-            seed = repr(self)
-            )
-    def copy(self, *args, **kwargs):
-        return self.__class__(
-            self.hierarchy, *args,
-            name = self.name, **kwargs
-            )
+        else:
+            self[key] = val
+    def __delattr__(self, key):
+        if self.is_attribute(key):
+            super().__delattr__(key)
+        else:
+            del self[key]
 
 ###############################################################################
 ###############################################################################

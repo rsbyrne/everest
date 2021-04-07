@@ -100,8 +100,8 @@ def get_paramlevels(func):
 
     return list(zip(indentslist, paramslist))
 
-def get_hierarchy(func):
-    hierarchy = _Hierarchy()
+def get_hierarchy(func, /, *, typ = _Hierarchy):
+    hierarchy = typ()
     currentlev = 0
     addto = hierarchy
     for level, content in get_paramlevels(func):
@@ -121,7 +121,10 @@ def get_hierarchy(func):
     return hierarchy
 
 def get_cascade(func):
-    return _Cascade(get_hierarchy(func))
+    return get_hierarchy(func, typ = _Cascade)
+
+# def get_cascade(func):
+#     return get_hierarchy(func, typ = _Cascade)
 
 # import weakref as _weakref
 # from types import FunctionType as _FunctionType, MethodType as _MethodType

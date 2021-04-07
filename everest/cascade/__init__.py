@@ -6,7 +6,6 @@ from .. import wordhash
 from .. import reseed as _reseed
 
 from .hierarchy import *
-from .cascade import *
 from .inputs import *
 
 ###############################################################################
