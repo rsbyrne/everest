@@ -2,10 +2,9 @@
 ''''''
 ###############################################################################
 
-from . import _reseed
-
 from functools import lru_cache as _lru_cache
-from collections.abc import MutableMapping as _MutableMapping
+
+from . import _reseed
 
 def flatten_hierarchy(hierarchy):
     return dict(_flatten_hierarchy(hierarchy))
@@ -15,19 +14,7 @@ def _flatten_hierarchy(hierarchy):
             for sk, sv in _flatten_hierarchy(v):
                 yield sk, sv
         else:
-            yield k, v
-
-def concatenate_hierarchy(d, parent_key = '', sep = '_'):
-    # by Imran@stackoverflow
-    items = []
-    parent_key = parent_key.strip(sep)
-    for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, _MutableMapping):
-            items.extend(concatenate_hierarchy(v, new_key, sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+            yield k, v.value
 
 class Item:
     key: str = None
@@ -50,15 +37,13 @@ class Hierarchy(dict):
     parent = None
     subs = None
     hashint = None
-    def __init__(self, *args, __parent__ = None, **kwargs):
+    def __init__(self, *args, parent = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.parent = __parent__
+        self.parent = parent
         self.subs = dict()
         self.hashint = _reseed.digits()
     def flatten(self) -> dict:
         return flatten_hierarchy(self)
-    def concatenate(self) -> dict:
-        return concatenate_hierarchy(self)
     def remove_ghosts(self):
         for key, val in list(self.items()):
             if key.startswith('_'):
@@ -66,7 +51,7 @@ class Hierarchy(dict):
             elif isinstance(val, type(self)):
                 val.remove_ghosts()
     def sub(self, key) -> 'Hierarchy':
-        self.subs[key] = subhier = type(self)(__parent__ = self)
+        self.subs[key] = subhier = type(self)(parent = self)
         super().__setitem__(key, subhier)
         return subhier
     def __getitem__(self, arg, /):
@@ -100,12 +85,17 @@ class Hierarchy(dict):
         except KeyError:
             if isinstance(val, Hierarchy):
                 sub = self.sub(key)
-                for subkey, subval in val.items():
-                    sub[subkey] = subval
+                sub.update(val)
             else:
                 if isinstance(val, Item):
                     val = val.value
                 super().__setitem__(key, Item(key, val))
+    def update(self, source):
+        for key, val in source.items():
+            self[key] = val
+    def items(self):
+        for key in self:
+            yield key, self[key]
     def __hash__(self):
         return self.hashint
     def __repr__(self):
@@ -127,10 +117,7 @@ class Hierarchy(dict):
                     p.pretty(val)
                 p.breakable()
     def copy(self):
-        out = type(self)()
-        for key, val in self.items():
-            out[key] = val
-        return out
+        return type(self)(**self)
 
 ###############################################################################
 ###############################################################################

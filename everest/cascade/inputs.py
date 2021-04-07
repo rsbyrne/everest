@@ -4,6 +4,8 @@
 
 import string as _string
 import inspect as _inspect
+from itertools import zip_longest as _zip_longest
+from functools import lru_cache as _lru_cache
 
 from .hierarchy import Hierarchy as _Hierarchy
 from .cascade import Cascade as _Cascade
@@ -100,8 +102,13 @@ def get_paramlevels(func):
 
     return list(zip(indentslist, paramslist))
 
-def get_hierarchy(func, /, *, typ = _Hierarchy):
-    hierarchy = typ()
+def get_hierarchy(func, /, *, root = None, typ = _Hierarchy):
+    if root is None:
+        if not issubclass(typ, _Hierarchy):
+            raise TypeError(typ)
+        hierarchy = typ()
+    else:
+        hierarchy = root
     currentlev = 0
     addto = hierarchy
     for level, content in get_paramlevels(func):
@@ -118,81 +125,85 @@ def get_hierarchy(func, /, *, typ = _Hierarchy):
                 addto[param.name] = param
         else:
             raise Exception("Level hierarchies not analysable.")
-    return hierarchy
+    if root is None:
+        return hierarchy
 
 def get_cascade(func):
     return get_hierarchy(func, typ = _Cascade)
 
-# def get_cascade(func):
-#     return get_hierarchy(func, typ = _Cascade)
+def align_args(atup, btup):
+    return tuple(
+        b if a is None else a
+            for a, b in _zip_longest(atup, btup)
+        )
 
-# import weakref as _weakref
-# from types import FunctionType as _FunctionType, MethodType as _MethodType
-# from itertools import zip_longest as _zip_longest
-#
-# from .cascade import Cascade as _Cascade
-#
-# def align_args(atup, btup):
-#     return tuple(
-#         b if a is None else a
-#             for a, b in _zip_longest(atup, btup)
-#         )
-#
-# class Inputs(_Cascade):
-#     def __init__(self, source: _FunctionType, /, *args, **kwargs) -> None:
-#         if any(isinstance(source, t) for t in (_FunctionType, _MethodType)):
-#             self._Inputs_sig = _inspect.signature(source)
-#         else:
-#             raise TypeError(
-#                 f"Inputs source must be FunctionType or Inputs type,"
-#                 f" not {type(source)}"
-#                 )
-#         super().__init__(source, *args, **kwargs)
-#         self._Inputs_source_ref = _weakref.ref(source)
-#     @property
-#     def _Inputs_incomplete(self):
-#         return tuple(v.key for v in self.values() if isinstance(v, _Req))
-#     def _Inputs_unpack(self):
-#         if keys := self._Inputs_incomplete:
-#             raise ValueError(f"Missing required inputs: {keys}")
-#         sig = self._Inputs_sig
-#         params = sig.parameters
-#         args = []
-#         kwargs = dict()
-#         for key, val in self.items():
-#             if isinstance(val, _Req):
-#                 raise ValueError(
-#                     f"Cannot unpack incomplete Cascade: {key}: {val.note}"
-#                     )
-#             try:
-#                 param = params[key]
-#                 if param.kind.value:
-#                     kwargs[key] = val
-#                 else:
-#                     args.append(val)
-#             except KeyError:
-#                 kwargs[key] = val
-#         self.__dict__['_Inputs_args'] = args
-#         self.__dict__['_Inputs_kwargs'] = kwargs
-#     @property
-#     def args(self):
-#         try:
-#             return self.__dict__['_Inputs_args']
-#         except KeyError:
-#             self._Inputs_unpack()
-#             return self.args
-#     @property
-#     def kwargs(self):
-#         try:
-#             return self.__dict__['_Inputs_kwargs']
-#         except KeyError:
-#             self._Inputs_unpack()
-#             return self.kwargs
-#     def copy(self, *args, **kwargs):
-#         return self.__class__(
-#             self._Inputs_source_ref(), *align_args(args, self.args),
-#             name = self.name, **{**self.kwargs, **kwargs},
-#             )
+class Inputs(_Cascade):
+    _set_locked = False
+    _hashID = None
+    signature = None
+    _bound = None
+    def __init__(self, source = None, /, *args, parent = None, **kwargs):
+        super().__init__(parent = parent)
+        if parent is None:
+            if inpsource := (type(source) is type(self)):
+                sig = self.signature = source.signature
+            else:
+                sig = self.signature = _inspect.signature(source)
+            self._bound = sig.bind_partial(*args, **kwargs)
+            if inpsource:
+                self.update(source)
+            else:
+                get_hierarchy(source, root = self)
+            self.lock()
+        else:
+            assert not (args or kwargs)
+    @property
+    def bound(self):
+        if (bound := self._bound) is None:
+            bound = self._bound = self.parent.bound
+        return bound
+    @_lru_cache
+    def __getitem__(self, key):
+        out = super().__getitem__(key)
+        if not type(out) is type(self):
+            if key in (argus := self.bound.arguments):
+                out = argus[key]
+            elif isinstance(out, _inspect.Parameter):
+                out = out.default
+        return out
+    def __setitem__(self, key, val):
+        if self._set_locked:
+            raise TypeError(
+                "Cannot set item on Inputs after initialisation."
+                f" {key} = {val}"
+                )
+        super().__setitem__(key, val)
+    def lock(self):
+        self._set_locked = True
+        for sub in self.subs.values():
+            sub.lock()
+    def unlock(self):
+        self._set_locked = False
+        for sub in self.subs.values():
+            sub.unlock()
+    @property
+    def hashID(self):
+        if (hashID := self._hashID) is None:
+            hashID = self._hashID = self.get_hashID()
+        return hashID
+    @_lru_cache
+    def bind(self, *args, **kwargs):
+        bndargs = align_args(self.bound.args, args)
+        bndkwargs = {**self.bound.kwargs, **kwargs}
+        return type(self)(self, *bndargs, **bndkwargs)
+    def copy(self):
+        return type(self)(self)
+    @property
+    def args(self):
+        return self.bound.args
+    @property
+    def kwargs(self):
+        return self.bound.kwargs
 
 ###############################################################################
 ###############################################################################
