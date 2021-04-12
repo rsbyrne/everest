@@ -5,7 +5,11 @@
 import string as _string
 import inspect as _inspect
 from itertools import zip_longest as _zip_longest
-from functools import lru_cache as _lru_cache
+from functools import (
+    cached_property as _cached_property,
+    lru_cache as _lru_cache,
+    partial as _partial,
+    )
 
 from .hierarchy import Hierarchy as _Hierarchy
 from .cascade import Cascade as _Cascade
@@ -131,79 +135,74 @@ def get_hierarchy(func, /, *, root = None, typ = _Hierarchy):
 def get_cascade(func):
     return get_hierarchy(func, typ = _Cascade)
 
-def align_args(atup, btup):
-    return tuple(
-        b if a is None else a
-            for a, b in _zip_longest(atup, btup)
-        )
+# def align_args(atup, btup):
+#     return tuple(
+#         b if a is None else a
+#             for a, b in _zip_longest(atup, btup)
+#         )
 
 class Inputs(_Cascade):
     _set_locked = False
-    _hashID = None
     signature = None
-    _bound = None
-    def __init__(self, source = None, /, *args, parent = None, **kwargs):
-        super().__init__(parent = parent)
-        if parent is None:
-            if inpsource := (type(source) is type(self)):
-                sig = self.signature = source.signature
-            else:
-                sig = self.signature = _inspect.signature(source)
-            self._bound = sig.bind_partial(*args, **kwargs)
-            if inpsource:
-                self.update(source)
-            else:
-                get_hierarchy(source, root = self)
-            self.lock()
-        else:
-            assert not (args or kwargs)
-    @property
-    def bound(self):
-        if (bound := self._bound) is None:
-            bound = self._bound = self.parent.bound
-        return bound
+    get_hashID = _lru_cache(maxsize = None)(_Cascade.get_hashID)
+    bndargs, bndkwargs = (), {}
+    def __init__(self, parent):
+        if isinstance(parent, Inputs):
+            super().__init__(parent = parent)
+            self.signature = parent.signature
+        else: # not ischild:
+            super().__init__()
+            self.signature = _inspect.signature(parent)
+            get_hierarchy(parent, root = self)
+            self.setitem_lock()
+    def setitem_lock(self):
+        self._set_locked = True
+        for sub in self.subs.values():
+            sub.setitem_lock()
+    def setitem_unlock(self):
+        self._set_locked = False
+        for sub in self.subs.values():
+            sub.setitem_unlock()
     @_lru_cache
-    def __getitem__(self, key):
-        out = super().__getitem__(key)
-        if not type(out) is type(self):
-            if key in (argus := self.bound.arguments):
-                out = argus[key]
-            elif isinstance(out, _inspect.Parameter):
-                out = out.default
-        return out
-    def __setitem__(self, key, val):
+    def __getitem__(self, key, /):
+        return super().__getitem__(key)
+    def __setitem__(self, key, val, /):
         if self._set_locked:
             raise TypeError(
-                "Cannot set item on Inputs after initialisation."
+                f"Cannot set item on {type(self)} after initialisation."
                 f" {key} = {val}"
                 )
         super().__setitem__(key, val)
-    def lock(self):
-        self._set_locked = True
-        for sub in self.subs.values():
-            sub.lock()
-    def unlock(self):
-        self._set_locked = False
-        for sub in self.subs.values():
-            sub.unlock()
-    @property
-    def hashID(self):
-        if (hashID := self._hashID) is None:
-            hashID = self._hashID = self.get_hashID()
-        return hashID
-    @_lru_cache
-    def bind(self, *args, **kwargs):
-        bndargs = align_args(self.bound.args, args)
-        bndkwargs = {**self.bound.kwargs, **kwargs}
-        return type(self)(self, *bndargs, **bndkwargs)
+    @_cached_property
+    def bind(self):
+        return _partial(Bound, self)
     def copy(self):
-        return type(self)(self)
-    @property
-    def args(self):
-        return self.bound.args
-    @property
-    def kwargs(self):
-        return self.bound.kwargs
+        raise TypeError(f"Cannot copy object of type={type(self)}")
+
+class Bound(Inputs):
+    args, kwargs, bound = None, None, None
+    def __init__(self, parent, *args, **kwargs):
+        if isinstance(parent, Bound):
+            assert not (args or kwargs)
+            super().__init__(parent)
+            self.bound = parent.bound
+            self.bind = parent.bind
+        else:
+            if not isinstance(parent, Inputs):
+                parent = Inputs(parent)
+            super().__init__(parent)
+            bound = self.bound = self.signature.bind_partial(*args, **kwargs)
+            bound.apply_defaults()
+            self.args, self.kwargs = bound.args, bound.kwargs
+            self.update(parent)
+            self.bind = _partial(parent.bind, *args, **kwargs)
+    @_lru_cache
+    def __getitem__(self, key, /):
+        out = super().__getitem__(key)
+        if isinstance(out, _inspect.Parameter):
+            if key in (argus := self.bound.arguments):
+                return argus[key]
+        return out
 
 ###############################################################################
 ###############################################################################
