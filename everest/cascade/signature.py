@@ -166,15 +166,17 @@ def get_cascade(func, **kwargs):
 #             for a, b in _zip_longest(atup, btup)
 #         )
 
-class Inputs(_Cascade):
+class Signature(_Cascade):
     _set_locked = False
     signature = None
     get_hashID = _lru_cache(maxsize = None)(_Cascade.get_hashID)
     inputsskip, inputsskipkeys = None, None
     def __init__(self, parent, skip = None, skipkeys = None):
-        if isinstance(parent, Inputs):
+        if isinstance(parent, Signature):
             if (skip is not None) or (skipkeys is not None):
-                raise ValueError("Cannot pass skip arguments to Inputs child.")
+                raise ValueError(
+                    "Cannot pass skip arguments to Signature child."
+                    )
             super().__init__(parent = parent)
             self.inputsskip, self.inputsskipkeys = \
                 parent.inputsskip, parent.inputsskipkeys
@@ -237,14 +239,19 @@ def merge_ignores(skip, skipkeys, args, kwargs):
 
 def get_bound_args_kwargs(signature, skip, skipkeys, args, kwargs):
     args, kwargs = merge_ignores(skip, skipkeys, args, kwargs)
-    bound = signature.bind_partial(*args, **kwargs)
+    try:
+        bound = signature.bind(*args, **kwargs)
+        partial = False
+    except TypeError:
+        bound = signature.bind_partial(*args, **kwargs)
+        partial = True
     bound.apply_defaults()
     args = tuple((a for a in bound.args if a is not IGNORE))
     kwargs = {k: v for k, v in bound.kwargs.items() if v is not IGNORE}
-    return bound, args, kwargs
+    return bound, partial, args, kwargs
 
-class Bound(Inputs):
-    args, kwargs, bound = None, None, None
+class Bound(Signature):
+    bound, partial, args, kwargs = None, None, None, None
     def __init__(self, parent, *args, **kwargs):
         if isinstance(parent, Bound):
             if (args or kwargs):
@@ -253,14 +260,15 @@ class Bound(Inputs):
             self.bound = parent.bound
             self.bind = parent.bind
         else:
-            if not isinstance(parent, Inputs):
-                parent = Inputs(parent)
+            if not isinstance(parent, Signature):
+                parent = Signature(parent)
             super().__init__(parent)
             self.bind = _partial(parent.bind, *args, **kwargs)
-            self.bound, self.args, self.kwargs = get_bound_args_kwargs(
-                parent.signature, parent.inputsskip, parent.inputsskipkeys,
-                args, kwargs
-                )
+            self.bound, self.partial, self.args, self.kwargs = \
+                get_bound_args_kwargs(
+                    parent.signature, parent.inputsskip, parent.inputsskipkeys,
+                    args, kwargs
+                    )
             self.update(parent)
     @_lru_cache
     def __getitem__(self, key, /):
@@ -273,6 +281,13 @@ class Bound(Inputs):
                 raise KeyError
             return out.default
         return out
+
+class Inputs:
+    __slots__ = 'args', 'kwargs'
+    def __init__(self, *args, **kwargs):
+        self.args, self.kwargs = args, kwargs
+    def __repr__(self):
+        return type(self).__name__ + f"({self.args}, {self.kwargs})"
 
 ###############################################################################
 ###############################################################################
