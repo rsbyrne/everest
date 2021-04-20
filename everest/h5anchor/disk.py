@@ -145,8 +145,6 @@ class H5Wrap:
     def __init__(self, arg):
         self.arg = arg
         self.filename = self.arg.h5filename
-        # self.lockfilename = '/' + os.path.basename(self.filename)
-        self.lockfilename = self.filename
         global LOCKCODE
         self.lockcode = LOCKCODE
     @mpi.dowrap
@@ -164,7 +162,7 @@ class H5Wrap:
     def __enter__(self):
         while True:
             try:
-                self.master = lock(self.lockfilename, self.lockcode)
+                self.master = lock(self.filename, self.lockcode)
                 break
             except AccessForbidden:
                 reseed.randsleep(0.1, 5.)
@@ -184,7 +182,7 @@ class H5Wrap:
         self._close_h5file()
         if self.master:
             # mpi.message("Logging out at", time.time())
-            release(self.lockfilename, self.lockcode)
+            release(self.filename, self.lockcode)
 
 class SetMask:
     # expects @mpi.dowrap
