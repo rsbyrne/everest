@@ -1,43 +1,11 @@
-################################################################################
+###############################################################################
+'''Defines the parent exceptions of all funcy exceptions.'''
+###############################################################################
 
-from ..exceptions import *
+from ..exceptions import EverestException, NotYetImplemented
 
-class FuncyException(Exception):
-    pass
+class FuncyException(EverestException):
+    '''Parent exception of all exceptions thrown by funcy.'''
 
-class MissingAsset(FuncyException, TypeError):
-    pass
-
-class FuncyValueError(FuncyException, ValueError):
-    pass
-class NullValueDetected(FuncyValueError):
-    pass
-class InfiniteValueDetected(FuncyValueError):
-    pass
-class UnknownValueDetected(FuncyValueError):
-    pass
-
-class EvaluationError(FuncyException):
-    pass
-
-class NotYetImplemented(Exception):
-    pass
-
-class RedundantConvert(FuncyException):
-    pass
-
-class CannotProcess(FuncyException):
-    pass
-
-class CannotDetermineDataType(FuncyException):
-    pass
-
-class ClosureExceptions(FuncyException):
-    pass
-class NothingToClose(ClosureExceptions):
-    pass
-
-class ConstructFailure(FuncyException):
-    pass
-
-################################################################################
+###############################################################################
+###############################################################################

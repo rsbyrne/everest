@@ -1,126 +1,123 @@
-################################################################################
+###############################################################################
+''''''
+###############################################################################
 
-import inspect
-from collections import OrderedDict
-from collections.abc import MutableMapping
+from functools import lru_cache as _lru_cache
 
-def remove_prefix(mystr, prefix):
-    if mystr.startswith(prefix):
-        return mystr[len(prefix):]
-    return mystr
-
-def get_callsourcelines(func):
-    source = inspect.getsource(func)
-    for i, chr in enumerate(source):
-        if chr != ' ': break
-    assert i % 4 == 0
-    indent = ' ' * 4 * (int(i / 4) + 2)
-    sourcelines = source.split('\n')
-    sourcelines = [line.rstrip() for line in sourcelines]
-    endNo = None
-    for lineNo, line in enumerate(sourcelines[1:]):
-        if line.startswith(indent + ')'):
-            endNo = lineNo + 1
-    if endNo is None:
-        raise ValueError("Could not find function definition endline.")
-    callsourcelines = sourcelines[1: endNo]
-    callsourcelines = [
-        remove_prefix(line, indent)
-            for line in callsourcelines
-        ]
-    return callsourcelines
-
-class Req(inspect.Parameter.empty):
-    __slots__ = ('key', 'note')
-    def __init__(self, func, key):
-        self.key = key
-        try:
-            self.note = func.__annotations__[key]
-        except KeyError:
-            self.note = object
-    def __repr__(self):
-        return f"ReqArg({self.key}: {self.note})"
-
-def get_default_func_inputs(func):
-    sig = inspect.signature(func)
-    parameters = sig.parameters
-    out = parameters.copy()
-    if 'self' in out: del out['self']
-    for key, val in out.items():
-        default = val.default
-        if default is inspect.Parameter.empty:
-            default = Req(func, key)
-        out[key] = default
-    argi = 0
-    for key, val in parameters.items():
-        if str(val)[:1] == '*':
-            del out[key]
-    return out
-
-class Hierarchy(OrderedDict):
-    def flatten(self):
-        return flatten_hierarchy(self)
-    def concatenate(self):
-        return concatenate_hierarchy(self)
-    def remove_ghosts(self):
-        for k, v in list(self.items()):
-            if k.startswith('_'):
-                del self[k]
-            elif isinstance(v, type(self)):
-                v.remove_ghosts()
-
-def get_hierarchy(func):
-    callsourcelines = get_callsourcelines(func)
-    defaults = get_default_func_inputs(func)
-    hierarchy = Hierarchy()
-    level = 0
-    prevAddTo = None
-    addTo = hierarchy
-    for line in callsourcelines:
-        indent = level * ' ' * 4
-        while not line.startswith(indent):
-            level -= 1
-            indent = level * ' ' * 4
-            addTo = addTo.parent
-        line = remove_prefix(line, indent).rstrip(',')
-        if line.startswith('#'):
-            tag = line[1:].strip()
-            level += 1
-            newLevel = addTo.setdefault(tag, Hierarchy())
-            newLevel.parent = addTo
-            addTo = newLevel
-        elif not line.startswith(' '):
-            try:
-                line = line[:line.index('#')].strip()
-            except ValueError:
-                pass
-            line = line.rstrip(',')
-            key = line.split('=')[0].strip().split(':')[0].strip()
-            if key.isalnum():
-                assert key in defaults, key
-                addTo[key] = defaults[key]
-    return hierarchy
+from . import _reseed
 
 def flatten_hierarchy(hierarchy):
-    return OrderedDict(_flatten_hierarchy(hierarchy))
+    return dict(_flatten_hierarchy(hierarchy))
 def _flatten_hierarchy(hierarchy):
     for k, v in hierarchy.items():
         if isinstance(v, Hierarchy):
             for sk, sv in _flatten_hierarchy(v):
                 yield sk, sv
         else:
-            yield k, v
+            yield k, v.value
 
-def concatenate_hierarchy(d, parent_key = '', sep = '_'):
-    # by Imran@stackoverflow
-    items = []
-    parent_key = parent_key.strip(sep)
-    for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, MutableMapping):
-            items.extend(concatenate_hierarchy(v, new_key, sep).items())
+class Item:
+    key: str = None
+    _value = None
+    def __init__(self, key, val, /):
+        self.key = key
+        self._value = val
+    @property
+    def value(self):
+        return self._value
+    @value.setter
+    def value(self, newval):
+        self._value = newval
+    def __str__(self):
+        return repr(self.value)
+    def __repr__(self):
+        return f'{type(self).__name__}({self.key}: {str(self)})'
+
+class Hierarchy(dict):
+    parent = None
+    subs = None
+    hashint = None
+    def __init__(self, *args, parent = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parent = parent
+        self.subs = dict()
+        self.hashint = _reseed.digits()
+    def flatten(self) -> dict:
+        return flatten_hierarchy(self)
+    def remove_ghosts(self):
+        for key, val in list(self.items()):
+            if key.startswith('_'):
+                del self[key]
+            elif isinstance(val, type(self)):
+                val.remove_ghosts()
+    def sub(self, key) -> 'Hierarchy':
+        self.subs[key] = subhier = type(self)(parent = self)
+        super().__setitem__(key, subhier)
+        return subhier
+    def __getitem__(self, arg, /):
+        out = self.raw_getitem(arg)
+        if isinstance(out, Item):
+            return out.value
+        return out
+    @_lru_cache
+    def raw_getitem(self, arg) -> Item:
+        if isinstance(arg, tuple):
+            out = self
+            for subarg in arg:
+                out = out.raw_getitem(subarg)
+            return out
+        try:
+            return super().__getitem__(arg)
+        except KeyError as exc:
+            for sub in self.subs.values():
+                try:
+                    return sub.raw_getitem(arg)
+                except KeyError:
+                    pass
+            raise KeyError from exc
+    def __setitem__(self, key, val):
+        try:
+            targ = self.raw_getitem(key)
+            if isinstance(targ, Item):
+                targ.value = val
+            else:
+                raise ValueError("Cannot manually set hierarchy.")
+        except KeyError:
+            if isinstance(val, Hierarchy):
+                sub = self.sub(key)
+                sub.update(val)
+            else:
+                if isinstance(val, Item):
+                    val = val.value
+                super().__setitem__(key, Item(key, val))
+    def update(self, source):
+        for key, val in source.items():
+            self[key] = val
+    def items(self):
+        for key in self:
+            yield key, self[key]
+    def __hash__(self):
+        return self.hashint
+    def __repr__(self):
+        return type(self).__name__ + super().__repr__()
+    def _repr_pretty_(self, p, cycle):
+        typnm = type(self).__name__
+        if cycle:
+            p.text(typnm + '{...}')
         else:
-            items.append((new_key, v))
-    return OrderedDict(items)
+            with p.group(4, typnm + '({', '})'):
+                for idx, (key, val) in enumerate(self.items()):
+                    if isinstance(val, Item):
+                        val = val.value
+                    if idx:
+                        p.text(',')
+                    p.breakable()
+                    p.pretty(key)
+                    p.text(': ')
+                    p.pretty(val)
+                p.breakable()
+    def copy(self):
+        return type(self)(**self)
 
-################################################################################
+###############################################################################
+###############################################################################

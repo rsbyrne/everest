@@ -1,85 +1,74 @@
-################################################################################
+###############################################################################
+'''The module defining the Variable type.'''
+###############################################################################
 
-from abc import abstractmethod as _abstractmethod
+from . import _Base
 
-from . import _Base, _Function, _special, _generic
+class Variable(_Base):
 
-from .exceptions import *
+    content = None
+    mode = 0 # 0: null, 1: unrectified, 2: rectified
 
-class Variable(_Base, _generic.FuncyVariable):
-
-    open = False
-    unique = True
-
-    __slots__ = (
-        'stack',
-        'memory',
-        'pipe',
-        'index',
-        )
-
-    def __init__(self, *, initVal = None, **kwargs):
-        self.memory = initVal
-        super().__init__(**kwargs)
-
-    @_abstractmethod
     def rectify(self):
-        raise _generic.FuncyAbstractMethodException
+        pass
+    def nullify(self):
+        pass
 
-    @property
-    def value(self):
-        self.rectify()
-        return self.memory
-    @value.setter
-    def value(self, val):
+    def change_mode(self, mode: int):
+        if mode == 0:
+            self.get_value = self.get_value_mode0
+            self.set_value = self.set_value_mode0
+            self.del_value = self.del_value_mode0
+        elif mode == 1:
+            self.get_value = self.get_value_mode1
+            self.set_value = self.set_value_mode1
+            self.del_value = self.del_value_mode1
+        elif mode == 2:
+            self.get_value = self.get_value_mode2
+            self.set_value = self.set_value_mode2
+            self.del_value = self.del_value_mode2
+        else:
+            raise ValueError("Modes must be 0, 1, or 2.")
+        self.mode = int(mode)
+
+    def get_value_mode0(self):
+        raise ValueError('Null value detected.')
+    def set_value_mode0(self, val, /):
+        self.change_mode(1)
+        self.set_value(val)
+    def del_value_mode0(self):
+        pass
+
+    def get_value_mode1(self):
         try:
-            self.set_value(val)
-        except TypeError:
-            if val is Ellipsis:
-                return
-            elif isinstance(val, _Function):
-                self.set_pipe(val)
-            else:
-                try:
-                    val._funcy_setvariable__(self)
-                except AttributeError:
-                    raise TypeError(type(val))
-        self.refresh()
-    @_abstractmethod
-    def set_value(self, val):
-        raise _generic.FuncyAbstractMethodException
+            self.rectify()
+            self.change_mode(2)
+            return self.content
+        except TypeError as exc1:
+            self.del_value()
+            try:
+                return self.get_value()
+            except ValueError as exc2:
+                raise exc2 from exc1
 
-    def add_stack(self):
-        from .stack import Stack
-        try:
-            shape = self.shape
-        except AttributeError:
-            shape = ()
-        self.stack = Stack(shape, self.dtype)
-    def store(self):
-        try:
-            self.stack.append(self.memory)
-        except AttributeError:
-            self.add_stack()
-            self.stack.append(self.memory)
-    @property
-    def stored(self):
-        try:
-            return self.stack.value
-        except AttributeError:
-            self.add_stack
-            return self.stack.value
+    def set_value_mode1(self, val, /):
+        self.content = val
+    def del_value_mode1(self):
+        self.change_mode(0)
+        self.nullify()
 
-    def set_pipe(self, func):
-        self.pipe = func
-        self.pipe.downstream.add(self)
-        self.update = self._pipe_update
+    def get_value_mode2(self):
+        return self.content
+    def set_value_mode2(self, val, /):
+        self.change_mode(1)
+        self.set_value(val)
+    def del_value_mode2(self):
+        self.change_mode(0)
+        self.nullify()
 
-    def _pipe_update(self):
-        self.value = self.pipe.value
+    get_value = get_value_mode0
+    set_value = set_value_mode0
+    del_value = del_value_mode0
 
-    @property
-    def isVar(self):
-        return True
-
-################################################################################
+###############################################################################
+###############################################################################

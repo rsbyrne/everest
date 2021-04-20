@@ -1,4 +1,6 @@
-################################################################################
+###############################################################################
+''''''
+###############################################################################
 import random
 import os
 import string
@@ -147,7 +149,7 @@ def get_random_word(*args, **kwargs):
     return random_word(*args, **kwargs)
 
 @reseed
-def get_random_phrase(phraselength = 2, wordlength = 2):
+def get_random_phrase(phraselength = 2, wordlength = 2, seed = None):
     # 2 * 2 yields 64 bits of entropy
     phraseList = []
     for _ in range(phraselength):
@@ -158,34 +160,35 @@ def get_random_phrase(phraselength = 2, wordlength = 2):
     return phrase
 
 @reseed
-def get_random_english(n = 1):
+def get_random_english(n = 1, seed = None):
     return '-'.join([random.choice(ENGLISH) for i in range(n)])
 @reseed
-def get_random_numerical(n = 1):
+def get_random_numerical(n = 1, seed = None):
     return ''.join([random.choice(string.digits) for _ in range(n)])
 @reseed
-def get_random_greek(n = 1):
+def get_random_greek(n = 1, seed = None):
     return '-'.join([random.choice(GREEK) for i in range(n)])
 @reseed
-def get_random_city(n = 1):
+def get_random_city(n = 1, seed = None):
     return '-'.join([random.choice(CITIES) for i in range(n)])
 @reseed
-def get_random_phonetic(n = 1):
+def get_random_phonetic(n = 1, seed = None):
     return '-'.join([random.choice(PHONETIC) for i in range(n)])
 @reseed
-def get_random_codeword(n = 1):
+def get_random_codeword(n = 1, seed = None):
     return '-'.join([random.choice(CODEWORDS) for i in range(n)])
 @reseed
-def get_random_wordnum(n = 1):
+def get_random_wordnum(n = 1, seed = None):
     return '-'.join([random.choice(WORDNUMS) for i in range(n)])
 @reseed
-def get_random_name(n = 1):
+def get_random_name(n = 1, seed = None):
     return '-'.join([random.choice(NAMES) for i in range(n)])
 @reseed
-def get_random_proper(n = 1):
+def get_random_proper(n = 1, seed = None):
     return '-'.join([random.choice(PROPER) for i in range(n)])
 @reseed
-def get_random_cityword():
-    return '-'.join([random.choice(s) for s in [CITIES, WORDS]])
+def get_random_cityword(seed = None):
+    return '-'.join([random.choice(s) for s in [CITIES, ENGLISH]])
 
-################################################################################
+###############################################################################
+###############################################################################

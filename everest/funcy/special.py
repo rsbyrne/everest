@@ -1,215 +1,351 @@
-################################################################################
+###############################################################################
+'''Defines certain funcy 'special' numbers.'''
+###############################################################################
 
 from functools import wraps
 import numbers
 import sys
+from collections import abc as collabc
 
-from .exceptions import *
+from .exceptions import FuncyException
+
+class FuncyValueError(FuncyException, ValueError):
+    '''Value error related to a Funcy asset.'''
+class NullValueDetected(FuncyValueError):
+    '''Null value error related to a Funcy asset.'''
+class InfiniteValueDetected(FuncyValueError):
+    '''Infinite value error related to a Funcy asset.'''
+class UnknownValueDetected(FuncyValueError):
+    '''Unknown value error related to a Funcy asset.'''
+
+class Empty(collabc.Container):
+    def __iter__(self):
+        yield from ()
+    def __len__(self):
+        return 0
+    def __repr__(self):
+        return 'empty'
+    def __contains__(self, *_):
+        return False
+class EmptySequence(Empty, collabc.Sequence):
+    def __getitem__(self, _):
+        raise IndexError
+    def __repr__(self):
+        return super().__repr__() + 'seq'
+class EmptyMapping(Empty, collabc.Mapping):
+    def __getitem__(self, _):
+        raise IndexError
+    def __repr__(self):
+        return super().__repr__() + 'map'
+empty = Empty()
+emptyseq = EmptySequence()
+emptymap = EmptyMapping()
 
 class Infinite(numbers.Number):
     def __init__(self, pos = True):
-        self._posArg = pos
-    def __int__(self): return int(InfiniteInteger(self._posArg))
-    def __float__(self): return float(InfiniteFloat(self._posArg))
+        self._posarg = pos
+    def __int__(self):
+        return int(InfiniteInteger(self._posarg))
+    def __float__(self):
+        return float(InfiniteFloat(self._posarg))
 
 class InfiniteFloat(Infinite, float):
-    def __new__(cls, *args, pos = True, **kwargs):
+    def __new__(cls, *_, pos = True, **__):
         val = 'inf' if pos else '-inf'
         obj = super().__new__(cls, val)
         return obj
     def __float__(self):
-        return float('inf') if self._posArg else float('-inf')
+        return float('inf') if self._posarg else float('-inf')
     def __repr__(self):
         return 'infflt' if float(self) > 0 else 'ninfflt'
 
-class InfiniteInteger(Infinite, int):
+def compare_infinities(self, other):
+    return False if isinstance(other, Infinite) else self
 
-    def __new__(cls, *args, pos = True, **kwargs):
+class InfiniteInteger(Infinite, int):
+    def __new__(cls, *_, pos = True, **__):
         val = sys.maxsize if pos else -sys.maxsize + 1
         obj = super().__new__(cls, val)
         return obj
     def __int__(self):
-        return sys.maxsize if self._posArg else -sys.maxsize + 1
+        return sys.maxsize if self._posarg else -sys.maxsize + 1
 
     # def __getattr__(self, key): raise InfiniteValueDetected
     # def __getitem__(self, key): raise InfiniteValueDetected
     # def __setitem__(self, key, val): raise InfiniteValueDetected
 
-    def __add__(self, other): return self
+    def __add__(self, other):
+        return self
     def __sub__(self, other):
         if isinstance(other, Infinite):
             raise ArithmeticError
-        else:
-            return self
-    def __mul__(self, other): return self
-    def __matmul__(self, other): return self
-    def __truediv__(self, other): return self
-    def __floordiv__(self, other): return self
-    def __mod__(self, other): return self
-    def __divmod__(self, other): return self
-    def __pow__(self, other, modulo = None): return self
-    def __lshift__(self, other): return self
-    def __rshift__(self, other): return self
-    def __and__(self, other): return True
-    def __xor__(self, other): return True
-    def __or__(self, other): return True
+        return self
+    def __mul__(self, other):
+        return self
+    def __matmul__(self, other):
+        return self
+    def __truediv__(self, other):
+        return self
+    def __floordiv__(self, other):
+        return self
+    def __mod__(self, other):
+        return self
+    def __divmod__(self, other):
+        return self
+    def __pow__(self, other, modulo = None):
+        return self
+    def __lshift__(self, other):
+        return self
+    def __rshift__(self, other):
+        return self
+    def __and__(self, other):
+        return True
+    def __xor__(self, other):
+        return True
+    def __or__(self, other):
+        return True
 
-    def __radd__(self, other): return self
+    def __radd__(self, other):
+        return self
     def __rsub__(self, other):
         if isinstance(other, Infinite):
             raise ArithmeticError
-        else:
-            return -self
-    def __rmul__(self, other): return self
-    def __rmatmul__(self, other): return self
-    def __rtruediv__(self, other): return self
-    def __rfloordiv__(self, other): return self
-    def __rmod__(self, other): return self
-    def __rdivmod__(self, other): return self
-    def __rpow__(self, other, modulo = None): return self
-    def __rlshift__(self, other): return self
-    def __rrshift__(self, other): return self
-    def __rand__(self, other): return bool(other)
-    def __rxor__(self, other): return not bool(other)
-    def __ror__(self, other): return True
+        return -self
+    def __rmul__(self, other):
+        return self
+    def __rmatmul__(self, other):
+        return self
+    def __rtruediv__(self, other):
+        return self
+    def __rfloordiv__(self, other):
+        return self
+    def __rmod__(self, other):
+        return self
+    def __rdivmod__(self, other):
+        return self
+    def __rpow__(self, other, modulo = None):
+        return self
+    def __rlshift__(self, other):
+        return self
+    def __rrshift__(self, other):
+        return self
+    def __rand__(self, other):
+        return bool(other)
+    def __rxor__(self, other):
+        return not bool(other)
+    def __ror__(self, other):
+        return True
 
-    def __iadd__(self, other): return self
-    def __isub__(self, other): return self
-    def __imul__(self, other): return self
-    def __imatmul__(self, other): return self
-    def __itruediv__(self, other): return self
-    def __ifloordiv__(self, other): return self
-    def __imod__(self, other): return self
-    def __ipow__(self, other, modulo = None): return self
-    def __ilshift__(self, other): return self
-    def __irshift__(self, other): return self
+    def __iadd__(self, other):
+        return self
+    def __isub__(self, other):
+        return self
+    def __imul__(self, other):
+        return self
+    def __imatmul__(self, other):
+        return self
+    def __itruediv__(self, other):
+        return self
+    def __ifloordiv__(self, other):
+        return self
+    def __imod__(self, other):
+        return self
+    def __ipow__(self, other, modulo = None):
+        return self
+    def __ilshift__(self, other):
+        return self
+    def __irshift__(self, other):
+        return self
     # def __iand__(self, other): return self
     # def __ixor__(self, other): return self
     # def __ior__(self, other): return self
 
-    def __neg__(self): return ninf if self._posArg else inf
-    def __pos__(self): raise NotImplemented
-    def __abs__(self): return inf
-    def __invert__(self): raise NotImplemented
+    def __neg__(self):
+        return ninf if self._posarg else inf
+    def __pos__(self):
+        raise NotImplementedError
+    def __abs__(self):
+        return inf
+    def __invert__(self):
+        raise NotImplementedError
 
-    def __complex__(self): raise NotImplemented
+    def __complex__(self):
+        raise NotImplementedError
 
     def __index__(self):
-        return 2147483647 - 1 if self._posArg else -2147483647 + 1
+        return 2147483647 - 1 if self._posarg else -2147483647 + 1
 
-    def __round__(self, ndigits = 0): raise InfiniteValueDetected
-    def __trunc__(self): raise InfiniteValueDetected
-    def __floor__(self): raise InfiniteValueDetected
-    def __ceil__(self): raise InfiniteValueDetected
+    def __round__(self, ndigits = 0):
+        raise InfiniteValueDetected
+    def __trunc__(self):
+        raise InfiniteValueDetected
+    def __floor__(self):
+        raise InfiniteValueDetected
+    def __ceil__(self):
+        raise InfiniteValueDetected
 
-    def __coerce__ (self): raise InfiniteValueDetected
-
-    def compare_infinities(func):
-        @wraps(func)
-        def wrapper(self, other):
-            if isinstance(other, Infinite):
-                return False
-            else:
-                return func(self, other)
-        return wrapper
-    @compare_infinities
-    def __lt__(self, other): return not self._posArg
-    @compare_infinities
-    def __le__(self, other): return not self._posArg
-    @compare_infinities
-    def __eq__(self, other): return False
-    @compare_infinities
-    def __ne__(self, other): return True
-    @compare_infinities
-    def __gt__(self, other): return self._posArg
-    @compare_infinities
-    def __ge__(self, other): return self._posArg
+    def __coerce__ (self):
+        raise InfiniteValueDetected
+    def __lt__(self, other):
+        return compare_infinities(self._posarg, other)
+    def __le__(self, other):
+        return compare_infinities(not self._posarg, other)
+    def __eq__(self, other):
+        return compare_infinities(False, other)
+    def __ne__(self, other):
+        return compare_infinities(True, other)
+    def __gt__(self, other):
+        return compare_infinities(self._posarg, other)
+    def __ge__(self, other):
+        return compare_infinities(self._posarg, other)
 
     def __bool__(self):
         return True
 
     def __repr__(self):
-        if self._posArg:
+        if self._posarg:
             return 'infint'
-        else:
-            return '-infint'
+        return '-infint'
 
 class BadNumber(numbers.Number):
 
     _error = FuncyValueError
 
-    def __getattr__(self, key): raise self._error
-    def __getitem__(self, key): raise self._error
-    def __setitem__(self, key, val): raise self._error
+    def __getattr__(self, key):
+        raise self._error
+    def __getitem__(self, key):
+        raise self._error
+    def __setitem__(self, key, val):
+        raise self._error
 
-    def __add__(self, other): raise self._error
-    def __sub__(self, other): raise self._error
-    def __mul__(self, other): raise self._error
-    def __matmul__(self, other): raise self._error
-    def __truediv__(self, other): raise self._error
-    def __floordiv__(self, other): raise self._error
-    def __mod__(self, other): raise self._error
-    def __divmod__(self, other): raise self._error
-    def __pow__(self, other, modulo = None): raise self._error
-    def __lshift__(self, other): raise self._error
-    def __rshift__(self, other): raise self._error
-    def __and__(self, other): raise self._error
-    def __xor__(self, other): raise self._error
-    def __or__(self, other): raise self._error
+    def __add__(self, other):
+        raise self._error
+    def __sub__(self, other):
+        raise self._error
+    def __mul__(self, other):
+        raise self._error
+    def __matmul__(self, other):
+        raise self._error
+    def __truediv__(self, other):
+        raise self._error
+    def __floordiv__(self, other):
+        raise self._error
+    def __mod__(self, other):
+        raise self._error
+    def __divmod__(self, other):
+        raise self._error
+    def __pow__(self, other, modulo = None):
+        raise self._error
+    def __lshift__(self, other):
+        raise self._error
+    def __rshift__(self, other):
+        raise self._error
+    def __and__(self, other):
+        raise self._error
+    def __xor__(self, other):
+        raise self._error
+    def __or__(self, other):
+        raise self._error
 
-    def __radd__(self, other): raise self._error
-    def __rsub__(self, other): raise self._error
-    def __rmul__(self, other): raise self._error
-    def __rmatmul__(self, other): raise self._error
-    def __rtruediv__(self, other): raise self._error
-    def __rfloordiv__(self, other): raise self._error
-    def __rmod__(self, other): raise self._error
-    def __rdivmod__(self, other): raise self._error
-    def __rpow__(self, other, modulo = None): raise self._error
-    def __rlshift__(self, other): raise self._error
-    def __rrshift__(self, other): raise self._error
-    def __rand__(self, other): raise self._error
-    def __rxor__(self, other): raise self._error
-    def __ror__(self, other): raise self._error
+    def __radd__(self, other):
+        raise self._error
+    def __rsub__(self, other):
+        raise self._error
+    def __rmul__(self, other):
+        raise self._error
+    def __rmatmul__(self, other):
+        raise self._error
+    def __rtruediv__(self, other):
+        raise self._error
+    def __rfloordiv__(self, other):
+        raise self._error
+    def __rmod__(self, other):
+        raise self._error
+    def __rdivmod__(self, other):
+        raise self._error
+    def __rpow__(self, other, modulo = None):
+        raise self._error
+    def __rlshift__(self, other):
+        raise self._error
+    def __rrshift__(self, other):
+        raise self._error
+    def __rand__(self, other):
+        raise self._error
+    def __rxor__(self, other):
+        raise self._error
+    def __ror__(self, other):
+        raise self._error
 
-    def __iadd__(self, other): raise self._error
-    def __isub__(self, other): raise self._error
-    def __imul__(self, other): raise self._error
-    def __imatmul__(self, other): raise self._error
-    def __itruediv__(self, other): raise self._error
-    def __ifloordiv__(self, other): raise self._error
-    def __imod__(self, other): raise self._error
-    def __ipow__(self, other, modulo = None): raise self._error
-    def __ilshift__(self, other): raise self._error
-    def __irshift__(self, other): raise self._error
-    def __iand__(self, other): raise self._error
-    def __ixor__(self, other): raise self._error
-    def __ior__(self, other): raise self._error
+    def __iadd__(self, other):
+        raise self._error
+    def __isub__(self, other):
+        raise self._error
+    def __imul__(self, other):
+        raise self._error
+    def __imatmul__(self, other):
+        raise self._error
+    def __itruediv__(self, other):
+        raise self._error
+    def __ifloordiv__(self, other):
+        raise self._error
+    def __imod__(self, other):
+        raise self._error
+    def __ipow__(self, other, modulo = None):
+        raise self._error
+    def __ilshift__(self, other):
+        raise self._error
+    def __irshift__(self, other):
+        raise self._error
+    def __iand__(self, other):
+        raise self._error
+    def __ixor__(self, other):
+        raise self._error
+    def __ior__(self, other):
+        raise self._error
 
-    def __neg__(self): raise self._error
-    def __pos__(self): raise self._error
-    def __abs__(self): raise self._error
-    def __invert__(self): raise self._error
+    def __neg__(self):
+        raise self._error
+    def __pos__(self):
+        raise self._error
+    def __abs__(self):
+        raise self._error
+    def __invert__(self):
+        raise self._error
 
-    def __complex__(self): raise self._error
-    def __int__(self): raise self._error
-    def __float__(self): raise self._error
+    def __complex__(self):
+        raise self._error
+    def __int__(self):
+        raise self._error
+    def __float__(self):
+        raise self._error
 
-    def __index__(self): raise self._error # for integrals
+    def __index__(self):
+        raise self._error # for integrals
 
-    def __round__(self, ndigits = 0): raise self._error
-    def __trunc__(self): raise self._error
-    def __floor__(self): raise self._error
-    def __ceil__(self): raise self._error
+    def __round__(self, ndigits = 0):
+        raise self._error
+    def __trunc__(self):
+        raise self._error
+    def __floor__(self):
+        raise self._error
+    def __ceil__(self):
+        raise self._error
 
-    def __coerce__ (self): raise self._error
+    def __coerce__ (self):
+        raise self._error
 
-    def __lt__(self, other): raise self._error
-    def __le__(self, other): raise self._error
-    def __eq__(self, other): raise self._error
-    def __ne__(self, other): raise self._error
-    def __gt__(self, other): raise self._error
-    def __ge__(self, other): raise self._error
+    def __lt__(self, other):
+        raise self._error
+    def __le__(self, other):
+        raise self._error
+    def __eq__(self, other):
+        raise self._error
+    def __ne__(self, other):
+        raise self._error
+    def __gt__(self, other):
+        raise self._error
+    def __ge__(self, other):
+        raise self._error
 
 class Null(BadNumber):
     _error = NullValueDetected
@@ -363,4 +499,6 @@ ninf = ninfint
 # object.__floor__(self)
 # object.__ceil__(self)
 
-################################################################################
+###############################################################################
+''''''
+###############################################################################
