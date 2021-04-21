@@ -7,6 +7,9 @@ ENV EVERESTDIR $MASTERUSERHOME/everest
 ADD . $EVERESTDIR
 RUN chown -R $MASTERUSER $EVERESTDIR
 
+# Basic
+RUN apt-get update
+
 # Python
 ENV PYTHONPATH "$EVERESTDIR:${PYTHONPATH}"
 
@@ -61,5 +64,12 @@ RUN pip3 install --no-cache-dir -U jupyter-book
 # Other
 # RUN apt install -y yarn
 # RUN jupyter lab build
+
+# User
+RUN apt-get install -y dialog
+RUN unminimize
+
+# Finish
+RUN apt-get update
 
 USER $MASTERUSER
