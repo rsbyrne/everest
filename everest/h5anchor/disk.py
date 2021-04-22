@@ -92,12 +92,14 @@ def tempname(length = 16, extension = None):
         name += '.' + extension
     return name
 
-def h5filewrap(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        with H5Wrap(self):
-            return func(self, *args, **kwargs)
-    return wrapper
+def h5filewrap(*outerargs, **outerkwargs):
+    def outerwrapper(func):
+        @wraps(func)
+        def innerwrapper(self, *innerargs, **innerkwargs):
+            with H5Wrap(self, *outerargs, **outerkwargs):
+                return func(self, *innerargs, **innerkwargs)
+        return innerwrapper
+    return outerwrapper
 
 class AccessForbidden(H5AnchorException):
     pass
@@ -143,10 +145,23 @@ def release(filename, password = ''):
 LOCKCODE = tempname()
 H5FILES = dict()
 
+FILEMODES = {'r+', 'w', 'w-', 'a', 'r'}
+READONLYMODES = {'r'}
+WRITEMODES = FILEMODES.difference(READONLYMODES)
+
+def compare_modes(*modes):
+    if not all(mode in FILEMODES for mode in modes):
+        raise ValueError(f"File mode {mode} is not acceptable.")
+    clause1 = any(mode in READONLYMODES for mode in modes)
+    clause2 = any(mode in WRITEMODES for mode in modes)
+    if clause1 and clause2:
+        raise ValueError(f"File modes incompatible: {modes}")
+
 class H5Wrap:
-    def __init__(self, arg):
+    def __init__(self, arg, mode = 'a'):
         self.arg = arg
         self.filename = self.arg.h5filename
+        self.mode = mode
         global LOCKCODE
         self.lockcode = LOCKCODE
     @mpi.dowrap
@@ -155,10 +170,11 @@ class H5Wrap:
         if hasattr(self, 'h5file'):
             return False
         elif self.filename in H5FILES:
-            self.arg.h5file = H5FILES[self.filename]
+            h5file = self.arg.h5file = H5FILES[self.filename]
+            compare_modes(h5file.mode, self.mode)
             return False
         else:
-            self.arg.h5file = h5py.File(self.arg.h5filename, 'a')
+            self.arg.h5file = h5py.File(self.arg.h5filename, self.mode)
             H5FILES[self.filename] = self.arg.h5file
             return True
     def __enter__(self):
@@ -168,14 +184,14 @@ class H5Wrap:
                 break
             except AccessForbidden:
                 reseed.randsleep(0.1, 5.)
-        self.opener = self._open_h5file()
+        self.isopener = self._open_h5file()
         # if self.master:
         #     mpi.message("Logging in at", time.time())
         return None
     @mpi.dowrap
     def _close_h5file(self):
         global H5FILES
-        if self.opener:
+        if self.isopener:
             self.arg.h5file.flush()
             self.arg.h5file.close()
             del self.arg.h5file

@@ -130,6 +130,7 @@ class Reader(H5Manager):
             return inp
 
     def _seekresolve(self, inp):
+#         print('seeking')
         if type(inp) is dict:
             out = dict()
             for key, sub in sorted(inp.items()):
@@ -165,7 +166,7 @@ class Reader(H5Manager):
                 return self._process_tag(inp, globevars._STRINGTAG_)
             else:
 #                 raise TagError(inp)
-                warnings.warn(f"No recognisable tag on string: {inp[:32]}")
+#                 warnings.warn(f"No recognisable tag on string: {inp[:32]}")
                 return inp
         else:
             raise TypeError(type(inp))
@@ -251,7 +252,7 @@ class Reader(H5Manager):
             raise TypeError("Input not recognised: ", inp)
         return self._getmethods[type(inp)](self, inp)
 
-    @disk.h5filewrap
+    @disk.h5filewrap(mode = 'r')
     def __getitem__(self, inp):
         if type(inp) is tuple:
             return [self._getitem(sub) for sub in inp]

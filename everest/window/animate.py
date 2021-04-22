@@ -8,7 +8,7 @@ import shutil
 import glob
 import numpy as np
 
-from everest import disk
+from everest.h5anchor import disk
 
 def frame_iterate(frames):
     frames = iter(frames)
