@@ -40,19 +40,19 @@ def purge_logs(path = '.'):
     except FileNotFoundError: pass
 
 class H5Manager:
+    cwd = '/'
     def __init__(self, name, path, *cwd, purge = False):
         if purge:
             purge_address(name, path)
         self.name, self.path = name, path
         self.h5filename = get_framePath(self.name, self.path)
         self._inpCwd = cwd
-        self.cwd = '/'
-        if len(cwd):
+        if cwd:
             self.cd(cwd)
     def cd(self, key):
         if type(key) in {tuple, list}:
             key = self.join(*key)
-        self.cwd = os.path.abspath(os.path.join(self.cwd, key))
+        self.cwd = os.path.abspath(self.join(self.cwd, key))
     @staticmethod
     def join(*keys):
         return os.path.join(*keys)

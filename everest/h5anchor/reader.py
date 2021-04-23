@@ -13,6 +13,7 @@ from everest import simpli as mpi
 from . import disk
 from .utilities import stack_dicts
 H5Manager = disk.H5Manager
+H5Wrap = disk.H5Wrap
 from .fetch import Fetch
 from .scope import Scope
 # from .globevars import *
@@ -27,72 +28,44 @@ class NotGroupError(H5AnchorException, KeyError):
 class TagError(H5AnchorException, ValueError):
     pass
 
+# @disk.h5filewrap(mode = 'r')
+# def key_iterator():
+
+REMETACHARS = set('.^$*+?{}[]\|()')
+def isreg(instring):
+    return bool(set(instring).intersection(REMETACHARS))
+FNMATCHMETACHARS = set('*?[]')
+def isfnmatch(instring):
+    return bool(set(instring).intersection(FNMATCHMETACHARS))
+
+class Readlet:
+    __slots__ = 'h5filename', 'route', 'h5file'
+    def __init__(self, h5filename, route, attr = None):
+        self.h5filename, self.route = h5filename, route
+    def read(self):
+        with H5Wrap(self, mode = 'r'):
+            return self._read_meth()
+    def _read(self):
+        return self.h5file[self.route]
+
+class RAttr(Readlet):
+    __slots__ = 'attrname'
+    def __init__(self, h5filename, route, attrname):
+        self.attrname = attrname
+        super().__init__(h5filename, route)
+    def _read(self):
+        return super()._read().attrs[attrname]
+
 class Reader(H5Manager):
 
-    def __init__(
-            self,
-            name,
-            path,
-            *cwd,
-            **kwargs
-            ):
+    def __iter__(self):
+        with H5Wrap(self, mode = 'r'):
+            for key in self.h5file:
+                if not key.startswith('_'):
+                    yield key
 
-        super().__init__(name, path, *cwd, **kwargs)
-
-    def _recursive_seek(self, key, searchArea = None):
-        # expects h5filewrap
-        if searchArea is None:
-            searchArea = self.h5file
-        # print("Seeking", key, "from", searchArea)
-        splitkey = key.split('/')
-        try:
-            if splitkey[0] == '':
-                splitkey = splitkey[1:]
-            if splitkey[-1] == '':
-                splitkey = splitkey[:-1]
-        except IndexError:
-            raise Exception("Bad key: " + str(key) +  ', ' + str(type(key)))
-        primekey = splitkey[0]
-        remkey = '/'.join(splitkey[1:])
-        if primekey == '**':
-            raise NotYetImplemented
-            # found = self._recursive_seek('*/' + remkey, searchArea)
-            # found[''] = self._recursive_seek('*/' + key, searchArea)
-        elif primekey == '*':
-            localkeys = {*searchArea, *searchArea.attrs}
-            searchkeys = [
-                localkey + '/' + remkey \
-                    for localkey in localkeys
-                ]
-            found = dict()
-            for searchkey in searchkeys:
-                try:
-                    found[searchkey.split('/')[0]] = \
-                        self._recursive_seek(searchkey, searchArea)
-                except KeyError:
-                    pass
-        else:
-            try:
-                try:
-                    found = searchArea[primekey]
-                except KeyError:
-                    try:
-                        found = searchArea.attrs[primekey]
-                    except KeyError:
-                        raise PathNotInFrameError(
-                            "Path " \
-                            + primekey \
-                            + " does not exist in search area " \
-                            + str(searchArea) \
-                            )
-            except ValueError:
-                raise Exception("Value error???", primekey, type(primekey))
-            if not remkey == '':
-                if type(found) is h5py.Group:
-                    found = self._recursive_seek(remkey, found)
-                else:
-                    raise NotGroupError()
-        return found
+    def keys(self):
+        return iter(self)
 
     def _pre_seekresolve(self, inp, _indices = None):
         # expects h5filewrap
@@ -129,20 +102,14 @@ class Reader(H5Manager):
         else:
             return inp
 
-    def _seekresolve(self, inp):
-#         print('seeking')
-        if type(inp) is dict:
-            out = dict()
-            for key, sub in sorted(inp.items()):
-                out[key] = self._seekresolve(sub)
-            # if '_isgrouper' in out:
-            #     out = Grouper(
-            #         {k: v for k, v in out.items() if not k == '_isgrouper'}
-            #         )
-            return out
-        elif isinstance(inp, np.ndarray):
-            return inp
-        elif type(inp) is str:
+    def _resolve_dict(self, inp):
+        out = dict()
+        for key, sub in sorted(inp.items()):
+            out[key] = self._seekresolve(sub)
+        return out
+
+    def _resolve_str(self, inp):
+        if inp.startswith('_'):
             if inp.startswith(globevars._ADDRESSTAG_):
                 address = self._process_tag(inp, globevars._ADDRESSTAG_)
                 return self._getstr(address)
@@ -164,12 +131,23 @@ class Reader(H5Manager):
                 return out
             elif inp.startswith(globevars._STRINGTAG_):
                 return self._process_tag(inp, globevars._STRINGTAG_)
-            else:
-#                 raise TagError(inp)
-#                 warnings.warn(f"No recognisable tag on string: {inp[:32]}")
-                return inp
-        else:
-            raise TypeError(type(inp))
+        return inp
+
+    def _resolve_array(self, inp):
+        return inp
+
+    _resolve_methods = {
+        dict: _resolve_dict,
+        str: _resolve_str,
+        np.ndarray: _resolve_array,
+        }
+
+    def _seekresolve(self, inp):
+        try:
+            meth = self._resolve_methods(type(inp))
+        except KeyError as exc:
+            raise TypeError("Could not resolve this type.") from exc
+        return meth(inp)
 
     def getfrom(self, *keys):
         return self.__getitem__(os.path.join(*keys))
@@ -248,9 +226,11 @@ class Reader(H5Manager):
         }
 
     def _getitem(self, inp):
-        if not type(inp) in self._getmethods:
-            raise TypeError("Input not recognised: ", inp)
-        return self._getmethods[type(inp)](self, inp)
+        try:
+            meth = self._getmethods[type(inp)]
+        except KeyError as exc:
+            raise TypeError("Input type not accepted!") from exc
+        return meth(self, inp)
 
     @disk.h5filewrap(mode = 'r')
     def __getitem__(self, inp):
@@ -262,3 +242,70 @@ class Reader(H5Manager):
 ###############################################################################
 ''''''
 ###############################################################################
+
+#     @disk.h5filewrap(mode = 'r')
+#     def visit(self, func):
+#         h5file = self.h5file
+#         def sub_visit(name):
+#             name = name.decode()
+#             if not (ret := func(name)) is None:
+#                 return ret
+#             def mod_func(subname):
+#                 return func('/'.join((name, subname)))
+#             h5file[name].visit(mod_func)
+#         retval, ind = self.h5file.id.links.iterate(sub_visit)
+
+#     def _recursive_seek(self, key, searchArea = None):
+#         # expects h5filewrap
+#         if searchArea is None:
+#             searchArea = self.h5file
+#         # print("Seeking", key, "from", searchArea)
+#         splitkey = key.split('/')
+#         try:
+#             if splitkey[0] == '':
+#                 splitkey = splitkey[1:]
+#             if splitkey[-1] == '':
+#                 splitkey = splitkey[:-1]
+#         except IndexError:
+#             raise Exception("Bad key: " + str(key) +  ', ' + str(type(key)))
+#         primekey = splitkey[0]
+#         remkey = '/'.join(splitkey[1:])
+#         if primekey == '**':
+#             raise NotYetImplemented
+#             # found = self._recursive_seek('*/' + remkey, searchArea)
+#             # found[''] = self._recursive_seek('*/' + key, searchArea)
+#         elif primekey == '*':
+#             localkeys = {*searchArea, *searchArea.attrs}
+#             searchkeys = [
+#                 localkey + '/' + remkey \
+#                     for localkey in localkeys
+#                 ]
+#             found = dict()
+#             for searchkey in searchkeys:
+#                 try:
+#                     found[searchkey.split('/')[0]] = \
+#                         self._recursive_seek(searchkey, searchArea)
+#                 except KeyError:
+#                     pass
+#         else:
+#             try:
+#                 try:
+#                     found = searchArea[primekey]
+#                 except KeyError:
+#                     try:
+#                         found = searchArea.attrs[primekey]
+#                     except KeyError:
+#                         raise PathNotInFrameError(
+#                             "Path " \
+#                             + primekey \
+#                             + " does not exist in search area " \
+#                             + str(searchArea) \
+#                             )
+#             except ValueError:
+#                 raise Exception("Value error???", primekey, type(primekey))
+#             if not remkey == '':
+#                 if type(found) is h5py.Group:
+#                     found = self._recursive_seek(remkey, found)
+#                 else:
+#                     raise NotGroupError()
+#         return found
