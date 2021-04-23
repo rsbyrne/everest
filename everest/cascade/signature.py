@@ -141,19 +141,16 @@ def get_hierarchy(func, /, *, root = None, typ = _Hierarchy, **kwargs):
     currentlev = 0
     addto = hierarchy
     for level, content in get_paramlevels(func, **kwargs):
+        while level < currentlev:
+            currentlev -= 1
+            addto = addto.parent
         if isinstance(content, str):
-            if level == currentlev:
-                addto = addto.sub(content)
+            if level >= currentlev:
                 currentlev += 1
-            continue
-        if level <= currentlev:
-            while level < currentlev:
-                currentlev -= 1
-                addto = addto.parent
+            addto = addto.sub(content)
+        else:
             for param in content:
                 addto[param.name] = param
-        else:
-            raise Exception("Level hierarchies not analysable.")
     if root is None:
         return hierarchy
 
