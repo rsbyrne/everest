@@ -5,16 +5,12 @@
 import itertools as _itertools
 from functools import reduce as _reduce
 from operator import mul as _mul
+from abc import ABC as _ABC, abstractmethod as _abstractmethod
 
 from . import _special, _seqmerge, _abstract
 
-from .incisable import (
-    FuncyIncisable as _FuncyIncisable,
-    FuncySoftIncisable as _FuncySoftIncisable,
-    )
-
-class FuncyIncision(_FuncyIncisable):
-    def __init__(self, source, /, *args, **kwargs):
+class FuncyIncision(_ABC):
+    def __init__(self, source, *args, **kwargs):
         self._source = source
         super().__init__(*args, **kwargs)
     @property
@@ -40,6 +36,9 @@ class FuncyIncision(_FuncyIncisable):
         return self.source.depth
     def __call__(self, *args, **kwargs):
         return self.truesource(*args, **kwargs)
+    @_abstractmethod
+    def __getitem__(self, arg):
+        '''Should be overridden by Incisable.__getitem__'''
 
 class FuncyDeepIncision(FuncyIncision):
     def levels(self):
@@ -59,6 +58,8 @@ class FuncyDeepIncision(FuncyIncision):
         return (self(*inds) for inds in self.indices())
 
 class FuncySubIncision(FuncyIncision):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     @property
     def levelsource(self):
         return self
@@ -73,14 +74,8 @@ class FuncySubIncision(FuncyIncision):
     @property
     def depth(self):
         return super().depth - 1
-    @property
-    def incisiontypes(self):
-        return self.mimicsource.incisiontypes
     def get_incision_method(self, arg, /):
         return self.mimicsource.get_incision_method(arg)
-
-class FuncySoftSubIncision(FuncySubIncision, _FuncySoftIncisable):
-    ...
 
 class FuncyShallowIncision(FuncyIncision, _FuncySoftIncisable):
     def __init__(self, incisor, /, *args, **kwargs):
@@ -102,16 +97,10 @@ class FuncyShallowIncision(FuncyIncision, _FuncySoftIncisable):
         *levels, _ = super().levels()
         yield from levels
         yield self
-    @property
-    def incisiontypes(self):
-        return {
-            **self.source.incisiontypes,
-            **super().incisiontypes,
-            }
     def get_incision_method(self, arg, /):
-        meth = super().get_incision_method(arg)
+        meth = self.source.get_incision_method(arg)
         if meth is NotImplemented:
-            meth = self.source.get_incision_method(arg)
+            return super().get_incision_method(arg)
         return meth
 
 class FuncyStrictIncision(FuncyShallowIncision):

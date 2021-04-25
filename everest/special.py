@@ -7,15 +7,15 @@ import numbers
 import sys
 from collections import abc as collabc
 
-from .exceptions import FuncyException
+from .exceptions import EverestException
 
-class FuncyValueError(FuncyException, ValueError):
+class EverestValueError(EverestException, ValueError):
     '''Value error related to a Funcy asset.'''
-class NullValueDetected(FuncyValueError):
+class NullValueDetected(EverestValueError):
     '''Null value error related to a Funcy asset.'''
-class InfiniteValueDetected(FuncyValueError):
+class InfiniteValueDetected(EverestValueError):
     '''Infinite value error related to a Funcy asset.'''
-class UnknownValueDetected(FuncyValueError):
+class UnknownValueDetected(EverestValueError):
     '''Unknown value error related to a Funcy asset.'''
 
 class Empty(collabc.Container):
@@ -209,7 +209,7 @@ class InfiniteInteger(Infinite, int):
 
 class BadNumber(numbers.Number):
 
-    _error = FuncyValueError
+    _error = EverestValueError
 
     def __getattr__(self, key):
         raise self._error

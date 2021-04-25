@@ -6,9 +6,9 @@ The package defining the 'incision protocol'.
 
 from .. import (
     special as _special,
-    seqmerge as _seqmerge,
     abstract as _abstract,
     )
+from ..utilities import seqmerge as _seqmerge
 
 from .incisor import *
 from .incisable import *

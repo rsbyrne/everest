@@ -9,8 +9,12 @@ from collections.abc import (
     )
 import operator as _operator
 
-from . import _abstract, _utilities, _incision
-from .base import Base as _Base
+from . import (
+    abstract as _abstract,
+    utilities as _utilities,
+    incision as _incision,
+    reseed as _reseed,
+    )
 
 _FuncySoftIncisable = _incision.FuncySoftIncisable
 _FuncySoftIncision = _incision.FuncySoftIncision
@@ -31,40 +35,36 @@ def flatlen(gruple):
                 _n += 1
     return _n
 
-class _Gruple(_FuncySoftIncisable, _Sequence):
+def null_fn(*args, **kwargs):
+    return args, kwargs
 
+class _Gruple(_FuncySoftIncisable, _Sequence):
     pytype = list
     pylike = None
-
-    @property
-    def incisiontypes(self):
-        return {
-            **super().incisiontypes,
-            # 'strict': strict_expose,
-            'soft': self._swathetype
-            }
-
-    @property
-    def _swathetype(self):
-        return GrupleSwathe
-
+    soft = null_fn
+    hashint = None
+    rep = None
+    def __init__(self, *args, **kwargs):
+        hashint = self.hashint = _reseed.randint(1e11, 1e12 - 1)
+        self.rep = type(self).__name__ + '_' + str(hashint)
+        super().__init__(*args, **kwargs)
     @property
     def flatlen(self):
         '''Returns the sum of the flatlengths of all unpackable contents.'''
         return flatlen(self)
-
     def __repr__(self):
-        return super().__repr__() + '==' + str(self)
+        return self.rep
     def __str__(self):
         if len(self) < 10:
             return str(self.pytype(self))
         return f"[{str(self[:3])[1:-1]} ... {self.endval}]"
-
     def __getitem__(self, arg, /):
         out = super().__getitem__(arg)
         if out.length == 1:
             return tuple(out)[0]
         return out
+    def __hash__(self):
+        return self.hashint
 
 _ = _abstract.primitive.FuncyPrimitive.register(_Gruple)
 
@@ -104,11 +104,11 @@ class GrupleSwathe(_FuncySoftIncision, _Gruple):
     def __repr__(self):
         return f'{repr(self.source)}[{repr(self.incisor)}]'
 
+_Gruple.soft = GrupleSwathe
+
 class _GrupleMap(_Gruple, _Mapping):
     pytype = dict
-    @property
-    def _swathetype(self):
-        return GrupleMapSwathe
+    soft = null_fn
     def __iter__(self):
         return self.indices()
     @classmethod
@@ -137,6 +137,8 @@ class GrupleMap(_GrupleMap, Gruple):
 
 class GrupleMapSwathe(_GrupleMap, GrupleSwathe):
     ...
+
+_GrupleMap.soft = GrupleMapSwathe
 
 ###############################################################################
 ###############################################################################

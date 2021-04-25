@@ -163,12 +163,15 @@ def get_cascade(func, **kwargs):
 #             for a, b in _zip_longest(atup, btup)
 #         )
 
+def null_fn():
+    ...
+
 class Signature(_Cascade):
     _set_locked = False
     signature = None
     get_hashID = _lru_cache(maxsize = None)(_Cascade.get_hashID)
     inputsskip, inputsskipkeys = None, None
-    def __init__(self, parent, skip = None, skipkeys = None):
+    def __init__(self, parent = null_fn, skip = None, skipkeys = None):
         if isinstance(parent, Signature):
             if (skip is not None) or (skipkeys is not None):
                 raise ValueError(
@@ -278,13 +281,6 @@ class Bound(Signature):
                 raise KeyError
             return out.default
         return out
-
-class Inputs:
-    __slots__ = 'args', 'kwargs'
-    def __init__(self, *args, **kwargs):
-        self.args, self.kwargs = args, kwargs
-    def __repr__(self):
-        return type(self).__name__ + f"({self.args}, {self.kwargs})"
 
 ###############################################################################
 ###############################################################################

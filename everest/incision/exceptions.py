@@ -1,21 +1,11 @@
 ###############################################################################
-'''
-A system for defining hierarchies of reproducible code.
-'''
+'''Defines the exceptions anticipated by the incision protocol.'''
 ###############################################################################
 
-from .. import (
-    wordhash as _wordhash,
-    reseed as _reseed,
-    cascade as _cascade,
-    incision,
-    special,
-    abstract,
-    gruple,
-    )
-from ..special import *
-from .. import utilities
-seqmerge = utilities.seqmerge
+from ..exceptions import EverestException, NotYetImplemented
+
+class IncisionException(EverestException):
+    '''Parent exception of all exceptions thrown by the incision protocol.'''
 
 ###############################################################################
 ###############################################################################

@@ -1,21 +1,11 @@
 ###############################################################################
-'''
-A system for defining hierarchies of reproducible code.
-'''
+'''Defines the parent exceptions of all funcy abstract exceptions.'''
 ###############################################################################
 
-from .. import (
-    wordhash as _wordhash,
-    reseed as _reseed,
-    cascade as _cascade,
-    incision,
-    special,
-    abstract,
-    gruple,
-    )
-from ..special import *
-from .. import utilities
-seqmerge = utilities.seqmerge
+from ..exceptions import EverestException, NotYetImplemented
+
+class UtilitiesException(EverestException):
+    '''Parent exception of all exceptions thrown by utilities.'''
 
 ###############################################################################
 ###############################################################################
