@@ -4,10 +4,10 @@
 
 from ..exceptions import EverestException, NotYetImplemented
 
-class FuncyAbstractException(EverestException):
+class AbstractException(EverestException):
     '''Parent exception of all exceptions thrown by abstract.'''
 
-class FuncyAbstractMethodException(FuncyAbstractException):
+class AbstractMethodException(AbstractException):
     '''The exception raised by any abstract methods not provided.'''
 
 ###############################################################################

@@ -1,17 +1,20 @@
 ###############################################################################
-'''The module defining the funcy 'Non' ur type.'''
+''''''
 ###############################################################################
 
-from . import _abstract
+from . import _generic
+from .derived import Derived as _Derived
 
-from .ur import Ur as _Ur
+from .exceptions import *
 
-class Non(_Ur):
-    '''
-    Wraps all funcy functions which are Primitive
-    or have at least one Primitive term.
-    '''
-_ = Non.register(_abstract.primitive.Primitive)
+class UnSeq(_Derived, _generic.Sequence):
+
+    def __init__(self, seq, **kwargs):
+        super().__init__(seq, **kwargs)
+
+    def _evaluate(self):
+        return list(self.prime.value)
 
 ###############################################################################
+''''''
 ###############################################################################

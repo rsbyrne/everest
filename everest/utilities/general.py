@@ -16,8 +16,8 @@ def unpacker_zip(arg1, arg2, /):
         arg1 = arg1.values()
     elif arg2map:
         arg2 = arg2.values()
-    if isinstance(arg1, _abstract.FuncyUnpackable):
-        if not isinstance(arg2, _abstract.FuncyUnpackable):
+    if isinstance(arg1, _abstract.Unpackable):
+        if not isinstance(arg2, _abstract.Unpackable):
             arg2 = _itertools.repeat(arg2)
         for sub1, sub2 in zip(arg1, arg2):
             yield from unpacker_zip(sub1, sub2)

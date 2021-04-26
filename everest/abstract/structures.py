@@ -6,78 +6,78 @@
 from abc import abstractmethod as _abstractmethod
 from collections import abc as _collabc
 
-from .abstract import FuncyABC as _FuncyABC
+from .abstract import EverestABC as _EverestABC
 from . import datalike as _datalike
 from . import exceptions as _exceptions
 
-class FuncyContainer(_FuncyABC):
+class Container(_EverestABC):
     ...
-_ = FuncyContainer.register(_collabc.Container)
+_ = Container.register(_collabc.Container)
 
-class FuncyIterable(_FuncyABC):
+class Iterable(_EverestABC):
     ...
-_ = FuncyIterable.register(_collabc.Iterable)
+_ = Iterable.register(_collabc.Iterable)
 
-class FuncyIterator(_FuncyABC):
+class Iterator(_EverestABC):
     ...
-_ = FuncyIterator.register(_collabc.Iterator)
+_ = Iterator.register(_collabc.Iterator)
 
-class FuncySized(_FuncyABC):
+class Sized(_EverestABC):
     ...
-_ = FuncySized.register(_collabc.Sized)
+_ = Sized.register(_collabc.Sized)
 
-class FuncyCallable(_FuncyABC):
+class Callable(_EverestABC):
     ...
-_ = FuncyCallable.register(_collabc.Callable)
+_ = Callable.register(_collabc.Callable)
 
-class FuncyCollection(FuncySized, FuncyIterable, FuncyContainer):
+class Collection(Sized, Iterable, Container):
     ...
-_ = FuncyCollection.register(_collabc.Collection)
+_ = Collection.register(_collabc.Collection)
 
-class FuncyReversible(_FuncyABC):
+class Reversible(_EverestABC):
     ...
-_ = FuncyReversible.register(_collabc.Reversible)
+_ = Reversible.register(_collabc.Reversible)
 
-class FuncySequence(FuncyReversible, FuncyCollection):
+class Sequence(Reversible, Collection):
     ...
-_ = FuncySequence.register(_collabc.Sequence)
+_ = Sequence.register(_collabc.Sequence)
 
-class FuncyMutableSequence(FuncySequence):
+class MutableSequence(Sequence):
     ...
-_ = FuncyMutableSequence.register(_collabc.MutableSequence)
+_ = MutableSequence.register(_collabc.MutableSequence)
 
-class FuncyMapping(FuncyCollection):
+class Mapping(Collection):
     ...
-_ = FuncyMapping.register(_collabc.Mapping)
+_ = Mapping.register(_collabc.Mapping)
 
-class FuncyUnpackable(_FuncyABC):
+class Unpackable(_EverestABC):
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is FuncyUnpackable:
+        if cls is Unpackable:
             if all((
-                    issubclass(C, FuncyIterable),
-                    not issubclass(C, FuncyMapping),
-                    not issubclass(C, (tuple, str, _datalike.FuncyDatalike)),
+                    issubclass(C, Iterable),
+                    not issubclass(C, Mapping),
+                    not issubclass(C, (tuple, str, _datalike.Datalike)),
                     )):
                 return True
         return NotImplemented
 
-class FuncyStruct(_FuncyABC):
+class Struct(_EverestABC):
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is FuncyStruct:
+        if cls is Struct:
             if all((
-                    issubclass(C, FuncyCollection),
-                    not issubclass(C, FuncyMutableSequence),
-                    not issubclass(C, FuncyUnpackable),
-                    not issubclass(C, FuncyMapping),
-                    not issubclass(C, _datalike.FuncyString),
+                    issubclass(C, Collection),
+                    not issubclass(C, MutableSequence),
+                    not issubclass(C, Unpackable),
+                    not issubclass(C, Mapping),
+                    not issubclass(C, _datalike.String),
                     )):
                 return True
         return NotImplemented
     @_abstractmethod
     def __len__(self):
-        raise _exceptions.FuncyAbstractMethodException
+        raise _exceptions.AbstractMethodException
 
 ###############################################################################
 ###############################################################################

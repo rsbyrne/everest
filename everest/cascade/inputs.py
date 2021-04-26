@@ -4,7 +4,7 @@
 
 # from . import _incision
 
-# class Inputs(_incision.FuncyStrictIncisor):
+# class Inputs(_incision.StrictIncisor):
 class Inputs:
     __slots__ = 'args', 'kwargs'
     def __init__(self, *args, **kwargs):

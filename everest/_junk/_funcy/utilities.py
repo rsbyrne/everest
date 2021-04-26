@@ -1,11 +1,11 @@
 ###############################################################################
-'''Generally useful code snippets for funcy.'''
+''''''
 ###############################################################################
 
 from collections.abc import Mapping as _Mapping
 import itertools as _itertools
 
-from . import abstract as _abstract
+from . import generic as _generic
 
 def unpacker_zip(arg1, arg2, /):
     arg1map, arg2map = (isinstance(arg, _Mapping) for arg in (arg1, arg2))
@@ -16,13 +16,20 @@ def unpacker_zip(arg1, arg2, /):
         arg1 = arg1.values()
     elif arg2map:
         arg2 = arg2.values()
-    if isinstance(arg1, _abstract.Unpackable):
-        if not isinstance(arg2, _abstract.Unpackable):
+    if isinstance(arg1, _generic.Unpackable):
+        if not isinstance(arg2, _generic.Unpackable):
             arg2 = _itertools.repeat(arg2)
         for sub1, sub2 in zip(arg1, arg2):
             yield from unpacker_zip(sub1, sub2)
     else:
         yield arg1, arg2
+
+def is_numeric(arg):
+    try:
+        _ = arg + 1
+        return True
+    except:
+        return False
 
 def kwargstr(**kwargs):
     outs = []
@@ -55,4 +62,5 @@ def process_scalar(scal):
 #             yield tuple(g)
 
 ###############################################################################
+''''''
 ###############################################################################

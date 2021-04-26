@@ -35,7 +35,7 @@ def convert(obj: _Funcy):
                 cls = _Seq
             elif any(isinstance(t, _Dat) for t in terms):
                 cls = _Dat
-    elif isinstance(obj, _abstract.primitive.FuncyPrimitive):
+    elif isinstance(obj, _abstract.primitive.Primitive):
         cls = _Non
     if cls is None:
         raise TypeError(

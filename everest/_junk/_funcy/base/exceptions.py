@@ -1,11 +1,15 @@
 ###############################################################################
-'''Defines the exceptions anticipated by Base classes.'''
+''''''
 ###############################################################################
 
-from ..exceptions import Exception, NotYetImplemented
+from ..exceptions import *
 
 class BaseException(Exception):
-    '''Parent exception of all exceptions thrown by Base classes.'''
+    ...
+
+class BaseConstructFailure(ConstructFailure, BaseException):
+    ...
 
 ###############################################################################
+''''''
 ###############################################################################

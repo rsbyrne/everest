@@ -16,8 +16,8 @@ from . import (
     reseed as _reseed,
     )
 
-_FuncySoftIncisable = _incision.FuncySoftIncisable
-_FuncySoftIncision = _incision.FuncySoftIncision
+_SoftIncisable = _incision.SoftIncisable
+_SoftIncision = _incision.SoftIncision
 _unpacker_zip = _utilities.unpacker_zip
 
 # def strict_expose(ind, self):
@@ -29,7 +29,7 @@ def flatlen(gruple):
         try:
             _n += _c.flatlen
         except AttributeError:
-            if isinstance(_c, _abstract.FuncyUnpackable):
+            if isinstance(_c, _abstract.Unpackable):
                 _n += len(_c)
             else:
                 _n += 1
@@ -38,7 +38,7 @@ def flatlen(gruple):
 def null_fn(*args, **kwargs):
     return args, kwargs
 
-class _Gruple(_FuncySoftIncisable, _Sequence):
+class _Gruple(_SoftIncisable, _Sequence):
     pytype = list
     pylike = None
     soft = null_fn
@@ -66,7 +66,7 @@ class _Gruple(_FuncySoftIncisable, _Sequence):
     def __hash__(self):
         return self.hashint
 
-_ = _abstract.primitive.FuncyPrimitive.register(_Gruple)
+_ = _abstract.primitive.Primitive.register(_Gruple)
 
 class Gruple(_Gruple):
     def __init__(self, arg: _Iterable, *args, lev = None, **kwargs):
@@ -97,7 +97,7 @@ class Gruple(_Gruple):
     def __ge__(self, other):
         return self.rich(self, other, opkey = 'ge')
 
-class GrupleSwathe(_FuncySoftIncision, _Gruple):
+class GrupleSwathe(_SoftIncision, _Gruple):
     @property
     def pylike(self):
         return self.source.pylike

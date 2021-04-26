@@ -4,7 +4,7 @@
 
 from abc import ABC as _ABC
 
-class FuncyABC(_ABC):
+class EverestABC(_ABC):
     '''The base class of all funcy abstract classes.'''
 
 ###############################################################################

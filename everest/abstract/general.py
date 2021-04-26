@@ -4,39 +4,39 @@
 
 from abc import abstractmethod as _abstractmethod
 
-from .abstract import FuncyABC as _FuncyABC
-from .exceptions import FuncyAbstractMethodException
+from .abstract import EverestABC as _EverestABC
+from .exceptions import AbstractMethodException
 
-class FuncyEvaluable(_FuncyABC):
+class Evaluable(_EverestABC):
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is FuncyEvaluable:
+        if cls is Evaluable:
             if any('value' in B.__dict__ for B in C.__mro__):
                 return True
         return NotImplemented
 
 def evaluable(arg):
-    return isinstance(arg, FuncyEvaluable)
+    return isinstance(arg, Evaluable)
 
-class FuncyVariable(FuncyEvaluable):
+class Variable(Evaluable):
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is FuncyVariable:
+        if cls is Variable:
             if any('set_value' in B.__dict__ for B in C.__mro__):
                 return True
         return NotImplemented
 
-class FuncyNoneType(_FuncyABC):
+class NoneType(_EverestABC):
     ...
-_ = FuncyNoneType.register(type(None))
+_ = NoneType.register(type(None))
 
-class FuncySlice(_FuncyABC):
+class Slice(_EverestABC):
     @_abstractmethod
     def indices(self, length: int, /) -> tuple:
-        raise FuncyAbstractMethodException
+        raise AbstractMethodException
     def iterable(self, length):
         return range(*self.indices(length))
-_ = FuncySlice.register(slice)
+_ = Slice.register(slice)
 
 ###############################################################################
 ###############################################################################

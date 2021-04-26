@@ -4,7 +4,7 @@
 
 from ..exceptions import EverestException, NotYetImplemented
 
-class FuncyException(EverestException):
+class Exception(EverestException):
     '''Parent exception of all exceptions thrown by funcy.'''
 
 ###############################################################################

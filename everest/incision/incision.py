@@ -5,11 +5,13 @@
 import itertools as _itertools
 from functools import reduce as _reduce
 from operator import mul as _mul
-from abc import ABC as _ABC, abstractmethod as _abstractmethod
 
-from . import _special, _seqmerge, _abstract
+from . import _special, _seqmerge, _abstract, _mroclasses
+from .incisable import SoftIncisable as _SoftIncisable
+from . import incisor as _incisor
 
-class FuncyIncision(_ABC):
+@_mroclasses.Overclass
+class Incision:
     def __init__(self, source, *args, **kwargs):
         self._source = source
         super().__init__(*args, **kwargs)
@@ -36,11 +38,66 @@ class FuncyIncision(_ABC):
         return self.source.depth
     def __call__(self, *args, **kwargs):
         return self.truesource(*args, **kwargs)
-    @_abstractmethod
+    @_mroclasses.AnticipatedMethod
     def __getitem__(self, arg):
         '''Should be overridden by Incisable.__getitem__'''
 
-class FuncyDeepIncision(FuncyIncision):
+class DeepIncision(Incision):
+    @classmethod
+    def process_depth(cls,
+            args: tuple, depth: int, /,
+            filler = _incisor.trivial,
+            ):
+        args = tuple(arg if arg != slice(None) else filler for arg in args)
+        if (not depth < _special.infint) and (Ellipsis in args):
+            raise ValueError("Cannot use ellipsis when depth is infinite.")
+        nargs = len(args)
+        if nargs == 0:
+            return args
+        if nargs == 1:
+            if args[0] is Ellipsis:
+                return tuple(filler for _ in range(depth))
+            return args
+        if nargs < depth:
+            nellipses = len(tuple(el for el in args if el is Ellipsis))
+            if nellipses == 0:
+                return args
+            if nellipses == 1:
+                out = []
+                for arg in args:
+                    if arg is Ellipsis:
+                        for _ in range(depth - nargs):
+                            out.append(filler)
+                    else:
+                        out.append(arg)
+                return tuple(out)
+            raise IndexError(f"Too many ellipses ({nellipses} > 1)")
+        if nargs == depth:
+            return tuple(filler if arg is Ellipsis else arg for arg in args)
+        raise IndexError(
+            f"Not enough depth to accommodate requested levels:"
+            f" levels = {nargs} > depth = {depth})"
+            )
+    def __init__(self, args, source):
+        if args is Ellipsis:
+            args = (Ellipsis,)
+        nargs = len(args)
+        if nargs == 0:
+            raise ValueError("Cannot process empty tuple.")
+        args = self.process_depth(args, source.depth)
+        if (nargs := len(args)) < (nlevels := source.nlevels):
+            args = tuple((
+                *args, *(_incisor.trivial for _ in range(nlevels - nargs))
+                ))
+        argiter, levels = iter(args), source.levels()
+        cursor = next(levels)[next(argiter)]
+        for arg, lev in _itertools.zip_longest(argiter, levels):
+            cursor = cursor[_incisor.subinc]
+            if hasattr(lev, 'incisors'):
+                for inc in lev.incisors:
+                    cursor = cursor[inc]
+            cursor = cursor[arg]
+        super().__init__(cursor)
     def levels(self):
         return self.source.levels()
     @property
@@ -57,15 +114,15 @@ class FuncyDeepIncision(FuncyIncision):
     def __iter__(self):
         return (self(*inds) for inds in self.indices())
 
-class FuncySubIncision(FuncyIncision):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class SubIncision(Incision):
+    def __init__(self, _, source):
+        super().__init__(source, **source.subkwargs)
     @property
     def levelsource(self):
         return self
     @property
     def mimicsource(self):
-        if isinstance(src := self.source, FuncyIncision):
+        if isinstance(src := self.source, Incision):
             return src.levelsource
         return src
     def levels(self):
@@ -77,7 +134,7 @@ class FuncySubIncision(FuncyIncision):
     def get_incision_method(self, arg, /):
         return self.mimicsource.get_incision_method(arg)
 
-class FuncyShallowIncision(FuncyIncision, _FuncySoftIncisable):
+class ShallowIncision(Incision, _SoftIncisable):
     def __init__(self, incisor, /, *args, **kwargs):
         self.incisor = incisor
         super().__init__(*args, **kwargs)
@@ -86,7 +143,7 @@ class FuncyShallowIncision(FuncyIncision, _FuncySoftIncisable):
         return self.levelsource.subkwargs
     @property
     def _sourceincisors(self):
-        if isinstance(src := self.source, FuncyShallowIncision):
+        if isinstance(src := self.source, ShallowIncision):
             return src.incisors
         return ()
     @property
@@ -103,12 +160,12 @@ class FuncyShallowIncision(FuncyIncision, _FuncySoftIncisable):
             return super().get_incision_method(arg)
         return meth
 
-class FuncyStrictIncision(FuncyShallowIncision):
+class StrictIncision(ShallowIncision):
     _length = 1
     def indices(self):
         yield self.incisor
 
-class FuncyBroadIncision(FuncyShallowIncision):
+class BroadIncision(ShallowIncision):
     def __init__(self, incisor, /, *args, **kwargs):
         super().__init__(incisor, *args, lev = len(incisor), **kwargs)
     def index_sets(self):
@@ -118,7 +175,7 @@ class FuncyBroadIncision(FuncyShallowIncision):
         yield object
         yield from super().index_types()
 
-class FuncySoftIncision(FuncyShallowIncision):
+class SoftIncision(ShallowIncision):
 
     _length = None
 
@@ -172,19 +229,19 @@ class FuncySoftIncision(FuncyShallowIncision):
                 yield inds
     def _get_iter_fn(self):
         incisor = self.incisor
-        if isinstance(incisor, _abstract.general.FuncySlice):
+        if isinstance(incisor, _abstract.general.Slice):
             _ss = incisor.start, incisor.stop, incisor.step
             if all(
                     isinstance(s, (
-                            _abstract.general.FuncyNoneType,
-                            _abstract.datalike.FuncyIntegral
+                            _abstract.general.NoneType,
+                            _abstract.datalike.Integral
                             ))
                         for s in _ss
                     ):
                 return self._indices_getslice
             return self._indices_getinterval
-        if isinstance(incisor, _abstract.structures.FuncyIterable):
-            if all(isinstance(i, _abstract.datalike.FuncyBool) for i in incisor):
+        if isinstance(incisor, _abstract.structures.Iterable):
+            if all(isinstance(i, _abstract.datalike.Bool) for i in incisor):
                 return self._indices_getmask
             return self._indices_getkeys
         raise TypeError(incisor, type(incisor))

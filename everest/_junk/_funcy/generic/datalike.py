@@ -2,14 +2,16 @@
 ''''''
 ###############################################################################
 
+from abc import abstractmethod as _abstractmethod
 import numbers as _numbers
+from collections import abc as _collabc
 from functools import cached_property as _cached_property
 
 import numpy as _np
 
-from .abstract import EverestABC as _EverestABC
+from .general import *
 
-class Datalike(_EverestABC):
+class Datalike(Generic):
     _defaultdtype = object
     @classmethod
     def __subclasshook__(cls, C):
@@ -40,6 +42,8 @@ class Datalike(_EverestABC):
             return self._check_dtype(self._dtype)
         except AttributeError:
             return self._defaultdtype
+
+
 
 class String(Datalike):
     _defaultdtype = str
@@ -77,5 +81,58 @@ class Array(Numerical):
     ...
 _ = Array.register(_np.ndarray)
 
+
+
+class Container(Generic):
+    ...
+_ = Container.register(_collabc.Container)
+
+class Iterable(Generic):
+    ...
+_ = Iterable.register(_collabc.Iterable)
+
+class Iterator(Generic):
+    ...
+_ = Iterator.register(_collabc.Iterator)
+
+class Sized(Generic):
+    ...
+_ = Sized.register(_collabc.Sized)
+
+class Callable(Generic):
+    ...
+_ = Callable.register(_collabc.Callable)
+
+class Collection(Sized, Iterable, Container):
+    ...
+_ = Collection.register(_collabc.Collection)
+
+class Reversible(Generic):
+    ...
+_ = Reversible.register(_collabc.Reversible)
+
+class Sequence(Reversible, Collection):
+    ...
+_ = Sequence.register(_collabc.Sequence)
+
+class MutableSequence(Sequence):
+    ...
+_ = MutableSequence.register(_collabc.MutableSequence)
+
+class Mapping(Collection):
+    ...
+_ = Mapping.register(_collabc.Mapping)
+
+class PotentiallySeqlike(Generic):
+    @property
+    @_abstractmethod
+    def isSeq(self) -> bool:
+        raise AbstractMethodException
+class Seqlike(PotentiallySeqlike, Iterable):
+    @property
+    def isSeq(self):
+        return True
+
 ###############################################################################
+''''''
 ###############################################################################

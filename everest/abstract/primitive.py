@@ -4,7 +4,7 @@
 
 from . import _special
 
-from .abstract import FuncyABC as _FuncyABC
+from .abstract import EverestABC as _EverestABC
 
 PRIMITIVETYPES = set((
     int,
@@ -16,10 +16,10 @@ PRIMITIVETYPES = set((
     _special.Empty,
     ))
 
-class FuncyPrimitive(_FuncyABC):
+class Primitive(_EverestABC):
     '''The virtual superclass of all acceptable funcy primitive types.'''
 for typ in PRIMITIVETYPES:
-    _ = FuncyPrimitive.register(typ)
+    _ = Primitive.register(typ)
 
 ###############################################################################
 ###############################################################################

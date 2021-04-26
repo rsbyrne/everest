@@ -9,76 +9,28 @@ from functools import (
     )
 import itertools as _itertools
 from abc import (
-    ABCMeta as _ABCMeta,
     ABC as _ABC,
-    abstractmethod as _abstractmethod,
     )
 
-from . import _special, _abstract
+from . import _special, _abstract, _mroclasses
 
 from . import incisor as _incisor
 from . import incision as _incision
 
-# DefaultObj = type('DefaultObj', (object,), dict())
-# defaultobj = DefaultObj()
-
-def process_depth(
-        args: tuple, depth: int, /,
-        filler = _incisor.trivial,
-        ):
-    args = tuple(arg if arg != slice(None) else filler for arg in args)
-    if (not depth < _special.infint) and (Ellipsis in args):
-        raise ValueError("Cannot use ellipsis when depth is infinite.")
-    nargs = len(args)
-    if nargs == 0:
-        return args
-    if nargs == 1:
-        if args[0] is Ellipsis:
-            return tuple(filler for _ in range(depth))
-        return args
-    if nargs < depth:
-        nellipses = len(tuple(el for el in args if el is Ellipsis))
-        if nellipses == 0:
-            return args
-        if nellipses == 1:
-            out = []
-            for arg in args:
-                if arg is Ellipsis:
-                    for _ in range(depth - nargs):
-                        out.append(filler)
-                else:
-                    out.append(arg)
-            return tuple(out)
-        raise IndexError(f"Too many ellipses ({nellipses} > 1)")
-    if nargs == depth:
-        return tuple(filler if arg is Ellipsis else arg for arg in args)
-    raise IndexError(
-        f"Not enough depth to accommodate requested levels:"
-        f" levels = {nargs} > depth = {depth})"
-        )
-
 def null_fn(*args, **kwargs):
     return args, kwargs
 
-
-
-class IncisableMeta(_ABCMeta):
-    def __init__(cls, *args, **kwargs):
-        for incisiontype in ('Sub', 'Deep', 'Broad', 'Strict'):
-            overcls = over_class(cls, getattr(cls, incisiontype))
-            setattr(cls, incisiontype, overcls)
-        super().__init__(*args, **kwargs)
-
-class FuncyIncisable(_ABC):
+@_mroclasses.MROClassable
+class Incisable(_ABC):
     _length = NotImplemented
     _maxcount = 1_000_000
     _depth = _special.infint
     _sub = None
     # Incision types
-    Sub = _incision.FuncySubIncision
-    Deep = _incision.FuncyDeepIncision
-    Broad = _incision.FuncyBroadIncision
-    Strict = _incision.FuncyStrictIncision
+    Sub = _incision.SubIncision
+    Deep = _incision.DeepIncision
+    Broad = _incision.BroadIncision
+    Strict = _incision.StrictIncision
     def __init__(self, *args, lev = None, **kwargs):
         subkw = self._subkwargs = dict()
         if not lev is None:
@@ -90,7 +42,6 @@ class FuncyIncisable(_ABC):
                 depth = 1
             self._length = lev
             self._depth = depth
-
         super().__init__(*args, **kwargs)
     @property
     def subkwargs(self):
@@ -98,13 +49,13 @@ class FuncyIncisable(_ABC):
     @classmethod
     def _incision_methods(cls):
         yield from (
-            (_abstract.general.FuncyEvaluable, cls._getitem_evaluable),
+            (_abstract.general.Evaluable, cls._getitem_evaluable),
             (_collabc.Generator, cls._getitem_generator),
-            (_incisor.FuncyTrivialIncisor, cls._getitem_trivial),
-            (_incisor.FuncySubIncisor, cls._getitem_sub),
-            (_incisor.FuncyDeepIncisor, cls._getitem_deep),
-            (_incisor.FuncyStrictIncisor, cls._getitem_strict),
-            (_incisor.FuncyBroadIncisor, cls._getitem_broad),
+            (_incisor.TrivialIncisor, cls._getitem_trivial),
+            (_incisor.SubIncisor, cls.Sub),
+            (_incisor.DeepIncisor, cls.Deep),
+            (_incisor.StrictIncisor, cls.Strict),
+            (_incisor.BroadIncisor, cls.Broad),
             )
     @classmethod
     @_lru_cache(maxsize = 32)
@@ -113,7 +64,7 @@ class FuncyIncisable(_ABC):
             if issubclass(arg, typ):
                 return meth
         return NotImplemented
-    def __getitem__(self, arg: _incisor.FuncyIncisor, /):
+    def __getitem__(self, arg: _incisor.Incisor, /):
         incmeth = self.get_incision_method(type(arg))
         if incmeth is NotImplemented:
             raise TypeError(arg, type(arg))
@@ -122,36 +73,8 @@ class FuncyIncisable(_ABC):
         return self[list(arg)]
     def _getitem_evaluable(self, arg, /):
         return self[arg.value]
-    def _getitem_trivial(self,
-            _: _incisor.FuncyTrivialIncisor = None, /
-            ) -> _abstract.datalike.FuncyDatalike:
+    def _getitem_trivial(self, _):
         return self
-    def _getitem_sub(self, _, /):
-        return self.sub(self, **self.subkwargs)
-    def _getitem_deep(self, args) -> _abstract.datalike.FuncyDatalike:
-        if args is Ellipsis:
-            args = (Ellipsis,)
-        nargs = len(args)
-        if nargs == 0:
-            return self
-        args = process_depth(args, self.depth)
-        if (nargs := len(args)) < (nlevels := self.nlevels):
-            args = tuple((
-                *args, *(_incisor.trivial for _ in range(nlevels - nargs))
-                ))
-        argiter, levels = iter(args), self.levels()
-        cursor = next(levels)[next(argiter)]
-        for arg, lev in _itertools.zip_longest(argiter, levels):
-            cursor = cursor[_incisor.subinc]
-            if hasattr(lev, 'incisors'):
-                for inc in lev.incisors:
-                    cursor = cursor[inc]
-            cursor = cursor[arg]
-        return self.deep(cursor)
-    def _getitem_broad(self, arg, /):
-        return self.broad(arg, self)
-    def _getitem_strict(self, arg, /):
-        return self.strict(arg, self)
     def __call__(self, arg0, /, *argn):
         if not argn:
             return arg0
@@ -206,27 +129,30 @@ def safe_iterate(iterator, maxcount):
             raise RuntimeError("Max count exceeded on incision iter.")
         yield count, iterant
 
-class FuncySoftIncisable(FuncyIncisable):
+class SoftIncisable(Incisable):
 
-    _endind = null_fn
-    _endval = null_fn
+    _endind = None
+    _endval = None
     _length = _special.infint
+
+    Soft = _incision.SoftIncision
 
     @classmethod
     def _incision_methods(cls):
-        yield (_incisor.FuncySoftIncisor, cls._getitem_soft)
+        yield (_incisor.SoftIncisor, cls._getitem_soft)
+        yield (_incisor.StrictIncisor, cls._getitem_strict)
         yield from super()._incision_methods()
     def _getitem_strict(self, arg, /):
         indi = self.get_indi(arg)
         for inds in self.allindices():
             if arg == inds[indi]:
-                return self.strict(inds[0], self)
+                return self.Strict(inds[0], self)
         raise IndexError(arg)
     def _getitem_soft(self, arg, /):
         if isinstance(arg, slice):
             if arg == slice(None):
                 return self
-        return self.soft(arg, self)
+        return self.Soft(arg, self)
 
     def index_sets(self) -> 'Generator[Generator]':
         try:
@@ -234,7 +160,7 @@ class FuncySoftIncisable(FuncyIncisable):
         except (ValueError, TypeError):
             yield _itertools.count()
     def index_types(self) -> 'Generator[type]':
-        yield _abstract.datalike.FuncyIntegral
+        yield _abstract.datalike.Integral
     def get_indi(self, arg, /):
         argtyp = type(arg)
         for i, typ in list(enumerate(self.index_types()))[::-1]:

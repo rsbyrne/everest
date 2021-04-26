@@ -28,7 +28,7 @@ class Funcy(_ABC, metaclass = Meta):
     @classmethod
     def _process_kwargs(cls, **kwargs):
         if not all(
-                isinstance(v, _abstract.FuncyPrimitive)
+                isinstance(v, _abstract.Primitive)
                     for v in kwargs.values()
                 ):
             raise TypeError("Kwargs must all be Primitive type.")

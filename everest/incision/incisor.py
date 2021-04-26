@@ -3,44 +3,44 @@
 ###############################################################################
 
 from . import _abstract
-_FuncyABC = _abstract.abstract.FuncyABC
+_EverestABC = _abstract.abstract.EverestABC
 _datalike = _abstract.datalike
 _general = _abstract.general
 _structures = _abstract.structures
 
-class FuncyIncisor(_FuncyABC):
+class Incisor(_EverestABC):
     ...
 
-class FuncyTrivialIncisor(FuncyIncisor):
+class TrivialIncisor(Incisor):
     def __repr__(self):
         return 'trivial'
-trivial = FuncyTrivialIncisor()
+trivial = TrivialIncisor()
 
-class FuncyShallowIncisor(FuncyIncisor):
+class ShallowIncisor(Incisor):
     ...
 
-class FuncyStrictIncisor(FuncyShallowIncisor):
+class StrictIncisor(ShallowIncisor):
     ...
-_ = FuncyStrictIncisor.register(_datalike.FuncyIntegral)
-_ = FuncyStrictIncisor.register(_datalike.FuncyString)
-_ = FuncyStrictIncisor.register(_structures.FuncyMapping)
+_ = StrictIncisor.register(_datalike.Integral)
+_ = StrictIncisor.register(_datalike.String)
+_ = StrictIncisor.register(_structures.Mapping)
 
-class FuncySoftIncisor(FuncyShallowIncisor):
+class SoftIncisor(ShallowIncisor):
     ...
-_ = FuncySoftIncisor.register(_general.FuncySlice)
+_ = SoftIncisor.register(_general.Slice)
 
-class FuncyBroadIncisor(FuncySoftIncisor):
+class BroadIncisor(SoftIncisor):
     ...
-_ = FuncyBroadIncisor.register(_structures.FuncyUnpackable)
+_ = BroadIncisor.register(_structures.Unpackable)
 
-class FuncyDeepIncisor(FuncyIncisor):
+class DeepIncisor(Incisor):
     ...
-_ = FuncyDeepIncisor.register(_structures.FuncyStruct)
-_ = FuncyDeepIncisor.register(type(Ellipsis))
+_ = DeepIncisor.register(_structures.Struct)
+_ = DeepIncisor.register(type(Ellipsis))
 
-class FuncySubIncisor(FuncyDeepIncisor):
+class SubIncisor(DeepIncisor):
     ...
-subinc = FuncySubIncisor()
+subinc = SubIncisor()
 
 ###############################################################################
 ###############################################################################
