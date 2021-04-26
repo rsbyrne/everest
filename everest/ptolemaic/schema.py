@@ -15,8 +15,8 @@ class Schema(_ABCMeta):
     inputs = None
     hashID = None
     Case = None
-    def __new__(meta, name, bases, dic):
-        cls = super().__new__(meta, name, bases, dic)
+    def __new__(meta, name, bases, namespace, **kwargs):
+        cls = super().__new__(meta, name, bases, namespace, **kwargs)
         hashID = cls.__name__
         if cls.userdefined:
 #             cls.script = script = _disk.ToOpen(inspect.getfile(cls))()

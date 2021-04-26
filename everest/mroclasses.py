@@ -32,26 +32,24 @@ class AnticipatedMethod(Exception):
     def isantip(cls, obj):
         return isinstance(obj, cls)
     @classmethod
-    def update_antips(cls, acls):
-        filt = filter(cls.isantip, acls.__dict__.values())
-        antips = [att.name for att in filt]
-        if hasattr(acls, '_anticipatedmethods_'):
-            antips.extend(acls._anticipatedmethods_)
-        antips = sorted(set(antips))
-        acls._anticipatedmethods_ = antips
-        assert all(antip in dir(acls) for antip in antips)
+    def get_antipnames(cls, ACls):
+        filt = filter(cls.isantip, ACls.__dict__.values())
+        names = [att.name for att in filt]
+        for Base in ACls.__bases__:
+            names.extend(cls.get_antipnames(Base))
+        return sorted(set(names))
     @classmethod
-    def process_antips(cls, acls):
-        cls.update_antips(acls)
-        for antip in acls._anticipatedmethods_:
-            for B in acls.__mro__[1:]:
+    def process_antips(cls, ACls):
+        names = cls.get_antipnames(ACls)
+        for name in names:
+            for B in ACls.__mro__:
                 try:
-                    att = getattr(B, antip)
+                    att = getattr(B, name)
                     if not cls.isantip(att):
-                        setattr(acls, antip, att)
+                        setattr(ACls, name, att)
                         break
                 except AttributeError:
-                    ...
+                    continue
     def __init__(self, func, /):
         self.func, self.name, self.doc = func, func.__name__, func.__doc__
         exc = f"A method called '{self.name}' is anticipated: {self.doc}"
@@ -80,33 +78,45 @@ def update_mroclassnames(cls):
 def merge_mroclass(cls, name):
     inheritees = tuple(
         getattr(c, name) for c in (
-            b for b in (cls, *cls.__bases__) if name in b.__dict__
+            b for b in cls.__bases__ if name in b.__dict__
             )
         )
+    new = cls.__dict__[name] if name in cls.__dict__ else None
     if not inheritees:
+        if new is not None:
+            return new
         return NotImplemented
-    if len(inheritees) == 1:
-        mroclass = inheritees[0]
     else:
-        mroclass = type(name, inheritees, {})
-    if issubclass(mroclass, Overclass) and not issubclass(cls, mroclass):
-        comboname = cls.__name__ + '_' + mroclass.__name__
-        mroclass = type(comboname, (mroclass, cls), {})
-    AnticipatedMethod.process_antips(mroclass)
-    return mroclass
+        if new is None:
+            if len(inheritees) == 1:
+                return inheritees[0]
+        else:
+            inheritees = (new, *inheritees)
+        return type(name, inheritees, {})
+
+def process_mroclass(cls, name):
+    mroclass = merge_mroclass(cls, name)
+    if mroclass is NotImplemented:
+        return
+    setattr(cls, name, mroclass)
+    if issubclass(mroclass, Overclass):
+        overname = cls.__name__ + '_' + name
+        print(overname)
+        overclass = type(overname, (mroclass, cls), {}, overclass = True)
+        setattr(cls, overname, overclass)
 
 def update_mroclasses(cls):
     for name in cls.mroclasses:
-        mroclass = merge_mroclass(cls, name)
-        if mroclass is not NotImplemented:
-            setattr(cls, name, mroclass)
+        process_mroclass(cls, name)
 
 def process_mroclasses(cls):
     update_mroclassnames(cls)
     update_mroclasses(cls)
 
-def mroclassable_init_subclass(cls, **kwargs):
-    process_mroclasses(cls)
+def mroclassable_init_subclass(cls, overclass = False, **kwargs):
+    if not overclass:
+        process_mroclasses(cls)
+    AnticipatedMethod.process_antips(cls)
     super(cls).__init_subclass__(**kwargs)
 
 def mroclassable(cls):
