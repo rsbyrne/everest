@@ -2,7 +2,7 @@
 '''Defines certain funcy 'special' numbers.'''
 ###############################################################################
 
-from functools import wraps
+from functools import wraps, total_ordering
 import numbers
 import sys
 from collections import abc as collabc
@@ -41,6 +41,7 @@ empty = Empty()
 emptyseq = EmptySequence()
 emptymap = EmptyMapping()
 
+@total_ordering # Lazy - I should implement these more efficiently.
 class Infinite(numbers.Number):
     def __init__(self, pos = True):
         self._posarg = pos
@@ -48,6 +49,17 @@ class Infinite(numbers.Number):
         return int(InfiniteInteger(self._posarg))
     def __float__(self):
         return float(InfiniteFloat(self._posarg))
+    def __lt__(self, other):
+        if isinstance(other, Infinite):
+            if other._posarg:
+                return not self._posarg
+            return self._posarg
+        return not self._posarg
+    def __eq__(self, other):
+        if isinstance(other, Infinite):
+            if other._posarg == self._posarg:
+                return True
+        return False
 
 class InfiniteFloat(Infinite, float):
     def __new__(cls, *_, pos = True, **__):
@@ -58,9 +70,6 @@ class InfiniteFloat(Infinite, float):
         return float('inf') if self._posarg else float('-inf')
     def __repr__(self):
         return 'infflt' if float(self) > 0 else 'ninfflt'
-
-def compare_infinities(self, other):
-    return False if isinstance(other, Infinite) else self
 
 class InfiniteInteger(Infinite, int):
     def __new__(cls, *_, pos = True, **__):
@@ -186,18 +195,6 @@ class InfiniteInteger(Infinite, int):
 
     def __coerce__ (self):
         raise InfiniteValueDetected
-    def __lt__(self, other):
-        return compare_infinities(self._posarg, other)
-    def __le__(self, other):
-        return compare_infinities(not self._posarg, other)
-    def __eq__(self, other):
-        return compare_infinities(False, other)
-    def __ne__(self, other):
-        return compare_infinities(True, other)
-    def __gt__(self, other):
-        return compare_infinities(self._posarg, other)
-    def __ge__(self, other):
-        return compare_infinities(self._posarg, other)
 
     def __bool__(self):
         return True
@@ -211,8 +208,8 @@ class BadNumber(numbers.Number):
 
     _error = EverestValueError
 
-    def __getattr__(self, key):
-        raise self._error
+    # def __getattr__(self, key):
+    #     raise self._error
     def __getitem__(self, key):
         raise self._error
     def __setitem__(self, key, val):
