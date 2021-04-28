@@ -35,7 +35,7 @@ def share(obj):
             raise simpliError
         return shareObj
     except OverflowError:
-        tempfilename = reseed.randstring(16) + '.pkl'
+        tempfilename = reseed.rstr(16) + '.pkl'
         if rank == 0:
             with open(tempfilename, 'w') as file:
                 pickle.dump(obj, file)

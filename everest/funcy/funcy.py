@@ -85,7 +85,7 @@ class Funcy(_ABC, metaclass = Meta):
         try:
             return self._hashint
         except AttributeError:
-            return int(_reseed.digits(12, seed = self.hashID))
+            return int(_reseed.rdigits(12, seed = self.hashID))
 
 ###############################################################################
 ###############################################################################

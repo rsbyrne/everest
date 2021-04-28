@@ -92,7 +92,7 @@ class Simulator:
         return ts, vals
 
     def randsimulate(self, *args, **kwargs):
-        x = self.X[np.random.randint(self.X.shape[0])]
+        x = self.X[np.random.rint(self.X.shape[0])]
         return self.simulate(x, *args, **kwargs)
 
 ###############################################################################

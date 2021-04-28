@@ -20,7 +20,7 @@ class Schema(_ABCMeta):
         hashID = cls.__name__
         if cls.userdefined:
 #             cls.script = script = _disk.ToOpen(inspect.getfile(cls))()
-            cls.script = script = str(_reseed.digits(12))
+            cls.script = script = str(_reseed.rdigits(12))
             hashID += _wordhash.get_random_proper(2, seed = script)
         cls.hashID = hashID
         if not hashID in (pre := meta.schemas):

@@ -12,6 +12,6 @@ class Meta(_ABCMeta):
         args, kwargs = inst.args, inst.kwargs
         pickletup = inst._pickletup = (cls, args, kwargs)
         hashID = inst.hashID = _wordhash.w_hash(pickletup)
-        hashint = inst.hashint = int(_reseed.digits(12, seed = hashID))
+        hashint = inst.hashint = int(_reseed.rdigits(12, seed = hashID))
         inst.__init__(*args, **kwargs)
         return inst

@@ -41,7 +41,7 @@ class Hierarchy(dict):
         super().__init__(*args, **kwargs)
         self.parent = parent
         self.subs = dict()
-        self.hashint = _reseed.digits()
+        self.hashint = _reseed.rdigits()
     def flatten(self) -> dict:
         return flatten_hierarchy(self)
     def remove_ghosts(self):

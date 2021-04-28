@@ -45,7 +45,7 @@ class _Gruple(_SoftIncisable, _Sequence):
     hashint = None
     rep = None
     def __init__(self, *args, **kwargs):
-        hashint = self.hashint = _reseed.randint(1e11, 1e12 - 1)
+        hashint = self.hashint = _reseed.rint(1e11, 1e12 - 1)
         self.rep = type(self).__name__ + '_' + str(hashint)
         super().__init__(*args, **kwargs)
     @property

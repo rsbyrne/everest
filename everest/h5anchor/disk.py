@@ -87,7 +87,7 @@ def merge(file1, file2):
 
 @mpi.dowrap
 def tempname(length = 16, extension = None):
-    name = reseed.randstring(length)
+    name = reseed.rstr(length)
     if not extension is None:
         name += '.' + extension
     return name
@@ -129,7 +129,7 @@ def lock(filename, password = None):
                     pass
         except FileNotFoundError:
             raise FileNotFoundError("Something went wrong and we don't know what!")
-        reseed.randsleep(0.1, 5.)
+        reseed.rsleep(0.1, 5.)
 @mpi.dowrap
 def release(filename, password = ''):
     lockfilename = filename + '.lock'
@@ -183,7 +183,7 @@ class H5Wrap:
                 self.master = lock(self.filename, self.lockcode)
                 break
             except AccessForbidden:
-                reseed.randsleep(0.1, 5.)
+                reseed.rsleep(0.1, 5.)
         self.isopener = self._open_h5file()
         # if self.master:
         #     mpi.message("Logging in at", time.time())
