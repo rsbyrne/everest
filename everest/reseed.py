@@ -108,6 +108,9 @@ class Reseed:
             return (self.rng.choice(population) for i in range(selections))
         return self.rng.choice(population)
 
+    def rshuffle(self, *args, **kwargs):
+        return self.rng.shuffle(*args, **kwargs)
+
     def rstr(self, /, length = 16):
         letters = _string.ascii_lowercase
         return ''.join(self.rchoice(letters, length))
@@ -134,6 +137,7 @@ rval = reseed(Reseed.rval)
 rarray = reseed(Reseed.rarray)
 rangearr = reseed(Reseed.rangearr)
 rchoice = reseed(Reseed.rchoice)
+rshuffle = reseed(Reseed.rshuffle)
 rsleep = reseed(Reseed.rsleep)
 rstr = reseed(Reseed.rstr)
 
