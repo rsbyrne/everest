@@ -2,16 +2,9 @@
 ''''''
 ###############################################################################
 
-from .. import (
-    mroclasses as _mroclasses,
-    special as _special,
-    reseed as _reseed,
-    )
+from .. import _mroclasses, _special, _reseed
 
-# from .dimensions import *
-from .incision import *
-from .space import *
-from .exceptions import *
+# from .dimension import *
 
 ###############################################################################
 ###############################################################################
