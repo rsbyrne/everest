@@ -125,70 +125,63 @@ def _make_syllables():
 
 SYLLABLES = _make_syllables()
 
-def random_syllable():
-    syllable = random.choice(SYLLABLES)
+@reseed
+def get_random_syllable(seed = None):
+    syllable = seed.rchoice(SYLLABLES)
     return syllable
 
-def random_word(length = 3):
+def get_random_word(seed = None, length = 3):
     outWord = ''
     for _ in range(length):
-        outWord += random_syllable()
+        outWord += get_random_syllable(seed = seed)
     return outWord
 
-def random_alphanumeric(length = 6):
+@reseed
+def get_random_alphanumeric(seed = None, length = 6):
     characters = 'abcdefghijklmnopqrstuvwxyz0123456789'
-    choices = [random.choice(characters) for i in range(length)]
+    choices = [seed.rchoice(characters) for i in range(length)]
     return ''.join(choices)
 
-@reseed
-def get_random_alphanumeric(**kwargs):
-    return random_alphanumeric(**kwargs)
-
-@reseed
-def get_random_word(*args, **kwargs):
-    return random_word(*args, **kwargs)
-
-@reseed
-def get_random_phrase(phraselength = 2, wordlength = 2, seed = None):
+def get_random_phrase(seed = None, phraselength = 2, wordlength = 2):
     # 2 * 2 yields 64 bits of entropy
     phraseList = []
     for _ in range(phraselength):
         phraseList.append(
-            random_word(wordlength)
+            get_random_word(length = wordlength, seed = seed)
             )
     phrase = "-".join(phraseList)
     return phrase
 
 @reseed
-def get_random_english(n = 1, seed = None):
-    return '-'.join([random.choice(ENGLISH) for i in range(n)])
+def get_random_english(seed = None, n = 1):
+    return '-'.join([seed.rchoice(ENGLISH) for i in range(n)])
 @reseed
-def get_random_numerical(n = 1, seed = None):
-    return ''.join([random.choice(string.digits) for _ in range(n)])
+def get_random_numerical(seed = None, n = 1):
+    return ''.join([seed.rchoice(string.digits) for _ in range(n)])
 @reseed
-def get_random_greek(n = 1, seed = None):
-    return '-'.join([random.choice(GREEK) for i in range(n)])
+def get_random_greek(seed = None, n = 1):
+    return '-'.join([seed.rchoice(GREEK) for i in range(n)])
 @reseed
-def get_random_city(n = 1, seed = None):
-    return '-'.join([random.choice(CITIES) for i in range(n)])
+def get_random_city(seed = None, n = 1):
+    return '-'.join([seed.rchoice(CITIES) for i in range(n)])
 @reseed
-def get_random_phonetic(n = 1, seed = None):
-    return '-'.join([random.choice(PHONETIC) for i in range(n)])
+def get_random_phonetic(seed = None, n = 1):
+    return '-'.join([seed.rchoice(PHONETIC) for i in range(n)])
 @reseed
-def get_random_codeword(n = 1, seed = None):
-    return '-'.join([random.choice(CODEWORDS) for i in range(n)])
+def get_random_codeword(seed = None, n = 1):
+    return '-'.join([seed.rchoice(CODEWORDS) for i in range(n)])
 @reseed
-def get_random_wordnum(n = 1, seed = None):
-    return '-'.join([random.choice(WORDNUMS) for i in range(n)])
+def get_random_wordnum(seed = None, n = 1):
+    return '-'.join([seed.rchoice(WORDNUMS) for i in range(n)])
 @reseed
-def get_random_name(n = 1, seed = None):
-    return '-'.join([random.choice(NAMES) for i in range(n)])
+def get_random_name(seed = None, n = 1):
+    return '-'.join([seed.rchoice(NAMES) for i in range(n)])
 @reseed
-def get_random_proper(n = 1, seed = None):
-    return '-'.join([random.choice(PROPER) for i in range(n)])
+def get_random_proper(seed = None, n = 1):
+    return '-'.join([seed.rchoice(PROPER) for i in range(n)])
 @reseed
 def get_random_cityword(seed = None):
-    return '-'.join([random.choice(s) for s in [CITIES, ENGLISH]])
+    return '-'.join([seed.rchoice(s) for s in [CITIES, ENGLISH]])
 
 ###############################################################################
 ###############################################################################

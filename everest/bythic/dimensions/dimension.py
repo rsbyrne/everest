@@ -5,7 +5,7 @@
 from abc import ABC as _ABC
 from collections import abc as _collabc
 
-from . import _special
+from . import _special, _wordhash
 
 from .exceptions import *
 
@@ -34,24 +34,52 @@ def calculate_len(dim):
 def raise_uniterable():
     raise DimensionUniterable
 
-
+@_wordhash.Hashclass
 class Dimension(_ABC):
 
     mroclasses = 'DimIterator'
     DimIterator = DimIterator
-    iterlen = _special.unkint
-    iter_fn = raise_uniterable
+
+    __slots__ = ('_args', '_kwargs', 'args', 'kwargs', 'iterlen', 'iter_fn')
+
+    def __new__(cls, *args, **kwargs):
+        obj = object.__new__(cls)
+        obj._args = list()
+        obj._kwargs = dict()
+        return obj
+
+    def __init__(self):
+        if not hasattr(self, 'iterlen'):
+            self.iterlen = _special.unkint
+        if not hasattr(self, 'iter_fn'):
+            self.iter_fn = raise_uniterable
+        if not hasattr(self, '_args'):
+            self._args = []
+        if not hasattr(self, '_kwargs'):
+            self._kwargs = dict()
+        self.args = tuple(self._args)
+        self.kwargs = tuple(self._kwargs.items())
 
     def __iter__(self):
         return DimIterator(self.iter_fn)
 
     def __len__(self):
         iterlen = self.iterlen
+        if isinstance(self.iterlen, _special.Unknown):
+            iterlen = self.iterlen = calculate_len(self)
         if isinstance(iterlen, _special.InfiniteInteger):
             raise DimensionInfinite
-        if isinstance(iterlen, _special.Unknown):
-            iterlen = self.iterlen = calculate_len(self)
         return iterlen
+
+    def __reduce__(self):
+        return self._unreduce, self.args, self.kwargs
+
+    @classmethod
+    def _unreduce(cls, args, kwargs):
+        return cls(*args, **dict(kwargs))
+
+    def get_hashcontents(self):
+        return (type(self), self.args, self.kwargs)
 
     # def __getitem__(self, arg):
     #     if isinstance(arg, slice):
@@ -78,50 +106,9 @@ class Tandem(Dimension):
                 raise TypeError(type(arg))
         metrics = self.metrics = tuple(metrics)
         self.iterlen = min(len(met) for met in metrics)
+        self.iter_fn = lambda: zip(*self.metrics)
         super().__init__()
-
-    def iter_fn(self):
-        return zip(*self.metrics)
 
 
 ###############################################################################
-
-# def inquirer(start, stop, step, dimlen):
-#     print((start, stop, step), dimlen)
-#     mylist = list(range(dimlen))
-#     print("incorrect length:", get_slice_length(start, stop, step, dimlen))
-#     mycut = mylist[start:stop:step]
-#     print("correct length:", len(mycut))
-#     start, stop, step = proper = slice(start, stop, step).indices(dimlen)
-#     print("proper indices:", proper)
-#     print(mycut)
-#
-# for dimlen in range(10):
-#     alist = list(range(dimlen))
-#     for start in range(-10, 10):
-#         for stop in range(-10, 10):
-#             for step in range(-10, 10):
-#                 if not step:
-#                     continue
-#                 a = len(alist[start: stop: step])
-#                 b = get_slice_length(start, stop, step, dimlen)
-#                 if a != b:
-#                     inquirer(start, stop, step, dimlen)
-#                     print('\n')
-
-#             for step in range(-3, 3):
-#                 if not step == 0:
-#                     a = len(alist[start:stop:step])
-#                     b = get_slice_length(sstart, sstop, step, dimlen)
-#                     if a != b:
-#                         print(a, b, (start, stop, step), dimlen)
-#                     assert a == b, (a, b, (start, stop, step), dimlen)
-#                     a = len(list(range(dimlen))[start:stop:step])
-#                     b = get_slice_length(start, stop, step, dimlen)
-#                     if a != b:
-#                         print(a, b, (start, stop, step), dimlen)
-
-# mydim = Transform(Range(10, 30, 1.5), round)[3: 9] -> [14, 16, 18, 19, 20, 22]
-
-
 ###############################################################################

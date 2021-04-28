@@ -21,7 +21,7 @@ class Schema(_ABCMeta):
         if cls.userdefined:
 #             cls.script = script = _disk.ToOpen(inspect.getfile(cls))()
             cls.script = script = str(_reseed.rdigits(12))
-            hashID += _wordhash.get_random_proper(2, seed = script)
+            hashID += _wordhash.proper_hash(script)
         cls.hashID = hashID
         if not hashID in (pre := meta.schemas):
             pre[hashID] = cls

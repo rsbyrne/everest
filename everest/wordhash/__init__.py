@@ -6,7 +6,8 @@
 
 from everest.reseed import *
 
-from .makehash import make_hash, w_hash
+from .makehash import *
+from .hashclass import Hashclass
 from .word import *
 
 ###############################################################################

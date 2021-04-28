@@ -1,69 +1,48 @@
 ###############################################################################
 ''''''
 ###############################################################################
-import hashlib
-import time
-from collections import OrderedDict
-from collections.abc import Mapping, Sequence
-import warnings
 
-import numpy as np
+from collections.abc import Mapping as _Mapping
+import hashlib as _hashlib
+import pickle as _pickle
 
-from . import word
-from .exceptions import *
+from . import word as _word
 
-class UnstableHash(WordhashException):
-    pass
 
-def make_hash(obj):
-    checkReps = 3
-    vals = []
-    for _ in range(checkReps):
-        val = _make_hash(obj)
-        vals.append(val)
-    if not len(set(vals)) == 1:
-        raise UnstableHash
-    return vals[0]
-def _make_hash(obj):
-    try:
-        obj = obj.hashID
-    except AttributeError:
-        pass
-    if type(obj) is str:
-        hexID = hashlib.md5(obj.encode()).hexdigest()
-        hashVal = str(int(hexID, 16))
-    elif isinstance(obj, Mapping):
-        obj = {**obj}
-        try:
-            obj = OrderedDict(sorted(obj.items()))
-        except TypeError:
-            warnings.warn(
-                "You have passed unorderable kwargs to be hashed; \
-                reproducibility is not guaranteed."
-                )
-        hashVal = _make_hash(obj.items())
-    elif isinstance(obj, Sequence):
-        hashList = [_make_hash(subObj) for subObj in obj]
-        hashVal = _make_hash(str(hashList))
-    elif isinstance(obj, np.generic):
-        hashVal = _make_hash(np.asscalar(obj))
+def quick_hash(content):
+    if hasattr(content, 'get_hashstr'):
+        return content.get_hashstr()
+    if hasattr(content, 'get_hashcontent'):
+        content = content.get_hashcontent()
+    if isinstance(content, tuple):
+        content = ','.join(quick_hash(el) for el in content).encode()
     else:
-        # hashObj = str(pickle.dumps(obj))
-        hashObj = repr(obj)
-        hexID = hashlib.md5(hashObj.encode()).hexdigest()
-        hashVal = str(int(hexID, 16))
-    return hashVal
+        content = repr(content).encode()
+        # content = _pickle.dumps(content)
+    return _hashlib.md5(content).hexdigest()
 
-def w_hash(obj):
-    try:
-        return obj.hashID
-    except AttributeError:
-        return word.get_random_phrase(
-            seed = make_hash(obj),
-            wordlength = 2,
-            phraselength = 2,
-            )
+def quick_hashint(obj):
+    return int(quick_hash(obj), 16)
+
+def fic_hash(obj, depth = 2):
+    return _word.get_random_phrase(
+        seed = quick_hash(obj),
+        wordlength = depth,
+        phraselength = depth,
+        )
+
+def proper_hash(obj, depth = 2):
+    return _word.get_random_proper(seed = quick_hash(obj), n = depth)
+
+def english_hash(obj, depth = 2):
+    return _word.get_random_english(seed = quick_hash(obj), n = depth)
+
+def word_hash(obj, depth = 2):
+    if isinstance(obj, type):
+        return proper_hash(obj, depth)
+    if isinstance(obj, _Mapping):
+        return english_hash(obj, depth)
+    return fic_hash(obj, depth)
 
 ###############################################################################
-''''''
 ###############################################################################

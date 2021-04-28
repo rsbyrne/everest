@@ -36,12 +36,12 @@ class Item:
 class Hierarchy(dict):
     parent = None
     subs = None
-    hashint = None
+    randhash = None
     def __init__(self, *args, parent = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.parent = parent
         self.subs = dict()
-        self.hashint = _reseed.rdigits()
+        self.randhash = _reseed.rdigits()
     def flatten(self) -> dict:
         return flatten_hierarchy(self)
     def remove_ghosts(self):
@@ -97,7 +97,7 @@ class Hierarchy(dict):
         for key in self:
             yield key, self[key]
     def __hash__(self):
-        return self.hashint
+        return self.randhash
     def __repr__(self):
         return type(self).__name__ + super().__repr__()
     def _repr_pretty_(self, p, cycle):

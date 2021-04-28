@@ -12,7 +12,7 @@ from .utilities import unpack_slice
 
 class Range(_Dimension):
 
-    __slots__ = ('slc', 'start', 'stop', 'step',)
+    __slots__ = ('slc', 'start', 'stop', 'step', 'startinf', 'stopinf')
     Inf, inf, ninf, typ = _special.Infinite, None, None, object
 
     @classmethod

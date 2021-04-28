@@ -2,9 +2,11 @@
 ''''''
 ###############################################################################
 
-from .. import _mroclasses, _special, _reseed
+from .. import _mroclasses, _special, _reseed, _wordhash
 
-# from .dimension import *
+from .dimension import *
+from .primary import *
+from .derived import *
 
 ###############################################################################
 ###############################################################################

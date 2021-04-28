@@ -2,12 +2,9 @@
 ''''''
 ###############################################################################
 
-from . import _wordhash
-
 from .hierarchy import Hierarchy as _Hierarchy
 
 class Cascade(_Hierarchy):
-    _hashdepth = 2
     def is_attribute(self, key):
         return key in dir(type(self))
     def __getattr__(self, key):
@@ -27,21 +24,8 @@ class Cascade(_Hierarchy):
             super().__delattr__(key)
         else:
             del self[key]
-    def get_hashID(self):
-        tohash = []
-        for key, val in self.items():
-            if type(val) is type(self):
-                val = val.get_hashID()
-            tohash.append((key, val))
-        tohash = str(tohash)
-        hashID = _wordhash.get_random_english(
-            self._hashdepth,
-            seed = tohash,
-            )
-        return hashID
-    @property
-    def hashID(self):
-        return self.get_hashID()
+    def get_hashcontent(self):
+        return tuple(self.items())
 
 ###############################################################################
 ###############################################################################

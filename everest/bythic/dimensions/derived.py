@@ -24,11 +24,12 @@ class Derived(_Dimension):
 
 class Collapsed(Derived):
 
-    __slots__ = ('_val', 'ind',)
+    __slots__ = ('_val', 'ind', '_value',)
 
     def __init__(self, dim, ind, /):
+        self.ind, self._value, self.iterlen, _itertup = ind, None, 1
+        self.iter_fn = lambda: iter((self.value,))
         super().__init__(dim)
-        self.ind, self._value, self.iterlen = ind, None, 1
 
     @property
     def value(self):
@@ -38,10 +39,6 @@ class Collapsed(Derived):
                     break
             self._value = val
         return val
-
-    def iter_fn(self):
-        yield self.value
-
 
 def process_negative_index(ind, dimlen):
     if ind is None:

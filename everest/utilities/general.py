@@ -4,6 +4,7 @@
 
 from collections.abc import Mapping as _Mapping
 import itertools as _itertools
+import os as _os
 
 from .. import abstract as _abstract
 
@@ -40,6 +41,23 @@ def kwargstr(**kwargs):
 
 def process_scalar(scal):
     return scal.dtype.type(scal)
+
+def add_headers(path, header = '#' * 80, footer = '#' * 80):
+    path = _os.path.abspath(path)
+    for filename in _os.listdir(path):
+        subPath = _os.path.join(path, filename)
+        if _os.path.isdir(subPath):
+            add_headers(subPath)
+        filename, ext = _os.path.splitext(filename)
+        if ext == '.py':
+            with open(subPath, mode = 'r+') as file:
+                content = file.read()
+                file.seek(0, 0)
+                if not content.strip('\n').startswith(header):
+                    content = f"{header}\n\n{content}"
+                if not content.strip('\n').endswith(footer):
+                    content = f"{content}\n\n{footer}\n"
+                file.write(content)
 
 # def delim_split(seq, /, sep = ...):
 #     g = []

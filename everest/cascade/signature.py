@@ -11,6 +11,8 @@ from functools import (
     partial as _partial,
     )
 
+from . import _wordhash
+
 from .hierarchy import Hierarchy as _Hierarchy
 from .cascade import Cascade as _Cascade
 
@@ -166,10 +168,10 @@ def get_cascade(func, **kwargs):
 def null_fn():
     ...
 
+@_wordhash.Hashclass
 class Signature(_Cascade):
     _set_locked = False
     signature = None
-    get_hashID = _lru_cache(maxsize = None)(_Cascade.get_hashID)
     inputsskip, inputsskipkeys = None, None
     def __init__(self, parent = null_fn, skip = None, skipkeys = None):
         if isinstance(parent, Signature):

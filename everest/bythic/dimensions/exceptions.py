@@ -2,7 +2,7 @@
 ''''''
 ###############################################################################
 
-from .exceptions import BythicException, NotYetImplemented
+from ..exceptions import BythicException, NotYetImplemented
 
 
 class DimensionException(BythicException):
