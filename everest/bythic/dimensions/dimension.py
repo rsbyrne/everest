@@ -2,13 +2,13 @@
 ''''''
 ###############################################################################
 
-from abc import ABC as _ABC, abstractmethod as _abstractmethod
+from abc import ABCMeta as _ABCMeta, abstractmethod as _abstractmethod
 from collections import abc as _collabc
 import operator as _operator
 from itertools import repeat as _repeat
 from functools import partial as _partial, lru_cache as _lru_cache
 
-from . import _special, _wordhash, _mroclass
+from . import _special, _wordhash, _mroclasses
 
 from . import _everestutilities
 _ARITHMOPS = _everestutilities.ARITHMOPS
@@ -48,24 +48,28 @@ def raise_uniterable():
     raise DimensionUniterable
 
 
-# @_wordhash.Hashclass
-@_mroclass.MROClassable
-class Dimension(_ABC):
+class DimensionMeta(_ABCMeta):
+    _DimIterator, _Derived, _Transform, _Slice = None, None, None, None
+    @property
+    def DimIterator(cls):
+        if (icls := cls._DimIterator) is None:
+            icls = type()
 
-    mroclasses = 'DimIterator'
-    DimIterator = DimIterator
+
+@_wordhash.Hashclass
+@_mroclasses.MROClassable
+class Dimension(metaclass = DimensionMeta):
 
     __slots__ = (
         '_args', '_kwargs', 'iterlen', 'iter_fn',
         'source', '_sourceget_', # required by Derived
         )
-    mroclasses = ('Derived', 'Transform')
+    _mroclasses_ = ('_DimIterator', '_Derived', '_Transform', '_Slice')
 
-    # Slice = object
-    # Transform = object
+    _DimIterator = DimIterator
 
-    @_mroclass.Overclass
-    class Derived:
+    # @_mroclasses.Overclass
+    class _Derived:
 
         def __init__(self, *sources):
             if not hasattr(self, '_args'):
@@ -93,7 +97,7 @@ class Dimension(_ABC):
         def __getitem__(self, arg):
             return self._sourceget_(self, arg)
 
-    class Transform(Derived):
+    class _Transform(_Derived):
 
         def __init__(self, *operands, operator = default_operator):
             if isinstance(operator, str):
@@ -116,10 +120,12 @@ class Dimension(_ABC):
             super().__init__(*operands)
             self._kwargs['operator'] = operator
 
-    class Slice(Derived):
+    class _Slice(_Derived):
         def __init__(self, source, incisor, /):
             super().__init__(source)
             self._args.append(incisor)
+
+    DimIterator, Derived, Transform, Slice = object, object, object, object
 
     def __init__(self):
         if not hasattr(self, 'iterlen'):
@@ -170,7 +176,7 @@ class Dimension(_ABC):
     def transform(self, func):
         return _partial(self.Transform, operator = func)
     def apply(self, func):
-        return self.transform(func)()
+        return self.transform(func)(self)
 
     @classmethod
     @_lru_cache(maxsize = 32)

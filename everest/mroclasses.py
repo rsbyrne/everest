@@ -59,25 +59,25 @@ class MROClassable(_ABC):
     @classmethod
     def __subclasshook__(cls, C):
         if cls is MROClassable:
-            if any('mroclasses' in B.__dict__ for B in C.__mro__):
+            if any('_mroclasses_' in B.__dict__ for B in C.__mro__):
                 return True
         return NotImplemented
 
     @classmethod
     def update_mroclassnames(cls, ACls):
         try:
-            mroclasses = list(ACls.mroclasses)
+            mroclasses = list(ACls._mroclasses_)
         except AttributeError:
             mroclasses = []
         for c in (c for c in ACls.__bases__ if issubclass(c, MROClassable)):
             try:
-                basemroclasses = c.mroclasses
+                basemroclasses = c._mroclasses_
                 mroclasses.extend(
                     name for name in basemroclasses if not name in mroclasses
                     )
             except AttributeError:
                 pass
-        ACls.mroclasses = tuple(mroclasses)
+        ACls._mroclasses_ = tuple(mroclasses)
 
     @classmethod
     def get_inheritees(cls, ACls, name):
@@ -129,7 +129,7 @@ class MROClassable(_ABC):
 
     @classmethod
     def update_mroclasses(cls, ACls):
-        for name in ACls.mroclasses:
+        for name in ACls._mroclasses_:
             cls.process_mroclass(ACls, name)
 
     @classmethod
@@ -156,10 +156,10 @@ class MROClassable(_ABC):
 #         return 3
 #
 # class B(A):
-#     mroclasses = 'InnerA',
+#     _mroclasses_ = 'InnerA',
 #
 # class C(A):
-#     mroclasses = 'InnerB', 'Over',
+#     _mroclasses_ = 'InnerB', 'Over',
 #     @Overclass
 #     class Over:
 #         @AnticipatedMethod

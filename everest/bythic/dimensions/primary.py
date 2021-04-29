@@ -118,8 +118,6 @@ class Range(Primary):
         self.iterlen = _special.infint
         super().__init__()
         self._args.extend((start, stop, step))
-        print(type(self), arg0, arg1, arg2)
-        # print(self._args)
 
 
 class Integral(Range):

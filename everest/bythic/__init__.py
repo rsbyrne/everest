@@ -3,7 +3,7 @@
 ###############################################################################
 
 from .. import (
-    mroclass as _mroclass,
+    mroclasses as _mroclasses,
     special as _special,
     reseed as _reseed,
     wordhash as _wordhash,

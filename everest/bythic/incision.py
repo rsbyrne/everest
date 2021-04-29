@@ -5,7 +5,7 @@
 from abc import ABC as _ABC, abstractmethod as _abstractmethod
 
 from . import _special
-from . import _mroclass
+from . import _mroclasses
 
 
 def process_depth(
@@ -44,7 +44,7 @@ def process_depth(
         )
 
 
-@_mroclass.Overclass
+@_mroclasses.Overclass
 class Incision:
 
     '''An object that can be 'incised'.'''
@@ -103,7 +103,7 @@ def get_incise(obj):
     return obj.incision.incise
 
 
-class Incisable(_mroclass.MROClassable):
+class Incisable(_mroclasses.MROClassable):
 
     @classmethod
     def __subclasshook__(cls, C):
