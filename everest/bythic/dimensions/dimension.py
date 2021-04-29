@@ -20,8 +20,6 @@ from .exceptions import (
     NotYetImplemented, DimensionUniterable, DimensionInfinite
     )
 
-def unpack_slice(slc):
-    return (slc.start, slc.stop, slc.step)
 
 default_operator = lambda x: x
 
@@ -166,8 +164,10 @@ class Dimension(metaclass = DimensionMeta):
     def get_hashcontents(self):
         return (type(self), self.args, self.kwargs)
 
-    def transform(self, operator):
-        return _partial(self.Transform, operator = operator)
+    @classmethod
+    @_lru_cache(maxsize = 64)
+    def transform(cls, operator, **kwargs):
+        return _partial(cls.Transform, operator = operator, **kwargs)
     def apply(self, operator):
         return self.transform(operator)(self)
 
@@ -177,8 +177,8 @@ class Dimension(metaclass = DimensionMeta):
 
     ### OPERATIONS ###
 
-    def op(self, other = None, *, operator, rev = False):
-        trans = self.transform(operator)
+    def op(self, other = None, *, operator, rev = False, **kwargs):
+        trans = self.transform(operator, **kwargs)
         if other is None:
             return trans(self)
         if rev:
