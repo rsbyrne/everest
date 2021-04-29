@@ -49,12 +49,7 @@ def raise_uniterable():
 
 
 class DimensionMeta(_ABCMeta):
-    _DimIterator, _Derived, _Transform, _Slice = None, None, None, None
-    @property
-    def DimIterator(cls):
-        if (icls := cls._DimIterator) is None:
-            icls = type()
-
+    ...
 
 @_wordhash.Hashclass
 @_mroclasses.MROClassable
@@ -64,12 +59,12 @@ class Dimension(metaclass = DimensionMeta):
         '_args', '_kwargs', 'iterlen', 'iter_fn',
         'source', '_sourceget_', # required by Derived
         )
-    mroclasses = ('_DimIterator', '_Derived', '_Transform', '_Slice')
+    mroclasses = ('DimIterator', 'Derived', 'Transform', 'Slice')
 
-    _DimIterator = DimIterator
+    DimIterator = DimIterator
 
     @_mroclasses.Overclass
-    class _Derived:
+    class Derived:
         fixedoverclass = None
         def __init__(self, *sources):
             if not hasattr(self, '_args'):
@@ -97,7 +92,7 @@ class Dimension(metaclass = DimensionMeta):
         def __getitem__(self, arg):
             return self._sourceget_(self, arg)
 
-    class _Transform(_Derived):
+    class Transform(Derived):
 
         def __init__(self, *operands, operator = default_operator):
             if isinstance(operator, str):
@@ -120,12 +115,10 @@ class Dimension(metaclass = DimensionMeta):
             super().__init__(*operands)
             self._kwargs['operator'] = operator
 
-    class _Slice(_Derived):
+    class Slice(Derived):
         def __init__(self, source, incisor, /):
             super().__init__(source)
             self._args.append(incisor)
-
-    DimIterator, Derived, Transform, Slice = object, object, object, object
 
     def __init__(self):
         if not hasattr(self, 'iterlen'):
