@@ -3,10 +3,11 @@
 ###############################################################################
 
 from .. import (
-    mroclasses as _mroclasses,
+    mroclass as _mroclass,
     special as _special,
     reseed as _reseed,
     wordhash as _wordhash,
+    utilities as _everestutilities,
     )
 
 from .dimensions import *

@@ -49,11 +49,24 @@ class AnticipatedMethod(Exception):
     def __call__(self, *args, **kwargs):
         raise self
 
-def _mroclassable_init_subclass(ACls, ocls = False, **kwargs):
+def _mroclassable_init_subclass(ACls, ocls = False):
     if not ocls:
         MROClassable.process_mroclasses(ACls)
     AnticipatedMethod.process_antips(ACls)
-    super(ACls).__init_subclass__(**kwargs)
+    super(ACls).__init_subclass__()
+
+# def check_slots(classes):
+#     '''Checks that multiple classes do not have populated __slots__'''
+#     popslots = False
+#     for cls in classes:
+#         if hasattr(cls, '__slots__'):
+#             if cls.__slots__:
+#                 if popslots:
+#                     raise TypeError(
+#                         f"Multiple classes have populated __slots__ "
+#                         f"- this can be an issue."
+#                         )
+#                 popslots = True
 
 class MROClassable(_ABC):
     @classmethod
@@ -84,7 +97,12 @@ class MROClassable(_ABC):
             if name in base.__dict__:
                 inheritee = getattr(base, name)
                 if issubclass(inheritee, Overclass):
-                    inheritee = inheritee.MROClass
+                    try:
+                        inheritee = inheritee.MROClass
+                    except AttributeError as exc:
+                        raise Exception(
+                            f"Overclass not created yet: {inheritee}"
+                            )
                 inheritees.append(inheritee)
         inheritees = tuple(
             getattr(c, name) for c in (
@@ -123,8 +141,8 @@ class MROClassable(_ABC):
     def __new__(cls, ACls):
         '''Wrapper which adds mroclasses to ACls.'''
         if not any(issubclass(b, MROClassable) for b in ACls.__bases__):
-            cls.process_mroclasses(ACls)
             ACls.__init_subclass__ = classmethod(_mroclassable_init_subclass)
+            cls.process_mroclasses(ACls)
         return ACls
 
 ###############################################################################

@@ -7,10 +7,56 @@ from functools import partial as _partial
 from . import _special, _reseed
 
 from .dimension import Dimension as _Dimension
+from .slices import (
+    ISlice as _ISlice,
+    Collapsed as _Collapsed,
+    )
 from .utilities import unpack_slice
 
 
-class Range(_Dimension):
+class Primary(_Dimension):
+    def __getitem__(self, arg):
+        if isinstance(arg, slice):
+            return _ISlice(self, arg)
+        return _Collapsed(self, arg)
+
+class Arbitrary(Primary):
+
+    __slots__ = ('content',)
+
+    def __init__(self, iterable):
+        content = self.content = tuple(iterable)
+        self.iterlen = len(content)
+        self.iter_fn = content.__iter__
+        super().__init__()
+        self._args.append(content)
+
+    @classmethod
+    def construct(cls, arg):
+        typs = set()
+        content = list()
+        for ind, el in enumerate(arg):
+            if ind > 1e9:
+                raise ValueError("Iterable too long (> 1e9)")
+            typs.add(type(el))
+            content.append(el)
+        if not content:
+            raise ValueError("Empty iterable.")
+        if len(typs) > 1:
+            return Arbitrary(content)
+        return Typed(content, tuple(typs)[0])
+
+class Typed(Arbitrary):
+
+    __slots__ = ('typ',)
+
+    def __init__(self, iterable, typ):
+        self.typ = typ
+        super().__init__((typ(el) for el in iterable))
+        self._args.append(typ)
+
+
+class Range(Primary):
 
     __slots__ = ('slc', 'start', 'stop', 'step', 'startinf', 'stopinf')
     Inf, inf, ninf, typ = _special.Infinite, None, None, object
@@ -28,21 +74,7 @@ class Range(_Dimension):
         return cls.typ(arg)
 
     @classmethod
-    def proc_args(cls, start, stop, step, stepdefault = 1):
-        step = stepdefault if step is None else step
-        if isinstance(step, cls.typ):
-            start = cls.proc_arg(start, step)
-            stop = cls.proc_arg(stop, step, inv = True)
-            if any((
-                    (step > 0 and start > stop),
-                    (step < 0 and start < stop),
-                    start == stop
-                    )):
-                raise ValueError("Zero-length range.")
-            return start, stop, step
-        return cls.typ(start), cls.typ(stop), step
-
-    def __new__(cls, *args):
+    def construct(cls, *args):
         _, *args = unpack_slice(*args)
         if cls is Range:
             start, stop, step = args
@@ -60,7 +92,22 @@ class Range(_Dimension):
             if any(isinstance(st, float) for st in (start, stop)):
                 return Real(*args)
             return Integral(*args)
-        return super().__new__(cls)
+        return cls(*args)
+
+    @classmethod
+    def proc_args(cls, start, stop, step, stepdefault = 1):
+        step = stepdefault if step is None else step
+        if isinstance(step, cls.typ):
+            start = cls.proc_arg(start, step)
+            stop = cls.proc_arg(stop, step, inv = True)
+            if any((
+                    (step > 0 and start > stop),
+                    (step < 0 and start < stop),
+                    start == stop
+                    )):
+                raise ValueError("Zero-length range.")
+            return start, stop, step
+        return cls.typ(start), cls.typ(stop), step
 
     def __init__(self, arg0, arg1 = None, arg2 = None, /):
         self.slc, *args = unpack_slice(arg0, arg1, arg2)
@@ -70,6 +117,9 @@ class Range(_Dimension):
             start, stop, step, startinf, stopinf
         self.iterlen = _special.infint
         super().__init__()
+        self._args.extend((start, stop, step))
+        print(type(self), arg0, arg1, arg2)
+        # print(self._args)
 
 
 class Integral(Range):

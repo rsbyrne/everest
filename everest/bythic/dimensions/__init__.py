@@ -2,11 +2,9 @@
 ''''''
 ###############################################################################
 
-from .. import _mroclasses, _special, _reseed, _wordhash
+from .. import _mroclass, _special, _reseed, _wordhash, _everestutilities
 
-from .dimension import *
-from .primary import *
-from .derived import *
+from .constructor import *
 
 ###############################################################################
 ###############################################################################

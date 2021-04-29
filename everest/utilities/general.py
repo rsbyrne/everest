@@ -8,6 +8,21 @@ import os as _os
 
 from .. import abstract as _abstract
 
+RICHOPS = ('lt', 'le', 'eq', 'ne', 'ge', 'gt')
+BOOLOPS = ('not', 'truth', 'is', 'is_not',)
+ARITHMOPS = (
+    'abs', 'add', 'and', 'floordiv', 'index', 'inv',
+    'lshift', 'mod', 'mul', 'matmul', 'neg', 'or',
+    'pos', 'pow', 'rshift', 'sub', 'truediv', 'xor'
+    )
+REVOPS = (
+    'radd', 'rand', 'rfloordiv', 'rlshift', 'rmod', 'rmul',
+    'rmatmul', 'ror', 'rpow', 'rrshift', 'rsub', 'rtruediv',
+    'rxor',
+    )
+SEQOPS = ('concat', 'contains', 'countOf', 'indexOf', )
+ALLOPS = (*RICHOPS, *BOOLOPS, *ARITHMOPS, *SEQOPS)
+
 def unpacker_zip(arg1, arg2, /):
     arg1map, arg2map = (isinstance(arg, _Mapping) for arg in (arg1, arg2))
     if arg1map and arg2map:

@@ -12,24 +12,41 @@ from .dimension import Dimension as _Dimension
 from .utilities import unpack_slice
 
 
-class Derived(_Dimension):
+def arb_iter(arb, inds):
+    it = iter(inds)
+    try:
+        ind = next(it)
+        for i, a in enumerate(arb):
+            if i == ind:
+                yield a
+                ind = next(inds)
+    except StopIteration:
+        return
 
-    __slots__ = ('source',)
+class Arbitrary(_Dimension.Slice):
 
-    def __init__(self, source, /):
-        self.source = source
-        self.iterlen = source.iterlen
-        super().__init__()
+    __slots__ = ('sliceinds',)
+
+    def __init__(self, source, sliceinds):
+        if not isinstance(sliceinds, _Dimension):
+            raise TypeError(
+                f"Arbitrary slice argument must be Dimension type, "
+                f"not {type(sliceinds)}"
+                )
+        self.iter_fn = _partial(arb_iter(source, sliceinds))
+        self.iterlen = len(sliceinds)
+        super().__init__(source, sliceinds)
 
 
-class Collapsed(Derived):
+class Collapsed(_Dimension.Slice):
 
     __slots__ = ('_val', 'ind', '_value',)
 
     def __init__(self, dim, ind, /):
-        self.ind, self._value, self.iterlen, _itertup = ind, None, 1
-        self.iter_fn = lambda: iter((self.value,))
-        super().__init__(dim)
+        self.ind, self._value, self.iterlen = ind, None, 1
+        self.iter_fn = _partial(iter, _partial(getattr, self, 'value'))
+        self.iterlen = 1
+        super().__init__(dim, ind)
 
     @property
     def value(self):
@@ -108,12 +125,11 @@ def process_index_slice(start, stop, step, /, dimlen = _special.inf):
     return (start, stop, step), length
 
 
-class DimSlice(Derived):
+class ISlice(_Dimension.Slice):
 
     __slots__ = 'start', 'stop', 'step'
 
     def __init__(self, dim, arg0, arg1 = None, arg2 = None, /):
-        super().__init__(dim)
         _, start, stop, step = unpack_slice(arg0, arg1, arg2)
         dimlen = dim.iterlen
         (start, stop, step), self.iterlen = \
@@ -122,7 +138,8 @@ class DimSlice(Derived):
         if step > 0:
             self.iter_fn = _partial(_itertools.islice, dim, start, stop, step)
         else:
-            if start is None:
+            start = dimlen if start is None else start
+            if start >= _special.inf:
                 raise ValueError("Cannot reverse-slice from infinity.")
             abstep = abs(step)
             stop = 0 if stop is None else stop
@@ -132,20 +149,7 @@ class DimSlice(Derived):
             self.iter_fn = content.__iter__
         step = None if step == 1 else step
         self.step = step
-
-
-class Transform(Derived):
-
-    __slots__ = 'operator', 'operant'
-
-    def __init__(self, operant, operator, /):
-        super().__init__(operant)
-        self.operator = operator
-        self.iter_fn = self.get_iterfn(operator, operant)
-
-    @staticmethod
-    def get_iterfn(operator, operant):
-        return _partial(map, operator, operant)
+        super().__init__(dim, (start, stop, step))
 
 
 ###############################################################################

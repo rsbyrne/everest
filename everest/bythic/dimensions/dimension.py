@@ -2,15 +2,28 @@
 ''''''
 ###############################################################################
 
-from abc import ABC as _ABC
+from abc import ABC as _ABC, abstractmethod as _abstractmethod
 from collections import abc as _collabc
+import operator as _operator
+from itertools import repeat as _repeat
+from functools import partial as _partial, lru_cache as _lru_cache
 
-from . import _special, _wordhash
+from . import _special, _wordhash, _mroclass
 
-from .exceptions import *
+from . import _everestutilities
+_ARITHMOPS = _everestutilities.ARITHMOPS
+_RICHOPS = _everestutilities.RICHOPS
+_REVOPS = _everestutilities.REVOPS
+OPS = (*_ARITHMOPS, *_RICHOPS, *_REVOPS)
+
+from .exceptions import (
+    NotYetImplemented, DimensionUniterable, DimensionInfinite
+    )
 
 def unpack_slice(slc):
     return (slc.start, slc.stop, slc.step)
+
+default_operator = lambda x: x
 
 
 class DimIterator(_collabc.Iterator):
@@ -34,61 +47,148 @@ def calculate_len(dim):
 def raise_uniterable():
     raise DimensionUniterable
 
-@_wordhash.Hashclass
+
+# @_wordhash.Hashclass
+@_mroclass.MROClassable
 class Dimension(_ABC):
 
     mroclasses = 'DimIterator'
     DimIterator = DimIterator
 
-    __slots__ = ('_args', '_kwargs', 'args', 'kwargs', 'iterlen', 'iter_fn')
+    __slots__ = (
+        '_args', '_kwargs', 'iterlen', 'iter_fn',
+        'source', '_sourceget_', # required by Derived
+        )
+    mroclasses = ('Derived', 'Transform')
 
-    def __new__(cls, *args, **kwargs):
-        obj = object.__new__(cls)
-        obj._args = list()
-        obj._kwargs = dict()
-        return obj
+    # Slice = object
+    # Transform = object
+
+    @_mroclass.Overclass
+    class Derived:
+
+        def __init__(self, *sources):
+            if not hasattr(self, '_args'):
+                self._args = list()
+            if not hasattr(self, '_kwargs'):
+                self._kwargs = dict()
+            source = None
+            for source in sources:
+                if isinstance(source, Dimension):
+                    break
+            if source is None:
+                raise TypeError(
+                    f"Source must be Dimension type, not {type(source)}"
+                    )
+            self.source = source
+            if hasattr(source, '_sourceget_'):
+                self._sourceget_ = source._sourceget_
+            else:
+                self._sourceget_ = type(source).__getitem__
+            if not hasattr(self, 'iterlen'):
+                self.iterlen = source.iterlen
+            super().__init__()
+            self._args.extend(sources)
+
+        def __getitem__(self, arg):
+            return self._sourceget_(self, arg)
+
+    class Transform(Derived):
+
+        def __init__(self, *operands, operator = default_operator):
+            if isinstance(operator, str):
+                if operator in OPS:
+                    if operator in _REVOPS:
+                        operator = operator[1:]
+                        operands = operands[::-1]
+                    operator = getattr(_operator, f"__{operator}__")
+                else:
+                    raise KeyError(operator)
+            self.operands, self.operator = operands, operator
+            if all(isinstance(op, Dimension) for op in operands):
+                self.iter_fn = _partial(map, operator, *operands)
+            else:
+                getops = lambda: (
+                    op if isinstance(op, Dimension) else _repeat(op)
+                        for op in operands
+                    )
+                self.iter_fn = _partial(map, operator, *getops())
+            super().__init__(*operands)
+            self._kwargs['operator'] = operator
+
+    class Slice(Derived):
+        def __init__(self, source, incisor, /):
+            super().__init__(source)
+            self._args.append(incisor)
 
     def __init__(self):
         if not hasattr(self, 'iterlen'):
-            self.iterlen = _special.unkint
+            self.iterlen = None
         if not hasattr(self, 'iter_fn'):
             self.iter_fn = raise_uniterable
-        if not hasattr(self, '_args'):
-            self._args = []
-        if not hasattr(self, '_kwargs'):
-            self._kwargs = dict()
-        self.args = tuple(self._args)
-        self.kwargs = tuple(self._kwargs.items())
+        self._args = []
+        self._kwargs = dict()
+
+    @property
+    def args(self):
+        return tuple(self._args)
+    @property
+    def kwargs(self):
+        return tuple(self._kwargs.items())
 
     def __iter__(self):
         return DimIterator(self.iter_fn)
 
     def __len__(self):
         iterlen = self.iterlen
-        if isinstance(self.iterlen, _special.Unknown):
-            iterlen = self.iterlen = calculate_len(self)
+        if iterlen is None:
+            self.iterlen = calculate_len(self)
+            return self.__len__()
         if isinstance(iterlen, _special.InfiniteInteger):
             raise DimensionInfinite
         return iterlen
 
+    def __bool__(self):
+        iterlen = self.iterlen
+        if iterlen is None:
+            iterlen = self.iterlen = calculate_len(self)
+        return iterlen > 0
+
     def __reduce__(self):
-        return self._unreduce, self.args, self.kwargs
+        return self._unreduce, (self.args, self.kwargs)
 
     @classmethod
     def _unreduce(cls, args, kwargs):
         return cls(*args, **dict(kwargs))
 
+    def copy(self):
+        return self._unreduce(self.args, self.kwargs)
+
     def get_hashcontents(self):
         return (type(self), self.args, self.kwargs)
 
-    # def __getitem__(self, arg):
-    #     if isinstance(arg, slice):
-    #         return ISlice(self, arg)
-    #     if isinstance(arg, int):
-    #         if arg < 0:
-    #             arg = len(self) + arg
-    #         return Collapsed(self, arg)
-    #     raise TypeError(type(arg))
+    def transform(self, func):
+        return _partial(self.Transform, operator = func)
+    def apply(self, func):
+        return self.transform(func)()
+
+    @classmethod
+    @_lru_cache(maxsize = 32)
+    def _getop(cls, name, *args):
+        if not (name := name.strip('_')) in OPS:
+            raise KeyError
+        return _partial(cls.Transform, *args, operator = name)
+    def __getattr__(self, name):
+        try:
+            return self._getop(name, self)
+        except KeyError as exc:
+            raise AttributeError from exc
+
+    @_abstractmethod
+    def __getitem__(self, arg):
+        '''This class wouldn't be of much use without one of these!'''
+
+Derived = Dimension.Derived
 
 
 class Tandem(Dimension):
@@ -107,6 +207,7 @@ class Tandem(Dimension):
         metrics = self.metrics = tuple(metrics)
         self.iterlen = min(len(met) for met in metrics)
         self.iter_fn = lambda: zip(*self.metrics)
+        self._args.extend(metrics)
         super().__init__()
 
 
