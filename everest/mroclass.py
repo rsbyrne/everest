@@ -55,19 +55,6 @@ def _mroclassable_init_subclass(ACls, ocls = False):
     AnticipatedMethod.process_antips(ACls)
     super(ACls).__init_subclass__()
 
-# def check_slots(classes):
-#     '''Checks that multiple classes do not have populated __slots__'''
-#     popslots = False
-#     for cls in classes:
-#         if hasattr(cls, '__slots__'):
-#             if cls.__slots__:
-#                 if popslots:
-#                     raise TypeError(
-#                         f"Multiple classes have populated __slots__ "
-#                         f"- this can be an issue."
-#                         )
-#                 popslots = True
-
 class MROClassable(_ABC):
     @classmethod
     def __subclasshook__(cls, C):
@@ -75,6 +62,7 @@ class MROClassable(_ABC):
             if any('mroclasses' in B.__dict__ for B in C.__mro__):
                 return True
         return NotImplemented
+
     @classmethod
     def update_mroclassnames(cls, ACls):
         try:
@@ -90,54 +78,65 @@ class MROClassable(_ABC):
             except AttributeError:
                 pass
         ACls.mroclasses = tuple(mroclasses)
+
     @classmethod
-    def merge_mroclass(cls, ACls, name):
+    def get_inheritees(cls, ACls, name):
         inheritees = []
         for base in ACls.__bases__:
             if name in base.__dict__:
-                inheritee = getattr(base, name)
-                if issubclass(inheritee, Overclass):
-                    try:
-                        inheritee = inheritee.MROClass
-                    except AttributeError as exc:
-                        raise Exception(
-                            f"Overclass not created yet: {inheritee}"
-                            )
+                if (altname := '_' + name + '_') in base.__dict__:
+                    assert issubclass(getattr(base, name), Overclass)
+                    inheritee = getattr(base, altname)
+                else:
+                    inheritee = getattr(base, name)
                 inheritees.append(inheritee)
-        inheritees = tuple(
-            getattr(c, name) for c in (
-                b for b in ACls.__bases__ if name in b.__dict__
-                )
-            )
+        inheritees = tuple(inheritees)
         new = ACls.__dict__[name] if name in ACls.__dict__ else None
-        if not inheritees:
-            if new is not None:
-                return new
-            return NotImplemented
-        if new is None:
-            if len(inheritees) == 1:
-                return inheritees[0]
+        if inheritees:
+            if new is None:
+                return inheritees
+            return (new, *inheritees)
+        if new is not None:
+            return (new,)
+        return NotImplemented
+
+    @classmethod
+    def merge_mroclass(cls, ACls, name):
+        inheritees = cls.get_inheritees(ACls, name)
+        if inheritees is NotImplemented:
+            return None, None
+        if len(inheritees) == 1:
+            mroclass = inheritees[0]
         else:
-            inheritees = (new, *inheritees)
-        return type(name, inheritees, {})
+            mroclass = type(name, inheritees, {})
+        if any(issubclass(c, Overclass) for c in inheritees):
+            inheritees = (*inheritees, ACls)
+            ocls = type(name, inheritees, {}, ocls = True)
+        else:
+            ocls = None
+        return mroclass, ocls
+
     @classmethod
     def process_mroclass(cls, ACls, name):
-        mroclass = cls.merge_mroclass(ACls, name)
-        if mroclass is NotImplemented:
+        mroclass, ocls = cls.merge_mroclass(ACls, name)
+        if mroclass is None:
             return
-        setattr(ACls, name, mroclass)
-        if issubclass(mroclass, Overclass):
-            ocls = type(name, (mroclass, ACls), {}, ocls = True)
-            setattr(ocls, 'MROClass', mroclass)
+        if ocls is None:
+            setattr(ACls, name, mroclass)
+        else:
+            setattr(ACls, '_' + name + '_', mroclass)
             setattr(ACls, name, ocls)
+
     @classmethod
     def update_mroclasses(cls, ACls):
         for name in ACls.mroclasses:
             cls.process_mroclass(ACls, name)
+
     @classmethod
     def process_mroclasses(cls, ACls):
         cls.update_mroclassnames(ACls)
         cls.update_mroclasses(ACls)
+
     def __new__(cls, ACls):
         '''Wrapper which adds mroclasses to ACls.'''
         if not any(issubclass(b, MROClassable) for b in ACls.__bases__):
