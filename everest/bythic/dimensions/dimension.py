@@ -166,28 +166,133 @@ class Dimension(metaclass = DimensionMeta):
     def get_hashcontents(self):
         return (type(self), self.args, self.kwargs)
 
-    def transform(self, func):
-        return _partial(self.Transform, operator = func)
-    def apply(self, func):
-        return self.transform(func)(self)
-
-    @classmethod
-    @_lru_cache(maxsize = 32)
-    def _getop(cls, name, *args):
-        if not (name := name.strip('_')) in OPS:
-            raise KeyError
-        return _partial(cls.Transform, *args, operator = name)
-    def __getattr__(self, name):
-        try:
-            return self._getop(name, self)
-        except KeyError as exc:
-            raise AttributeError from exc
+    def transform(self, operator):
+        return _partial(self.Transform, operator = operator)
+    def apply(self, operator):
+        return self.transform(operator)(self)
 
     @_abstractmethod
     def __getitem__(self, arg):
         '''This class wouldn't be of much use without one of these!'''
 
+    ### OPERATIONS ###
+
+    def op(self, other = None, *, operator, rev = False):
+        trans = self.transform(operator)
+        if other is None:
+            return trans(self)
+        if rev:
+            return trans(other, self)
+        return trans(self, other)
+
+    ### BINARY ###
+
+    def __add__(self, other):
+        return self.op(other, operator = 'add')
+    def __sub__(self, other):
+        return self.op(other, operator = 'sub')
+    def __mul__(self, other):
+        return self.op(other, operator = 'mul')
+    def __matmul__(self, other):
+        return self.op(other, operator = 'matmul')
+    def __truediv__(self, other):
+        return self.op(other, operator = 'truediv')
+    def __floordiv__(self, other):
+        return self.op(other, operator = 'floordiv')
+    def __mod__(self, other):
+        return self.op(other, operator = 'mod')
+    def __divmod__(self, other):
+        return self.op(other, operator = 'divmod')
+    def __pow__(self, other):
+        return self.op(other, operator = 'pow')
+    def __lshift__(self, other):
+        return self.op(other, operator = 'lshift')
+    def __rshift__(self, other):
+        return self.op(other, operator = 'rshift')
+    def __and__(self, other):
+        return self.op(other, operator = 'and')
+    def __xor__(self, other):
+        return self.op(other, operator = 'or')
+    def __or__(self, other):
+        return self.op(other, operator = 'xor')
+
+    #### BINARY REVERSED ####
+
+    def __radd__(self, other):
+        return self.op(other, operator = 'add', rev = True)
+    def __rsub__(self, other):
+        return self.op(other, operator = 'sub', rev = True)
+    def __rmul__(self, other):
+        return self.op(other, operator = 'mul', rev = True)
+    def __rmatmul__(self, other):
+        return self.op(other, operator = 'matmul', rev = True)
+    def __rtruediv__(self, other):
+        return self.op(other, operator = 'truediv', rev = True)
+    def __rfloordiv__(self, other):
+        return self.op(other, operator = 'floordiv', rev = True)
+    def __rmod__(self, other):
+        return self.op(other, operator = 'mod', rev = True)
+    def __rdivmod__(self, other):
+        return self.op(other, operator = 'divmod', rev = True)
+    def __rpow__(self, other):
+        return self.op(other, operator = 'pow', rev = True)
+    def __rlshift__(self, other):
+        return self.op(other, operator = 'lshift', rev = True)
+    def __rrshift__(self, other):
+        return self.op(other, operator = 'rshift', rev = True)
+    def __rand__(self, other):
+        return self.op(other, operator = 'and', rev = True)
+    def __rxor__(self, other):
+        return self.op(other, operator = 'xor', rev = True)
+    def __ror__(self, other):
+        return self.op(other, operator = 'or', rev = True)
+
+    #### UNARY ####
+
+    def __neg__(self):
+        return self.op(operator = 'neg')
+    def __pos__(self):
+        return self.op(operator = 'pos')
+    def __abs__(self):
+        return self.op(operator = 'abs')
+    def __invert__(self):
+        return self.op(operator = 'invert')
+    def __ceil__(self):
+        return self.op(operator = 'ceil')
+    def __floor__(self):
+        return self.op(operator = 'floor')
+    def __round__(self, ndigits):
+        return self.op(operator = 'round', ndigits = int(ndigits))
+    def __trunc__(self):
+        return self.op(operator = 'trunc')
+    def __float__(self):
+        return self.op(operator = 'float')
+    def __int__(self):
+        return self.op(operator = 'int')
+    def __complex__(self):
+        return self.op(operator = 'complex')
+    def __str__(self):
+        return self.op(operator = 'str')
+    def __index__(self):
+        return self.op(operator = 'index')
+
+    #### BOOLEAN ####
+
+    def __lt__(self, other):
+        return self.op(other, operator = 'lt')
+    def __le__(self, other):
+        return self.op(other, operator = 'le')
+    def __eq__(self, other):
+        return self.op(other, operator = 'eq')
+    def __ne__(self, other):
+        return self.op(other, operator = 'ne')
+    def __gt__(self, other):
+        return self.op(other, operator = 'gt')
+    def __ge__(self, other):
+        return self.op(other, operator = 'ge')
+
 Derived = Dimension.Derived
+
 
 
 class Tandem(Dimension):
