@@ -64,13 +64,13 @@ class Dimension(metaclass = DimensionMeta):
         '_args', '_kwargs', 'iterlen', 'iter_fn',
         'source', '_sourceget_', # required by Derived
         )
-    _mroclasses_ = ('_DimIterator', '_Derived', '_Transform', '_Slice')
+    mroclasses = ('_DimIterator', '_Derived', '_Transform', '_Slice')
 
     _DimIterator = DimIterator
 
-    # @_mroclasses.Overclass
+    @_mroclasses.Overclass
     class _Derived:
-
+        fixedoverclass = None
         def __init__(self, *sources):
             if not hasattr(self, '_args'):
                 self._args = list()

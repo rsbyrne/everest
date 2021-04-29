@@ -15,6 +15,8 @@ class Overclass(_ABC):
     def __new__(cls, ACls):
         '''Class decorator for designating an Overclass.'''
         setattr(ACls, cls.overclasstag, None)
+        if not hasattr(ACls, 'fixedoverclass'):
+            setattr(ACls, 'fixedoverclass', NotImplemented)
         return ACls
 
 class AnticipatedMethod(Exception):
@@ -59,25 +61,25 @@ class MROClassable(_ABC):
     @classmethod
     def __subclasshook__(cls, C):
         if cls is MROClassable:
-            if any('_mroclasses_' in B.__dict__ for B in C.__mro__):
+            if any('mroclasses' in B.__dict__ for B in C.__mro__):
                 return True
         return NotImplemented
 
     @classmethod
     def update_mroclassnames(cls, ACls):
         try:
-            mroclasses = list(ACls._mroclasses_)
+            mroclasses = list(ACls.mroclasses)
         except AttributeError:
             mroclasses = []
         for c in (c for c in ACls.__bases__ if issubclass(c, MROClassable)):
             try:
-                basemroclasses = c._mroclasses_
+                basemroclasses = c.mroclasses
                 mroclasses.extend(
                     name for name in basemroclasses if not name in mroclasses
                     )
             except AttributeError:
                 pass
-        ACls._mroclasses_ = tuple(mroclasses)
+        ACls.mroclasses = tuple(mroclasses)
 
     @classmethod
     def get_inheritees(cls, ACls, name):
@@ -109,8 +111,18 @@ class MROClassable(_ABC):
             mroclass = inheritees[0]
         else:
             mroclass = type(name, inheritees, {})
-        if any(issubclass(c, Overclass) for c in inheritees):
-            inheritees = (*inheritees, ACls)
+        if ocins := tuple((c for c in inheritees if issubclass(c, Overclass))):
+            over = ACls
+            isfixed = False
+            for ocin in ocins:
+                if (fixtag := ocin.fixedoverclass) is not NotImplemented:
+                    isfixed = True
+                    if fixtag is None:
+                        ocin.fixedoverclass = ACls
+                    else:
+                        over = fixtag
+                    break
+            inheritees = (*inheritees, over)
             ocls = type(name, inheritees, {}, ocls = True)
         else:
             ocls = None
@@ -129,7 +141,7 @@ class MROClassable(_ABC):
 
     @classmethod
     def update_mroclasses(cls, ACls):
-        for name in ACls._mroclasses_:
+        for name in ACls.mroclasses:
             cls.process_mroclass(ACls, name)
 
     @classmethod
@@ -146,7 +158,7 @@ class MROClassable(_ABC):
 
 ###############################################################################
 
-# from everest.mroclass import *
+# from everest.mroclasses import *
 #
 # @MROClassable
 # class A:
@@ -156,10 +168,10 @@ class MROClassable(_ABC):
 #         return 3
 #
 # class B(A):
-#     _mroclasses_ = 'InnerA',
+#     mroclasses = 'InnerA',
 #
 # class C(A):
-#     _mroclasses_ = 'InnerB', 'Over',
+#     mroclasses = 'InnerB', 'Over',
 #     @Overclass
 #     class Over:
 #         @AnticipatedMethod
