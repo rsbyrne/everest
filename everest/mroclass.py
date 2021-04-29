@@ -146,6 +146,8 @@ class MROClassable(_ABC):
 
 ###############################################################################
 
+# from everest.mroclass import *
+#
 # @MROClassable
 # class A:
 #     def meth1(self):
@@ -182,9 +184,11 @@ class MROClassable(_ABC):
 #         ...
 #
 # class F(D):
+#     def meth2(self):
+#         return super().meth2() + 3
 #     class Over:
-#         def meth2(self):
-#             return super().meth2() + 3
+#         def meth3(self):
+#             return super().meth3().upper()
 #
 # myobj = E.InnerA()
 # assert myobj.meth() == 'foo, bah'
@@ -194,6 +198,6 @@ class MROClassable(_ABC):
 #
 # myobj = F.Over()
 # assert myobj.meth3() == \
-#     'Hello world!Hello world!Hello world!Hello world!Hello world!Hello world!'
+#     'HELLO WORLD!HELLO WORLD!HELLO WORLD!HELLO WORLD!HELLO WORLD!HELLO WORLD!'
 
 ###############################################################################
