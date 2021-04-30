@@ -8,7 +8,7 @@ import operator as _operator
 from itertools import repeat as _repeat
 from functools import partial as _partial, lru_cache as _lru_cache
 
-from . import _special, _wordhash, _mroclasses
+from . import _special, _reloadable, _classtools
 
 from . import _everestutilities
 _ARITHMOPS = _everestutilities.ARITHMOPS
@@ -49,8 +49,8 @@ def raise_uniterable():
 class DimensionMeta(_ABCMeta):
     ...
 
-@_wordhash.Hashclass
-@_mroclasses.MROClassable
+@_reloadable.Reloadable
+@_classtools.MROClassable
 class Dimension(metaclass = DimensionMeta):
 
     __slots__ = (
@@ -61,7 +61,7 @@ class Dimension(metaclass = DimensionMeta):
 
     DimIterator = DimIterator
 
-    @_mroclasses.Overclass
+    @_classtools.Overclass
     class Derived:
         fixedoverclass = None
         def __init__(self, *sources):
@@ -150,19 +150,6 @@ class Dimension(metaclass = DimensionMeta):
         if iterlen is None:
             iterlen = self.iterlen = calculate_len(self)
         return iterlen > 0
-
-    def __reduce__(self):
-        return self._unreduce, (self.args, self.kwargs)
-
-    @classmethod
-    def _unreduce(cls, args, kwargs):
-        return cls(*args, **dict(kwargs))
-
-    def copy(self):
-        return self._unreduce(self.args, self.kwargs)
-
-    def get_hashcontents(self):
-        return (type(self), self.args, self.kwargs)
 
     @classmethod
     @_lru_cache(maxsize = 64)
@@ -253,28 +240,28 @@ class Dimension(metaclass = DimensionMeta):
         return self.op(operator = 'neg')
     def __pos__(self):
         return self.op(operator = 'pos')
-    def __abs__(self):
-        return self.op(operator = 'abs')
-    def __invert__(self):
-        return self.op(operator = 'invert')
-    def __ceil__(self):
-        return self.op(operator = 'ceil')
-    def __floor__(self):
-        return self.op(operator = 'floor')
-    def __round__(self, ndigits):
-        return self.op(operator = 'round', ndigits = int(ndigits))
-    def __trunc__(self):
-        return self.op(operator = 'trunc')
-    def __float__(self):
-        return self.op(operator = 'float')
-    def __int__(self):
-        return self.op(operator = 'int')
-    def __complex__(self):
-        return self.op(operator = 'complex')
-    def __str__(self):
-        return self.op(operator = 'str')
-    def __index__(self):
-        return self.op(operator = 'index')
+    # def __abs__(self):
+    #     return self.op(operator = 'abs')
+    # def __invert__(self):
+    #     return self.op(operator = 'invert')
+    # def __ceil__(self):
+    #     return self.op(operator = 'ceil')
+    # def __floor__(self):
+    #     return self.op(operator = 'floor')
+    # def __round__(self, ndigits):
+    #     return self.op(operator = 'round', ndigits = int(ndigits))
+    # def __trunc__(self):
+    #     return self.op(operator = 'trunc')
+    # def __float__(self):
+    #     return self.op(operator = 'float')
+    # def __int__(self):
+    #     return self.op(operator = 'int')
+    # def __complex__(self):
+    #     return self.op(operator = 'complex')
+    # def __str__(self):
+    #     return self.op(operator = 'str')
+    # def __index__(self):
+    #     return self.op(operator = 'index')
 
     #### BOOLEAN ####
 

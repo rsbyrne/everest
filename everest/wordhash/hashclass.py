@@ -2,7 +2,7 @@
 ''''''
 ###############################################################################
 
-from abc import ABC as _ABC
+from . import _classtools
 
 from .makehash import word_hash, quick_hash
 
@@ -33,28 +33,18 @@ def hashID(self):
     return hashval
 
 
-class Hashclass(_ABC):
+class Hashclass(_classtools.MethAdder):
+    _hashID = None
+    _hashint = None
+    _hashstr = None
+    hashID = hashID
+    hashstr = hashstr
+    hashint = hashint
     @classmethod
     def __subclasshook__(cls, C):
         if cls is Hashclass:
-            if any('hashID' in B.__dict__ for B in C.__mro__):
-                return True
+            return cls.check_sub(C)
         return NotImplemented
-    def __new__(cls, ACls):
-        '''Class decorator for designating a Hashclass.'''
-        if not hasattr(ACls, '_hashID'):
-            setattr(ACls, '_hashID', None)
-        if not hasattr(ACls, '_hashint'):
-            setattr(ACls, '_hashint', None)
-        if not hasattr(ACls, '_hashstr'):
-            setattr(ACls, '_hashstr', None)
-        if not hasattr(ACls, 'hashID'):
-            setattr(ACls, 'hashID', hashID)
-        if not hasattr(ACls, 'hashstr'):
-            setattr(ACls, 'hashstr', hashstr)
-        if not hasattr(ACls, 'hashint'):
-            setattr(ACls, 'hashint', hashint)
-        return ACls
 
 ###############################################################################
 ###############################################################################

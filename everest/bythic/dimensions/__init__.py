@@ -2,7 +2,7 @@
 ''''''
 ###############################################################################
 
-from .. import _mroclasses, _special, _reseed, _wordhash, _everestutilities
+from .. import _classtools, _special, _reseed, _reloadable, _everestutilities
 
 from .constructor import *
 

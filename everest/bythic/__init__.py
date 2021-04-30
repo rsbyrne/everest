@@ -3,15 +3,15 @@
 ###############################################################################
 
 from .. import (
-    mroclasses as _mroclasses,
+    classtools as _classtools,
     special as _special,
     reseed as _reseed,
-    wordhash as _wordhash,
+    reloadable as _reloadable,
     utilities as _everestutilities,
     )
 
 from .dimensions import *
-from .incision import *
+# from .incision import *
 from .space import *
 from .exceptions import *
 
