@@ -30,11 +30,11 @@ class Arbitrary(Primary):
 
     __slots__ = ('content',)
 
-    def __init__(self, iterable):
+    def __init__(self, iterable, **kwargs):
         content = self.content = tuple(iterable)
         self.iterlen = len(content)
         self.iter_fn = content.__iter__
-        super().__init__()
+        super().__init__(**kwargs)
         self.register_argskwargs(content) # pylint: disable=E1101
 
     @classmethod
@@ -50,20 +50,7 @@ class Arbitrary(Primary):
             raise ValueError("Empty iterable.")
         if len(typs) > 1:
             return Arbitrary(content)
-        return Typed(content, tuple(typs)[0])
-
-class Typed(Arbitrary):
-
-    __slots__ = ('_typ',)
-
-    def __init__(self, iterable, typ):
-        self._typ = typ
-        super().__init__((typ(el) for el in iterable))
-        self.register_argskwargs(typ) # pylint: disable=E1101
-
-    @property
-    def typ(self):
-        return self._typ
+        return Arbitrary(content, typ = tuple(typs)[0])
 
 
 class Range(Primary):
@@ -119,14 +106,14 @@ class Range(Primary):
             return start, stop, step
         return cls.typ(start), cls.typ(stop), step
 
-    def __init__(self, arg0, arg1 = None, arg2 = None, /):
+    def __init__(self, arg0, arg1 = None, arg2 = None, /, **kwargs):
         self.slc, *args = unpack_slice(arg0, arg1, arg2)
         start, stop, step = self.proc_args(*args)
         startinf, stopinf = (isinstance(st, self.Inf) for st in (start, stop))
         self.start, self.stop, self.step, self.startinf, self.stopinf = \
             start, stop, step, startinf, stopinf
         self.iterlen = _special.infint
-        super().__init__()
+        super().__init__(**kwargs)
         self.register_argskwargs(start, stop, step) # pylint: disable=E1101
 
 
@@ -135,8 +122,8 @@ class Integral(Range):
     Inf, inf, ninf, typ = \
         _special.InfiniteInteger, _special.infint, _special.ninfint, int
 
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         start, stop, step = self.start, self.stop, self.step
         if isinstance(step, str):
             choices = list(range(start, stop))
@@ -168,8 +155,8 @@ class Real(Range):
     Inf, inf, ninf, typ = \
         _special.InfiniteFloat, _special.infflt, _special.ninfflt, float
 
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         start, stop, step = self.start, self.stop, self.step
         if isinstance(step, str):
             self.iter_fn = _partial(rand_float_range, start, stop, step)

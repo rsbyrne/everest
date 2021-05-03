@@ -23,25 +23,18 @@ def selinds_iter(arb, inds):
     except StopIteration:
         return
 
-def measure_boolean_selection(source, sliceinds):
-    if sliceinds.iterlen > source.iterlen:
-        return sliceinds[:len(source)].count(True)
+def measure_boolean_selection(source, selection):
+    if selection.iterlen > source.iterlen:
+        return selection[:len(source)].count(True)
     # so either both infinite or source is longer
-    if sliceinds.tractable:
-        return sliceinds.count(True)
+    if selection.tractable:
+        return selection.count(True)
     return _special.inf
-
-def measure_integral_selection(source, sliceinds):
-    return _special.unkint
-    # if source.tractable:
-    #     if not sliceinds.
 
 
 class Selection(_Dimension.Slice):
 
-    __slots__ = ('sliceinds',)
-
-    def __init__(self, source, sliceinds):
+    def __init__(self, source, sliceinds, **kwargs):
         if not isinstance(sliceinds, _Dimension):
             raise TypeError(
                 f"Selection argument must be Dimension type, "
@@ -52,21 +45,21 @@ class Selection(_Dimension.Slice):
             self.iterlen = measure_boolean_selection(source, sliceinds)
         elif issubclass(sliceinds.typ, int):
             self.iter_fn = _partial(selinds_iter, source, sliceinds)
-            self.iterlen = measure_integral_selection(source, sliceinds)
+            # self.iterlen = measure_integral_selection(source, sliceinds)
         else:
             raise TypeError("Only integral or boolean selections accepted.")
-        super().__init__(source, sliceinds)
+        super().__init__(source, sliceinds, **kwargs)
 
 
 class Collapsed(_Dimension.Slice):
 
     __slots__ = '_val', 'ind', '_value'
 
-    def __init__(self, dim, ind, /):
+    def __init__(self, dim, ind, **kwargs):
         self.ind, self._value, self.iterlen = ind, None, 1
         # self.iter_fn = _partial(iter, _partial(getattr, self, 'value'))
         self.iterlen = 1
-        super().__init__(dim, ind)
+        super().__init__(dim, ind, **kwargs)
 
     def __iter__(self):
         yield self.value
@@ -152,7 +145,7 @@ class ISlice(_Dimension.Slice):
 
     __slots__ = 'start', 'stop', 'step'
 
-    def __init__(self, dim, arg0, arg1 = None, arg2 = None, /):
+    def __init__(self, dim, arg0, arg1 = None, arg2 = None, /, **kwargs):
         _, start, stop, step = unpack_slice(arg0, arg1, arg2)
         dimlen = dim.iterlen
         (start, stop, step), self.iterlen = \
@@ -172,7 +165,7 @@ class ISlice(_Dimension.Slice):
             self.iter_fn = content.__iter__
         step = None if step == 1 else step
         self.step = step
-        super().__init__(dim, (start, stop, step))
+        super().__init__(dim, (start, stop, step), **kwargs)
 
 
 ###############################################################################

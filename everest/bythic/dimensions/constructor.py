@@ -11,11 +11,18 @@ from abc import (
 from . import (
     dimension as _dimension,
     primary as _primary,
+    multi as _multi,
     abstract as _abstract,
     )
 
 class DimMeta(_ABCMeta):
     def __getitem__(cls, arg):
+        if isinstance(arg, tuple):
+            return _multi.Multi(*arg)
+        if isinstance(arg, dict):
+            return _multi.Multi(**arg)
+        if isinstance(arg, set):
+            return _multi.Set(*arg)
         if isinstance(arg, slice):
             return _primary.Range.construct(arg)
         if isinstance(arg, _Iterable):

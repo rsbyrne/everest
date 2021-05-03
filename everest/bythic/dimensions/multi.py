@@ -2,10 +2,42 @@
 ''''''
 ###############################################################################
 
-from . import _special
+import operator as _operator
+from functools import reduce as _reduce, partial as _partial
+
+from . import _special, _everestutilities
 
 from .dimension import Dimension as _Dimension
 from .primary import Arbitrary as _Arbitrary
+from .slices import Collapsed as _Collapsed
+
+_muddle = _everestutilities.seqmerge.muddle
+
+
+class Set(_Dimension):
+
+    __slots__ = ('metrics', 'prime', 'aux',)
+
+    def __init__(self, *args):
+        metrics = []
+        for arg in args:
+            if isinstance(arg, tuple):
+                metrics.extend(arg)
+            elif isinstance(arg, _Dimension):
+                metrics.append(arg)
+            else:
+                raise TypeError(type(arg))
+        metrics = self.metrics = tuple(metrics)
+        self.prime, self.aux = metrics[0], metrics[1:]
+        self.iterlen = min(len(met) for met in metrics)
+        self.iter_fn = lambda: zip(*self.metrics)
+        super().__init__()
+        self.register_argskwargs(*metrics) # pylint: disable=E1101
+
+    # def __getitem__(self, *args):
+    #     try:
+    #         return self.prime[*args]
+    #
 
 
 def process_depth(
@@ -46,27 +78,46 @@ def process_depth(
 
 class Multi(_Dimension):
 
-    __slots__ = ('dimensions', 'depth', 'collapsed')
+    __slots__ = (
+        'dimnames', 'dimensions', 'dimdict', 'depth',
+        'noncollapsed', 'noncolldepth', 'noncollkeys',
+        )
 
-    def __init__(self, **dimensions):
-        self.dimnames =
-        self.dimensions = dimensions
+    def __init__(self, *argdims, **kwargdims):
+        if argdims:
+            if kwargdims:
+                raise ValueError(
+                    f"Cannot provide both args and kwargs to {type(self)}"
+                    )
+            kwargdims = dict((str(i), val) for i, val in enumerate(argdims))
+        self.dimdict = kwargdims
+        dimnames, dimensions = self.dimnames, self.dimensions = tuple(
+            _Arbitrary(it) for it in zip(*kwargdims.items())
+            )
         self.depth = len(dimensions)
-        self.collapsed = ()
+        noncollfn = lambda x: not isinstance(x, _Collapsed)
+        noncollinds = dimensions.apply(noncollfn, typ = bool)
+        noncollapsed = self.noncollapsed = dimensions[noncollinds]
+        self.noncollkeys = self.noncollapsed = dimnames[noncollinds]
+        self.noncolldepth = len(noncollapsed)
+        self.iterlen = _reduce(
+            _operator.mul, (dim.iterlen for dim in dimensions), 1
+            )
+        self.iter_fn = _partial(_muddle, dimensions)
         super().__init__()
-        self.register_argskwargs(**dimensions)
+        self.register_argskwargs(**kwargdims) # pylint: disable=E1101
 
-    def __getitem__(self, dimensions):
-        if isinstance(dimensions, dict):
-            return self.incise(**dimensions)
-        if isinstance(dimensions, tuple):
-            dimensions = process_depth(dimensions, len(self.dimensions))
+    def __getitem__(self, arg):
+        if isinstance(arg, dict):
+            return self.incise(**arg)
+        if isinstance(arg, tuple):
+            arg = process_depth(arg, self.noncolldepth)
         else:
-            dimensions = (dimensions,)
-        return self.incise(**dict(zip(self.dimensions, dimensions)))
+            arg = (arg,)
+        return self.incise(**dict(zip(self.noncollkeys, arg)))
 
     def incise(self, **incisors):
-        newincs = {**self.dimensions}
+        newincs = {**self.dimdict}
         for dimname, incisor in incisors.items():
             if incisor is None:
                 continue
@@ -74,12 +125,12 @@ class Multi(_Dimension):
             if preinc is None:
                 newinc = incisor
             else:
-                newinc = preinc[newinc]
+                newinc = preinc[incisor]
             newincs[dimname] = newinc
         return type(self)(**newincs)
 
-    def __repr__(self):
-        return f"{type(self).__name__}[{self.dimensions}]"
+    # def __repr__(self):
+    #     return f"{type(self).__name__}[{self.dimensions}]"
 
 ###############################################################################
 ###############################################################################
