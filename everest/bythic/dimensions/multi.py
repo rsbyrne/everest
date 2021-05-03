@@ -2,11 +2,10 @@
 ''''''
 ###############################################################################
 
-from abc import ABC as _ABC, abstractmethod as _abstractmethod
-from functools import cached_property as _cached_property
+from . import _special
 
-from . import _special, _classtools, _reloadable
-from . import _classtools
+from .dimension import Dimension as _Dimension
+from .primary import Arbitrary as _Arbitrary
 
 
 def process_depth(
@@ -44,18 +43,18 @@ def process_depth(
         f" levels = {nargs} > depth = {depth})"
         )
 
-@_reloadable.Reloadable
-@_classtools.Overclass
-class Space:
-    '''A space that can be 'incised'.'''
+
+class Multi(_Dimension):
 
     __slots__ = ('dimensions', 'depth', 'collapsed')
 
     def __init__(self, **dimensions):
+        self.dimnames =
         self.dimensions = dimensions
         self.depth = len(dimensions)
         self.collapsed = ()
         super().__init__()
+        self.register_argskwargs(**dimensions)
 
     def __getitem__(self, dimensions):
         if isinstance(dimensions, dict):

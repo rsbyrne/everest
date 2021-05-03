@@ -4,11 +4,9 @@
 # Requires:
 # reseed
 
-from .. import classtools as _classtools
 from everest.reseed import *
 
 from .makehash import *
-from .hashclass import Hashclass
 from .word import *
 
 ###############################################################################

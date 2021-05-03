@@ -20,70 +20,23 @@ with open(pathFn('names.txt'), mode = 'r') as file:
 PROPER = sorted(set([*CITIES, *NAMES]))
 
 GREEK = [
-    'alpha',
-    'beta',
-    'gamma',
-    'delta',
-    'epsilon',
-    'zeta',
-    'eta',
-    'theta',
-    'iota',
-    'kappa',
-    'lambda',
-    'mu',
-    'nu',
-    'xi',
-    'omicron',
-    'pi',
-    'rho',
-    'sigma',
-    'tau',
-    'upsilon',
-    'phi',
-    'chi',
-    'psi',
-    'omega',
+    'alpha', 'beta', 'gamma', 'delta', 'epsilon',
+    'zeta', 'eta', 'theta', 'iota', 'kappa',
+    'lambda', 'mu', 'nu', 'xi', 'omicron',
+    'pi', 'rho', 'sigma', 'tau', 'upsilon',
+    'phi', 'chi', 'psi', 'omega',
     ]
 PHONETIC = [
-    'Alfa',
-    'Bravo',
-    'Charlie',
-    'Delta',
-    'Echo',
-    'Foxtrot',
-    'Golf',
-    'Hotel',
-    'India',
-    'Juliett',
-    'Kilo',
-    'Lima',
-    'Mike',
-    'November',
-    'Oscar',
-    'Papa',
-    'Quebec',
-    'Romeo',
-    'Sierra',
-    'Tango',
-    'Uniform',
-    'Victor',
-    'Whiskey',
-    'Xray',
-    'Yankee',
+    'Alfa', 'Bravo', 'Charlie', 'Delta', 'Echo',
+    'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliett',
+    'Kilo', 'Lima', 'Mike', 'November', 'Oscar',
+    'Papa', 'Quebec', 'Romeo', 'Sierra', 'Tango',
+    'Uniform', 'Victor', 'Whiskey', 'Xray', 'Yankee',
     'Zulu',
     ]
 WORDNUMS = [
-    'zero',
-    'one',
-    'two',
-    'three',
-    'four',
-    'five',
-    'six',
-    'seven',
-    'eight',
-    'nine',
+    'zero', 'one', 'two', 'three', 'four',
+    'five', 'six', 'seven', 'eight', 'nine',
     ]
 CODEWORDS = sorted(set([
     *[n.lower() for n in PHONETIC],
@@ -130,6 +83,7 @@ def get_random_syllable(seed = None):
     syllable = seed.rchoice(SYLLABLES)
     return syllable
 
+@reseed
 def get_random_word(seed = None, length = 3):
     outWord = ''
     for _ in range(length):
@@ -142,6 +96,7 @@ def get_random_alphanumeric(seed = None, length = 6):
     choices = [seed.rchoice(characters) for i in range(length)]
     return ''.join(choices)
 
+@reseed
 def get_random_phrase(seed = None, phraselength = 2, wordlength = 2):
     # 2 * 2 yields 64 bits of entropy
     phraseList = []

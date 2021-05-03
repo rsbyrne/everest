@@ -3,12 +3,14 @@
 ###############################################################################
 
 from functools import partial as _partial
+from collections.abc import Iterable as _Iterable
 
 from . import _special, _reseed
 
 from .dimension import Dimension as _Dimension
 from .slices import (
     ISlice as _ISlice,
+    Selection as _Selection,
     Collapsed as _Collapsed,
     )
 from .utilities import unpack_slice
@@ -18,6 +20,10 @@ class Primary(_Dimension):
     def __getitem__(self, arg):
         if isinstance(arg, slice):
             return _ISlice(self, arg)
+        if isinstance(arg, _Iterable):
+            if not isinstance(arg, _Dimension):
+                arg = Arbitrary.construct(arg)
+            return _Selection(self, arg)
         return _Collapsed(self, arg)
 
 class Arbitrary(Primary):
@@ -29,7 +35,7 @@ class Arbitrary(Primary):
         self.iterlen = len(content)
         self.iter_fn = content.__iter__
         super().__init__()
-        self._args.append(content)
+        self.register_argskwargs(content) # pylint: disable=E1101
 
     @classmethod
     def construct(cls, arg):
@@ -48,18 +54,22 @@ class Arbitrary(Primary):
 
 class Typed(Arbitrary):
 
-    __slots__ = ('typ',)
+    __slots__ = ('_typ',)
 
     def __init__(self, iterable, typ):
-        self.typ = typ
+        self._typ = typ
         super().__init__((typ(el) for el in iterable))
-        self._args.append(typ)
+        self.register_argskwargs(typ) # pylint: disable=E1101
+
+    @property
+    def typ(self):
+        return self._typ
 
 
 class Range(Primary):
 
     __slots__ = ('slc', 'start', 'stop', 'step', 'startinf', 'stopinf')
-    Inf, inf, ninf, typ = _special.Infinite, None, None, object
+    Inf, inf, ninf = (_special.Infinite, None, None,)
 
     @classmethod
     def proc_arg(cls, arg, step, inv = False):
@@ -117,7 +127,7 @@ class Range(Primary):
             start, stop, step, startinf, stopinf
         self.iterlen = _special.infint
         super().__init__()
-        self._args.extend((start, stop, step))
+        self.register_argskwargs(start, stop, step) # pylint: disable=E1101
 
 
 class Integral(Range):

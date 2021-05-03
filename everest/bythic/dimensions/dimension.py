@@ -4,31 +4,14 @@
 
 from abc import ABCMeta as _ABCMeta, abstractmethod as _abstractmethod
 from collections import abc as _collabc
-import operator as _operator
 from itertools import repeat as _repeat
 from functools import partial as _partial, lru_cache as _lru_cache
 
-from . import _special, _reloadable, _classtools
-
+from . import _special, _classtools
 
 from .exceptions import (
     NotYetImplemented, DimensionUniterable, DimensionInfinite
     )
-
-
-class DimIterator(_collabc.Iterator):
-
-    __slots__ = ('gen',)
-
-    def __init__(self, iter_fn, /):
-        self.gen = iter_fn()
-        super().__init__()
-
-    def __next__(self):
-        return next(self.gen)
-
-    def __repr__(self):
-        return f"{__class__.__name__}({repr(self.gen)})"
 
 
 def calculate_len(dim):
@@ -41,27 +24,30 @@ def raise_uniterable():
 class DimensionMeta(_ABCMeta):
     ...
 
-@_reloadable.Reloadable
+@_classtools.Diskable
 @_classtools.MROClassable
 @_classtools.Operable
 class Dimension(metaclass = DimensionMeta):
 
-    __slots__ = (
-        '_args', '_kwargs', 'iterlen', 'iter_fn',
-        'source', '_sourceget_', # required by Derived
-        )
+    __slots__ = ('iterlen', 'iter_fn', 'source', '_sourceget_')
     mroclasses = ('DimIterator', 'Derived', 'Transform', 'Slice')
 
-    DimIterator = DimIterator
+    typ = object
+
+    class Iterator(_collabc.Iterator):
+        __slots__ = ('gen',)
+        def __init__(self, iter_fn, /):
+            self.gen = iter_fn()
+            super().__init__()
+        def __next__(self):
+            return next(self.gen)
+        def __repr__(self):
+            return f"{__class__.__name__}({repr(self.gen)})"
 
     @_classtools.Overclass
     class Derived:
         fixedoverclass = None
         def __init__(self, *sources):
-            if not hasattr(self, '_args'):
-                self._args = list()
-            if not hasattr(self, '_kwargs'):
-                self._kwargs = dict()
             source = None
             for source in sources:
                 if isinstance(source, Dimension):
@@ -78,8 +64,7 @@ class Dimension(metaclass = DimensionMeta):
             if not hasattr(self, 'iterlen'):
                 self.iterlen = source.iterlen
             super().__init__()
-            self._args.extend(sources)
-
+            self.register_argskwargs(*sources) # pylint: disable=E1101
         def __getitem__(self, arg):
             return self._sourceget_(self, arg)
 
@@ -95,31 +80,38 @@ class Dimension(metaclass = DimensionMeta):
                     )
                 self.iter_fn = _partial(map, operator, *getops())
             super().__init__(operator, *operands)
-
-    operate = Transform
+    @classmethod
+    def operate(cls, *args, **kwargs):
+        return cls.Transform(*args, **kwargs)
 
     class Slice(Derived):
         def __init__(self, source, incisor, /):
+            self.source, self.incisor = source, incisor
             super().__init__(source)
-            self._args.append(incisor)
+            self.register_argskwargs(incisor) # pylint: disable=E1101
 
     def __init__(self):
         if not hasattr(self, 'iterlen'):
             self.iterlen = None
         if not hasattr(self, 'iter_fn'):
             self.iter_fn = raise_uniterable
-        self._args = []
-        self._kwargs = dict()
+        super().__init__()
 
     @property
-    def args(self):
-        return tuple(self._args)
-    @property
-    def kwargs(self):
-        return tuple(self._kwargs.items())
+    def tractable(self):
+        return self.iterlen < _special.inf
+
+    def count(self, value):
+        if not self.tractable:
+            raise ValueError("Cannot count occurrences in infinite iterator.")
+        i = 0
+        for val in self:
+            if val == value:
+                i += 1
+        return i
 
     def __iter__(self):
-        return DimIterator(self.iter_fn)
+        return self.Iterator(self.iter_fn)
 
     def __len__(self):
         iterlen = self.iterlen
@@ -135,13 +127,6 @@ class Dimension(metaclass = DimensionMeta):
         if iterlen is None:
             iterlen = self.iterlen = calculate_len(self)
         return iterlen > 0
-
-    @classmethod
-    @_lru_cache(maxsize = 64)
-    def transform(cls, operator, **kwargs):
-        return _partial(cls.Transform, operator = operator, **kwargs)
-    def apply(self, operator):
-        return self.transform(operator)(self)
 
     @_abstractmethod
     def __getitem__(self, arg):
@@ -164,8 +149,8 @@ class DimSet(Dimension):
         metrics = self.metrics = tuple(metrics)
         self.iterlen = min(len(met) for met in metrics)
         self.iter_fn = lambda: zip(*self.metrics)
-        self._args.extend(metrics)
         super().__init__()
+        self.register_argskwargs(*metrics) # pylint: disable=E1101
 
 
 ###############################################################################

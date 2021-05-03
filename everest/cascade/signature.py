@@ -168,7 +168,7 @@ def get_cascade(func, **kwargs):
 def null_fn():
     ...
 
-@_wordhash.Hashclass
+@_wordhash.hashable
 class Signature(_Cascade):
     _set_locked = False
     signature = None

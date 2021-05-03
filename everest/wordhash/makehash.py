@@ -4,16 +4,19 @@
 
 from collections.abc import Mapping as _Mapping
 import hashlib as _hashlib
-import pickle as _pickle
+# import pickle as _pickle
 
 from . import word as _word
 
 
 def quick_hash(content):
-    if hasattr(content, 'get_hashstr'):
-        return content.get_hashstr()
-    if hasattr(content, 'get_hashcontent'):
-        content = content.get_hashcontent()
+    if isinstance(content, type):
+        content = repr(content)
+    else:
+        if hasattr(content, 'get_hashstr'):
+            return content.get_hashstr()
+        if hasattr(content, 'get_hashcontent'):
+            content = content.get_hashcontent()
     if isinstance(content, tuple):
         content = ','.join(quick_hash(el) for el in content).encode()
     else:
@@ -21,8 +24,10 @@ def quick_hash(content):
         # content = _pickle.dumps(content)
     return _hashlib.md5(content).hexdigest()
 
-def quick_hashint(obj):
-    return int(quick_hash(obj), 16)
+def quick_hashint(content):
+    if hasattr(content, 'get_hashint'):
+        return content.get_hashint()
+    return int(quick_hash(content), 16)
 
 def fic_hash(obj, depth = 2):
     return _word.get_random_phrase(

@@ -12,41 +12,64 @@ from .dimension import Dimension as _Dimension
 from .utilities import unpack_slice
 
 
-def arb_iter(arb, inds):
+def selinds_iter(arb, inds):
     it = iter(inds)
     try:
         ind = next(it)
         for i, a in enumerate(arb):
             if i == ind:
                 yield a
-                ind = next(inds)
+                ind = next(it)
     except StopIteration:
         return
 
-class Arbitrary(_Dimension.Slice):
+def measure_boolean_selection(source, sliceinds):
+    if sliceinds.iterlen > source.iterlen:
+        return sliceinds[:len(source)].count(True)
+    # so either both infinite or source is longer
+    if sliceinds.tractable:
+        return sliceinds.count(True)
+    return _special.inf
+
+def measure_integral_selection(source, sliceinds):
+    return _special.unkint
+    # if source.tractable:
+    #     if not sliceinds.
+
+
+class Selection(_Dimension.Slice):
 
     __slots__ = ('sliceinds',)
 
     def __init__(self, source, sliceinds):
         if not isinstance(sliceinds, _Dimension):
             raise TypeError(
-                f"Arbitrary slice argument must be Dimension type, "
+                f"Selection argument must be Dimension type, "
                 f"not {type(sliceinds)}"
                 )
-        self.iter_fn = _partial(arb_iter(source, sliceinds))
-        self.iterlen = len(sliceinds)
+        if issubclass(sliceinds.typ, bool):
+            self.iter_fn = _partial(_itertools.compress, source, sliceinds)
+            self.iterlen = measure_boolean_selection(source, sliceinds)
+        elif issubclass(sliceinds.typ, int):
+            self.iter_fn = _partial(selinds_iter, source, sliceinds)
+            self.iterlen = measure_integral_selection(source, sliceinds)
+        else:
+            raise TypeError("Only integral or boolean selections accepted.")
         super().__init__(source, sliceinds)
 
 
 class Collapsed(_Dimension.Slice):
 
-    __slots__ = ('_val', 'ind', '_value',)
+    __slots__ = '_val', 'ind', '_value'
 
     def __init__(self, dim, ind, /):
         self.ind, self._value, self.iterlen = ind, None, 1
-        self.iter_fn = _partial(iter, _partial(getattr, self, 'value'))
+        # self.iter_fn = _partial(iter, _partial(getattr, self, 'value'))
         self.iterlen = 1
         super().__init__(dim, ind)
+
+    def __iter__(self):
+        yield self.value
 
     @property
     def value(self):

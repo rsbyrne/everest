@@ -12,15 +12,13 @@ _RICHOPS = _everestutilities.RICHOPS
 _REVOPS = _everestutilities.REVOPS
 OPS = (*_ARITHMOPS, *_RICHOPS, *_REVOPS)
 
-from .methadder import (
-    MethAdder as _MethAdder,
-    ApplyDecorator as _ApplyDecorator,
-    )
+from .methadder import MethAdder as _MethAdder
+
 
 class Operable(_MethAdder):
 
-    @_ApplyDecorator(classmethod)
-    @_ApplyDecorator(_lru_cache(maxsize = 32))
+    @_MethAdder.decorate(classmethod)
+    @_MethAdder.decorate(_lru_cache(maxsize = 32))
     def get_operator(cls, operator, **kwargs): # pylint: disable=E0213
         if isinstance(operator, str):
             if operator in OPS:
@@ -45,6 +43,12 @@ class Operable(_MethAdder):
         if rev:
             return operator(other, self)
         return operator(self, other)
+
+    def apply(self, operator, **kwargs):
+        return self.op(operator = operator, **kwargs)
+    @_MethAdder.decorate(_lru_cache(maxsize = 64))
+    def transform(self, operator, **kwargs):
+        return _partial(self.op, operator = operator, **kwargs)
 
     ### BINARY ###
 

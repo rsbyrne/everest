@@ -5,6 +5,7 @@
 from abc import ABC as _ABC
 
 from .methadder import MethAdder as _MethAdder
+from .reloadable import ClassProxy as _ClassProxy
 
 
 class Overclass(_MethAdder):
@@ -123,9 +124,13 @@ class MROClassable(_ABC):
             return
         if ocls is None:
             setattr(ACls, name, mroclass)
+            mroclass.classproxy = _ClassProxy(ACls, mroclass)
         else:
-            setattr(ACls, '_' + name + '_', mroclass)
+            altname = '_' + name + '_'
+            setattr(ACls, altname, mroclass)
+            mroclass.classproxy = _ClassProxy(ACls, altname)
             setattr(ACls, name, ocls)
+            ocls.classproxy = _ClassProxy(ACls, name)
 
     @classmethod
     def update_mroclasses(cls, ACls):

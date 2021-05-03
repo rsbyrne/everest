@@ -3,7 +3,10 @@
 ###############################################################################
 
 from abc import ABC as _ABC
-from functools import partial as _partial
+from dataclasses import dataclass as _dataclass
+from types import FunctionType as _FunctionType
+from functools import partial as _partial, wraps as _wraps
+
 
 class ApplyDecorator:
     __slots__ = ('dec', 'func', 'partial',)
@@ -13,8 +16,6 @@ class ApplyDecorator:
             self.partial = True
         else:
             self.partial = False
-            # if not isinstance(func, ApplyDecorator):
-            #     func = staticmethod(func)
             self.func = func
     def __call__(self, func):
         if self.partial:
@@ -29,21 +30,31 @@ class ApplyDecorator:
         return self.dec(func)
 
 
+@_dataclass
+class ForceMethod:
+    func: _FunctionType
+
+
 def __subclasshook__(compclass, cls, C):
     if cls is compclass:
         return cls.check_sub(C)
     return NotImplemented
 
 class MethAdder(_ABC):
+    decorate = ApplyDecorator
+    forcemethod = ForceMethod
+    @classmethod
+    def hidden_names(cls):
+        return
+        yield # pylint: disable=W0101
     @classmethod
     def meths_to_add(cls):
-        for name in dir(cls):
-            if name not in MethAdder.__dict__:
-                if name not in cls.__abstractmethods__:
-                    yield name
-            # if name[:2] == '__' and name[-2:] == '__':
-            #     continue
-
+        forbidden = (
+            *MethAdder.__dict__.keys(),
+            *cls.__abstractmethods__,
+            *set(cls.hidden_names())
+            )
+        return (name for name in dir(cls) if not name in forbidden)
     @classmethod
     def check_sub(cls, C):
         if all(
@@ -65,12 +76,14 @@ class MethAdder(_ABC):
         if missingmeths:
             raise TypeError(f"Missing methods: {missingmeths}")
         for name in cls.meths_to_add():
-            if not hasattr(ACls, name):
-                att = getattr(cls, name)
-                if isinstance(att, ApplyDecorator):
-                    setattr(ACls, name, att.resolve())
-                else:
-                    setattr(ACls, name, att)
+            att = getattr(cls, name)
+            if forcemeth := isinstance(att, ForceMethod):
+                att = att.func
+            if hasattr(ACls, name) and not forcemeth:
+                continue
+            if isinstance(att, ApplyDecorator):
+                att = att.resolve()
+            setattr(ACls, name, att)
         return ACls
 
 ###############################################################################

@@ -2,17 +2,12 @@
 ''''''
 ###############################################################################
 
-from .. import (
-    classtools as _classtools,
-    special as _special,
-    reseed as _reseed,
-    utilities as _everestutilities,
-    )
+from .reloadable import Reloadable as _Reloadable
+from .hashidable import HashIDable as _HashIDable
 
-from .dimensions import *
-# from .incision import *
-# from .space import *
-from .exceptions import *
+class Diskable(_HashIDable, _Reloadable):
+    def get_hashcontent(self):
+        return self.get_redtup()
 
 ###############################################################################
 ###############################################################################
