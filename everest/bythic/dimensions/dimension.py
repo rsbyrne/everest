@@ -49,7 +49,7 @@ class Dimension(metaclass = DimensionMeta):
         )
     mroclasses = ('DimIterator', 'Derived', 'Transform', 'Slice')
 
-    typ = None
+    typ = object
 
     def __init__(self, typ = None):
         if not hasattr(self, 'iterlen'):
@@ -57,13 +57,11 @@ class Dimension(metaclass = DimensionMeta):
         if not hasattr(self, 'iter_fn'):
             self.iter_fn = raise_uniterable
         if not typ is None:
-            if not (styp := self.typ) is None:
+            if not (styp := self.typ) is object:
                 raise ValueError(
                     f"Multiple values interpreted for typ: {typ, styp}"
                     )
             self.typ = typ
-        if self.typ is None:
-            self.typ = object
         super().__init__()
 
     @property
