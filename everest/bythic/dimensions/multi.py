@@ -129,8 +129,8 @@ class Multi(_Dimension):
             newincs[dimname] = newinc
         return type(self)(**newincs)
 
-    # def __repr__(self):
-    #     return f"{type(self).__name__}[{self.dimensions}]"
+    def get_valstr(self):
+        return str([repr(dim) for dim in self.dimensions])
 
 ###############################################################################
 ###############################################################################

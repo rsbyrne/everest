@@ -25,6 +25,13 @@ def calculate_len(dim):
 def raise_uniterable():
     raise DimensionUniterable
 
+def show_iter_vals(iterable):
+    i, ii = list(iterable[:6]), list(iterable[:7])
+    content = ', '.join(str(v) for v in i)
+    if len(ii) > len(i):
+        content += ' ...'
+    return f'[{content}]'
+
 
 class DimensionMeta(_ABCMeta):
     ...
@@ -36,6 +43,7 @@ class Dimension(metaclass = DimensionMeta):
 
     __slots__ = (
         '__dict__', 'iterlen', 'iter_fn', 'source', '_sourceget_',
+        '_repr',
         )
     mroclasses = ('DimIterator', 'Derived', 'Transform', 'Slice')
 
@@ -85,6 +93,23 @@ class Dimension(metaclass = DimensionMeta):
 
     def __bool__(self):
         return self.iterlen > 0
+
+    def get_valstr(self):
+        if self.iterlen <= 7:
+            return str(list(self))[1:-1]
+        start = str(list(self[:3]))[1:-1]
+        if self.tractable:
+            end = str(list(self[-2:]))[1:-1]
+            return f"{start} ... {end}"
+        return f"{start}"
+    def get_repr(self):
+        return f"{type(self).__name__} == [{self.get_valstr()}]"
+    def __repr__(self):
+        try:
+            return self._repr
+        except AttributeError:
+            _repr = self._repr = self.get_repr() # pylint: disable=W0201
+            return _repr
 
     class Iterator(_collabc.Iterator):
         __slots__ = ('gen',)

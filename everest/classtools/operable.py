@@ -143,18 +143,24 @@ class Operable(_MethAdder):
 
     #### BOOLEAN ####
 
+    @_MethAdder.forcemethod
     def __lt__(self, other):
-        return self.op(other, operator = 'lt')
+        return self.op(other, operator = 'lt', typ = bool)
+    @_MethAdder.forcemethod
     def __le__(self, other):
-        return self.op(other, operator = 'le')
+        return self.op(other, operator = 'le', typ = bool)
+    @_MethAdder.forcemethod
     def __eq__(self, other):
-        return self.op(other, operator = 'eq')
+        return self.op(other, operator = 'eq', typ = bool)
+    @_MethAdder.forcemethod
     def __ne__(self, other):
-        return self.op(other, operator = 'ne')
+        return self.op(other, operator = 'ne', typ = bool)
+    @_MethAdder.forcemethod
     def __gt__(self, other):
-        return self.op(other, operator = 'gt')
+        return self.op(other, operator = 'gt', typ = bool)
+    @_MethAdder.forcemethod
     def __ge__(self, other):
-        return self.op(other, operator = 'ge')
+        return self.op(other, operator = 'ge', typ = bool)
 
 ###############################################################################
 ###############################################################################
