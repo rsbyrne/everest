@@ -11,13 +11,9 @@ from functools import partial as _partial, lru_cache as _lru_cache
 from . import _special, _reloadable, _classtools
 
 
-
 from .exceptions import (
     NotYetImplemented, DimensionUniterable, DimensionInfinite
     )
-
-
-default_operator = lambda x: x
 
 
 class DimIterator(_collabc.Iterator):
@@ -88,7 +84,6 @@ class Dimension(metaclass = DimensionMeta):
             return self._sourceget_(self, arg)
 
     class Transform(Derived):
-
         def __init__(self, operator, *operands):
             self.operands, self.operator = operands, operator
             if all(isinstance(op, Dimension) for op in operands):
@@ -99,8 +94,7 @@ class Dimension(metaclass = DimensionMeta):
                         for op in operands
                     )
                 self.iter_fn = _partial(map, operator, *getops())
-            self._args.append(operator)
-            super().__init__(*operands)
+            super().__init__(operator, *operands)
 
     operate = Transform
 
@@ -152,10 +146,6 @@ class Dimension(metaclass = DimensionMeta):
     @_abstractmethod
     def __getitem__(self, arg):
         '''This class wouldn't be of much use without one of these!'''
-
-
-
-Derived = Dimension.Derived
 
 
 class DimSet(Dimension):
