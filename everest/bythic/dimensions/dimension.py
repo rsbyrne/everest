@@ -20,6 +20,8 @@ def calculate_len(dim):
         continue
     if i is None:
         return 0
+    if i == int(1e9) - 1:
+        return _special.inf
     return i + 1
 
 def raise_uniterable():
