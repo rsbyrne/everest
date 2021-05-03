@@ -6,6 +6,7 @@ from . import _classtools
 
 from .space import Space
 
+
 @property
 def get_incision(obj):
     try:

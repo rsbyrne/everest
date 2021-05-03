@@ -40,11 +40,6 @@ class Hashclass(_classtools.MethAdder):
     hashID = hashID
     hashstr = hashstr
     hashint = hashint
-    @classmethod
-    def __subclasshook__(cls, C):
-        if cls is Hashclass:
-            return cls.check_sub(C)
-        return NotImplemented
 
 ###############################################################################
 ###############################################################################

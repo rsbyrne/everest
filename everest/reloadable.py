@@ -11,7 +11,7 @@ def __reduce__(self):
 def unreduce(redcls, args, kwargs):
     return redcls(*args, **dict(kwargs)) # pylint: disable=E1102
 
-@_classtools.applydecorator(property)
+@_classtools.ApplyDecorator(property)
 def _unreduce_property(_):
     return unreduce
 
@@ -25,11 +25,6 @@ class Reloadable(_wordhash.Hashclass):
     copy = copy
     get_hashcontents = get_hashcontents
     unreduce = _unreduce_property
-    @classmethod
-    def __subclasshook__(cls, C):
-        if cls is Reloadable:
-            return cls.check_sub(C)
-        return NotImplemented
     def __new__(cls, ACls):
         _ = super().__new__(cls, ACls)
         ACls.__reduce__ = __reduce__

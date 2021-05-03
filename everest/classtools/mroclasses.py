@@ -4,20 +4,13 @@
 
 from abc import ABC as _ABC
 
-class Overclass(_ABC):
-    overclasstag = 'overclasstag'
-    @classmethod
-    def __subclasshook__(cls, C):
-        if cls is Overclass:
-            if any(cls.overclasstag in B.__dict__ for B in C.__mro__):
-                return True
-        return NotImplemented
-    def __new__(cls, ACls):
-        '''Class decorator for designating an Overclass.'''
-        setattr(ACls, cls.overclasstag, None)
-        if not hasattr(ACls, 'fixedoverclass'):
-            setattr(ACls, 'fixedoverclass', NotImplemented)
-        return ACls
+from .methadder import MethAdder as _MethAdder
+
+
+class Overclass(_MethAdder):
+    overclasstag = None
+    fixedoverclass = NotImplemented
+
 
 class AnticipatedMethod(Exception):
     '''Placeholder class for a missing method.'''
@@ -57,13 +50,10 @@ def _mroclassable_init_subclass(ACls, ocls = False):
     AnticipatedMethod.process_antips(ACls)
     super(ACls).__init_subclass__()
 
+
 class MROClassable(_ABC):
-    @classmethod
-    def __subclasshook__(cls, C):
-        if cls is MROClassable:
-            if any('mroclasses' in B.__dict__ for B in C.__mro__):
-                return True
-        return NotImplemented
+
+    mroclasses = ()
 
     @classmethod
     def update_mroclassnames(cls, ACls):
@@ -113,10 +103,8 @@ class MROClassable(_ABC):
             mroclass = type(name, inheritees, {})
         if ocins := tuple((c for c in inheritees if issubclass(c, Overclass))):
             over = ACls
-            isfixed = False
             for ocin in ocins:
                 if (fixtag := ocin.fixedoverclass) is not NotImplemented:
-                    isfixed = True
                     if fixtag is None:
                         ocin.fixedoverclass = ACls
                     else:
