@@ -5,7 +5,7 @@
 from functools import partial as _partial
 from collections.abc import Iterable as _Iterable
 
-from . import _special, _reseed
+from . import _special, _reseed, _classtools
 
 from .dimension import Dimension as _Dimension
 from .slices import (
@@ -17,20 +17,20 @@ from .utilities import unpack_slice
 
 
 class Primary(_Dimension):
-    def __getitem__(self, arg):
-        if isinstance(arg, slice):
-            return _ISlice(self, arg)
-        if isinstance(arg, _Iterable):
-            if not isinstance(arg, _Dimension):
-                arg = Arbitrary.construct(arg)
-            return _Selection(self, arg)
-        return _Collapsed(self, arg)
+    getmeths = {
+        slice: _ISlice,
+        _Iterable: _Selection,
+        object: _Collapsed,
+        }
 
 class Arbitrary(Primary):
 
     __slots__ = ('content',)
 
-    def __init__(self, iterable, **kwargs):
+    def __init__(self, iterable, typ = None, **kwargs):
+        if not typ is None:
+            iterable = (typ(item) for item in iterable)
+            kwargs['typ'] = typ
         content = self.content = tuple(iterable)
         self.iterlen = len(content)
         self.iter_fn = content.__iter__

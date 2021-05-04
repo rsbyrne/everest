@@ -2,10 +2,10 @@
 ''''''
 ###############################################################################
 
-from abc import ABCMeta as _ABCMeta, abstractmethod as _abstractmethod
+from abc import ABCMeta as _ABCMeta
 from collections import abc as _collabc
 from itertools import repeat as _repeat
-from functools import partial as _partial
+from functools import partial as _partial, lru_cache as _lru_cache
 
 from . import _special, _classtools
 
@@ -36,7 +36,16 @@ def show_iter_vals(iterable):
 
 
 class DimensionMeta(_ABCMeta):
-    ...
+    def __init__(cls, *args, **kwargs):
+        if 'getmeths' in cls.__dict__:
+            getmeths = cls.getmeths
+        else:
+            getmeths = cls.getmeths = {}
+        for base in cls.__bases__:
+            if hasattr(base, 'getmeths'):
+                for key, val in base.getmeths.items():
+                    _ = getmeths.setdefault(key, val)
+        super().__init__(*args, **kwargs)
 
 @_classtools.Diskable
 @_classtools.MROClassable
@@ -87,9 +96,19 @@ class Dimension(metaclass = DimensionMeta):
             raise DimensionInfinite
         return iterlen
 
-    @_abstractmethod
-    def __getitem__(self, arg):
-        '''This class wouldn't be of much use without one of these!'''
+    @classmethod
+    @_lru_cache(maxsize = 64)
+    def choose_getmeth(cls, typ, /):
+        getmeths = cls.getmeths
+        try:
+            return getmeths[typ]
+        except KeyError as exc:
+            for key, meth in getmeths.items():
+                if issubclass(typ, key):
+                    return meth
+        raise exc
+    def __getitem__(self, arg, /):
+        return self.choose_getmeth(type(arg))(self, arg)
 
     def __bool__(self):
         return self.iterlen > 0
