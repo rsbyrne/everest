@@ -3,8 +3,6 @@
 ###############################################################################
 import collections
 
-from everest.wordhash import w_hash
-
 def flatten_dict(d, parent_key = '', sep = '_'):
     # by Imran@stackoverflow
     items = []
