@@ -44,6 +44,9 @@ RUN pip3 install --no-cache-dir scikit-learn
 #RUN pip3 install --no-cache-dir torch torchvision
 #RUN pip3 install --no-cache-dir fastai
 
+# Networking
+RUN pip3 install --no-cache-dir paramiko
+
 # Maths
 RUN pip3 install --no-cache-dir mpmath
 RUN pip3 install --no-cache-dir sympy
@@ -59,7 +62,6 @@ RUN pip3 install --no-cache-dir -U jupyter-book
 
 # RUN apt-get install -y texlive-xetex texlive-fonts-recommended texlive-generic-recommended
 # RUN pip3 install --no-cache-dir nbconvert
-# RUN pip3 install --no-cache-dir -U jupyter-book
 
 # Other
 # RUN apt install -y yarn
