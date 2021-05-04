@@ -29,7 +29,7 @@ class Reseed:
 
     __slots__ = ('seed', 'rng', 'initstate', 'priorstates', 'random')
 
-    def __init__(self, seed, /):
+    def __init__(self, seed = None, /):
         seed = self.seed = get_seed(seed)
         rng = self.rng = default_rng(SeedSequence(self.seed))
         self.initstate = self.__getstate__()
@@ -104,8 +104,10 @@ class Reseed:
             raise exc
 
     def rchoice(self, /, population, selections = 1):
+        if isinstance(population, str):
+            population = list(population)
         if selections > 1:
-            return (self.rng.choice(population) for i in range(selections))
+            return tuple(self.rng.choice(population) for i in range(selections))
         return self.rng.choice(population)
 
     def rshuffle(self, *args, **kwargs):
