@@ -67,6 +67,61 @@ class Reader(H5Manager):
     def keys(self):
         return iter(self)
 
+    def _recursive_seek(self, key, searchArea = None):
+        # expects h5filewrap
+        if searchArea is None:
+            searchArea = self.h5file
+        # print("Seeking", key, "from", searchArea)
+        splitkey = key.split('/')
+        try:
+            if splitkey[0] == '':
+                splitkey = splitkey[1:]
+            if splitkey[-1] == '':
+                splitkey = splitkey[:-1]
+        except IndexError:
+            raise Exception("Bad key: " + str(key) +  ', ' + str(type(key)))
+        primekey = splitkey[0]
+        remkey = '/'.join(splitkey[1:])
+        if primekey == '**':
+            raise NotYetImplemented
+            # found = self._recursive_seek('*/' + remkey, searchArea)
+            # found[''] = self._recursive_seek('*/' + key, searchArea)
+        elif primekey == '*':
+            localkeys = {*searchArea, *searchArea.attrs}
+            searchkeys = [
+                localkey + '/' + remkey \
+                    for localkey in localkeys
+                ]
+            found = dict()
+            for searchkey in searchkeys:
+                try:
+                    found[searchkey.split('/')[0]] = \
+                        self._recursive_seek(searchkey, searchArea)
+                except KeyError:
+                    pass
+        else:
+            try:
+                try:
+                    found = searchArea[primekey]
+                except KeyError:
+                    try:
+                        found = searchArea.attrs[primekey]
+                    except KeyError:
+                        raise PathNotInFrameError(
+                            "Path " \
+                            + primekey \
+                            + " does not exist in search area " \
+                            + str(searchArea) \
+                            )
+            except ValueError:
+                raise Exception("Value error???", primekey, type(primekey))
+            if not remkey == '':
+                if type(found) is h5py.Group:
+                    found = self._recursive_seek(remkey, found)
+                else:
+                    raise NotGroupError()
+        return found
+
     def _pre_seekresolve(self, inp, _indices = None):
         # expects h5filewrap
         if type(inp) is h5py.Group:
