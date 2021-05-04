@@ -9,7 +9,8 @@ from . import _special, _everestutilities
 
 from .dimension import Dimension as _Dimension
 from .primary import Arbitrary as _Arbitrary
-from .slices import Collapsed as _Collapsed
+
+_Collapsed = _Dimension.Collapsed
 
 _muddle = _everestutilities.seqmerge.muddle
 

@@ -3,25 +3,17 @@
 ###############################################################################
 
 from functools import partial as _partial
-from collections.abc import Iterable as _Iterable
 
-from . import _special, _reseed, _classtools
+from . import _special, _reseed #_classtools
 
 from .dimension import Dimension as _Dimension
-from .slices import (
-    ISlice as _ISlice,
-    Selection as _Selection,
-    Collapsed as _Collapsed,
-    )
+from .slices import SLICEMETHS as _SLICEMETHS
 from .utilities import unpack_slice
 
 
 class Primary(_Dimension):
-    getmeths = {
-        slice: _ISlice,
-        _Iterable: _Selection,
-        object: _Collapsed,
-        }
+    getmeths = {**_SLICEMETHS}
+
 
 class Arbitrary(Primary):
 
@@ -142,13 +134,13 @@ class Integral(Range):
 
 def real_range(incrementer, stop, step):
     while incrementer < stop:
-        yield incrementer
+        yield round(incrementer, 12)
         incrementer += step
 
 def rand_float_range(start, stop, seed):
     rsd = _reseed.Reseed(seed)
     while True:
-        yield rsd.rfloat(start, stop)
+        yield round(rsd.rfloat(start, stop), 12)
 
 class Real(Range):
 

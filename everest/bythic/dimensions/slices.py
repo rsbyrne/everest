@@ -5,6 +5,7 @@
 from functools import partial as _partial
 import itertools as _itertools
 import math as _math
+from collections.abc import Iterable as _Iterable
 
 from . import _special
 
@@ -12,66 +13,48 @@ from .dimension import Dimension as _Dimension
 from .utilities import unpack_slice
 
 
+def selinds_next(inds, arblen):
+    ind = next(inds)
+    if ind < 0:
+        ind += arblen
+    return ind
 def selinds_iter(arb, inds):
-    it = iter(inds)
+    inds = iter(inds)
+    arblen = arb.iterlen
     try:
-        ind = next(it)
+        ind = selinds_next(inds, arblen)
         for i, a in enumerate(arb):
             if i == ind:
                 yield a
-                ind = next(it)
+                ind = selinds_next(inds, arblen)
     except StopIteration:
         return
+    raise IndexError("Leftover indices!")
 
 def measure_boolean_selection(source, selection):
     if selection.iterlen > source.iterlen:
         return selection[:len(source)].count(True)
-    # so either both infinite or source is longer
     if selection.tractable:
         return selection.count(True)
     return _special.inf
 
-
 class Selection(_Dimension.Slice):
 
-    def __init__(self, source, sliceinds, **kwargs):
-        if not isinstance(sliceinds, _Dimension):
-            raise TypeError(
-                f"Selection argument must be Dimension type, "
-                f"not {type(sliceinds)}"
-                )
-        if issubclass(sliceinds.typ, bool):
-            self.iter_fn = _partial(_itertools.compress, source, sliceinds)
-            self.iterlen = measure_boolean_selection(source, sliceinds)
-        elif issubclass(sliceinds.typ, int):
-            self.iter_fn = _partial(selinds_iter, source, sliceinds)
-            # self.iterlen = measure_integral_selection(source, sliceinds)
+    def __init__(self, source, selection, **kwargs):
+        if isinstance(selection, tuple):
+            selection = list(selection)
+        selection = type(self)[selection] # pylint: disable=E1136
+        seltyp = selection.typ
+        if issubclass(seltyp, bool):
+            self.iter_fn = _partial(_itertools.compress, source, selection)
+            self.iterlen = measure_boolean_selection(source, selection)
+        elif issubclass(seltyp, int):
+            self.iter_fn = _partial(selinds_iter, source, selection)
+            self.iterlen = selection.iterlen
         else:
             raise TypeError("Only integral or boolean selections accepted.")
-        super().__init__(source, sliceinds, **kwargs)
+        super().__init__(source, selection, **kwargs)
 
-
-class Collapsed(_Dimension.Slice):
-
-    __slots__ = '_val', 'ind', '_value'
-
-    def __init__(self, dim, ind, **kwargs):
-        self.ind, self._value, self.iterlen = ind, None, 1
-        # self.iter_fn = _partial(iter, _partial(getattr, self, 'value'))
-        self.iterlen = 1
-        super().__init__(dim, ind, **kwargs)
-
-    def __iter__(self):
-        yield self.value
-
-    @property
-    def value(self):
-        if (val := self._value) is None:
-            for ind, val in enumerate(self.source):
-                if ind == self.ind:
-                    break
-            self._value = val
-        return val
 
 def process_negative_index(ind, dimlen):
     if ind is None:
@@ -166,6 +149,12 @@ class ISlice(_Dimension.Slice):
         step = None if step == 1 else step
         self.step = step
         super().__init__(dim, (start, stop, step), **kwargs)
+
+
+SLICEMETHS = {
+    slice: ISlice,
+    _Iterable: Selection,
+    }
 
 
 ###############################################################################

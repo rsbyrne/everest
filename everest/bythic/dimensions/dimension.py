@@ -6,6 +6,7 @@ from abc import ABCMeta as _ABCMeta
 from collections import abc as _collabc
 from itertools import repeat as _repeat
 from functools import partial as _partial, lru_cache as _lru_cache
+from types import FunctionType as _FunctionType
 
 from . import _special, _classtools
 
@@ -38,7 +39,7 @@ def show_iter_vals(iterable):
 class DimensionMeta(_ABCMeta):
     def __init__(cls, *args, **kwargs):
         if 'getmeths' in cls.__dict__:
-            getmeths = cls.getmeths
+            getmeths = cls.__dict__['getmeths']
         else:
             getmeths = cls.getmeths = {}
         for base in cls.__bases__:
@@ -106,7 +107,7 @@ class Dimension(metaclass = DimensionMeta):
             for key, meth in getmeths.items():
                 if issubclass(typ, key):
                     return meth
-        raise exc
+            raise exc
     def __getitem__(self, arg, /):
         return self.choose_getmeth(type(arg))(self, arg)
 
@@ -119,7 +120,7 @@ class Dimension(metaclass = DimensionMeta):
         start = str(list(self[:3]))[1:-1]
         if self.tractable:
             end = str(list(self[-2:]))[1:-1]
-            return f"{start} ... {end}"
+            return f"{start}, ... {end}"
         return f"{start}"
     def get_repr(self):
         return f"{type(self).__name__} == [{self.get_valstr()}]"
@@ -161,6 +162,8 @@ class Dimension(metaclass = DimensionMeta):
             self.register_argskwargs(*sources) # pylint: disable=E1101
         def __getitem__(self, arg):
             return self._sourceget_(self, arg)
+        def choose_getmeth(self, typ):
+            return self.source.choose_getmeth(typ)
 
     class Transform(Derived):
         def __init__(self, operator, /, *operands, **kwargs):
@@ -190,6 +193,29 @@ class Dimension(metaclass = DimensionMeta):
             super().__init__(source, **kwargs)
             self.register_argskwargs(incisor) # pylint: disable=E1101
 
+    class Collapsed(Slice):
+        __slots__ = '_val', 'ind', '_value'
+        def __init__(self, dim, ind, **kwargs):
+            self.ind, self._value, self.iterlen = ind, None, 1
+            # self.iter_fn = _partial(iter, _partial(getattr, self, 'value'))
+            self.iterlen = 1
+            super().__init__(dim, ind, **kwargs)
+
+        def __iter__(self):
+            yield self.value
+
+        @property
+        def value(self):
+            if (val := self._value) is None:
+                for ind, val in enumerate(self.source):
+                    if ind == self.ind:
+                        break
+                self._value = val
+            return val
+
+def pattern_get(dim, pattern):
+    return dim[dim.apply(pattern)]
+Dimension.getmeths = {_FunctionType: pattern_get, object: Dimension.Collapsed}
 
 ###############################################################################
 ###############################################################################
