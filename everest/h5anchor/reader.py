@@ -235,13 +235,18 @@ class Reader(H5Manager):
             "Must provide a key to pull data from a scope"
             )
 
-    _getmethods = {
-        str: _getstr,
-        Fetch: _getfetch,
-        slice: _getslice,
-        Scope: _getscope,
-        type(Ellipsis): _getellipsis
-        }
+    @classmethod
+    def _get_getmethods(cls):
+        return {
+            str: cls._getstr,
+            Fetch: cls._getfetch,
+            slice: cls._getslice,
+            Scope: cls._getscope,
+            type(Ellipsis): cls._getellipsis
+            }
+    @property
+    def _getmethods(self):
+        return self._get_getmethods()
 
     def _getitem(self, inp):
         if not type(inp) in self._getmethods:

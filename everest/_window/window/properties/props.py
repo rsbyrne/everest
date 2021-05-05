@@ -1,6 +1,3 @@
-###############################################################################
-''''''
-###############################################################################
 from ._base import _Vanishable, _Colourable, _Fillable, _Fadable
 from .edges import Edges
 from .grid import Grid
@@ -81,7 +78,3 @@ class Props(_PropsController):
         for dim in dims:
             self['edges'][dim]._add_sub(self['ticks'][dim], 'ticks')
             self['edges'][dim]['primary']._add_sub(self['ticks'][dim], 'ticks')
-
-###############################################################################
-''''''
-###############################################################################
