@@ -50,7 +50,6 @@ class Variable(_Base):
                 return self.get_value()
             except ValueError as exc2:
                 raise exc2 from exc1
-
     def set_value_mode1(self, val, /):
         self.content = val
     def del_value_mode1(self):

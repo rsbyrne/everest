@@ -12,13 +12,13 @@ _RICHOPS = _everestutilities.RICHOPS
 _REVOPS = _everestutilities.REVOPS
 OPS = (*_ARITHMOPS, *_RICHOPS, *_REVOPS)
 
-from .methadder import MethAdder as _MethAdder
+from .adderclass import AdderClass as _AdderClass
 
 
-class Operable(_MethAdder):
+class Operable(_AdderClass):
 
-    @_MethAdder.decorate(classmethod)
-    @_MethAdder.decorate(_lru_cache(maxsize = 32))
+    @_AdderClass.decorate(classmethod)
+    @_AdderClass.decorate(_lru_cache(maxsize = 32))
     def get_operator(cls, operator, **kwargs): # pylint: disable=E0213
         if isinstance(operator, str):
             if operator in OPS:
@@ -30,11 +30,13 @@ class Operable(_MethAdder):
                 raise KeyError(operator)
         return _partial(cls.operate, operator, **kwargs) # pylint: disable=E1101
 
-    @classmethod
-    @_abstractmethod
-    def operate(cls, operator, arg0, /, *argn, **kwargs) -> object: # pylint: disable=E0213
+    @_AdderClass.decorate(classmethod)
+    @_AdderClass.decorate(_abstractmethod)
+    def operate(cls, operator, arg0, /, *argn, **kwargs) -> object: # pylint: disable=E0213 R0201
         '''Carries out the actual operation and returns the result.'''
-        raise TypeError("This method is abstract and should not be called.")
+        raise TypeError(
+            "This method is abstract and should not ever be called."
+            )
 
     def op(self, other = None, *, operator, rev = False, **kwargs):
         operator = self.get_operator(operator, **kwargs)
@@ -46,7 +48,7 @@ class Operable(_MethAdder):
 
     def apply(self, operator, **kwargs):
         return self.op(operator = operator, **kwargs)
-    @_MethAdder.decorate(_lru_cache(maxsize = 64))
+    @_AdderClass.decorate(_lru_cache(maxsize = 64))
     def transform(self, operator, **kwargs):
         return _partial(self.op, operator = operator, **kwargs)
 
@@ -70,10 +72,10 @@ class Operable(_MethAdder):
         return self.op(other, operator = 'divmod')
     def __pow__(self, other):
         return self.op(other, operator = 'pow')
-    def __lshift__(self, other):
-        return self.op(other, operator = 'lshift')
-    def __rshift__(self, other):
-        return self.op(other, operator = 'rshift')
+    # def __lshift__(self, other):
+    #     return self.op(other, operator = 'lshift')
+    # def __rshift__(self, other):
+    #     return self.op(other, operator = 'rshift')
     def __and__(self, other):
         return self.op(other, operator = 'and')
     def __xor__(self, other):
@@ -101,10 +103,10 @@ class Operable(_MethAdder):
         return self.op(other, operator = 'divmod', rev = True)
     def __rpow__(self, other):
         return self.op(other, operator = 'pow', rev = True)
-    def __rlshift__(self, other):
-        return self.op(other, operator = 'lshift', rev = True)
-    def __rrshift__(self, other):
-        return self.op(other, operator = 'rshift', rev = True)
+    # def __rlshift__(self, other):
+    #     return self.op(other, operator = 'lshift', rev = True)
+    # def __rrshift__(self, other):
+    #     return self.op(other, operator = 'rshift', rev = True)
     def __rand__(self, other):
         return self.op(other, operator = 'and', rev = True)
     def __rxor__(self, other):
@@ -143,22 +145,22 @@ class Operable(_MethAdder):
 
     #### BOOLEAN ####
 
-    @_MethAdder.forcemethod
+    @_AdderClass.forcemethod
     def __lt__(self, other):
         return self.op(other, operator = 'lt', typ = bool)
-    @_MethAdder.forcemethod
+    @_AdderClass.forcemethod
     def __le__(self, other):
         return self.op(other, operator = 'le', typ = bool)
-    @_MethAdder.forcemethod
+    @_AdderClass.forcemethod
     def __eq__(self, other):
         return self.op(other, operator = 'eq', typ = bool)
-    @_MethAdder.forcemethod
+    @_AdderClass.forcemethod
     def __ne__(self, other):
         return self.op(other, operator = 'ne', typ = bool)
-    @_MethAdder.forcemethod
+    @_AdderClass.forcemethod
     def __gt__(self, other):
         return self.op(other, operator = 'gt', typ = bool)
-    @_MethAdder.forcemethod
+    @_AdderClass.forcemethod
     def __ge__(self, other):
         return self.op(other, operator = 'ge', typ = bool)
 

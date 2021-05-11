@@ -2,13 +2,11 @@
 ''''''
 ###############################################################################
 
-from abc import ABC as _ABC
-
-from .methadder import MethAdder as _MethAdder
+from .adderclass import AdderClass as _AdderClass
 from .reloadable import ClassProxy as _ClassProxy
 
 
-class Overclass(_MethAdder):
+class Overclass(_AdderClass):
     overclasstag = None
     fixedoverclass = NotImplemented
 
@@ -45,23 +43,36 @@ class AnticipatedMethod(Exception):
     def __call__(self, *args, **kwargs):
         raise self
 
-def _mroclassable_init_subclass(ACls, ocls = False):
+@_AdderClass.wrapmethod
+@classmethod
+def extra_subclass_init(calledmeth, ACls, ocls = False): # pylint: disable=E0213
     if not ocls:
-        MROClassable.process_mroclasses(ACls)
+        ACls._process_mroclasses(ACls) # pylint: disable=W0212
     AnticipatedMethod.process_antips(ACls)
-    super(ACls).__init_subclass__()
+    calledmeth() # pylint: disable=E1102
 
+def check_if_fuserclass(cls):
+    return 'mroclassfuser' in cls.__dict__
 
-class MROClassable(_ABC):
+def remove_duplicates(seq):
+    out = []
+    for thing in seq:
+        if not thing in out:
+            out.append(thing)
+    return out
+
+class MROClassable(_AdderClass):
+
+    toadd = dict(
+        __init_subclass__ = extra_subclass_init,
+        )
 
     mroclasses = ()
 
+    @_AdderClass.hiddenmethod
     @classmethod
     def update_mroclassnames(cls, ACls):
-        try:
-            mroclasses = list(ACls.mroclasses)
-        except AttributeError:
-            mroclasses = []
+        mroclasses = list(ACls.mroclasses)
         for c in (c for c in ACls.__bases__ if issubclass(c, MROClassable)):
             try:
                 basemroclasses = c.mroclasses
@@ -72,9 +83,12 @@ class MROClassable(_ABC):
                 pass
         ACls.mroclasses = tuple(mroclasses)
 
+    @_AdderClass.hiddenmethod
     @classmethod
     def get_inheritees(cls, ACls, name):
         inheritees = []
+        if cls is not ACls:
+            inheritees.extend(cls.get_inheritees(cls, name))
         for base in ACls.__bases__:
             if name in base.__dict__:
                 if (altname := '_' + name + '_') in base.__dict__:
@@ -82,26 +96,28 @@ class MROClassable(_ABC):
                     inheritee = getattr(base, altname)
                 else:
                     inheritee = getattr(base, name)
-                inheritees.append(inheritee)
-        inheritees = tuple(inheritees)
+                if check_if_fuserclass(inheritee):
+                    inheritees.extend(inheritee.__bases__)
+                else:
+                    inheritees.append(inheritee)
         new = ACls.__dict__[name] if name in ACls.__dict__ else None
-        if inheritees:
-            if new is None:
-                return inheritees
-            return (new, *inheritees)
-        if new is not None:
-            return (new,)
-        return NotImplemented
+        if not new is None:
+            if check_if_fuserclass(new):
+                inheritees = (*new.__bases__, *inheritees)
+            else:
+                inheritees = (new, *inheritees)
+        return tuple(remove_duplicates(inheritees))
 
+    @_AdderClass.hiddenmethod
     @classmethod
     def merge_mroclass(cls, ACls, name):
         inheritees = cls.get_inheritees(ACls, name)
-        if inheritees is NotImplemented:
+        if not inheritees:
             return None, None
         if len(inheritees) == 1:
             mroclass = inheritees[0]
         else:
-            mroclass = type(name, inheritees, {})
+            mroclass = type(name, inheritees, dict(mroclassfuser = True))
         if ocins := tuple((c for c in inheritees if issubclass(c, Overclass))):
             over = ACls
             for ocin in ocins:
@@ -117,6 +133,7 @@ class MROClassable(_ABC):
             ocls = None
         return mroclass, ocls
 
+    @_AdderClass.hiddenmethod
     @classmethod
     def process_mroclass(cls, ACls, name):
         mroclass, ocls = cls.merge_mroclass(ACls, name)
@@ -132,22 +149,40 @@ class MROClassable(_ABC):
             setattr(ACls, name, ocls)
             ocls.classproxy = _ClassProxy(ACls, name)
 
+    @_AdderClass.hiddenmethod
     @classmethod
     def update_mroclasses(cls, ACls):
         for name in ACls.mroclasses:
             cls.process_mroclass(ACls, name)
 
+    @_AdderClass.hiddenmethod
     @classmethod
     def process_mroclasses(cls, ACls):
         cls.update_mroclassnames(ACls)
         cls.update_mroclasses(ACls)
 
+    def __init_subclass__(cls, **kwargs):
+        cls.process_mroclasses(cls)
+        super().__init_subclass__(**kwargs)
+
     def __new__(cls, ACls):
         '''Wrapper which adds mroclasses to ACls.'''
+        ACls = super().__new__(cls, ACls)
+        ACls._process_mroclasses = cls.process_mroclasses
         if not any(issubclass(b, MROClassable) for b in ACls.__bases__):
-            ACls.__init_subclass__ = classmethod(_mroclassable_init_subclass)
             cls.process_mroclasses(ACls)
         return ACls
+
+
+            # if '__init_subclass__' in ACls.__dict__:
+            #     # addmeth = _MethAdder.wrapmethod(
+            #     #     _mroclassable_init_subclass,
+            #     #     ACls.__init_subclass__,
+            #     #     )
+            #     raise Exception("Not supported!")
+            # ACls.__init_subclass__ = classmethod(
+            #     _mroclassable_init_subclass
+            #     )
 
 ###############################################################################
 

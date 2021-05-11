@@ -2,12 +2,12 @@
 ''''''
 ###############################################################################
 
-from .methadder import MethAdder as _MethAdder
+from .adderclass import AdderClass as _AdderClass
 
 def _unreduce(redcls, args, kwargs):
     return redcls(*args, **dict(kwargs))
 
-class Reloadable(_MethAdder):
+class Reloadable(_AdderClass):
     def register_argskwargs(self, *args, **kwargs):
         try:
             _args = self._args
@@ -19,13 +19,13 @@ class Reloadable(_MethAdder):
             _kwargs = self._kwargs = dict() # pylint: disable=W0201
         _args.extend(args)
         _kwargs.update(kwargs)
-    @_MethAdder.decorate(property)
+    @_AdderClass.decorate(property)
     def args(self):
         return tuple(self._args)
-    @_MethAdder.decorate(property)
+    @_AdderClass.decorate(property)
     def kwargs(self):
         return tuple(self._kwargs.items())
-    @_MethAdder.decorate(classmethod)
+    @_AdderClass.decorate(classmethod)
     def get_constructor(cls): # pylint: disable=E0213
         if hasattr(cls, 'constructor'):
             return cls.constructor # pylint: disable=E1101
@@ -33,10 +33,10 @@ class Reloadable(_MethAdder):
         if 'classproxy' in cls.__dict__:
             return cls.classproxy # pylint: disable=E1101
         return cls
-    @_MethAdder.decorate(property)
+    @_AdderClass.decorate(property)
     def unreduce(self): # pylint: disable=R0201
         return _unreduce
-    @_MethAdder.forcemethod
+    @_AdderClass.forcemethod
     def __reduce__(self):
         return self.unreduce, self.get_redtup()
     def get_redtup(self):
@@ -46,7 +46,7 @@ class Reloadable(_MethAdder):
         return unredfn(*args) # pylint: disable=E1121
 
 @Reloadable
-class ClassProxy:
+class ClassProxy: # pylint: disable=R0903
     __slots__ = ('outercls', 'innercls', '_args', '_kwargs')
     def __init__(self, outercls, arg):
         self.outercls = outercls
