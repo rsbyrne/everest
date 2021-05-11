@@ -71,17 +71,22 @@ class MROClassable(_AdderClass):
 
     @_AdderClass.hiddenmethod
     @classmethod
-    def update_mroclassnames(cls, ACls):
-        mroclasses = list(ACls.mroclasses)
+    def get_mroclassnames(cls, ACls):
+        mroclasses = []
+        if cls is not ACls:
+            mroclasses.extend(cls.get_mroclassnames(cls))
+        mroclasses.extend(ACls.mroclasses)
         for c in (c for c in ACls.__bases__ if issubclass(c, MROClassable)):
             try:
-                basemroclasses = c.mroclasses
-                mroclasses.extend(
-                    name for name in basemroclasses if not name in mroclasses
-                    )
+                mroclasses.extend(c.mroclasses)
             except AttributeError:
                 pass
-        ACls.mroclasses = tuple(mroclasses)
+        return tuple(remove_duplicates(mroclasses))
+
+    @_AdderClass.hiddenmethod
+    @classmethod
+    def update_mroclassnames(cls, ACls):
+        ACls.mroclasses = cls.get_mroclassnames(ACls)
 
     @_AdderClass.hiddenmethod
     @classmethod
