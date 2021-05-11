@@ -13,6 +13,7 @@ from .operable import *
 from .reloadable import *
 from .hashidable import *
 from .diskable import *
+from .evaluable import *
 
 ###############################################################################
 ###############################################################################
