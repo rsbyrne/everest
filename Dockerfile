@@ -1,6 +1,3 @@
-FROM rsbyrne/base
-MAINTAINER https://github.com/rsbyrne/
-
 FROM ubuntu:groovy-20210115
 MAINTAINER https://github.com/rsbyrne/
 
@@ -110,6 +107,7 @@ RUN pip3 install --no-cache-dir scipy
 RUN pip3 install --no-cache-dir pandas
 RUN pip3 install --no-cache-dir dask[complete]
 RUN pip3 install --no-cache-dir diversipy
+RUN pip3 install --no-cache-dir numba
 
 # Machine Learning
 RUN pip3 install --no-cache-dir scikit-learn
@@ -127,23 +125,6 @@ RUN pip3 install --no-cache-dir sympy
 #RUN apt install -y nodejs
 #RUN apt install -y npm
 RUN pip3 install --no-cache-dir jupyterlab
-
-# Publication
-RUN apt-get install -y pandoc
-RUN pip3 install --no-cache-dir -U jupyter-book
-RUN pip3 install --no-cache-dir -U pyppeteer
-RUN pip3 install --no-cache-dir -U ghp-import
-
-# RUN apt-get install -y texlive-xetex texlive-fonts-recommended texlive-generic-recommended
-# RUN pip3 install --no-cache-dir nbconvert
-
-# Other
-# RUN apt install -y yarn
-# RUN jupyter lab build
-
-# User
-RUN apt-get install -y dialog
-RUN unminimize
 
 # Finish
 RUN apt-get update
