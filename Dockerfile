@@ -87,6 +87,10 @@ RUN pip3 install --no-cache-dir mypy
 # CLI
 RUN pip3 install -U --no-cache-dir click
 
+# Convenience
+# https://whoosh.readthedocs.io/en/latest/
+RUN pip3 install --no-cache-dir -U Whoosh
+
 # MPI
 RUN apt-get install -y libopenmpi-dev
 RUN pip3 install --no-cache-dir mpi4py
