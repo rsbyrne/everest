@@ -84,6 +84,9 @@ ENV PYTHONPATH "$EVERESTDIR:${PYTHONPATH}"
 RUN pip3 install -U --no-cache-dir pytest
 RUN pip3 install --no-cache-dir mypy
 
+# CLI
+RUN pip3 install -U --no-cache-dir click
+
 # MPI
 RUN apt-get install -y libopenmpi-dev
 RUN pip3 install --no-cache-dir mpi4py
