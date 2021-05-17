@@ -8,6 +8,8 @@ from . import plot
 from . import animate
 from . import raster
 from .data import *
+from . import colourmaps
+get_cmap = colourmaps.get_cmap
 ###############################################################################
 ''''''
 ###############################################################################

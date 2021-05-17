@@ -3,25 +3,26 @@
 ###############################################################################
 import math
 import numbers
-import numpy as np
+from collections import OrderedDict
 import time
 from datetime import datetime
 
-from collections import OrderedDict
+import numpy as np
+import pandas as pd
 
 class DataChannel:
 
+    @classmethod
+    def convert(cls, arg):
+        if not isinstance(arg, DataChannel._Data):
+            return DataChannel(arg)
+        return arg
+
     def __new__(cls, arg, **kwargs):
-        if isinstance(arg, cls._Data):
-            if len(kwargs):
-                return cls(arg.data, **{**arg.callKwargs, **kwargs})
-            else:
-                return arg
-        else:
-            subcl, data, leftoverKwargs = cls._preprocess(arg, **kwargs)
-            obj = subcl(data, **kwargs)
-            obj.callKwargs = kwargs
-            return obj
+        subcl, data, leftoverKwargs = cls._preprocess(arg, **kwargs)
+        obj = subcl(data, **kwargs)
+        obj.callKwargs = kwargs
+        return obj
 
     @classmethod
     def _preprocess(cls, data, **kwargs):
@@ -49,14 +50,24 @@ class DataChannel:
 
         def __init__(self, data, label = ''):
             self.label = label
-            self.data = data
+            self._data = data
+
+        @property
+        def data(self):
+            return self._data
 
         def auto_axis_configs(self, nTicks = 5):
             tickVals, minorTickVals, tickLabels, suffix = self.nice_ticks(nTicks)
             lims = (np.min(tickVals), np.max(tickVals))
             label = self.label
-            if len(suffix): label += ' ({0})'.format(suffix)
+            if len(suffix):
+                label += ' ({0})'.format(suffix)
             return label, tickVals, minorTickVals, tickLabels, lims
+
+        def __iter__(self):
+            return iter(self.data)
+        def __getitem__(self, key):
+            return self.data[key]
 
     class Orderable(_Data):
 
@@ -81,40 +92,30 @@ class DataChannel:
 
     class Numeric(Orderable):
 
-        @classmethod
-        def _processdata(cls,
-                data,
-                lims = (None, None),
-                capped = (False, False),
-                **kwargs
-                ):
-#             assert len(lims) == 2 and len(capped) == 2
-#             (lLim, uLim), (lCap, uCap) = lims, capped
-#             if not lLim is None:
-#                 if lCap:
-#                     data = np.where(data < lLim, lLim, data)
-#                 else:
-#                     data = np.delete(data, np.argwhere(data < lLim).flatten())
-#             if not uLim is None:
-#                 if uCap:
-#                     data = np.where(data > uLim, uLim, data)
-#                 else:
-#                     data = np.delete(data, np.argwhere(data > uLim).flatten())
-            return data, kwargs
-
         def __init__(self,
                 data,
                 lims = (None, None),
                 capped = (False, False),
+                islog = False,
+                log = None,
                 **kwargs
                 ):
+            self.islog = islog
+            log = self.log = islog if log is None else log
+            if self.islog and not self.log:
+                raise ValueError("Cannot specify log=False if islog=True.")
             super().__init__(data, **kwargs)
-            lims = (
-                (lims[0] if not lims[0] is None else self.data.min()),
-                (lims[1] if not lims[1] is None else self.data.max()),
-                )
-            self.lims = lims
+            llim, ulim = lims
+            llim = self.data.min() if llim is None else (math.log10(llim) if log else llim)
+            ulim = self.data.max() if ulim is None else (math.log10(ulim) if log else ulim)
+            self.lims = (llim, ulim)
             self.capped = capped
+
+        @property
+        def data(self):
+            if self.log and not self.islog:
+                return np.log10(self._data)
+            return self._data
 
         @property
         def range(self):
@@ -135,10 +136,8 @@ class DataChannel:
 
         def nice_endpoints(self, step, origin = 0.):
             lLim, uLim = self.lims
-            lCon = lLim == origin or (lLim > origin and uLim > 2. * lLim)
-            uCon = uLim == origin or (uLim < origin and lLim < 2. * uLim)
-            lLim = origin if lCon else lLim
-            uLim = origin if uCon else uLim
+            lLim = origin if (origin or (lLim > origin and uLim > 3 * lLim)) else lLim
+            uLim = origin if (origin or (uLim < origin and lLim < 3 * uLim)) else uLim
             if not round(lLim % step / step, 5) in {0., 1.}:
                 lLim -= lLim % step
                 if self.data.min() < lLim + 1. / 3. * step:
@@ -213,7 +212,31 @@ class DataChannel:
             return np.linspace(tickVals[0], tickVals[-1], nTicks)
             # return tickVals
 
+        def nice_log_tickVals(self, nTicks):
+            linmajors, linminors = self.nice_tickVals(nTicks)
+            llim, ulim = math.floor(min(linmajors)), math.ceil(max(linmajors))
+            majors = list(range(llim, ulim + 1))
+            minors = []
+            for major in majors[:-1]:
+                minors.extend(np.log10(np.linspace(10 ** major, 10 ** (major + 1), 11)[1:-1]))
+            return majors, minors
+        @staticmethod
+        def proc_log_label(val):
+            if val == 0:
+                return str(1)
+            if val == 1:
+                return str(10)
+            return r'$10^{' + str(val) + r'}$'
+        def nice_log_tickLabels(self, tickVals):
+            return [self.proc_log_label(v) for v in tickVals], ''
+        def nice_log_ticks(self, nTicks):
+            tickVals, minorTickVals = self.nice_log_tickVals(nTicks)
+            tickLabels, tickSuffix = self.nice_log_tickLabels(tickVals)
+            return tickVals, minorTickVals, tickLabels, tickSuffix
+
         def nice_ticks(self, nTicks):
+            if self.log:
+                return self.nice_log_ticks(nTicks)
             tickVals, minorTickVals = self.nice_tickVals(nTicks)
             tickLabels, tickSuffix = self.nice_tickLabels(tickVals)
             return tickVals, minorTickVals, tickLabels, tickSuffix

@@ -11,6 +11,15 @@ from ..utilities import unique_list
 from .channel import DataChannel
 from .spread import DataSpread
 
+def merge_dicts(d1, d2):
+    for key, val in d2.items():
+        if key not in ('lims', 'capped', 'label'):
+            if key in d1:
+                if not d1[key] == val:
+                    raise ValueError("Key clash.")
+                continue
+            d1[key] = val
+
 class DataPile(MutableSequence):
     def __init__(self,
             *datas
@@ -18,6 +27,8 @@ class DataPile(MutableSequence):
         self.datas = list(DataSpread.convert(d) for d in datas)
     @cached_property
     def concatenated(self):
+        if len(self.datas) == 1:
+            return self.datas[0]
         outs = []
         for dim in ('x', 'y', 'z', 'c', 's', 'l'):
             datas = [d[dim] for d in self.datas]
@@ -34,11 +45,15 @@ class DataPile(MutableSequence):
                 allLabel = ', '.join(unique_list(
                     [d.label for d in datas], lambda e: len(e)
                     ))
+                kwargs = dict()
+                for data in datas:
+                    merge_dicts(kwargs, data.callKwargs)
                 allD = DataChannel(
                     np.concatenate([d.data for d in datas]),
                     lims = (minLim, maxLim),
                     capped = (minCapped, maxCapped),
                     label = allLabel,
+                    **kwargs,
                     )
             else:
                 allD = None

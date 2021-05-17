@@ -130,11 +130,11 @@ class Ax:
             i,
             data,
             scale = 'linear',
-            ticksPerInch = 1,
+            ticksPerInch = 0.8,
             alpha = 0.5,
             hide = False
             ):
-        nTicks = ticksPerInch * self._get_axis_screen_length(i, vol = self.vol)
+        nTicks = round(ticksPerInch * self._get_axis_screen_length(i, vol = self.vol))
         label, tickVals, minorTickVals, tickLabels, lims = \
             data.auto_axis_configs(nTicks)
         axname = {0 : 'x', 1 : 'y', 2 : 'z'}[i]
