@@ -10,6 +10,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
+from ..utilities import unique_list
+
 class DataChannel:
 
     @classmethod
@@ -69,6 +71,9 @@ class DataChannel:
         def __getitem__(self, key):
             return self.data[key]
 
+        def merge(self, other):
+            raise Exception
+
     class Orderable(_Data):
 
         def __init__(self, data, **kwargs):
@@ -97,25 +102,53 @@ class DataChannel:
                 lims = (None, None),
                 capped = (False, False),
                 islog = False,
-                log = None,
+                log = False,
                 **kwargs
                 ):
-            self.islog = islog
-            log = self.log = islog if log is None else log
-            if self.islog and not self.log:
-                raise ValueError("Cannot specify log=False if islog=True.")
-            super().__init__(data, **kwargs)
             llim, ulim = lims
-            llim = self.data.min() if llim is None else (math.log10(llim) if log else llim)
-            ulim = self.data.max() if ulim is None else (math.log10(ulim) if log else ulim)
+            if log and not islog:
+                data = np.log10(data)
+                islog = True
+                llim = data.min() if llim is None else math.log10(llim)
+                ulim = data.max() if ulim is None else math.log10(ulim)
+            else:
+                llim = data.min() if llim is None else llim
+                ulim = data.max() if ulim is None else ulim
+            self.islog = islog
             self.lims = (llim, ulim)
             self.capped = capped
+            super().__init__(data, **kwargs)
 
-        @property
-        def data(self):
-            if self.log and not self.islog:
-                return np.log10(self._data)
-            return self._data
+        def merge(self, other):
+            if not isinstance(other, type(self)):
+                raise TypeError(type(other))
+            selfdata, otherdata = self.data, other.data
+            selflims, otherlims = self.lims, other.lims
+            if self.islog and not other.islog:
+                otherdata = np.log10(otherdata)
+                otherlims = tuple(math.log10(lim) for lim in otherlims)
+            elif other.islog and not self.islog:
+                selfdata = np.log10(selfdata)
+                selflims = tuple(math.log10(lim) for lim in selflims)
+            alllims, allcapped = (selflims, otherlims), (self.capped, other.capped)
+            minLim, minCapped = sorted(
+                [(lims[0], capped[0]) for (lims, capped) in zip(alllims, allcapped)],
+                key = lambda row: row[0]
+                )[0]
+            maxLim, maxCapped = sorted(
+                [(lims[1], capped[1]) for (lims, capped) in zip(alllims, allcapped)],
+                key = lambda row: row[0]
+                )[-1]
+            allLabel = ', '.join(unique_list(
+                [d.label for d in (self, other)], lambda e: len(e)
+                ))
+            return type(self)(
+                np.concatenate([selfdata, otherdata]),
+                lims = (minLim, maxLim),
+                capped = (minCapped, maxCapped),
+                label = allLabel,
+                islog = any(d.islog for d in (self, other)),
+                )
 
         @property
         def range(self):
@@ -235,7 +268,7 @@ class DataChannel:
             return tickVals, minorTickVals, tickLabels, tickSuffix
 
         def nice_ticks(self, nTicks):
-            if self.log:
+            if self.islog:
                 return self.nice_log_ticks(nTicks)
             tickVals, minorTickVals = self.nice_tickVals(nTicks)
             tickLabels, tickSuffix = self.nice_tickLabels(tickVals)

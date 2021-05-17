@@ -5,20 +5,17 @@ from functools import cached_property
 from collections import OrderedDict
 from collections.abc import MutableSequence
 
-import numpy as np
-
-from ..utilities import unique_list
 from .channel import DataChannel
 from .spread import DataSpread
 
-def merge_dicts(d1, d2):
-    for key, val in d2.items():
-        if key not in ('lims', 'capped', 'label'):
-            if key in d1:
-                if not d1[key] == val:
-                    raise ValueError("Key clash.")
-                continue
-            d1[key] = val
+# def merge_dicts(d1, d2):
+#     for key, val in d2.items():
+#         if key not in ('lims', 'capped', 'label', 'i'):
+#             if key in d1:
+#                 if not d1[key] == val:
+#                     raise ValueError("Key clash.")
+#                 continue
+#             d1[key] = val
 
 class DataPile(MutableSequence):
     def __init__(self,
@@ -34,27 +31,9 @@ class DataPile(MutableSequence):
             datas = [d[dim] for d in self.datas]
             datas = [d for d in datas if not d is None]
             if datas:
-                minLim, minCapped = sorted(
-                    [(d.lims[0], d.capped[0]) for d in datas],
-                    key = lambda d: d[0]
-                    )[0]
-                maxLim, maxCapped = sorted(
-                    [(d.lims[1], d.capped[1]) for d in datas],
-                    key = lambda d: d[0]
-                    )[-1]
-                allLabel = ', '.join(unique_list(
-                    [d.label for d in datas], lambda e: len(e)
-                    ))
-                kwargs = dict()
-                for data in datas:
-                    merge_dicts(kwargs, data.callKwargs)
-                allD = DataChannel(
-                    np.concatenate([d.data for d in datas]),
-                    lims = (minLim, maxLim),
-                    capped = (minCapped, maxCapped),
-                    label = allLabel,
-                    **kwargs,
-                    )
+                allD = datas[0]
+                for data in datas[1:]:
+                    allD = allD.merge(data)
             else:
                 allD = None
             outs.append(allD)
