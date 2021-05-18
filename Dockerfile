@@ -115,6 +115,8 @@ RUN pip3 install --no-cache-dir pandas
 RUN pip3 install --no-cache-dir dask[complete]
 RUN pip3 install --no-cache-dir diversipy
 RUN pip3 install --no-cache-dir numba
+RUN pip3 install --no-cache-dir xarray
+RUN pip3 install --no-cache-dir "xarray[complete]"
 
 # Machine Learning
 RUN pip3 install --no-cache-dir scikit-learn
