@@ -10,8 +10,8 @@ from .channel import DataChannel
 class DataSpread(Mapping):
     @classmethod
     def convert(cls, arg):
-        if not type(arg) is cls:
-            arg = cls(arg)
+        if not isinstance(arg, cls):
+            return cls(arg)
         return arg
     def __init__(self,
             x,
@@ -23,10 +23,10 @@ class DataSpread(Mapping):
             l = None,
             ):
         self.x, self.y, self.z = (
-            None if d is None else DataChannel(d) for d in (x, y, z)
+            None if d is None else DataChannel.convert(d) for d in (x, y, z)
             )
         self.c, self.s, self.l = (
-            None if d is None else DataChannel(d) for d in (c, s, l)
+            None if d is None else DataChannel.convert(d) for d in (c, s, l)
             )
         self.channels = OrderedDict(
             x = self.x,

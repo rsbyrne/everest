@@ -3,6 +3,8 @@
 ###############################################################################
 # from matplotlib.ticker import FixedLocator, FixedFormatter
 
+import numpy as _np
+
 from ._base import _Vanishable, _Colourable, _Fadable
 
 class _TickController(_Vanishable, _Colourable, _Fadable):
@@ -100,8 +102,8 @@ class TickSubs(_TickController):
             tickline.set_alpha(value)
         for ticklabel in self.mplticklabels:
             ticklabel.set_alpha(value)
-    def set_values_labels(self, values, labels):
-        self._values[:] = values
+    def set_values_labels(self, vals, labels):
+        self._values[:] = _np.round(list(vals), 12)
         self._labels[:] = labels
         self.update()
     @property
@@ -109,7 +111,7 @@ class TickSubs(_TickController):
         return self._values
     @values.setter
     def values(self, vals):
-        self._values[:] = vals
+        self._values[:] = _np.round(list(vals), 12)
         self.update()
     @property
     def labels(self):
