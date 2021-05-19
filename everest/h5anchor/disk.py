@@ -17,6 +17,8 @@ from everest import reseed
 
 from .exceptions import *
 
+osjoin = os.path.join
+
 # try:
 #     PYTEMP = os.environ['WORKSPACE']
 # except KeyError:
@@ -26,7 +28,7 @@ if not PYTEMP in sys.path: sys.path.append(PYTEMP)
 
 @mpi.dowrap
 def purge_address(name, path):
-    fullPath = os.path.join(os.path.abspath(path), name + '.frm')
+    fullPath = osjoin(os.path.abspath(path), name + '.frm')
     lockPath = '/' + name + '.frm' + '.lock'
     if mpi.rank == 0:
         if os.path.exists(fullPath):
@@ -36,54 +38,11 @@ def purge_address(name, path):
 
 @mpi.dowrap
 def purge_logs(path = '.'):
-    try: shutil.rmtree(os.path.join(path, 'logs'))
+    try: shutil.rmtree(osjoin(path, 'logs'))
     except FileNotFoundError: pass
 
-class H5Manager:
-    cwd = '/'
-    def __init__(self, name, path, *cwd, purge = False):
-        if purge:
-            purge_address(name, path)
-        self.name, self.path = name, path
-        self.h5filename = get_framePath(self.name, self.path)
-        self._inpCwd = cwd
-        if cwd:
-            self.cd(cwd)
-    def cd(self, key):
-        if type(key) in {tuple, list}:
-            key = self.join(*key)
-        self.cwd = os.path.abspath(self.join(self.cwd, key))
-    @staticmethod
-    def join(*keys):
-        return os.path.join(*keys)
-    def open(self):
-        return H5Wrap(self)
-    def incorporate(self, file2):
-        merge(self, file2)
-    def sub(self, *cwd):
-        return self.__class__(
-            self.name,
-            self.path,
-            *[*self._inpCwd, *cwd]
-            )
-
-def merge(file1, file2):
-    with file1.open(), file2.open():
-        file2dict = {}
-        def visitfunc(k, v):
-            file2dict[k] = v
-        file2.h5file.visititems(visitfunc)
-        for key, val in sorted(file2dict.items()):
-            if type(val) is h5py.Group:
-                file1.h5file.require_group(key)
-            elif type(val) is h5py.Dataset:
-                if key in file1.h5file:
-                    # del file1.h5file[key]
-                    raise NotYetImplemented(
-                        "Merging datasets not yet supported."
-                        )
-                file1.h5file[key] = val[...]
-            file1.h5file[key].attrs.update(file2.h5file[key].attrs)
+class AccessForbidden(H5AnchorException):
+    pass
 
 @mpi.dowrap
 def tempname(length = 16, extension = None):
@@ -91,18 +50,6 @@ def tempname(length = 16, extension = None):
     if not extension is None:
         name += '.' + extension
     return name
-
-def h5filewrap(*outerargs, **outerkwargs):
-    def outerwrapper(func):
-        @wraps(func)
-        def innerwrapper(self, *innerargs, **innerkwargs):
-            with H5Wrap(self, *outerargs, **outerkwargs):
-                return func(self, *innerargs, **innerkwargs)
-        return innerwrapper
-    return outerwrapper
-
-class AccessForbidden(H5AnchorException):
-    pass
 
 @mpi.dowrap
 def lock(filename, password = None):
@@ -142,9 +89,6 @@ def release(filename, password = ''):
     except FileNotFoundError:
         pass
 
-LOCKCODE = tempname()
-H5FILES = dict()
-
 FILEMODES = {'r+', 'w', 'w-', 'a', 'r'}
 READONLYMODES = {'r'}
 WRITEMODES = FILEMODES.difference(READONLYMODES)
@@ -157,59 +101,69 @@ def compare_modes(*modes):
     if clause1 and clause2:
         raise ValueError(f"File modes incompatible: {modes}")
 
-class H5Wrap:
-    def __init__(self, arg, mode = 'a'):
-        self.arg = arg
-        self.filename = self.arg.h5filename
-        self.mode = mode
-        global LOCKCODE
-        self.lockcode = LOCKCODE
+class H5Manager:
+    mode = 'a'
+    H5FILES = dict()
+    lockcode = tempname()
+    __slots__ = (
+        'name', 'path', 'h5filename', 'omode', 'h5file',
+        'isopener', 'master',
+        )
+    def __init__(self, name, path = '.', /, *, mode = None, purge = False):
+        if purge:
+            purge_address(name, path)
+        path = os.path.abspath(path)
+        self.name, self.path = name, path
+        self.h5filename = f"{osjoin(path, name)}.frm"
+        self.omode = self.mode if mode is None else mode
     @mpi.dowrap
     def _open_h5file(self):
-        global H5FILES
         if hasattr(self, 'h5file'):
             return False
-        elif self.filename in H5FILES:
-            h5file = self.arg.h5file = H5FILES[self.filename]
-            compare_modes(h5file.mode, self.mode)
+        h5filename = self.h5filename
+        H5FILES = self.H5FILES
+        if h5filename in H5FILES:
+            h5file = self.h5file = H5FILES[h5filename]
+            compare_modes(h5file.mode, self.omode)
             return False
-        else:
-            self.arg.h5file = h5py.File(self.arg.h5filename, self.mode)
-            H5FILES[self.filename] = self.arg.h5file
-            return True
+        self.h5file = H5FILES[h5filename] = h5py.File(h5filename, self.omode)
+        return True
     def __enter__(self):
         while True:
             try:
-                self.master = lock(self.filename, self.lockcode)
+                self.master = lock(self.h5filename, self.lockcode)
                 break
             except AccessForbidden:
-                reseed.rsleep(0.1, 5.)
+                reseed.rsleep(0.1, 5.) # potentially not parallelsafe
         self.isopener = self._open_h5file()
-        # if self.master:
-        #     mpi.message("Logging in at", time.time())
-        return None
+        return self.h5file
     @mpi.dowrap
     def _close_h5file(self):
-        global H5FILES
         if self.isopener:
-            self.arg.h5file.flush()
-            self.arg.h5file.close()
-            del self.arg.h5file
-            del H5FILES[self.filename]
+            self.h5file.flush()
+            self.h5file.close()
+            del self.h5file
+            del self.H5FILES[self.h5filename]
     def __exit__(self, *args):
         self._close_h5file()
         if self.master:
-            # mpi.message("Logging out at", time.time())
-            release(self.filename, self.lockcode)
+            release(self.h5filename, self.lockcode)
+    def open(self):
+        return self
 
-class SetMask:
-    # expects @mpi.dowrap
-    def __init__(self, maskNo):
-        self.maskNo = maskNo
-    def __enter__(self):
-        self.prevMask = os.umask(0000)
-    def __exit__(self, *args):
-        ignoreMe = os.umask(self.prevMask)
+def h5filewrap(func):
+    @wraps(func)
+    def wrapper(name, path = '.', /, *args, mode = 'a', purge = False, **kwargs):
+        with H5Manager(name, path, mode = mode, purge = purge) as h5file:
+            return func(h5file, *args, **kwargs)
+    return wrapper
+
+def h5filewrapmeth(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        with self as h5file:
+            return func(self, h5file, *args, **kwargs)
+    return wrapper
 
 class ToOpen:
     def __init__(self, filepath):

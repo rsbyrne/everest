@@ -13,7 +13,7 @@ from everest import simpli as mpi
 from . import disk
 from .utilities import stack_dicts
 H5Manager = disk.H5Manager
-H5Wrap = disk.H5Wrap
+# H5Wrap = disk.H5Wrap
 from .fetch import Fetch
 from .scope import Scope
 # from .globevars import *
@@ -38,31 +38,31 @@ FNMATCHMETACHARS = set('*?[]')
 def isfnmatch(instring):
     return bool(set(instring).intersection(FNMATCHMETACHARS))
 
-class Readlet:
-    __slots__ = 'h5filename', 'route', 'h5file'
-    def __init__(self, h5filename, route, attr = None):
-        self.h5filename, self.route = h5filename, route
-    def read(self):
-        with H5Wrap(self, mode = 'r'):
-            return self._read_meth()
-    def _read(self):
-        return self.h5file[self.route]
+# class Readlet:
+#     __slots__ = 'h5filename', 'route', 'h5file'
+#     def __init__(self, h5filename, route, attr = None):
+#         self.h5filename, self.route = h5filename, route
+#     def read(self):
+#         with H5Wrap(self, mode = 'r'):
+#             return self._read_meth()
+#     def _read(self):
+#         return self.h5file[self.route]
 
-class RAttr(Readlet):
-    __slots__ = 'attrname'
-    def __init__(self, h5filename, route, attrname):
-        self.attrname = attrname
-        super().__init__(h5filename, route)
-    def _read(self):
-        return super()._read().attrs[attrname]
+# class RAttr(Readlet):
+#     __slots__ = 'attrname'
+#     def __init__(self, h5filename, route, attrname):
+#         self.attrname = attrname
+#         super().__init__(h5filename, route)
+#     def _read(self):
+#         return super()._read().attrs[attrname]
 
 class Reader(H5Manager):
 
-    def __iter__(self):
-        with H5Wrap(self, mode = 'r'):
-            for key in self.h5file:
-                if not key.startswith('_'):
-                    yield key
+#     def __iter__(self):
+#         with H5Wrap(self, mode = 'r'):
+#             for key in self.h5file:
+#                 if not key.startswith('_'):
+#                     yield key
 
     def keys(self):
         return iter(self)
@@ -292,7 +292,7 @@ class Reader(H5Manager):
             raise TypeError("Input type not accepted!") from exc
         return meth(self, inp)
 
-    @disk.h5filewrap(mode = 'r')
+    @disk.h5filewrap
     def __getitem__(self, inp):
         if type(inp) is tuple:
             return [self._getitem(sub) for sub in inp]
