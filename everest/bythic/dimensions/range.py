@@ -24,7 +24,7 @@ class Range(_Countable):
             return lower if step > 0 else upper
         if isinstance(arg, cls.Inf):
             return arg
-        return cls.typ(arg)
+        return cls.typ(arg) # pylint: disable=E1102
 
     @classmethod
     def construct(cls, *args):
@@ -45,7 +45,7 @@ class Range(_Countable):
             if any(isinstance(st, float) for st in (start, stop)):
                 return Real(*args)
             return Integral(*args)
-        return cls(*args)
+        return cls(*args) # pylint: disable=E1120
 
     @classmethod
     def proc_args(cls, start, stop, step, stepdefault = 1):
@@ -60,15 +60,19 @@ class Range(_Countable):
                     )):
                 raise ValueError("Zero-length range.")
             return start, stop, step
-        return cls.typ(start), cls.typ(stop), step
+        return cls.typ(start), cls.typ(stop), step # pylint: disable=E1102
 
-    def __init__(self, arg0, arg1 = None, arg2 = None, /, **kwargs):
-        self.slc, *args = unpack_slice(arg0, arg1, arg2)
-        start, stop, step = self.proc_args(*args)
-        startinf, stopinf = (isinstance(st, self.Inf) for st in (start, stop))
-        self.start, self.stop, self.step, self.startinf, self.stopinf = \
-            start, stop, step, startinf, stopinf
-        self.iterlen = _special.infint
+    @classmethod
+    def analyse_range_args(cls, arg0, arg1 = None, arg2 = None):
+        slc, *args = unpack_slice(arg0, arg1, arg2)
+        start, stop, step = cls.proc_args(*args)
+        startinf, stopinf = (isinstance(st, cls.Inf) for st in (start, stop))
+        return slc, start, stop, step, startinf, stopinf
+
+    def __init__(self, slc, start, stop, step, startinf, stopinf, /, **kwargs):
+        self.slc = slc
+        self.start, self.stop, self.step = start, stop, step
+        self.startinf, self.stopinf = startinf, stopinf
         super().__init__(**kwargs)
         self.register_argskwargs(start, stop, step) # pylint: disable=E1101
 
@@ -79,18 +83,20 @@ class Integral(Range):
         _special.InfiniteInteger, _special.infint, _special.ninfint, int
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        start, stop, step = self.start, self.stop, self.step
+        slc, start, stop, step, startinf, stopinf = self.analyse_range_args(
+            *args
+            )
         if isinstance(step, str):
             choices = list(range(start, stop))
             _reseed.rshuffle(choices, seed = step)
             self.iter_fn = choices.__iter__
             self.iterlen = len(choices)
-        elif not self.startinf:
+        elif not startinf:
             rang = self.rang = range(start, stop, step)
             self.iter_fn = rang.__iter__
-            if not self.stopinf:
+            if not stopinf:
                 self.iterlen = len(rang)
+        super().__init__(slc, start, stop, step, startinf, stopinf, **kwargs)
 
     def indices(self, n):
         return self.slc.indices(n)
@@ -112,15 +118,17 @@ class Real(Range):
         _special.InfiniteFloat, _special.infflt, _special.ninfflt, float
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        start, stop, step = self.start, self.stop, self.step
+        slc, start, stop, step, startinf, stopinf = self.analyse_range_args(
+            *args
+            )
         if isinstance(step, str):
             self.iter_fn = _partial(rand_float_range, start, stop, step)
             self.iterlen = _special.infint
-        elif not self.startinf:
+        elif not startinf:
             self.iter_fn = _partial(real_range, start, stop, step)
-            if not self.stopinf:
+            if not stopinf:
                 self.iterlen = int(abs(stop - start) // step) + 1
+        super().__init__(slc, start, stop, step, startinf, stopinf, **kwargs)
 
 ###############################################################################
 ###############################################################################

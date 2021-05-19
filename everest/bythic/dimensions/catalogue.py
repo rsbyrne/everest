@@ -2,7 +2,6 @@
 ''''''
 ###############################################################################
 
-from functools import partial as _partial
 import re as _re
 
 from everest.bythic.dimensions.collection import Collection as _Collection

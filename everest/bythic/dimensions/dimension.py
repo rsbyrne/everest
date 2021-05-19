@@ -15,16 +15,6 @@ from .exceptions import (
     )
 
 
-def calculate_len(dim):
-    i = None
-    for i, _ in enumerate(zip(dim, range(int(1e9)))):
-        continue
-    if i is None:
-        return 0
-    if i == int(1e9) - 1:
-        return _special.inf
-    return i + 1
-
 def raise_uniterable():
     raise DimensionUniterable
 
@@ -48,19 +38,34 @@ class DimensionMeta(_ABCMeta):
 class Dimension(metaclass = DimensionMeta):
 
     __slots__ = (
-        '__dict__', 'iterlen', 'iter_fn', 'source', '_sourceget_',
-        '_repr',
+        '__dict__', 'iterlen', 'source', '_sourceget_', '_repr',
         )
-    mroclasses = ('DimIterator', 'Derived', 'Transform', 'Slice', 'Collapsed')
+    mroclasses = ('Iterator', 'Derived', 'Transform', 'Slice', 'Collapsed')
 
     typ = object
 
+    iter_fn = staticmethod(raise_uniterable)
+
+    def calculate_len(self):
+        i = None
+        for i, _ in enumerate(zip(self, range(int(1e9)))):
+            continue
+        if i is None:
+            return 0
+        if i == int(1e9) - 1:
+            return _special.inf
+        return i + 1
+
+    def determine_type(self):
+        return type(next(iter(self)))
+
     def __init__(self, typ = None):
         if not hasattr(self, 'iterlen'):
-            self.iterlen = calculate_len(self)
-        if not hasattr(self, 'iter_fn'):
-            self.iter_fn = raise_uniterable
-        if not typ is None:
+            self.iterlen = self.calculate_len()
+        if typ is None:
+            if self.typ is object:
+                self.typ = self.determine_type()
+        else:
             if not (styp := self.typ) is object:
                 raise ValueError(
                     f"Multiple values interpreted for typ: {typ, styp}"

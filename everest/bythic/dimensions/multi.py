@@ -3,7 +3,7 @@
 ###############################################################################
 
 import operator as _operator
-from functools import reduce as _reduce, partial as _partial
+from functools import reduce as _reduce
 
 from . import _special, _everestutilities
 
@@ -13,32 +13,6 @@ from .collection import Collection as _Collection
 _Collapsed = _Dimension.Collapsed
 
 _muddle = _everestutilities.seqmerge.muddle
-
-
-class Set(_Dimension):
-
-    __slots__ = ('metrics', 'prime', 'aux',)
-
-    def __init__(self, *args):
-        metrics = []
-        for arg in args:
-            if isinstance(arg, tuple):
-                metrics.extend(arg)
-            elif isinstance(arg, _Dimension):
-                metrics.append(arg)
-            else:
-                raise TypeError(type(arg))
-        metrics = self.metrics = tuple(metrics)
-        self.prime, self.aux = metrics[0], metrics[1:]
-        self.iterlen = min(len(met) for met in metrics)
-        self.iter_fn = lambda: zip(*self.metrics)
-        super().__init__()
-        self.register_argskwargs(*metrics) # pylint: disable=E1101
-
-    # def __getitem__(self, *args):
-    #     try:
-    #         return self.prime[*args]
-    #
 
 
 def process_depth(
@@ -101,12 +75,17 @@ class Multi(_Dimension):
         noncollapsed = self.noncollapsed = dimensions[noncollinds]
         self.noncollkeys = self.noncollapsed = dimnames[noncollinds]
         self.noncolldepth = len(noncollapsed)
-        self.iterlen = _reduce(
-            _operator.mul, (dim.iterlen for dim in dimensions), 1
-            )
-        self.iter_fn = _partial(_muddle, dimensions)
         super().__init__()
         self.register_argskwargs(**kwargdims) # pylint: disable=E1101
+
+    def iter_fn(self): # pylint: disable=E0202
+        return _muddle(self.dimensions)
+    def calculate_len(self):
+        return _reduce(
+            _operator.mul,
+            (dim.iterlen for dim in self.dimensions),
+            1
+            )
 
     def __getitem__(self, arg):
         if isinstance(arg, dict):
