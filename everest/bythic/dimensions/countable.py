@@ -12,7 +12,6 @@ from . import _special
 from .dimension import Dimension as _Dimension
 from .utilities import unpack_slice
 
-
 def selinds_next(inds, arblen):
     ind = next(inds)
     if ind < 0:
@@ -37,24 +36,6 @@ def measure_boolean_selection(source, selection):
     if selection.tractable:
         return selection.count(True)
     return _special.inf
-
-class Selection(_Dimension.Slice):
-
-    def __init__(self, source, selection, **kwargs):
-        if isinstance(selection, tuple):
-            selection = list(selection)
-        selection = type(self)[selection] # pylint: disable=E1136
-        seltyp = selection.typ
-        if issubclass(seltyp, bool):
-            self.iter_fn = _partial(_itertools.compress, source, selection)
-            self.iterlen = measure_boolean_selection(source, selection)
-        elif issubclass(seltyp, int):
-            self.iter_fn = _partial(selinds_iter, source, selection)
-            self.iterlen = selection.iterlen
-        else:
-            raise TypeError("Only integral or boolean selections accepted.")
-        super().__init__(source, selection, **kwargs)
-
 
 def process_negative_index(ind, dimlen):
     if ind is None:
@@ -124,9 +105,9 @@ def process_index_slice(start, stop, step, /, dimlen = _special.inf):
     return (start, stop, step), length
 
 
-class ISlice(_Dimension.Slice):
+class Slice(_Dimension.Incision):
 
-    __slots__ = 'start', 'stop', 'step'
+    # __slots__ = 'start', 'stop', 'step'
 
     def __init__(self, dim, arg0, arg1 = None, arg2 = None, /, **kwargs):
         _, start, stop, step = unpack_slice(arg0, arg1, arg2)
@@ -151,11 +132,36 @@ class ISlice(_Dimension.Slice):
         super().__init__(dim, (start, stop, step), **kwargs)
 
 
-SLICEMETHS = {
-    slice: ISlice,
-    _Iterable: Selection,
-    }
+class Selection(_Dimension.Incision):
 
+    def __init__(self, source, selection, **kwargs):
+        if isinstance(selection, tuple):
+            selection = list(selection)
+        selection = type(self)[selection] # pylint: disable=E1136
+        seltyp = selection.typ
+        if issubclass(seltyp, bool):
+            self.iter_fn = _partial(_itertools.compress, source, selection)
+            self.iterlen = measure_boolean_selection(source, selection)
+        elif issubclass(seltyp, int):
+            self.iter_fn = _partial(selinds_iter, source, selection)
+            self.iterlen = selection.iterlen
+        else:
+            raise TypeError("Only integral or boolean selections accepted.")
+        super().__init__(source, selection, **kwargs)
+
+
+class Countable(_Dimension):
+
+    mroclasses = ('Selection',)
+
+    Slice = Slice
+    Selection = Selection
+
+    @classmethod
+    def getmeths(cls):
+        yield from super().getmeths()
+        yield _Iterable, cls.Selection
+        yield slice, cls.Slice
 
 ###############################################################################
 ###############################################################################

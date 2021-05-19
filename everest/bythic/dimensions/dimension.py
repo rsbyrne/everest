@@ -35,18 +35,12 @@ def show_iter_vals(iterable):
         content += ' ...'
     return f'[{content}]'
 
+def pattern_get(dim, pattern):
+    return dim[dim.apply(pattern)]
+
 
 class DimensionMeta(_ABCMeta):
-    def __init__(cls, *args, **kwargs):
-        if 'getmeths' in cls.__dict__:
-            getmeths = cls.__dict__['getmeths']
-        else:
-            getmeths = cls.getmeths = {}
-        for base in cls.__bases__:
-            if hasattr(base, 'getmeths'):
-                for key, val in base.getmeths.items():
-                    _ = getmeths.setdefault(key, val)
-        super().__init__(*args, **kwargs)
+    ...
 
 @_classtools.Diskable
 @_classtools.MROClassable
@@ -57,7 +51,7 @@ class Dimension(metaclass = DimensionMeta):
         '__dict__', 'iterlen', 'iter_fn', 'source', '_sourceget_',
         '_repr',
         )
-    mroclasses = ('DimIterator', 'Derived', 'Transform', 'Slice')
+    mroclasses = ('DimIterator', 'Derived', 'Transform', 'Slice', 'Collapsed')
 
     typ = object
 
@@ -98,16 +92,17 @@ class Dimension(metaclass = DimensionMeta):
         return iterlen
 
     @classmethod
+    def getmeths(cls):
+        yield _FunctionType, pattern_get
+
+    @classmethod
     @_lru_cache(maxsize = 64)
     def choose_getmeth(cls, typ, /):
-        getmeths = cls.getmeths
-        try:
-            return getmeths[typ]
-        except KeyError as exc:
-            for key, meth in getmeths.items():
-                if issubclass(typ, key):
-                    return meth
-            raise exc
+        for comptyp, meth in cls.getmeths():
+            if issubclass(typ, comptyp):
+                return meth
+        return cls.Collapsed
+
     def __getitem__(self, arg, /):
         return self.choose_getmeth(type(arg))(self, arg)
 
@@ -187,14 +182,13 @@ class Dimension(metaclass = DimensionMeta):
     def operate(cls, *args, **kwargs):
         return cls.Transform(*args, **kwargs)
 
-    class Slice(Derived):
+    class Incision(Derived):
         def __init__(self, source, incisor, /, **kwargs):
             self.source, self.incisor = source, incisor
             super().__init__(source, **kwargs)
             self.register_argskwargs(incisor) # pylint: disable=E1101
 
-    class Collapsed(Slice):
-        __slots__ = '_val', 'ind', '_value'
+    class Collapsed(Incision):
         def __init__(self, dim, ind, **kwargs):
             self.ind, self._value, self.iterlen = ind, None, 1
             # self.iter_fn = _partial(iter, _partial(getattr, self, 'value'))
@@ -213,9 +207,9 @@ class Dimension(metaclass = DimensionMeta):
                 self._value = val
             return val
 
-def pattern_get(dim, pattern):
-    return dim[dim.apply(pattern)]
-Dimension.getmeths = {_FunctionType: pattern_get, object: Dimension.Collapsed}
+    @classmethod
+    def construct(cls, arg):
+        return cls(arg)
 
 ###############################################################################
 ###############################################################################

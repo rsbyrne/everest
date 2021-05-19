@@ -6,46 +6,10 @@ from functools import partial as _partial
 
 from . import _special, _reseed #_classtools
 
-from .dimension import Dimension as _Dimension
-from .slices import SLICEMETHS as _SLICEMETHS
+from .countable import Countable as _Countable
 from .utilities import unpack_slice
 
-
-class Primary(_Dimension):
-    getmeths = {**_SLICEMETHS}
-
-
-class Arbitrary(Primary):
-
-    __slots__ = ('content',)
-
-    def __init__(self, iterable, typ = None, **kwargs):
-        if not typ is None:
-            iterable = (typ(item) for item in iterable)
-            kwargs['typ'] = typ
-        content = self.content = tuple(iterable)
-        self.iterlen = len(content)
-        self.iter_fn = content.__iter__
-        super().__init__(**kwargs)
-        self.register_argskwargs(content) # pylint: disable=E1101
-
-    @classmethod
-    def construct(cls, arg):
-        typs = set()
-        content = list()
-        for ind, el in enumerate(arg):
-            if ind > 1e9:
-                raise ValueError("Iterable too long (> 1e9)")
-            typs.add(type(el))
-            content.append(el)
-        if not content:
-            raise ValueError("Empty iterable.")
-        if len(typs) > 1:
-            return Arbitrary(content)
-        return Arbitrary(content, typ = tuple(typs)[0])
-
-
-class Range(Primary):
+class Range(_Countable):
 
     __slots__ = ('slc', 'start', 'stop', 'step', 'startinf', 'stopinf')
     Inf, inf, ninf = (_special.Infinite, None, None,)
@@ -157,7 +121,6 @@ class Real(Range):
             self.iter_fn = _partial(real_range, start, stop, step)
             if not self.stopinf:
                 self.iterlen = int(abs(stop - start) // step) + 1
-
 
 ###############################################################################
 ###############################################################################

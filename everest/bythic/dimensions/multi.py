@@ -8,7 +8,7 @@ from functools import reduce as _reduce, partial as _partial
 from . import _special, _everestutilities
 
 from .dimension import Dimension as _Dimension
-from .primary import Arbitrary as _Arbitrary
+from .collection import Collection as _Collection
 
 _Collapsed = _Dimension.Collapsed
 
@@ -93,7 +93,7 @@ class Multi(_Dimension):
             kwargdims = dict((str(i), val) for i, val in enumerate(argdims))
         self.dimdict = kwargdims
         dimnames, dimensions = self.dimnames, self.dimensions = tuple(
-            _Arbitrary(it) for it in zip(*kwargdims.items())
+            _Collection(it) for it in zip(*kwargdims.items())
             )
         self.depth = len(dimensions)
         noncollfn = lambda x: not isinstance(x, _Collapsed)
