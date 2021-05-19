@@ -43,6 +43,7 @@ class Dimension(metaclass = DimensionMeta):
     mroclasses = ('Iterator', 'Derived', 'Transform', 'Slice', 'Collapsed')
 
     typ = object
+    collapsed = False
 
     iter_fn = staticmethod(raise_uniterable)
 
@@ -99,6 +100,7 @@ class Dimension(metaclass = DimensionMeta):
     @classmethod
     def getmeths(cls):
         yield _FunctionType, pattern_get
+        yield type(NotImplemented), lambda dim, inc: dim
 
     @classmethod
     @_lru_cache(maxsize = 64)
@@ -194,6 +196,9 @@ class Dimension(metaclass = DimensionMeta):
             self.register_argskwargs(incisor) # pylint: disable=E1101
 
     class Collapsed(Incision):
+
+        collapsed = True
+
         def __init__(self, dim, ind, **kwargs):
             self.ind, self._value, self.iterlen = ind, None, 1
             # self.iter_fn = _partial(iter, _partial(getattr, self, 'value'))

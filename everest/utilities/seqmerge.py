@@ -30,7 +30,7 @@ def zipiter(superseq):
         else:
             seqs.append(_itertools.repeat(s))
     if not nIters:
-        raise StopIteration
+        return
     stopped = []
     everstopped = 0
     while True:
@@ -44,13 +44,12 @@ def zipiter(superseq):
                 everstopped += 1
         if everstopped == nIters:
             break
-        else:
-            if stopped:
-                for i in stopped:
-                    si = seqs[i] = iter(superseq[i])
-                    out[i] = next(si)
-                stopped.clear()
-            yield tuple(out)
+        if stopped:
+            for i in stopped:
+                si = seqs[i] = iter(superseq[i])
+                out[i] = next(si)
+            stopped.clear()
+        yield tuple(out)
 
 def muddle(sequences, *, checkType = _Iterable):
     seqs = [

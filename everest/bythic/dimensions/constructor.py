@@ -14,10 +14,10 @@ from . import (
 def construct(cls, arg):
     if isinstance(arg, tuple):
         return _multi.Multi(*(cls[a] for a in arg)) # pylint: disable=E1136
-    if isinstance(arg, dict):
-        return _multi.Multi(**{k:cls[v] for k, v in arg.items()}) # pylint: disable=E1136
-    if isinstance(arg, set):
-        return _multi.Set(*(cls[a] for a in arg)) # pylint: disable=E1136
+    # if isinstance(arg, dict):
+    #     return _multi.Multi(**{k:cls[v] for k, v in arg.items()}) # pylint: disable=E1136
+    # if isinstance(arg, set):
+    #     return _multi.Set(*(cls[a] for a in arg)) # pylint: disable=E1136
     if isinstance(arg, slice):
         return _range.Range.construct(arg)
     if isinstance(arg, cls):

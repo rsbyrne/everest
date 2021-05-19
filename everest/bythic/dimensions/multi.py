@@ -2,23 +2,25 @@
 ''''''
 ###############################################################################
 
+import itertools as _itertools
+from functools import partial as _partial, reduce as _reduce
 import operator as _operator
-from functools import reduce as _reduce
+from collections.abc import Iterable as _Iterable
 
 from . import _special, _everestutilities
 
 from .dimension import Dimension as _Dimension
+from .range import Range as _Range
 from .collection import Collection as _Collection
-
-_Collapsed = _Dimension.Collapsed
 
 _muddle = _everestutilities.seqmerge.muddle
 
-
 def process_depth(
         args: tuple, depth: int, /,
-        filler = None,
+        filler = NotImplemented,
         ):
+    if not args:
+        return args
     args = tuple(arg if arg != slice(None) else filler for arg in args)
     if (not depth < _special.infint) and (Ellipsis in args):
         raise ValueError("Cannot use ellipsis when depth is infinite.")
@@ -37,7 +39,7 @@ def process_depth(
             out = []
             for arg in args:
                 if arg is Ellipsis:
-                    for _ in range(depth - nargs):
+                    for _ in range(depth + 1 - nargs):
                         out.append(filler)
                 else:
                     out.append(arg)
@@ -50,67 +52,71 @@ def process_depth(
         f" levels = {nargs} > depth = {depth})"
         )
 
+def incise_dims(args, dims, collapsed):
+    args = iter(args)
+    for dim, coll in zip(dims, collapsed):
+        if coll:
+            yield dim
+        else:
+            try:
+                yield dim[next(args)]
+            except StopIteration:
+                yield dim
+    yield from args
+
+def is_collapsed(dim):
+    if isinstance(dim, _Dimension):
+        return dim.collapsed
+    return True
+
 
 class Multi(_Dimension):
 
-    __slots__ = (
-        'dimnames', 'dimensions', 'dimdict', 'depth',
-        'noncollapsed', 'noncolldepth', 'noncollkeys',
-        )
-
-    def __init__(self, *argdims, **kwargdims):
-        if argdims:
-            if kwargdims:
-                raise ValueError(
-                    f"Cannot provide both args and kwargs to {type(self)}"
-                    )
-            kwargdims = dict((str(i), val) for i, val in enumerate(argdims))
-        self.dimdict = kwargdims
-        dimnames, dimensions = self.dimnames, self.dimensions = tuple(
-            _Collection(it) for it in zip(*kwargdims.items())
-            )
-        self.depth = len(dimensions)
-        noncollfn = lambda x: not isinstance(x, _Collapsed)
-        noncollinds = dimensions.apply(noncollfn, typ = bool)
-        noncollapsed = self.noncollapsed = dimensions[noncollinds]
-        self.noncollkeys = self.noncollapsed = dimnames[noncollinds]
-        self.noncolldepth = len(noncollapsed)
+    def __init__(self, *dims):
+        dims = tuple(self.process_dims(dims))
+        self.dims = dims
+        self.depth = len(dims)
+        collapsed = self.collapsed = tuple(is_collapsed(dim) for dim in dims)
+        self.activedepth = collapsed.count(False)
         super().__init__()
-        self.register_argskwargs(**kwargdims) # pylint: disable=E1101
+        self.register_argskwargs(*dims) # pylint: disable=E1101
 
-    def iter_fn(self): # pylint: disable=E0202
-        return _muddle(self.dimensions)
-    def calculate_len(self):
-        return _reduce(
-            _operator.mul,
-            (dim.iterlen for dim in self.dimensions),
-            1
-            )
-
-    def __getitem__(self, arg):
-        if isinstance(arg, dict):
-            return self.incise(**arg)
-        if isinstance(arg, tuple):
-            arg = process_depth(arg, self.noncolldepth)
-        else:
-            arg = (arg,)
-        return self.incise(**dict(zip(self.noncollkeys, arg)))
-
-    def incise(self, **incisors):
-        newincs = {**self.dimdict}
-        for dimname, incisor in incisors.items():
-            if incisor is None:
-                continue
-            preinc = newincs[dimname]
-            if preinc is None:
-                newinc = incisor
+    def iter_fn(self):
+        try:
+            iter_fn = self._iter_fn
+        except AttributeError:
+            dims = self.dims
+            if all(dim.tractable for dim in dims):
+                iter_fn = _partial(_itertools.product, *dims)
             else:
-                newinc = preinc[incisor]
-            newincs[dimname] = newinc
-        return type(self)(**newincs)
+                iter_fn = _partial(_muddle, dims)
+            self._iter_fn = iter_fn # pylint: disable=W0201
+        return iter_fn()
+    def calculate_len(self):
+        return _reduce(_operator.mul, (dim.iterlen for dim in self.dims), 1)
+
+    def __getitem__(self, args):
+        if not isinstance(args, tuple):
+            args = (args,)
+        activedepth = self.activedepth
+        if len(args) <= activedepth:
+            args = process_depth(args, activedepth)
+        return type(self)(*incise_dims(args, self.dims, self.collapsed))
 
     def get_valstr(self):
-        return str([repr(dim) for dim in self.dimensions])
+        return str([repr(dim) for dim in self.dims])
+
+    @classmethod
+    def process_dims(cls, dims):
+        for dim in dims:
+            if isinstance(dim, _Dimension):
+                yield dim
+            elif isinstance(dim, slice):
+                yield _Range.construct(dim)
+            elif isinstance(dim, _Iterable):
+                yield _Collection.construct(dim)
+            else:
+                yield dim
 
 ###############################################################################
 ###############################################################################
