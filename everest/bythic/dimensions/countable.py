@@ -146,7 +146,9 @@ class Selection(_Dimension.Incision):
             self.iter_fn = _partial(selinds_iter, source, selection)
             self.iterlen = selection.iterlen
         else:
-            raise TypeError("Only integral or boolean selections accepted.")
+            raise TypeError(
+                f"Only integral or boolean selections accepted, not {seltyp}"
+                )
         super().__init__(source, selection, **kwargs)
 
 
