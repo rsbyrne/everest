@@ -3,7 +3,7 @@
 ###############################################################################
 from functools import cached_property
 from collections import OrderedDict
-from collections.abc import MutableSequence
+from collections.abc import Sequence
 
 from .channel import DataChannel
 from .spread import DataSpread
@@ -17,7 +17,7 @@ from .spread import DataSpread
 #                 continue
 #             d1[key] = val
 
-class DataPile(MutableSequence):
+class DataPile(Sequence):
     def __init__(self,
             *datas
             ):
@@ -39,8 +39,10 @@ class DataPile(MutableSequence):
             outs.append(allD)
         return DataSpread(*outs)
     def _delself(self):
-        try: del self.concatenated
-        except AttributeError: pass
+        try:
+            del self.concatenated
+        except AttributeError:
+            pass
     def __getitem__(self, key):
         return self.datas.__getitem__(key)
     def __setitem__(self, key, val):
@@ -51,9 +53,23 @@ class DataPile(MutableSequence):
         self.datas.__delitem__(key)
     def __len__(self):
         return len(self.datas)
-    def insert(self, index, object):
+    def append(self, arg):
+        self.datas.append(arg)
+    def align_channel(self, arg, ind):
+        if arg is None:
+            return arg
+        arg = DataChannel.convert(arg)
+        conc = self.concatenated[ind]
+        if conc is None:
+            return arg
+        return conc.align(arg)
+    def add(self, *args):
         self._delself()
-        self.datas.insert(index, DataSpread.convert(object))
+        args = (self.align_channel(arg, ind) for ind, arg in enumerate(args))
+        spread = DataSpread(*args)
+        self.append(spread)
+        self._delself()
+        return spread
 
 ###############################################################################
 ''''''

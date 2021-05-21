@@ -8,11 +8,6 @@ from collections.abc import Mapping
 from .channel import DataChannel
 
 class DataSpread(Mapping):
-    @classmethod
-    def convert(cls, arg):
-        if not isinstance(arg, cls):
-            return cls(arg)
-        return arg
     def __init__(self,
             x,
             y,
@@ -39,7 +34,10 @@ class DataSpread(Mapping):
         self.vol = not self.z is None
         super().__init__()
     def __getitem__(self, key):
-        return self.channels[key]
+        channels = self.channels
+        if isinstance(key, int):
+            key = list(channels.keys())[key]
+        return channels[key]
     def __iter__(self):
         return iter(self.channels)
     def __len__(self):

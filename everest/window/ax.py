@@ -160,11 +160,10 @@ class Ax:
             s = None,
             l = None,
             *,
-            variety = None,
+            variety,
             **kwargs,
             ):
-        spread = DataSpread(x, y, z, c, s, l)
-        self.pile.append(spread)
+        spread = self.pile.add(x, y, z, c, s, l)
         self._autoconfigure_axes()
         drawFunc = getattr(self.ax, self._plotFuncs[variety])
         collections = drawFunc(

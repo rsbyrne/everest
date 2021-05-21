@@ -73,6 +73,8 @@ class DataChannel:
 
         def merge(self, other):
             raise Exception
+        def align(self, other):
+            return other
 
     class Orderable(_Data):
 
@@ -112,7 +114,8 @@ class DataChannel:
                 islog = True
                 llim = data.min() if llim is None else math.log10(llim)
                 ulim = data.max() if ulim is None else math.log10(ulim)
-                label = r"\log_{10}\;" + label
+                if label:
+                    label = r"\log_{10}\;" + label
             else:
                 llim = data.min() if llim is None else llim
                 ulim = data.max() if ulim is None else ulim
@@ -120,6 +123,28 @@ class DataChannel:
             self.lims = (llim, ulim)
             self.capped = capped
             super().__init__(data, label = label, **kwargs)
+
+        def align(self, other):
+            other = super().align(other)
+            otherdata, otherlims = other.data, other.lims
+            sislog, oislog = self.islog, other.islog
+            if sislog and oislog:
+                return other
+            if not (sislog or oislog):
+                return other
+            if sislog and not oislog:
+                otherdata = np.log10(otherdata)
+                otherlims = tuple(math.log10(lim) for lim in otherlims)
+            elif oislog and not sislog:
+                otherdata = 10. ** np.array(otherdata)
+                otherlims = tuple(10.**lim for lim in otherlims)
+            return type(self)(
+                otherdata,
+                lims = otherlims,
+                capped = other.capped,
+                label = other.label,
+                islog = sislog,
+                )
 
         def merge(self, other):
             if not isinstance(other, type(self)):
