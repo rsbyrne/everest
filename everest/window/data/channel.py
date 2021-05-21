@@ -63,7 +63,7 @@ class DataChannel:
             lims = (np.min(tickVals), np.max(tickVals))
             label = self.label
             if len(suffix):
-                label += ' ({0})'.format(suffix)
+                label += r"\quad" + f"({suffix})"
             return label, tickVals, minorTickVals, tickLabels, lims
 
         def __iter__(self):
@@ -103,6 +103,7 @@ class DataChannel:
                 capped = (False, False),
                 islog = False,
                 log = False,
+                label = '',
                 **kwargs
                 ):
             llim, ulim = lims
@@ -111,13 +112,14 @@ class DataChannel:
                 islog = True
                 llim = data.min() if llim is None else math.log10(llim)
                 ulim = data.max() if ulim is None else math.log10(ulim)
+                label = r"\log_{10}\;" + label
             else:
                 llim = data.min() if llim is None else llim
                 ulim = data.max() if ulim is None else ulim
             self.islog = islog
             self.lims = (llim, ulim)
             self.capped = capped
-            super().__init__(data, **kwargs)
+            super().__init__(data, label = label, **kwargs)
 
         def merge(self, other):
             if not isinstance(other, type(self)):
@@ -259,7 +261,7 @@ class DataChannel:
                 return str(1)
             if val == 1:
                 return str(10)
-            return r'$10^{' + str(val) + r'}$'
+            return r'10^{' + str(val) + r'}'
         def nice_log_tickLabels(self, tickVals):
             return [self.proc_log_label(v) for v in tickVals], ''
         def nice_log_ticks(self, nTicks):

@@ -101,6 +101,9 @@ RUN apt-get install -y ffmpeg
 RUN apt-get install -y imagemagick
 RUN pip3 install --no-cache-dir matplotlib
 RUN pip3 install --no-cache-dir Pillow
+RUN apt install dvipng
+RUN apt install cm-super
+RUN apt install texlive-latex-extra
 
 # Debugging
 RUN apt-get install -y cloc

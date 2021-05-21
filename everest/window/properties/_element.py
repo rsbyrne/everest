@@ -52,7 +52,8 @@ class _MplText(_MplLinear):
         return self.mplelement
     @property
     def text(self):
-        return self._text
+        strn = self._text
+        return f"${strn}$" if strn else ''
     @text.setter
     def text(self, value):
         self._text = value

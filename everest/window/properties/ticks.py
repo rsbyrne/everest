@@ -115,7 +115,7 @@ class TickSubs(_TickController):
         self.update()
     @property
     def labels(self):
-        return self._labels
+        return tuple(f"${label}$" if label else '' for label in self._labels)
     @labels.setter
     def labels(self, vals):
         self._labels[:] = vals
