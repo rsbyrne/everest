@@ -342,11 +342,12 @@ class DataChannel:
                 if round(minors[0], 9) == round(llim, 9):
                     del minors[0]
             else:
-                assert majors[0] < llim
+                assert majors[0] <= llim, (majors[0], llim)
                 ldead = (llim - majors[0]) / (ulim - llim)
                 if ldead > 1/3:
-                    del majors[0]
-                    majors.insert(0, minors.pop(3))
+                    if minors[3] <= llim:
+                        del majors[0]
+                        majors.insert(0, minors.pop(3))
             if ucapped:
                 majors = [val for val in majors if val <= ulim]
                 minors = [val for val in minors if val <= ulim]
@@ -354,12 +355,15 @@ class DataChannel:
                 if round(minors[-1], 9) == round(ulim, 9):
                     del minors[-1]
             else:
-                assert majors[-1] > ulim
+                assert majors[-1] >= ulim, (majors[-1], ulim)
                 udead = (majors[-1] - ulim) / (ulim - llim)
                 if udead > 1/3:
-                    del majors[-1]
-                    majors.append(minors.pop(-5))
+                    if minors[-5] >= ulim:
+                        del majors[-1]
+                        majors.append(minors.pop(-5))
             minors = [val for val in minors if min(majors) < val < max(majors)]
+            assert majors[0] <= llim, (majors[0], llim)
+            assert majors[-1] >= ulim, (majors[-1], ulim)
             return majors, minors
 
         @classmethod
