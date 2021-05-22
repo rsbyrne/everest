@@ -327,11 +327,11 @@ class DataChannel:
                 self.nice_log_minortickvals(lm, um)
                     for lm, um in zip(majors[:-1], majors[1:])
                 ))
-            if (nmaj := len(majors)) <= nTicks / 2:
+            if (nmaj := len(majors)) <= (2/3) * nTicks:
                 majors.extend(minors[3::8])
                 del minors[3::8]
                 majors.sort()
-            elif nmaj >= nTicks * 2:
+            elif nmaj >= (4/3) * nTicks:
                 minors.extend(majors[1:-1:2])
                 del majors[1:-1:2]
                 minors.sort()
