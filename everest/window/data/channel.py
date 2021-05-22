@@ -6,6 +6,7 @@ import numbers
 from collections import OrderedDict
 import time
 from datetime import datetime
+import itertools
 
 import numpy as np
 import pandas as pd
@@ -188,7 +189,8 @@ class DataChannel:
             return (self.data - lLim) / self.range
 
         def nice_interval(self, nTicks, bases = {1, 2, 5}):
-            valRange = self.lims[1] - self.lims[0]
+            llim, ulim = self.lims
+            valRange = ulim - llim
             nomInterval = valRange / nTicks
             powers = [(base, math.log10(nomInterval / base)) for base in bases]
             base, power = min(powers, key = lambda c: abs(c[1]) % 1)
@@ -210,22 +212,57 @@ class DataChannel:
             return lLim, uLim
 
         @staticmethod
-        def nice_tickLabels(tickVals):
+        def drop_redundant_label_decimal(strn):
+            return strn[:-2] if strn.endswith('.0') else strn
+
+        @classmethod
+        def shorten_label(cls, val):
+            exp = math.floor(math.log10(abs(val)))
+            if -2 < exp < 3:
+                return ''.join((
+                    r'(\sim',
+                    cls.drop_redundant_label_decimal(str(round(val, 3))),
+                    r')',
+                    ))
+            expstr = r'10^{' + str(exp) + '}'
+            signo = round(val / 10**exp, 12)
+            if signo == 1:
+                return r'10^{' + str(exp) + '}'
+            if signo % 0.1:
+                return ''.join((
+                    cls.drop_redundant_label_decimal(round(signo, 1)),
+                    r'\times',
+                    expstr,
+                    ))
+            return ''.join((
+                r'(\sim',
+                str(round(val / 10**exp, 1)),
+                r'\times',
+                expstr,
+                r')',
+                ))
+
+        @classmethod
+        def make_ticklabel(cls, val):
+            return cls.drop_redundant_label_decimal(str(float(val)))
+
+        @classmethod
+        def nice_tickLabels(cls, tickVals):
             maxLog10 = math.log10(np.max(np.abs(tickVals)))
             adjPower = round(math.floor(maxLog10) / 3.) * 3
             if abs(adjPower) > 0:
-                suffix = f'E{adjPower}'
-                tickVals = np.round(tickVals * 10. ** -adjPower, 5)
+                suffix = r'\times10^{' + str(adjPower) + '}'
+                tickVals = np.round(tickVals * 10. ** -adjPower, 12)
             else:
                 suffix = ''
-            def label(t):
-                st = str(float(t))
-                if st.endswith('.0'):
-                    st = st[:-2]
-                return st
-            tickLabels = np.array([label(t) for t in tickVals])
+            tickLabels = [cls.make_ticklabel(t) for t in tickVals]
+            minlabel, maxlabel = tickLabels[0], tickLabels[-1]
+            if len(minlabel) > 4:
+                tickLabels[0] = cls.shorten_label(tickVals[0]*10**adjPower)
+            if len(maxlabel) > 4:
+                tickLabels[-1] = cls.shorten_label(tickVals[-1]*10**adjPower)
             diffs = np.diff(tickVals)
-            if len(tickLabels) >= 3:
+            if len(tickLabels) > 5:
                 minProx = (1. / 3.) * diffs.mean()
                 if diffs[0] < minProx:
                     tickLabels[1] = ''
@@ -234,11 +271,12 @@ class DataChannel:
             return tickLabels, suffix
 
         def nice_tickVals(self, nTicks, bases = {1, 2, 5}, origin = 0.):
-            nTicks = max(3, nTicks)
+            llim, ulim = self.lims
+            if llim == ulim:
+                return np.array(llim), []
+            nTicks = max(3, round(nTicks))
             tickValsChoices = []
             for nT in (nTicks - 2, nTicks - 1, nTicks, nTicks + 1, nTicks + 2):
-                if self.lims[0] == self.lims[1]:
-                    return np.array(self.lims[0]), []
                 step = self.nice_interval(nT, bases)
                 lLim, uLim = self.nice_endpoints(step, origin)
 #                 nTicks = int((uLim - lLim) / step) + 1
@@ -272,20 +310,74 @@ class DataChannel:
             return np.linspace(tickVals[0], tickVals[-1], nTicks)
             # return tickVals
 
+        @classmethod
+        def nice_log_minortickvals(cls, lmajor, umajor):
+            lower, upper = 10 ** lmajor, 10 ** umajor
+            nminors = round(
+                (upper - lower) / 10 ** (math.ceil(umajor) - 1)
+                ) - 1
+            return np.log10(np.linspace(
+                lower, upper, nminors + 2
+                ))[1:-1]
+
         def nice_log_tickVals(self, nTicks):
-            linmajors, linminors = self.nice_tickVals(nTicks)
-            llim, ulim = math.floor(min(linmajors)), math.ceil(max(linmajors))
-            majors = list(range(llim, ulim + 1))
-            minors = []
-            for major in majors[:-1]:
-                minors.extend(np.log10(np.linspace(10 ** major, 10 ** (major + 1), 11)[1:-1]))
+            (llim, ulim), (lcapped, ucapped) = self.lims, self.capped
+            majors = list(range(math.floor(llim), math.ceil(ulim) + 1))
+            minors = list(itertools.chain.from_iterable(
+                self.nice_log_minortickvals(lm, um)
+                    for lm, um in zip(majors[:-1], majors[1:])
+                ))
+            if (nmaj := len(majors)) <= nTicks / 2:
+                majors.extend(minors[3::8])
+                del minors[3::8]
+                majors.sort()
+            elif nmaj >= nTicks * 2:
+                minors.extend(majors[1:-1:2])
+                del majors[1:-1:2]
+                minors.sort()
+            if lcapped:
+                majors = [val for val in majors if val >= llim]
+                minors = [val for val in minors if val >= llim]
+                majors.insert(0, llim)
+                if round(minors[0], 9) == round(llim, 9):
+                    del minors[0]
+            else:
+                assert majors[0] < llim
+                ldead = (llim - majors[0]) / (ulim - llim)
+                if ldead > 1/3:
+                    del majors[0]
+                    majors.insert(0, minors.pop(3))
+            if ucapped:
+                majors = [val for val in majors if val <= ulim]
+                minors = [val for val in minors if val <= ulim]
+                majors.append(ulim)
+                if round(minors[-1], 9) == round(ulim, 9):
+                    del minors[-1]
+            else:
+                assert majors[-1] > ulim
+                udead = (majors[-1] - ulim) / (ulim - llim)
+                if udead > 1/3:
+                    del majors[-1]
+                    majors.append(minors.pop(-5))
+            minors = [val for val in minors if min(majors) < val < max(majors)]
             return majors, minors
-        @staticmethod
-        def proc_log_label(val):
-            if val == 0:
-                return str(1)
-            if val == 1:
-                return str(10)
+
+        @classmethod
+        def proc_log_label(cls, val):
+            if val % 1:
+                floorexp = math.floor(val)
+                coeff = round(10 ** (val - floorexp), 1)
+                if (rnd := round(coeff)) == coeff:
+                    if -2 <= floorexp <= 3:
+                        out = str(round(10.**val, 2))
+                        return cls.drop_redundant_label_decimal(out)
+                    return str(rnd) + r'\times10^{' + str(floorexp) + '}'
+                out = r'10^{' + f"{val:.2}" + '}'
+                if not val % 0.01:
+                    return out
+                return r'\sim' + out
+            if -2 <= val <= 3:
+                return str(round(10**val, abs(val)))
             return r'10^{' + str(val) + r'}'
         def nice_log_tickLabels(self, tickVals):
             return [self.proc_log_label(v) for v in tickVals], ''
