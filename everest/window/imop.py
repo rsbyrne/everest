@@ -28,9 +28,7 @@ def rescale_height(image, targetheight, **kwargs):
     return image.resize((newlength, targetheight), **kwargs)
 
 def extend_width(image, targetwidth, colour = (255, 255, 255), **kwargs):
-    print(colour)
     width, height = image.width, image.height
-    print(width, height, targetwidth)
     discrepancy = targetwidth - width
     if discrepancy == 0:
         return image
@@ -40,9 +38,7 @@ def extend_width(image, targetwidth, colour = (255, 255, 255), **kwargs):
     out.paste(image, **kwargs)
     return out
 def extend_height(image, targetheight, colour = (255, 255, 255), **kwargs):
-    print(colour)
     width, height = image.width, image.height
-    print(width, height, targetheight)
     discrepancy = targetheight - height
     if discrepancy == 0:
         return image
