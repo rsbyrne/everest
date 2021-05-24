@@ -89,6 +89,7 @@ class Canvas(_Fig):
     def _update(self):
         for _ in range(4):
             self.fig.tight_layout()
+        FigureCanvas(self.fig)
         self.fig.canvas.draw()
 
     # def _show(self):
