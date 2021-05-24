@@ -1,7 +1,7 @@
 ###############################################################################
 ''''''
 ###############################################################################
-from ._fig import Fig
+from .fig import Fig
 from .canvas import Canvas
 from .ax import Ax
 from . import plot

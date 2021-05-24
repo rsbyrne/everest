@@ -4,10 +4,10 @@
 
 import matplotlib
 matplotlib.rcParams['text.usetex'] = True
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+# from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-from ._fig import Fig as _Fig
+from .fig import Fig as _Fig
 from .ax import Ax
 
 class Canvas(_Fig):
@@ -20,9 +20,11 @@ class Canvas(_Fig):
             dpi = 100, # pixels per inch
             colour = 'black',
             fill = 'white',
-            axprops = dict(),
+            axprops = None,
             mplkwargs = None,
             ):
+
+        axprops = dict() if axprops is None else axprops
 
         fig = Figure(
             figsize = size,
@@ -38,7 +40,6 @@ class Canvas(_Fig):
         self.nrows, self.ncols = nrows, ncols
         self.size = size
 
-        self._updateFns = []
         self.fig = fig
 
         self.clear()
@@ -60,7 +61,7 @@ class Canvas(_Fig):
         self.title = title
         self.fig.suptitle(title, fontsize = fontsize)
 
-    def make_ax(self, place = (0, 0), superimpose = False, **kwargs):
+    def make_ax(self, place = (0, 0), **kwargs):
         rowNo, colNo = place
         index = self._calc_index(place)
         axObj = Ax(
@@ -85,15 +86,17 @@ class Canvas(_Fig):
         return (self.ncols * rowNo + colNo)
 
     def _update(self):
-        for fn in self._updateFns:
-            fn()
+        self.fig.tight_layout()
 
     def _save(self, filepath):
         self.fig.savefig(filepath)
 
     def _show(self):
-        FigureCanvas(self.fig)
-        return self.fig
+        # FigureCanvas(self.fig)
+        return self.fig.canvas
+
+    def get_pilimg(self):
+        raise Exception
 
 ###############################################################################
 ''''''

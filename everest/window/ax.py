@@ -1,13 +1,12 @@
 ###############################################################################
 ''''''
 ###############################################################################
-import numpy as np
+
 import math
 
 from everest.h5anchor import disk
-from .data import DataPile, DataSpread
+from .data import DataPile
 
-from .utilities import unique_list
 from .properties import Props
 
 class Ax:
@@ -33,6 +32,9 @@ class Ax:
         if name is None:
             name = disk.tempname()
 
+        self.canvas, self.index, self.projection, self.name = \
+            canvas, index, projection, name
+
         ax = canvas.fig.add_subplot(
             canvas.nrows,
             canvas.ncols,
@@ -53,16 +55,13 @@ class Ax:
             self.dims = ('x', 'y')
             self.vol = False
 
-        self.props = Props(ax, self.dims, **kwargs)
+        self.props = Props(ax, self.update, self.dims, **kwargs)
         self.props.update()
 #         self.grid = self.prop.grid
 #         self.ticks = self.prop.ticks
 #         self.axes = self.prop.axes
 
         self.pile = DataPile()
-
-        self.canvas, self.index, self.projection, self.name = \
-            canvas, index, projection, name
 
         colNo = index % canvas.ncols
         rowNo = int((index - colNo) / canvas.ncols)
@@ -71,7 +70,7 @@ class Ax:
         self.ax = ax
         self.collections = []
 
-        self.props.edges.margin = 0.
+        self.props.edges.margin = 0. # pylint: disable=E1101
 
         self.facecolour = None
         self.facecolourVisible = True
@@ -104,8 +103,7 @@ class Ax:
         axStack = self.canvas.axs[self.rowNo][self.colNo]
         if len(axStack):
             return axStack
-        else:
-            return [self,]
+        return [self,]
 
     def _get_axis_screen_length(self, i, vol = False):
         # Need a better approach for this...
@@ -113,10 +111,8 @@ class Ax:
             hor, ver = (self._get_axis_screen_length(si) for si in (0, 1))
             if i in {0, 1}:
                 return math.hypot(hor, ver) / 2
-            else:
-                return ver / 2
-        else:
-            return self.canvas.size[i] / self.canvas.shape[::-1][i]
+            return ver / 2
+        return self.canvas.size[i] / self.canvas.shape[::-1][i]
 
     def _autoconfigure_axes(self, *args, **kwargs):
         for i, dim in enumerate(self.dims):
@@ -138,8 +134,11 @@ class Ax:
         label, tickVals, minorTickVals, tickLabels, lims = \
             data.auto_axis_configs(nTicks)
         axname = {0 : 'x', 1 : 'y', 2 : 'z'}[i]
-        axis, ticks, grid = \
-            self.props.edges[axname], self.props.ticks[axname], self.props.grid[axname]
+        axis, ticks, grid = (
+            self.props.edges[axname], # pylint: disable=E1101
+            self.props.ticks[axname], # pylint: disable=E1101
+            self.props.grid[axname], # pylint: disable=E1101
+            )
         axis.scale = scale
         axis.lims = lims
         ticks.major.set_values_labels(tickVals, tickLabels)
@@ -186,13 +185,15 @@ class Ax:
             x,
             y,
             label,
-            arrowProps = dict(arrowstyle = 'simple'),
+            arrowProps = None,
             points = None,
             horizontalalignment = 'center',
             verticalalignment = 'center',
             rotation = 0,
             **kwargs
             ):
+        arrowProps = dict() if arrowProps is None else arrowProps
+        arrowProps = dict(arrowstyle = 'simple').update(arrowProps)
         if self.vol:
             raise Exception("Not working for 3D yet.")
         self.ax.annotate(
@@ -206,6 +207,9 @@ class Ax:
             rotation = rotation,
             **kwargs
             )
+
+    def update(self):
+        self.canvas.update()
 
     def show(self):
         return self.canvas.show()

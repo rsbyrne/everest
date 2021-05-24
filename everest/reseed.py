@@ -6,7 +6,9 @@ import string as _string
 import warnings as _warnings
 import hashlib as _hashlib
 import time as _time
-from functools import lru_cache as _lru_cache, wraps as _wraps
+from functools import (
+    lru_cache as _lru_cache, wraps as _wraps, partial as _partial
+    )
 from collections import deque as _deque
 
 import numpy as _np
@@ -24,6 +26,11 @@ def get_seed(seed):
 class ReseedException(_exceptions.EverestException):
     '''Something went wrong with a Reseed object.'''
 
+def multi(func):
+    @_wraps(func)
+    def wrapper(*args, n, **kwargs):
+        return tuple(func(*args, **kwargs) for _ in range(n))
+    return wrapper
 
 class Reseed:
 
@@ -61,11 +68,22 @@ class Reseed:
     def __getattr__(self, name):
         return getattr(self.rng, name)
 
+    def rbool(self):
+        return bool(self.rng.integers(0, 1))
+    rbools = multi(rbool)
+
     def rint(self, /, low = 0, high = 9):
         if high > (highest := 2 ** 63):
             _warnings.warn("High is too high; capping at 2 ** 63.")
             high = min(high, highest)
         return int(self.rng.integers(low, high))
+    rints = multi(rint)
+
+    def rshade(self, /): # pylint: disable=R0201
+        return rint(0, 255)
+    rshades = multi(rshade)
+    rcolour = _partial(rshades, n = 3)
+    rcolours = multi(rcolour)
 
     def rdigits(self, /, n = 12, **kwargs):
         low = int(10 ** n)
@@ -74,14 +92,17 @@ class Reseed:
 
     def rfloat(self, /, low = 0., high = 1.):
         return float(self.random() * (high - low) + low)
+    rfloats = multi(rfloat)
 
     def rval(self, /, low = 0., high = 1., **kwargs):
         return type(low)(self.rfloat(low, high, **kwargs))
+    rvals = multi(rval)
 
     def rarray(self, /, low = 0., high = 1., shape = (1,), dtype = None):
         if dtype is None:
             dtype = type(low)
         return (self.random(*shape) * (high - low) + low).astype(dtype)
+    rarrays = multi(rarray)
 
     def rangearr(self, /, lows, highs = None):
         try:
@@ -102,6 +123,7 @@ class Reseed:
             if not lows.dtype == highs.dtype:
                 raise ValueError(lows.dtype, highs.dtype) from exc
             raise exc
+    rangearrs = multi(rangearr)
 
     def rchoice(self, /, population, selections = 1):
         if isinstance(population, str):
@@ -116,6 +138,7 @@ class Reseed:
     def rstr(self, /, length = 16):
         letters = _string.ascii_lowercase
         return ''.join(self.rchoice(letters, length))
+    rstrs = multi(rstr)
 
     def rsleep(self, /, low = 0.5, high = 1.5, **kwargs):
         _time.sleep(self.rfloat(low, high, **kwargs))
@@ -133,15 +156,25 @@ def reseed(func):
     return wrapper
 
 rint = reseed(Reseed.rint)
+rints = reseed(Reseed.rints)
+rshade = reseed(Reseed.rshade)
+rshades = reseed(Reseed.rshades)
+rcolour = reseed(Reseed.rcolour)
+rcolours = reseed(Reseed.rcolours)
 rdigits = reseed(Reseed.rdigits)
 rfloat = reseed(Reseed.rfloat)
+rfloats = reseed(Reseed.rfloats)
 rval = reseed(Reseed.rval)
+rvals = reseed(Reseed.rvals)
 rarray = reseed(Reseed.rarray)
+rarrays = reseed(Reseed.rarrays)
 rangearr = reseed(Reseed.rangearr)
+rangearrs = reseed(Reseed.rangearrs)
 rchoice = reseed(Reseed.rchoice)
 rshuffle = reseed(Reseed.rshuffle)
 rsleep = reseed(Reseed.rsleep)
 rstr = reseed(Reseed.rstr)
+rstrs = reseed(Reseed.rstrs)
 
 ###############################################################################
 

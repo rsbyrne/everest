@@ -2,34 +2,63 @@
 ''''''
 ###############################################################################
 
-from PIL import Image as _Image
+from functools import wraps as _wraps
+import inspect as _inspect
 
-from functools import partial as _partial
+from PIL import Image as _PILImage
 
-def from_file(path, *args, **kwargs):
-    return _Image.open(path, *args, **kwargs)
+from .fig import Fig as _Fig
 
-def concat(*images, horiz = True):
-    keys = 'width', 'height'
-    longkey, shortkey = keys if horiz else keys[::-1]
-    dims = [
-        max(getattr(im, shortkey) for im in images),
-        sum(getattr(im, longkey) for im in images),
-        ]
-    if horiz:
-        dims.reverse()
-    out = _Image.new('RGB', dims)
-    pos = 0
-    for im in images:
-        dims = [0, pos]
-        if horiz:
-            dims.reverse()
-        out.paste(im, dims)
-        pos += getattr(im, longkey)
-    return out
 
-concat_horiz = _partial(concat, horiz = True)
-concat_vert = _partial(concat, horiz = False)
+def sort_kwargs(kwargs, clas):
+    localkwargs = dict()
+    figparams = _inspect.signature(clas).parameters
+    for kw in tuple(kwargs):
+        if not kw in figparams:
+            localkwargs[kw] = kwargs[kw]
+            del kwargs[kw]
+    return localkwargs, kwargs
+
+
+class Image(_Fig):
+    __slots__ = ('pilargs', 'pilkwargs')
+    def __init__(self, *args, **kwargs):
+        self.pilargs = args
+        self.pilkwargs, kwargs = sort_kwargs(kwargs, _Fig)
+        super().__init__(ext = 'png', **kwargs)
+    def _show(self):
+        return self.pilimg
+    def _save(self, filepath, /, **kwargs): # pylint: disable=W0221
+        self.pilimg.save(filepath, **kwargs)
+    def _update(self):
+        ...
+
+class FromFile(Image):
+    __slots__ = ('filepath',)
+    def __init__(self, filepath, **kwargs):
+        self.filepath = filepath
+        super().__init__(**kwargs)
+    def get_pilimg(self):
+        return _PILImage.open(self.filepath, **self.pilkwargs)
+
+class Blank(Image):
+    def get_pilimg(self):
+        return _PILImage.new(*self.pilargs, **self.pilkwargs)
+
+def pilwraps(pilfunc):
+    def decorator(func):
+        @_wraps(pilfunc)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+@_wraps(_PILImage.open)
+def fromfile(*args, **kwargs):
+    return FromFile(*args, **kwargs)
+@_wraps(_PILImage.new)
+def blank(*args, **kwargs):
+    return Blank(*args, **kwargs)
 
 ###############################################################################
 ###############################################################################

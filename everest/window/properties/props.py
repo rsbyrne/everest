@@ -35,6 +35,7 @@ class Props(_PropsController):
 
     def __init__(self,
             mplax,
+            outerupdate,
             dims = ('x', 'y'),
             alpha = 1.,
             colour = 'black',
@@ -42,6 +43,8 @@ class Props(_PropsController):
             visible = True,
             title = '',
             ):
+
+        self._outerupdate = outerupdate
 
         super().__init__(
             mplax,
@@ -81,6 +84,10 @@ class Props(_PropsController):
         for dim in dims:
             self['edges'][dim]._add_sub(self['ticks'][dim], 'ticks')
             self['edges'][dim]['primary']._add_sub(self['ticks'][dim], 'ticks')
+
+    def update(self):
+        super().update()
+        self._outerupdate()
 
 ###############################################################################
 ''''''

@@ -10,7 +10,7 @@ from subprocess import PIPE
 
 from everest import simpli as mpi
 from everest.h5anchor import disk
-from ._fig import Fig as _Fig
+from .fig import Fig as _Fig
 
 def split_imgArr(imgArr):
     outArrs = [
@@ -58,14 +58,14 @@ def get_mode(*bands):
 
 class Raster(_Fig):
     def __init__(self, *bands, **kwargs):
-        if not len(set([band.data.shape for band in bands])) == 1:
+        if not len(set(band.data.shape for band in bands)) == 1:
             raise ValueError("Mismatched band sizes!")
-        mode, ignoreme = get_mode(*bands)
+        mode, _ = get_mode(*bands)
         self.bands = bands #[RegularData(band, size = size) for band in bands]
         self.shape = [*bands[0].data.shape, len(self.bands)]
         self.data = np.zeros(self.shape, dtype = 'uint8')
-        if mode == 'CMYK': ext = 'jpg'
-        else: ext = 'png'
+        self.img = None
+        ext = 'jpg' if mode == 'CMYK' else 'png'
         super().__init__(ext = ext, **kwargs)
         self.update()
     def _update(self):
@@ -101,9 +101,8 @@ def interp_rasters(rasters, chron, sampleFactor = 1):
     interpChron = np.linspace(np.min(chron), np.max(chron), nFrames)
     if len(rasters.shape) == 3: # hence does not have channels
         rasters = rasters[:, :, :, None]
-    frames, rows, cols, channels = rasters.shape
+    _, rows, cols, channels = rasters.shape
     interpRasters = np.zeros((nFrames, rows, cols, channels), dtype = 'uint8')
-    outs = []
     for row in range(rows):
         for col in range(cols):
             for channel in range(channels):
@@ -131,7 +130,7 @@ def animate(
         datas = list(data)
     else:
         datas = [data,]
-    if not len(set([d.shape for d in datas])) == 1:
+    if not len(set(d.shape for d in datas)) == 1:
         raise ValueError("Data shapes must be identical.")
     dataLen = len(datas[0])
     if not chron is None:
@@ -139,17 +138,17 @@ def animate(
             chrons = list(chron)
         else:
             chrons = [chron for d in data]
-        for i, (data, chron) in enumerate(zip(datas, chrons)):
-            datas[i] = interp_rasters(data, chron, sampleFactor)[:,:,:,0]
+        for i, (dat, chro) in enumerate(zip(datas, chrons)):
+            datas[i] = interp_rasters(dat, chro, sampleFactor)[:,:,:,0]
     if name is None:
-        name = disk.tempname(_mpiignore_ = True)
+        name = disk.tempname(_mpiignore_ = True) # pylint: disable=E1123
     pts *= 1. / sampleFactor
     outputPath = os.path.abspath(outputPath)
     outputFilename = os.path.join(outputPath, name + '.mp4')
     if not overwrite:
         if os.path.exists(outputFilename):
             raise Exception("Output file already exists!")
-    tempDir = os.path.join(outputPath, disk.tempname(_mpiignore_ = True))
+    tempDir = os.path.join(outputPath, disk.tempname(_mpiignore_ = True)) # pylint: disable=E1123
     inputFilename = os.path.join(tempDir, '*.jpg')
     shutil.rmtree(tempDir, ignore_errors = True)
     os.makedirs(tempDir)
@@ -184,7 +183,7 @@ def animate(
             '"' + outputFilename + '"'
             ]
         cmd = ' '.join(cmd)
-        completed = subprocess.run(
+        _ = subprocess.run(
             cmd,
             stdout = PIPE,
             stderr = PIPE,

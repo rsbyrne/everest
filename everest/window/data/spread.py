@@ -8,6 +8,11 @@ from collections.abc import Mapping
 from .channel import DataChannel
 
 class DataSpread(Mapping):
+    @classmethod
+    def convert(cls, d):
+        if isinstance(d, cls):
+            return d
+        return cls(*d)
     def __init__(self,
             x,
             y,
