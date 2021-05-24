@@ -26,10 +26,6 @@ class Image(_Fig):
         self.pilargs = args
         self.pilkwargs, kwargs = sort_kwargs(kwargs, _Fig)
         super().__init__(ext = 'png', **kwargs)
-    def _show(self):
-        return self.pilimg
-    def _save(self, filepath, /, **kwargs): # pylint: disable=W0221
-        self.pilimg.save(filepath, **kwargs)
     def _update(self):
         ...
     @property

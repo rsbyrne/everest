@@ -30,12 +30,6 @@ class Fig(_ABC):
     @_abstractmethod
     def _update(self):
         '''A function that gets called just prior to any display event.'''
-    @_abstractmethod
-    def _save(self, filepath):
-        '''The actual saving of the image.'''
-    @_abstractmethod
-    def _show(self):
-        '''Should return something that can be display by IPython or similar.'''
 
     def update(self):
         try:
@@ -67,7 +61,7 @@ class Fig(_ABC):
                 os.makedirs(path)
             assert os.path.isdir(path)
         filepath = os.path.join(path, name) + '.' + ext
-        self._save(filepath, **kwargs)
+        self.pilimg.save(filepath, **kwargs)
 
     @_abstractmethod
     def get_pilimg(self):
@@ -78,10 +72,10 @@ class Fig(_ABC):
 
     def show(self):
         self.update()
-        return self._show()
+        return self.pilimg._repr_png_() # pylint: disable=W0212
 
     def _repr_png_(self):
-        return self.pilimg._repr_png_()
+        return self.show()
 
 ###############################################################################
 ''''''

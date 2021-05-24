@@ -91,12 +91,9 @@ class Canvas(_Fig):
             self.fig.tight_layout()
         self.fig.canvas.draw()
 
-    def _save(self, filepath):
-        self.fig.savefig(filepath)
-
-    def _show(self):
-        FigureCanvas(self.fig)
-        return self.fig.canvas
+    # def _show(self):
+    #     FigureCanvas(self.fig)
+    #     return self.fig.canvas
 
     def get_pilimg(self):
         mplcanvas = self.fig.canvas

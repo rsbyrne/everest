@@ -70,7 +70,6 @@ class Raster(_Fig):
         self.update()
     def _update(self):
         self._update_data()
-        self._update_img()
     def _update_data(self):
         for band in self.bands:
             if hasattr(band, 'update'):
@@ -78,12 +77,8 @@ class Raster(_Fig):
         self.data[...] = np.dstack(
             [band.data for band in self.bands]
             )
-    def _update_img(self):
-        self.img = rasterise(*[band.data for band in self.bands])
-    def _save(self, filepath):
-        self.img.save(filepath)
-    def _show(self):
-        return self.img
+    def get_pilimg(self):
+        return rasterise(*[band.data for band in self.bands])
     def evaluate(self):
         self.update()
         return self.data.copy()
