@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.rcParams['text.usetex'] = True
 # from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
+from PIL import Image as _PILImage
 
 from .fig import Fig as _Fig
 from .ax import Ax
@@ -86,7 +87,9 @@ class Canvas(_Fig):
         return (self.ncols * rowNo + colNo)
 
     def _update(self):
-        self.fig.tight_layout()
+        for _ in range(4):
+            self.fig.tight_layout()
+        self.fig.canvas.draw()
 
     def _save(self, filepath):
         self.fig.savefig(filepath)
@@ -96,7 +99,13 @@ class Canvas(_Fig):
         return self.fig.canvas
 
     def get_pilimg(self):
-        raise Exception
+        mplcanvas = self.fig.canvas
+        mplcanvas.draw()
+        return _PILImage.frombytes(
+            'RGB',
+            (mplcanvas.get_width_height()),
+            mplcanvas.tostring_rgb()
+            )
 
 ###############################################################################
 ''''''
