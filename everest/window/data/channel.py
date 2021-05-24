@@ -381,7 +381,7 @@ class DataChannel:
                     return out
                 return r'\sim' + out
             if -2 <= val <= 3:
-                return str(round(10**val, abs(val)))
+                return str(round(10**val, round(abs(val))))
             return r'10^{' + str(val) + r'}'
         def nice_log_tickLabels(self, tickVals):
             return [self.proc_log_label(v) for v in tickVals], ''
