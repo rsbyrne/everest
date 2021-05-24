@@ -71,6 +71,19 @@ class Fig(_ABC):
         self.update()
         return self.get_pilimg()
 
+    @property
+    def size(self):
+        return self.pilimg.size
+    @property
+    def width(self):
+        return self.size[0]
+    @property
+    def height(self):
+        return self.size[1]
+    @property
+    def mode(self):
+        return self.pilimg.mode
+
 #     def show(self):
 #         self.update()
 #         return self.pilimg._repr_png_() # pylint: disable=W0212

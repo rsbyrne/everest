@@ -20,6 +20,8 @@ def sort_kwargs(kwargs, clas):
     return localkwargs, kwargs
 
 
+
+
 class Image(_Fig):
     __slots__ = ('pilargs', 'pilkwargs')
     def __init__(self, *args, **kwargs):
@@ -28,12 +30,6 @@ class Image(_Fig):
         super().__init__(ext = 'png', **kwargs)
     def _update(self):
         ...
-    @property
-    def size(self):
-        return self.pilimg.size
-    @property
-    def mode(self):
-        return self.pilimg.mode
 
 class FromFile(Image):
     __slots__ = ('filepath',)
