@@ -9,6 +9,7 @@ from .image import Image as _Image
 class ImOp(_Image):
     ...
 
+
 def rescale_width(image, targetwidth, **kwargs):
     width, height = image.width, image.height
     if width == targetwidth:
@@ -54,6 +55,70 @@ def hstack(*terms, **kwargs):
     return Concat(*terms, **kwargs)
 def vstack(*terms, **kwargs):
     return Concat(*terms, horiz = False, **kwargs)
+
+def process_mask(mask, size):
+    if mask is None:
+        return mask
+    if isinstance(mask, int):
+        return _PILImage.new('L', size, mask)
+    if isinstance(mask, float):
+        if not 0 <= float <= 1:
+            raise ValueError("Bad mask parameter.")
+        mask = min(255, max(0, round(mask * 255)))
+        return process_mask(mask, size)
+    return mask.pilimg
+def process_paste_coord(box, undersize, oversize, corner = 'tl'):
+    width, height = (
+        min(dim, max(0, round(dim * boxdim)))
+            if isinstance(boxdim, float) else boxdim
+        for dim, boxdim in zip(undersize, box)
+        )
+    tcorner, lcorner = corner[0] == 't', corner[1] == 'l'
+    return (
+        width if lcorner else width - oversize[0],
+        height if tcorner else height - oversize[1],
+        )
+
+class Paste(ImOp):
+    __slots__ = ('under', 'over', 'mask', 'coord', 'corner',)
+    def __init__(self,
+            under, over, mask = None, /, *,
+            coord = (0, 0), corner = 'tl',
+            **kwargs
+            ):
+        self.under, self.over, self.mask = under, over, mask
+        self.coord, self.corner = coord, corner
+        super().__init__(**kwargs)
+    def get_pilimg(self):
+        under, over = self.under.pilimg, self.over.pilimg
+        mask = process_mask(self.mask, over.size)
+        coord = process_paste_coord(
+            self.coord, under.size, over.size, self.corner
+            )
+        out = _PILImage.new(under.mode, under.size)
+        out.paste(under)
+        out.paste(over, coord, mask, **self.pilkwargs)
+        return out
+
+def paste(*args, **kwargs):
+    return Paste(*args, **kwargs)
+
+
+class Resize(ImOp):
+    __slots__ = ('newsize', 'toresize')
+    def __init__(self, image, size, **kwargs):
+        self.toresize, self.newsize = image, size
+        super().__init__(**kwargs)
+    def get_pilimg(self):
+        image = self.toresize.pilimg
+        size = tuple(
+            val if isinstance(val, int) else min(dim, max(0, round(dim * val)))
+                for val, dim in zip(self.newsize, image.size)
+            )
+        return image.resize(size, **self.pilkwargs)
+
+def resize(*args, **kwargs):
+    return Resize(*args, **kwargs)
 
 ###############################################################################
 ###############################################################################

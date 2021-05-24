@@ -32,6 +32,12 @@ class Image(_Fig):
         self.pilimg.save(filepath, **kwargs)
     def _update(self):
         ...
+    @property
+    def size(self):
+        return self.pilimg.size
+    @property
+    def mode(self):
+        return self.pilimg.mode
 
 class FromFile(Image):
     __slots__ = ('filepath',)
