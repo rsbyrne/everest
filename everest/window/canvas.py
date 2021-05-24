@@ -4,7 +4,7 @@
 
 import matplotlib
 matplotlib.rcParams['text.usetex'] = True
-# from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PIL import Image as _PILImage
 
@@ -95,7 +95,7 @@ class Canvas(_Fig):
         self.fig.savefig(filepath)
 
     def _show(self):
-        # FigureCanvas(self.fig)
+        FigureCanvas(self.fig)
         return self.fig.canvas
 
     def get_pilimg(self):
