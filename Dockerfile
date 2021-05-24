@@ -4,15 +4,14 @@ MAINTAINER https://github.com/rsbyrne/
 ENV MASTERUSER morpheus
 ENV MASTERPASSWD Matrix-1999!
 
-# install softwares required for subsequent steps
-RUN apt update -y
-RUN apt upgrade -y
-RUN apt install -y software-properties-common
-RUN apt-get update -y
-RUN apt-get upgrade -y
-RUN apt-get install -y software-properties-common
-RUN apt-get install -y sudo
-RUN apt-get install -y vim
+ENV DEBIAN_FRONTEND noninteractive
+
+# install with apt-get
+RUN apt-get update && apt-get install -y \
+  software-properties-common \
+  sudo \
+  vim \
+  && rm -rf /var/lib/apt/lists/*
 
 # configure master user
 RUN useradd -p $(openssl passwd -1 $MASTERPASSWD) $MASTERUSER
@@ -38,24 +37,24 @@ ENV PATH "${PATH}:$MASTERUSERHOME/.local/bin"
 RUN echo $MASTERUSER 'ALL = (ALL) NOPASSWD: ALL' | EDITOR='tee -a' visudo
 
 # install other softwares
-RUN apt-get install -y apt-utils
-RUN apt-get install -y man
-RUN apt-get install -y curl
-RUN apt-get install -y wget
-RUN apt-get install -y git
-RUN apt-get install -y nano
-RUN apt-get install -y apache2
+RUN apt-get update && apt-get install -y \
+  apt-utils \
+  curl \
+  git \
+  man \
+  nano \
+  wget \
+  && rm -rf /var/lib/apt/lists/*
 
-# install Python3.9
-#RUN apt update
-#RUN apt install -y software-properties-common
+# install Python3.10
 #RUN add-apt-repository -y ppa:deadsnakes/ppa
-#RUN apt install -y python3.9
+#RUN apt install -y python3.10
 #RUN add-apt-repository -y --remove ppa:deadsnakes/ppa
 
 # install Python stuff
-RUN apt-get install -y python3-venv
-RUN apt-get install -y python3-pip
+RUN apt-get update && apt-get install -y \
+  python3-venv \
+  python3-pip
 ENV PYTHONPATH "$BASEDIR:${PYTHONPATH}"
 ENV PYTHONPATH "$WORKSPACE:${PYTHONPATH}"
 ENV PYTHONPATH "$MOUNTDIR:${PYTHONPATH}"
@@ -74,9 +73,6 @@ ENV EVERESTDIR $MASTERUSERHOME/everest
 ADD . $EVERESTDIR
 RUN chown -R $MASTERUSER $EVERESTDIR
 
-# Basic
-RUN apt-get update
-
 # Python
 ENV PYTHONPATH "$EVERESTDIR:${PYTHONPATH}"
 
@@ -92,22 +88,27 @@ RUN pip3 install -U --no-cache-dir click
 RUN pip3 install --no-cache-dir -U Whoosh
 
 # MPI
-RUN apt-get install -y libopenmpi-dev
+RUN apt-get update && apt-get install -y \
+  libopenmpi-dev
 RUN pip3 install --no-cache-dir mpi4py
 ENV OMPI_MCA_btl_vader_single_copy_mechanism "none"
 
 # Visualisation
-RUN apt-get install -y ffmpeg
-RUN apt-get install -y imagemagick
+RUN apt-get update && apt-get install -y \
+  cm-super \
+  dvipng \
+  ffmpeg \
+  imagemagick \
+  texlive-latex-extra \
+  && rm -rf /var/lib/apt/lists/*
 RUN pip3 install --no-cache-dir matplotlib
 RUN pip3 install --no-cache-dir Pillow
-RUN apt install -y dvipng
-RUN apt install -y cm-super
-RUN apt install -y texlive-latex-extra
 
 # Debugging
-RUN apt-get install -y cloc
-RUN apt-get install -y graphviz
+RUN apt-get update && apt-get install -y \
+  cloc \
+  graphviz \
+  && rm -rf /var/lib/apt/lists/*
 RUN pip3 install --no-cache-dir objgraph
 RUN pip3 install --no-cache-dir xdot
 
@@ -134,11 +135,11 @@ RUN pip3 install --no-cache-dir mpmath
 RUN pip3 install --no-cache-dir sympy
 
 # Productivity
-#RUN apt install -y nodejs
-#RUN apt install -y npm
+#RUN apt-get install -y nodejs
+#RUN apt-get install -y npm
 RUN pip3 install --no-cache-dir jupyterlab
 
 # Finish
-RUN apt-get update
+RUN apt-get update -y && apt-get upgrade -y
 
 USER $MASTERUSER
