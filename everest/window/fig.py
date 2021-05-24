@@ -68,14 +68,15 @@ class Fig(_ABC):
         '''Should return a PIL image.'''
     @_cached_property
     def pilimg(self):
+        self.update()
         return self.get_pilimg()
 
-    def show(self):
-        self.update()
-        return self.pilimg._repr_png_() # pylint: disable=W0212
+#     def show(self):
+#         self.update()
+#         return self.pilimg._repr_png_() # pylint: disable=W0212
 
     def _repr_png_(self):
-        return self.show()
+        return self.pilimg._repr_png_()
 
 ###############################################################################
 ''''''
