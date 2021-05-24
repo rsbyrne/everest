@@ -87,6 +87,7 @@ class Canvas(_Fig):
         return (self.ncols * rowNo + colNo)
 
     def _update(self):
+        self.fig.canvas.draw()
         for _ in range(4):
             self.fig.tight_layout()
         FigureCanvas(self.fig)
@@ -97,12 +98,11 @@ class Canvas(_Fig):
     #     return self.fig.canvas
 
     def get_pilimg(self):
-        mplcanvas = self.fig.canvas
-        mplcanvas.draw()
+        self.fig.canvas.draw()
         return _PILImage.frombytes(
             'RGB',
-            (mplcanvas.get_width_height()),
-            mplcanvas.tostring_rgb()
+            (self.fig.canvas.get_width_height()),
+            self.fig.canvas.tostring_rgb()
             )
 
 ###############################################################################
