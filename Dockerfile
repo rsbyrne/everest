@@ -1,4 +1,4 @@
-FROM ubuntu:groovy-20210115
+FROM ubuntu:hirsute-20210514
 MAINTAINER https://github.com/rsbyrne/
 
 ENV MASTERUSER morpheus
@@ -6,8 +6,10 @@ ENV MASTERPASSWD Matrix-1999!
 
 ENV DEBIAN_FRONTEND noninteractive
 
-# install with apt-get
-RUN apt-get update && apt-get install -y \
+RUN apt clean
+
+# install with apt
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   software-properties-common \
   sudo \
   vim \
@@ -37,7 +39,7 @@ ENV PATH "${PATH}:$MASTERUSERHOME/.local/bin"
 RUN echo $MASTERUSER 'ALL = (ALL) NOPASSWD: ALL' | EDITOR='tee -a' visudo
 
 # install other softwares
-RUN apt-get update && apt-get install -y \
+RUN apt update && apt install -y \
   apt-utils \
   curl \
   git \
@@ -52,7 +54,7 @@ RUN apt-get update && apt-get install -y \
 #RUN add-apt-repository -y --remove ppa:deadsnakes/ppa
 
 # install Python stuff
-RUN apt-get update && apt-get install -y \
+RUN apt update && apt install -y \
   python3-venv \
   python3-pip
 ENV PYTHONPATH "$BASEDIR:${PYTHONPATH}"
@@ -88,13 +90,13 @@ RUN pip3 install -U --no-cache-dir click
 RUN pip3 install --no-cache-dir -U Whoosh
 
 # MPI
-RUN apt-get update && apt-get install -y \
+RUN apt update && apt install -y \
   libopenmpi-dev
 RUN pip3 install --no-cache-dir mpi4py
 ENV OMPI_MCA_btl_vader_single_copy_mechanism "none"
 
 # Visualisation
-RUN apt-get update && apt-get install -y \
+RUN apt update && apt install -y \
   cm-super \
   dvipng \
   ffmpeg \
@@ -105,7 +107,7 @@ RUN pip3 install --no-cache-dir matplotlib
 RUN pip3 install --no-cache-dir Pillow
 
 # Debugging
-RUN apt-get update && apt-get install -y \
+RUN apt update && apt install -y \
   cloc \
   graphviz \
   && rm -rf /var/lib/apt/lists/*
@@ -135,11 +137,11 @@ RUN pip3 install --no-cache-dir mpmath
 RUN pip3 install --no-cache-dir sympy
 
 # Productivity
-#RUN apt-get install -y nodejs
-#RUN apt-get install -y npm
+#RUN apt install -y nodejs
+#RUN apt install -y npm
 RUN pip3 install --no-cache-dir jupyterlab
 
 # Finish
-RUN apt-get update -y && apt-get upgrade -y
+RUN apt update -y && apt upgrade -y
 
 USER $MASTERUSER
