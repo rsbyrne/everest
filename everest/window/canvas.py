@@ -87,7 +87,6 @@ class Canvas(_Fig):
         return (self.ncols * rowNo + colNo)
 
     def _update(self):
-        self.fig.canvas.draw()
         for _ in range(4):
             self.fig.tight_layout()
         FigureCanvas(self.fig)
