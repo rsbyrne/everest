@@ -2,6 +2,8 @@
 ''''''
 ###############################################################################
 
+from functools import partial as _partial
+
 from PIL import Image as _PILImage
 
 from .image import Image as _Image
@@ -25,21 +27,52 @@ def rescale_height(image, targetheight, **kwargs):
     newlength = round(scalefactor * width)
     return image.resize((newlength, targetheight), **kwargs)
 
+def extend_width(image, targetwidth, colour = (255, 255, 255), **kwargs):
+    print(colour)
+    width, height = image.width, image.height
+    print(width, height, targetwidth)
+    discrepancy = targetwidth - width
+    if discrepancy == 0:
+        return image
+    if discrepancy < 0:
+        return image.crop((0, 0, targetwidth, height), **kwargs) #ltrb
+    out = _PILImage.new(image.mode, (targetwidth, height), colour)
+    out.paste(image, **kwargs)
+    return out
+def extend_height(image, targetheight, colour = (255, 255, 255), **kwargs):
+    print(colour)
+    width, height = image.width, image.height
+    print(width, height, targetheight)
+    discrepancy = targetheight - height
+    if discrepancy == 0:
+        return image
+    if discrepancy < 0:
+        return image.crop((0, 0, width, targetheight), **kwargs) #ltrb
+    out = _PILImage.new(image.mode, (width, targetheight), colour)
+    out.paste(image, **kwargs)
+    return out
+
 class Concat(ImOp):
-    __slots__ = ('horiz', 'terms',)
-    def __init__(self, *terms, horiz = True, **kwargs):
+    __slots__ = ('horiz', 'terms', 'pad')
+    def __init__(self, *terms, horiz = True, pad = None, **kwargs):
         self.horiz = horiz
         self.terms = terms
+        self.pad = pad
         super().__init__(*terms, **kwargs)
     def get_pilimg(self):
         images = tuple(im.pilimg for im in self.terms)
         horiz = self.horiz
+        pad = self.pad
         longkey, shortkey = \
             ('width', 'height') if horiz else ('height', 'width')
-        shortlen = min(getattr(im, shortkey) for im in images)
-        targetlength = min(getattr(im, shortkey) for im in images)
-        rescaler = rescale_height if horiz else rescale_width
-        images = tuple(rescaler(im, targetlength) for im in images)
+        shortcriterion = min if pad is None else max
+        shortlen = shortcriterion(getattr(im, shortkey) for im in images)
+        if pad is None:
+            rescaler = rescale_height if horiz else rescale_width
+        else:
+            rescaler = extend_height if horiz else extend_width
+            rescaler = _partial(rescaler, colour = pad)
+        images = tuple(rescaler(im, shortlen) for im in images)
         assert len(set(getattr(im, shortkey) for im in images)) == 1
         longlen = sum(getattr(im, longkey) for im in images)
         outdims = (longlen, shortlen) if horiz else (shortlen, longlen)
