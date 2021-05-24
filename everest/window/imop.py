@@ -140,6 +140,10 @@ def paste(*args, **kwargs):
 class Resize(ImOp):
     __slots__ = ('newsize', 'toresize')
     def __init__(self, image, size, **kwargs):
+        if isinstance(size, (float, int)):
+            size = (size, size)
+        else:
+            size = tuple(size)
         self.toresize, self.newsize = image, size
         super().__init__(**kwargs)
     def get_pilimg(self):
