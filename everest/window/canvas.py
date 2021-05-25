@@ -39,7 +39,7 @@ class Canvas(_Fig):
 
         self.shape = shape
         self.nrows, self.ncols = nrows, ncols
-        self.size = size
+        self.sizeinches = size
 
         self.fig = fig
 

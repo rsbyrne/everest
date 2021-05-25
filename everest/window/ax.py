@@ -45,7 +45,7 @@ class Ax:
             )
 
         self.position = ax.get_position()
-        self.inches = canvas.size * self.position.size
+        self.inches = canvas.sizeinches * self.position.size
 
         # Probably need a more generic solution for this:
         if projection == '3d':
@@ -112,7 +112,7 @@ class Ax:
             if i in {0, 1}:
                 return math.hypot(hor, ver) / 2
             return ver / 2
-        return self.canvas.size[i] / self.canvas.shape[::-1][i]
+        return self.canvas.sizeinches[i] / self.canvas.shape[::-1][i]
 
     def _autoconfigure_axes(self, *args, **kwargs):
         for i, dim in enumerate(self.dims):
@@ -193,20 +193,22 @@ class Ax:
             **kwargs
             ):
         arrowProps = dict() if arrowProps is None else arrowProps
-        arrowProps = dict(arrowstyle = 'simple').update(arrowProps)
+        arrowprops = dict(arrowstyle = 'simple')
+        arrowprops.update(arrowProps)
         if self.vol:
             raise Exception("Not working for 3D yet.")
         self.ax.annotate(
-            label,
+            '$' + label + '$',
             (x, y),
             xytext = (10, 10) if points is None else points,
             textcoords = 'offset points',
-            arrowprops = arrowProps,
+            arrowprops = arrowprops,
             horizontalalignment = horizontalalignment,
             verticalalignment = verticalalignment,
             rotation = rotation,
             **kwargs
             )
+        self.update()
 
     def update(self):
         self.canvas.update()
