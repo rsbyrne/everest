@@ -57,14 +57,14 @@ def kwargstr(**kwargs):
 def process_scalar(scal):
     return scal.dtype.type(scal)
 
-def add_headers(path, header = '#' * 80, footer = '#' * 80):
+def add_headers(path, header = '#' * 80, footer = '#' * 80, ext = '.py'):
     path = _os.path.abspath(path)
     for filename in _os.listdir(path):
         subPath = _os.path.join(path, filename)
         if _os.path.isdir(subPath):
             add_headers(subPath)
-        filename, ext = _os.path.splitext(filename)
-        if ext == '.py':
+        filename, extension = _os.path.splitext(filename)
+        if extension == ext:
             with open(subPath, mode = 'r+') as file:
                 content = file.read()
                 file.seek(0, 0)
