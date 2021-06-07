@@ -104,7 +104,7 @@ RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   && rm -rf /var/lib/apt/lists/*
 RUN pip3 install -U --no-cache-dir \
   matplotlib \
-  pip3 install --no-cache-dir Pillow
+  Pillow
 
 # Debugging
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
@@ -117,12 +117,12 @@ RUN pip3 install -U --no-cache-dir \
 
 # Data
 RUN pip3 install -U --no-cache-dir \
-  dask[complete]
-  diversipy
-  h5py
-  numba
-  pandas
-  scipy
+  dask[complete] \
+  diversipy \
+  h5py \
+  numba \
+  pandas \
+  scipy \
   xarray[complete]
 
 # Machine Learning
