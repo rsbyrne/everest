@@ -230,7 +230,7 @@ class DataChannel:
                 return r'10^{' + str(exp) + '}'
             if signo % 0.1:
                 return ''.join((
-                    cls.drop_redundant_label_decimal(round(signo, 1)),
+                    cls.drop_redundant_label_decimal(str(round(signo, 1))),
                     r'\times',
                     expstr,
                     ))
