@@ -94,6 +94,15 @@ RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
 RUN pip3 install --no-cache-dir mpi4py
 ENV OMPI_MCA_btl_vader_single_copy_mechanism "none"
 
+# Debugging
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  cloc \
+  graphviz \
+  && rm -rf /var/lib/apt/lists/*
+RUN pip3 install -U --no-cache-dir \
+  objgraph \
+  xdot
+
 # Visualisation
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   cm-super \
@@ -104,16 +113,8 @@ RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   && rm -rf /var/lib/apt/lists/*
 RUN pip3 install -U --no-cache-dir \
   matplotlib \
-  Pillow
-
-# Debugging
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-  cloc \
-  graphviz \
-  && rm -rf /var/lib/apt/lists/*
-RUN pip3 install -U --no-cache-dir \
-  objgraph \
-  xdot
+  Pillow \
+  graphviz
 
 # Data
 RUN pip3 install -U --no-cache-dir \
