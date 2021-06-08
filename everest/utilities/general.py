@@ -2,11 +2,10 @@
 '''Generally useful code snippets for funcy.'''
 ###############################################################################
 
-from collections.abc import Mapping as _Mapping
+from collections import abc as _collabc
 import itertools as _itertools
 import os as _os
 
-from .. import abstract as _abstract
 
 RICHOPS = ('lt', 'le', 'eq', 'ne', 'ge', 'gt')
 BOOLOPS = ('not', 'truth', 'is', 'is_not',)
@@ -23,8 +22,19 @@ REVOPS = (
 SEQOPS = ('concat', 'contains', 'countOf', 'indexOf', )
 ALLOPS = (*RICHOPS, *BOOLOPS, *ARITHMOPS, *SEQOPS)
 
+
+def unpackable(obj):
+    return all(
+        isinstance(obj, _collabc.Iterable),
+        not isinstance(obj, _collabc.Collection),
+        )
+
+
 def unpacker_zip(arg1, arg2, /):
-    arg1map, arg2map = (isinstance(arg, _Mapping) for arg in (arg1, arg2))
+    arg1map, arg2map = (
+        isinstance(arg, _collabc.Mapping)
+            for arg in (arg1, arg2)
+        )
     if arg1map and arg2map:
         arg1, arg2 = zip(*((arg1[k], arg2[k]) for k in arg1 if k in arg2))
         arg1, arg2 = iter(arg1), iter(arg2)
@@ -32,8 +42,8 @@ def unpacker_zip(arg1, arg2, /):
         arg1 = arg1.values()
     elif arg2map:
         arg2 = arg2.values()
-    if isinstance(arg1, _abstract.Unpackable):
-        if not isinstance(arg2, _abstract.Unpackable):
+    if unpackable(arg1):
+        if not unpackable(arg2):
             arg2 = _itertools.repeat(arg2)
         for sub1, sub2 in zip(arg1, arg2):
             yield from unpacker_zip(sub1, sub2)
@@ -73,6 +83,14 @@ def add_headers(path, header = '#' * 80, footer = '#' * 80, ext = '.py'):
                 if not content.strip('\n').endswith(footer):
                     content = f"{content}\n\n{footer}\n"
                 file.write(content)
+
+class frozendict(dict):
+    def __setitem__(self, name, value):
+        raise ValueError(f"Cannot set value on {type(self)}")
+    def __delitem__(self, name):
+        raise ValueError(f"Cannot delete value on {type(self)}")
+    def __repr__(self):
+        return f"frozendict{super().__repr__()}"
 
 # def delim_split(seq, /, sep = ...):
 #     g = []

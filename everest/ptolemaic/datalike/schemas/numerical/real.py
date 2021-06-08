@@ -2,18 +2,13 @@
 ''''''
 ###############################################################################
 
-from abc import abstractmethod
+from .numerical import Numerical as _Numerical
 
-from .. import utilities as _everestutilities
-from .. import wordhash as _wordhash
 
-from .adderclass import *
-from .mroclasses import *
-from .operable import *
-from .ioperable import *
-from .reloadable import *
-from .hashidable import *
-from .diskable import *
+class Real(_Numerical):
+
+    dtype = float
+
 
 ###############################################################################
 ###############################################################################

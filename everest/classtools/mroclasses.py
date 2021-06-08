@@ -2,6 +2,8 @@
 ''''''
 ###############################################################################
 
+from abc import abstractmethod as _abstracmethod
+
 from .adderclass import AdderClass as _AdderClass
 from .reloadable import ClassProxy as _ClassProxy
 
@@ -11,45 +13,68 @@ class Overclass(_AdderClass):
     fixedoverclass = NotImplemented
 
 
-class AnticipatedMethod(Exception):
-    '''Placeholder class for a missing method.'''
-    __slots__ = 'func', 'name'
-    @classmethod
-    def isantip(cls, obj):
-        return isinstance(obj, cls)
-    @classmethod
-    def get_antipnames(cls, ACls):
-        filt = filter(cls.isantip, ACls.__dict__.values())
-        names = [att.name for att in filt]
-        for Base in ACls.__bases__:
-            names.extend(cls.get_antipnames(Base))
-        return sorted(set(names))
-    @classmethod
-    def process_antips(cls, ACls):
-        names = cls.get_antipnames(ACls)
-        for name in names:
-            for B in ACls.__mro__:
-                try:
-                    att = getattr(B, name)
-                    if not cls.isantip(att):
-                        setattr(ACls, name, att)
-                        break
-                except AttributeError:
-                    continue
-    def __init__(self, func, /):
-        self.func, self.name, self.doc = func, func.__name__, func.__doc__
-        exc = f"A method called '{self.name}' is anticipated: {self.doc}"
-        super().__init__(exc)
-    def __call__(self, *args, **kwargs):
-        raise self
+# class AnticipatedMethod(Exception):
+#     '''Placeholder class for a missing method.'''
+#     __slots__ = 'func', 'name'
+#     @classmethod
+#     def isantip(cls, obj):
+#         return isinstance(obj, cls)
+#     @classmethod
+#     def get_antipnames(cls, ACls):
+#         filt = filter(cls.isantip, ACls.__dict__.values())
+#         names = [att.name for att in filt]
+#         for Base in ACls.__bases__:
+#             names.extend(cls.get_antipnames(Base))
+#         return sorted(set(names))
+#     @classmethod
+#     def process_antips(cls, ACls):
+#         names = cls.get_antipnames(ACls)
+#         for name in names:
+#             for B in ACls.__mro__:
+#                 try:
+#                     att = getattr(B, name)
+#                     if not cls.isantip(att):
+#                         setattr(ACls, name, att)
+#                         break
+#                 except AttributeError:
+#                     continue
+#     def __init__(self, func, /):
+#         self.func, self.name, self.doc = func, func.__name__, func.__doc__
+#         exc = f"A method called '{self.name}' is anticipated: {self.doc}"
+#         super().__init__(exc)
+#     def __call__(self, *args, **kwargs):
+#         raise self
+
+
+def remove_abstractmethods(cls):
+    abstracts = sorted(set((
+        name for name, att in cls.__dict__.items()
+            if hasattr(att, '__isabstractmethod__')
+        )))
+    if abstracts:
+        parents = cls.__mro__[1:]
+        for name in abstracts:
+            if name[:2] == '__':
+                continue
+            for parent in parents:
+                if hasattr(parent, name):
+                    delattr(cls, name)
+                    print(f"Deleted {name} from {cls}.")
+                    break
+
+def add_classpath(outercls, innercls, name):
+    if hasattr(outercls, 'classpath'):
+        innercls.classpath = tuple((*outercls.classpath, name))
+    innercls.classpath = (outercls, name)
 
 @_AdderClass.wrapmethod
 @classmethod
 def extra_subclass_init(calledmeth, ACls, ocls = False): # pylint: disable=E0213
     if not ocls:
         ACls._process_mroclasses(ACls) # pylint: disable=W0212
-    AnticipatedMethod.process_antips(ACls)
+    # AnticipatedMethod.process_antips(ACls)
     calledmeth() # pylint: disable=E1102
+
 
 def check_if_fuserclass(cls):
     return 'mroclassfuser' in cls.__dict__
@@ -144,11 +169,16 @@ class MROClassable(_AdderClass):
         mroclass, ocls = cls.merge_mroclass(ACls, name)
         if mroclass is None:
             return
+        remove_abstractmethods(mroclass)
         if ocls is None:
             setattr(ACls, name, mroclass)
+            add_classpath(ACls, mroclass, name)
             mroclass.classproxy = _ClassProxy(ACls, mroclass)
         else:
+            remove_abstractmethods(ocls)
+            add_classpath(ACls, ocls, name)
             altname = '_' + name + '_'
+            add_classpath(ACls, mroclass, altname)
             setattr(ACls, altname, mroclass)
             mroclass.classproxy = _ClassProxy(ACls, altname)
             setattr(ACls, name, ocls)

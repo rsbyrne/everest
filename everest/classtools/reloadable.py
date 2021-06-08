@@ -2,10 +2,20 @@
 ''''''
 ###############################################################################
 
+from . import _everestutilities
+
 from .adderclass import AdderClass as _AdderClass
 
-def _unreduce(redcls, args, kwargs):
-    return redcls(*args, **dict(kwargs))
+frozendict = _everestutilities.frozendict
+
+
+def master_unreduce(constructor, args, kwargs):
+    if isinstance(constructor, tuple):
+        constructor, *names = constructor
+        for name in names:
+            constructor = getattr(constructor, name)
+    return constructor(*args, **dict(kwargs))
+
 
 class Reloadable(_AdderClass):
     def register_argskwargs(self, *args, **kwargs):
@@ -21,21 +31,33 @@ class Reloadable(_AdderClass):
         _kwargs.update(kwargs)
     @_AdderClass.decorate(property)
     def args(self):
-        return tuple(self._args)
+        try:
+            return tuple(self._args)
+        except AttributeError:
+            _args = self._args = tuple() # pylint: disable=W0201
+            return _args
     @_AdderClass.decorate(property)
     def kwargs(self):
-        return tuple(self._kwargs.items())
+        try:
+            return self._frozenkwargs
+        except AttributeError:
+            try:
+                kwargs = self._kwargs
+            except AttributeError:
+                kwargs = dict()
+            frkw = self._frozenkwargs = frozendict(*kwargs.items()) # pylint: disable=W0201
+            return frkw
     @_AdderClass.decorate(classmethod)
     def get_constructor(cls): # pylint: disable=E0213
         if hasattr(cls, 'constructor'):
             return cls.constructor # pylint: disable=E1101
         # if hasattr(cls, 'classproxy'):
-        if 'classproxy' in cls.__dict__:
-            return cls.classproxy # pylint: disable=E1101
+        if hasattr(cls, 'classpath'):
+            return cls.classpath # pylint: disable=E1101
         return cls
     @_AdderClass.decorate(property)
     def unreduce(self): # pylint: disable=R0201
-        return _unreduce
+        return master_unreduce
     @_AdderClass.forcemethod
     def __reduce__(self):
         return self.unreduce, self.get_redtup()

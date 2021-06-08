@@ -2,11 +2,13 @@
 ''''''
 ###############################################################################
 
+from abc import ABC as _ABC
+
 from . import _Ptolemaic, _classtools
 
 
 @_classtools.Overclass
-class Ur(_Ptolemaic):
+class Ur(_Ptolemaic, _ABC):
     ...
 
 
