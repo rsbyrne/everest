@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from abc import abstractmethod as _abstractmethod
+import numpy as _np
 
 from . import _classtools
 
@@ -12,22 +12,15 @@ from . import _ur
 
 
 class DatalikeMeta(type(_Ptolemaic)):
-
-    def instantiate(cls, *args, **kwargs):
-        if issubclass(cls, _ur.Ur):
-            return super().instantiate(*args, **kwargs)
-        urcls = cls._choose_ur_class(*args, **kwargs)
-        return urcls(*args, **kwargs)
+    @property
+    def isur(cls):
+        return issubclass(cls, _ur.Ur)
+    def get_ur(cls, urcls):
+        return getattr(cls, urcls.__name__)
 
 
 @_classtools.MROClassable
 class Datalike(_Ptolemaic, metaclass = DatalikeMeta):
-
-    @classmethod
-    @_abstractmethod
-    def _choose_ur_class(cls, *args, **kwargs) -> _ur.Ur:
-        '''Selects an appropriate Ur class based on input args and kwargs.'''
-        raise TypeError("Abstract methods should not get called.")
 
     mroclasses = ('Var', 'Dat', 'Inc', 'Seq', 'Non')
 
@@ -37,7 +30,28 @@ class Datalike(_Ptolemaic, metaclass = DatalikeMeta):
     Seq = _ur.Seq
     Non = _ur.Non
 
-    dtype = type(None)
+    dtype = _np.generic
+
+    @classmethod
+    def _process_dtype(cls, dtype):
+        dtype = type(dtype) if not isinstance(dtype, type) else dtype
+        if not issubclass(dtype, _np.generic):
+            dtype = getattr(_np, f"{dtype.__name__}_")
+        if not dtype is (deftype := cls.dtype):
+            if not issubclass(dtype, deftype):
+                raise ValueError(
+                    f"Input dtype {dtype}"
+                    f"is not a subclass of default dtype {deftype}"
+                    f"on class {cls}"
+                    )
+        return dtype
+
+    def __init__(self, *args, dtype = None, **kwargs):
+        if not dtype is None:
+            if not dtype is self.dtype:
+                self.dtype = dtype
+                self.register_argskwargs(dtype = dtype) # pylint: disable=E1101
+        super().__init__(*args, **kwargs)
 
 
 ###############################################################################

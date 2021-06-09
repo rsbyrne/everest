@@ -3,15 +3,14 @@
 ###############################################################################
 
 
-from .. import (
-    classtools as _classtools,
-    utilities as _everestutilities,
-    )
+import numpy as _np
 
-from ._ptolemaic import Ptolemaic
+from . import Scalar as _Scalar
 
-from .ur import *
-from .datalike import *
+
+class Text(_Scalar):
+
+    dtype = _np.character
 
 
 ###############################################################################

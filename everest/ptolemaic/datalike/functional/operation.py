@@ -29,11 +29,17 @@ class Operation(_Functional):
     class Var:
 
         def get_value(self):
-            return self.operator(*self.termsresolved) # pylint: disable=E1101
-        def set_value(self, value):
+            return self.operator(*self._termsresolved) # pylint: disable=E1101
+        def set_value(self, value): # pylint: disable=R0201
             raise NotYetImplemented
-        def del_value(self):
+        def del_value(self): # pylint: disable=R0201
             raise NotYetImplemented
+
+
+    class Dat: # pylint: disable=R0903
+
+        def get_value(self):
+            return self.operator(*self._termsresolved) # pylint: disable=E1101
 
 
 ###############################################################################

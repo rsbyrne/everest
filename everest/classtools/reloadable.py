@@ -6,7 +6,7 @@ from . import _everestutilities
 
 from .adderclass import AdderClass as _AdderClass
 
-frozendict = _everestutilities.frozendict
+FrozenMap = _everestutilities.FrozenMap
 
 
 def master_unreduce(constructor, args, kwargs):
@@ -45,7 +45,7 @@ class Reloadable(_AdderClass):
                 kwargs = self._kwargs
             except AttributeError:
                 kwargs = dict()
-            frkw = self._frozenkwargs = frozendict(*kwargs.items()) # pylint: disable=W0201
+            frkw = self._frozenkwargs = FrozenMap(kwargs) # pylint: disable=W0201
             return frkw
     @_AdderClass.decorate(classmethod)
     def get_constructor(cls): # pylint: disable=E0213

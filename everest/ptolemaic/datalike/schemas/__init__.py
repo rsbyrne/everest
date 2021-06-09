@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from .. import _classtools
+from .. import _classtools, _everestutilities
 
 from .. import Datalike as _Datalike
 from .. import functional as _functional

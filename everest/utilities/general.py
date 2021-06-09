@@ -2,9 +2,12 @@
 '''Generally useful code snippets for funcy.'''
 ###############################################################################
 
+
 from collections import abc as _collabc
 import itertools as _itertools
 import os as _os
+
+import numpy as _np
 
 
 RICHOPS = ('lt', 'le', 'eq', 'ne', 'ge', 'gt')
@@ -84,13 +87,31 @@ def add_headers(path, header = '#' * 80, footer = '#' * 80, ext = '.py'):
                     content = f"{content}\n\n{footer}\n"
                 file.write(content)
 
-class frozendict(dict):
+class FrozenMap(dict):
     def __setitem__(self, name, value):
         raise ValueError(f"Cannot set value on {type(self)}")
     def __delitem__(self, name):
         raise ValueError(f"Cannot delete value on {type(self)}")
     def __repr__(self):
-        return f"frozendict{super().__repr__()}"
+        return f"FrozenMap{super().__repr__()}"
+
+class TypeMap(dict):
+    def __getitem__(self, key):
+        if not issubclass(type(key), type):
+            key = type(key)
+        for compkey, arg in self.items():
+            if issubclass(key, compkey):
+                return arg
+        raise KeyError(key)
+
+class Slyce:
+    __slots__ = ('start', 'stop', 'step', 'slc', 'rep')
+    def __init__(self, start = None, stop = None, step = None, /):
+        self.start, self.stop, self.step = start, stop, step
+        self.slc = slice(start, stop, step)
+        self.rep = f"Slyce({self.start}, {self.stop}, {self.step})"
+    def __repr__(self):
+        return self.rep
 
 # def delim_split(seq, /, sep = ...):
 #     g = []

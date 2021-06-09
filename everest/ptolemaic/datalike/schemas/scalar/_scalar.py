@@ -3,14 +3,39 @@
 ###############################################################################
 
 
-from . import _classtools
+from . import _classtools, _everestutilities
 
 from . import _Schema, _functional
 
 
-@_classtools.Operable
-class Scalar(_Schema):
+class ScalarMeta(type(_Schema)):
+    def __init__(cls, *args, **kwargs): # pylint: disable=E0213
+        super().__init__(*args, **kwargs)
+        cls._scalarmetatypes = _everestutilities.TypeMap({
+            type: cls.Var, # pylint: disable=E1101
+            object: cls.Dat, # pylint: disable=E1101
+            })
 
+
+@_classtools.Operable
+class Scalar(_Schema, metaclass = ScalarMeta):
+
+
+    comptype = None
+
+    _scalardtypes = _everestutilities.TypeMap()
+
+    @classmethod
+    def __init_subclass__(cls, /, *args, **kwargs):
+        if not cls.isur:
+            cls._scalardtypes[cls.dtype] = cls
+        super().__init_subclass__(*args, **kwargs)
+
+    @classmethod
+    def instantiate(cls, arg, /, *, dtype = None, **kwargs): # pylint: disable=W0221
+        dtype = cls._process_dtype(arg if dtype is None else dtype)
+        outcls = cls._scalardtypes[dtype]._scalarmetatypes[type(arg)] # pylint: disable=W0212
+        return outcls(arg, dtype = dtype, **kwargs)
 
     @classmethod
     def operate(cls, operator, *args, **kwargs):
@@ -25,7 +50,7 @@ class Scalar(_Schema):
             'get_value', 'set_value', 'del_value'
             )
 
-        def __init__(self, *args, **kwargs):
+        def __init__(self, initval = None, /, *args, **kwargs): # pylint: disable=W1113
             self._value = None
             self._valuemode = 0 # 0: null, 1: unrectified, 2: rectified
             self.get_value = self._get_value_mode0
@@ -49,6 +74,8 @@ class Scalar(_Schema):
                     ),
                 }
             super().__init__(*args, **kwargs)
+            if not initval is None:
+                self.set_value(initval)
 
         def ioperate(self, operator, other, /):
             self.value = operator(self.value, other) # pylint: disable=W0201,E0237,E1101
@@ -97,6 +124,19 @@ class Scalar(_Schema):
         def _del_value_mode2(self):
             self._change_mode(0)
             self.nullify()
+
+
+    class Dat: # pylint: disable=R0903
+
+        __slots__ = ('_value')
+
+        def __init__(self, value, **kwargs):
+            super().__init__(**kwargs)
+            value = self._value = self.dtype(value) # pylint: disable=E1101
+            self.register_argskwargs(value) # pylint: disable=E1101
+
+        def get_value(self):
+            return self._value
 
 
 ###############################################################################

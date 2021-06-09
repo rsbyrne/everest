@@ -17,13 +17,17 @@ class Functional(_Datalike):
 
 
     @classmethod
-    def _choose_ur_class(cls, *args, **kwargs) -> _ur.Ur:
+    def _choose_urcls(cls, *args, **kwargs) -> _ur.Ur:
         inps = tuple((*args, *kwargs.values()))
         for ur in (cls.Inc, cls.Var, cls.Seq, cls.Dat):
             if check_ur(inps, ur.UrBase):
                 return ur
         return cls.Non
 
+    @classmethod
+    def instantiate(cls, *args, **kwargs):
+        urcls = cls._choose_urcls(*args, **kwargs)
+        return urcls(*args, **kwargs)
 
     __slots__ = ('terms',)
 
@@ -36,11 +40,19 @@ class Functional(_Datalike):
     class Var:
 
         @property
-        def termsresolved(self):
+        def _termsresolved(self):
             return (
                 term.value if isinstance(term, _Var) else term
                     for term in self.terms # pylint: disable=E1101
                 )
+
+    class Dat:
+
+        # __slots__ = ('_termsresolved',)
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._termsresolved = tuple((term.value for term in self.terms)) # pylint: disable=E1101
 
 
 ###############################################################################

@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from .. import _classtools
+from .. import _classtools, _everestutilities
 
 from .. import Ptolemaic as _Ptolemaic
 from .. import ur as _ur
