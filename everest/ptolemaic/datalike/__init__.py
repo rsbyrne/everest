@@ -2,10 +2,17 @@
 ''''''
 ###############################################################################
 
+
 from .. import _classtools
 
 from ..ptolemaic import Ptolemaic as _Ptolemaic
 from .. import ur as _ur
+
+
+from .armatures import *
+from .functional import *
+from .schemas import *
+
 
 ###############################################################################
 ###############################################################################

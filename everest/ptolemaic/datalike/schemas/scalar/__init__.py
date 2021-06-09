@@ -7,5 +7,9 @@ from .. import _classtools
 from .. import _functional
 from ..schema import Schema as _Schema
 
+from .scalar import *
+from .integer import *
+from .real import *
+
 ###############################################################################
 ###############################################################################
