@@ -2,14 +2,17 @@
 ''''''
 ###############################################################################
 
+
 from .. import _classtools
 
 from .. import _functional
-from ..schema import Schema as _Schema
+from .. import Schema as _Schema
 
-from .scalar import *
+from ._scalar import Scalar
+
 from .integer import *
 from .real import *
+
 
 ###############################################################################
 ###############################################################################

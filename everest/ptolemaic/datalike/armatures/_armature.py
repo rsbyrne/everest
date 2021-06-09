@@ -2,8 +2,8 @@
 ''''''
 ###############################################################################
 
-from . import _Datalike
 
+from . import _Datalike
 
 class Armature(_Datalike):
     ...

@@ -2,17 +2,17 @@
 ''''''
 ###############################################################################
 
+
 from .. import _classtools
 
-from ..ptolemaic import Ptolemaic as _Ptolemaic
+from .._ptolemaic import Ptolemaic as _Ptolemaic
 
-
-from .ur import Ur
-from .var import Var
-from .dat import Dat
-from .seq import Seq
-from .inc import Inc
-from .non import Non
+from ._ur import *
+from .var import *
+from .dat import *
+from .seq import *
+from .inc import *
+from .non import *
 
 
 ###############################################################################

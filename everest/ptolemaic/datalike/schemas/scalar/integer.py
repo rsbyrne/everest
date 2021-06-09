@@ -2,7 +2,8 @@
 ''''''
 ###############################################################################
 
-from .scalar import Scalar as _Scalar
+
+from . import Scalar as _Scalar
 
 
 class Integer(_Scalar):

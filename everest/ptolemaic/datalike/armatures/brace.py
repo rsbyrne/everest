@@ -2,8 +2,8 @@
 ''''''
 ###############################################################################
 
-from .armature import Armature as _Armature
 
+from . import Armature as _Armature
 
 class Brace(_Armature):
     ...

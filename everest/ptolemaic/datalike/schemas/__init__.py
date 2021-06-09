@@ -2,10 +2,16 @@
 ''''''
 ###############################################################################
 
+
 from .. import _classtools
 
-from ..datalike import Datalike as _Datalike
+from .. import Datalike as _Datalike
 from .. import functional as _functional
+
+from ._schema import Schema
+
+from .scalar import *
+
 
 ###############################################################################
 ###############################################################################

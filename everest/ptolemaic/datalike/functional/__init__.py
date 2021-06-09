@@ -2,13 +2,14 @@
 ''''''
 ###############################################################################
 
+
 from .. import _classtools
 
-from ..datalike import Datalike as _Datalike
+from .. import Datalike as _Datalike
 from .. import _ur
 
+from ._functional import Functional
 
-from .functional import *
 from .operation import *
 # from .applicator import *
 

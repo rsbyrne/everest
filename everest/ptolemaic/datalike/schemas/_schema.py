@@ -2,13 +2,13 @@
 ''''''
 ###############################################################################
 
-from abc import ABC as _ABC
 
-from . import _Ptolemaic, _classtools
+from .. import _classtools
+
+from . import _Datalike
 
 
-@_classtools.Overclass
-class Ur(_Ptolemaic, _ABC):
+class Schema(_Datalike):
     ...
 
 

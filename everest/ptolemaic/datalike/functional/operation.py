@@ -2,9 +2,10 @@
 ''''''
 ###############################################################################
 
+
 from . import _classtools
 
-from .functional import Functional as _Functional
+from . import Functional as _Functional
 
 from .exceptions import NotYetImplemented
 

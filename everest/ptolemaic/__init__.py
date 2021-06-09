@@ -5,6 +5,7 @@
 
 from .. import classtools as _classtools
 
+from ._ptolemaic import Ptolemaic
 
 from .ur import *
 from .datalike import *
