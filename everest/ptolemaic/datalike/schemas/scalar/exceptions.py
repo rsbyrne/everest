@@ -4,7 +4,7 @@
 
 from ..exceptions import * # pylint: disable=W0401,W0614
 
-class NumericalException(SchemaException):
+class ScalarException(SchemaException):
     ...
 
 ###############################################################################
