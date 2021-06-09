@@ -32,10 +32,10 @@ class Scalar(_Schema, metaclass = ScalarMeta):
         super().__init_subclass__(*args, **kwargs)
 
     @classmethod
-    def instantiate(cls, arg, /, *, dtype = None, **kwargs): # pylint: disable=W0221
+    def instantiate(cls, arg, /, *args, dtype = None, **kwargs): # pylint: disable=W0221
         dtype = cls._process_dtype(arg if dtype is None else dtype)
         outcls = cls._scalardtypes[dtype]._scalarmetatypes[type(arg)] # pylint: disable=W0212
-        return outcls(arg, dtype = dtype, **kwargs)
+        return outcls(arg, *args, dtype = dtype, **kwargs)
 
     @classmethod
     def operate(cls, operator, *args, **kwargs):
@@ -50,7 +50,7 @@ class Scalar(_Schema, metaclass = ScalarMeta):
             'get_value', 'set_value', 'del_value'
             )
 
-        def __init__(self, initval = None, /, *args, **kwargs): # pylint: disable=W1113
+        def __init__(self, _, initval = None, **kwargs): # pylint: disable=W1113
             self._value = None
             self._valuemode = 0 # 0: null, 1: unrectified, 2: rectified
             self.get_value = self._get_value_mode0
@@ -73,7 +73,7 @@ class Scalar(_Schema, metaclass = ScalarMeta):
                     self._del_value_mode2
                     ),
                 }
-            super().__init__(*args, **kwargs)
+            super().__init__(**kwargs)
             if not initval is None:
                 self.set_value(initval)
 
