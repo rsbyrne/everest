@@ -8,7 +8,7 @@ from . import _Schema, _functional
 
 
 @_classtools.Operable
-class Numerical(_Schema):
+class Scalar(_Schema):
 
 
     @classmethod

@@ -2,12 +2,12 @@
 ''''''
 ###############################################################################
 
-from .numerical import Numerical as _Numerical
+from .scalar import Scalar as _Scalar
 
 
-class Integer(_Numerical):
+class Real(_Scalar):
 
-    dtype = int
+    dtype = float
 
 
 ###############################################################################
