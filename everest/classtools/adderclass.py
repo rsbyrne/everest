@@ -12,8 +12,10 @@ from functools import wraps as _wraps
 class ForceMethod:  # pylint: disable=R0903
     func: _FunctionType
 
+
 class WrapMethod:  # pylint: disable=R0903
     __slots__ = ('func', 'kind')
+
     def __init__(self, func: _FunctionType, /):
         if isinstance(func, classmethod):
             func = func.__func__
@@ -25,39 +27,53 @@ class WrapMethod:  # pylint: disable=R0903
             func = (func.fget, func.fset, func.fdel)
             kind = property
         else:
-            kind = lambda x: x
+            def kind(x):
+                return x
         self.func, self.kind = func, kind
+
     def __call__(self, meth):
+
         func, kind = self.func, self.kind
         if kind is property:
             raise Exception("Doesn't work yet.")
+
         @_wraps(meth)
         def wrapper(*args, **kwargs):
             return func(meth, *args, **kwargs)
+
         return kind(wrapper)
+
 
 @_dataclass
 class Decorate:  # pylint: disable=R0903
+
     decorator: type
+
     def __call__(self, func):
         return Decorated(self.decorator, func)
 
+
 @_dataclass
-class Decorated(Decorate):  # pylint: disable=R0903
+class Decorated(Decorate):  # pylint: disable=
     func: _FunctionType
+
     def __call__(self):
         func = self.func
         if isinstance(func, Decorated):
             func = func()
         return self.decorator(func)  # pylint: disable=E1101
 
+
 class HiddenMethod(_ABC):
+
     def __new__(cls, ameth):
         ameth._adderclass_hidden = None
         return ameth
+
     @classmethod
     def check(cls, obj):
         return hasattr(obj, '_adderclass_hidden')
+
 
 class AdderClass(_ABC):
 

@@ -2,6 +2,7 @@
 ''''''
 ###############################################################################
 
+
 import string as _string
 import inspect as _inspect
 from functools import (
@@ -15,11 +16,13 @@ from . import _classtools
 from .hierarchy import Hierarchy as _Hierarchy
 from .cascade import Cascade as _Cascade
 
+
 def find_func_def(lines):
     for i, line in enumerate(lines):
         if line.strip().startswith('def '):
             return i
     raise ValueError
+
 
 def get_sourcelines(func):
     source = _inspect.getsource(func)
@@ -32,11 +35,14 @@ def get_sourcelines(func):
         *(line.rstrip() for line in lines[1:]),
         ]
 
+
 def get_defaults(func):
     params = _inspect.signature(func).parameters
     return {name: p.default for name, p in params.items()}
 
+
 PLAINCHARS = _string.ascii_lowercase + _string.digits + r'_,=:/\* '
+
 
 def preprocess_line(line):
     charno = 0
@@ -46,6 +52,7 @@ def preprocess_line(line):
     assert charno % 4 == 0, (charno, line)
     line = line.lstrip(' ')
     return line, charno // 4
+
 
 def process_line(line, mode):
     clean = ''
@@ -70,12 +77,16 @@ def process_line(line, mode):
                     mode = None
     return clean, mode
 
+
 class _IGNORE:
     def __repr__(self):
         return 'IGNORE'
+
+
 IGNORE = _IGNORE()
 
-def get_paramlevels(func, skip = 0, skipkeys = None, forbiddenkeys = None):
+
+def get_paramlevels(func, skip=0, skipkeys=None, forbiddenkeys=None):
 
     skipkeys = set() if skipkeys is None else skipkeys
     forbiddenkeys = {} if forbiddenkeys is None else forbiddenkeys
@@ -86,8 +97,7 @@ def get_paramlevels(func, skip = 0, skipkeys = None, forbiddenkeys = None):
     params = sig.parameters
     if not params:
         return ()
-
-    keys = (key for key in params if not key in skipkeys)
+    keys = (key for key in params if key not in skipkeys)
     if skip:
         try:
             for _ in range(skip):
@@ -98,7 +108,8 @@ def get_paramlevels(func, skip = 0, skipkeys = None, forbiddenkeys = None):
                 ) from exc
     try:
         key = next(keys)
-    except StopIteration: # all parameters were skipped!
+
+    except StopIteration:  # all parameters were skipped!
         return ()
     mode = None
     paramslist = list()
@@ -139,7 +150,8 @@ def get_paramlevels(func, skip = 0, skipkeys = None, forbiddenkeys = None):
 
     return list(zip(indentslist, paramslist))
 
-def get_hierarchy(func, /, *, root = None, typ = _Hierarchy, **kwargs):
+
+def get_hierarchy(func, /, *, root=None, typ=_Hierarchy, **kwargs):
     if root is None:
         if not issubclass(typ, _Hierarchy):
             raise TypeError(typ)
@@ -162,8 +174,9 @@ def get_hierarchy(func, /, *, root = None, typ = _Hierarchy, **kwargs):
     if root is None:
         return hierarchy
 
+
 def get_cascade(func, **kwargs):
-    return get_hierarchy(func, typ = _Cascade, **kwargs)
+    return get_hierarchy(func, typ=_Cascade, **kwargs)
 
 # def align_args(atup, btup):
 #     return tuple(
@@ -171,25 +184,28 @@ def get_cascade(func, **kwargs):
 #             for a, b in _zip_longest(atup, btup)
 #         )
 
+
 def null_fn():
     ...
+
 
 @_classtools.HashIDable
 class Signature(_Cascade):
     _set_locked = False
     signature = None
     inputsskip, inputsskipkeys = None, None
-    def __init__(self, parent = null_fn, skip = None, skipkeys = None):
+
+    def __init__(self, parent=null_fn, skip=None, skipkeys=None):
         if isinstance(parent, Signature):
             if (skip is not None) or (skipkeys is not None):
                 raise ValueError(
                     "Cannot pass skip arguments to Signature child."
                     )
-            super().__init__(parent = parent)
+            super().__init__(parent=parent)
             self.inputsskip, self.inputsskipkeys = \
                 parent.inputsskip, parent.inputsskipkeys
             self.signature = parent.signature
-        else: # not ischild:
+        else:  # not ischild:
             super().__init__()
             skip = self.inputsskip = \
                 0 if skip is None else skip
@@ -198,22 +214,26 @@ class Signature(_Cascade):
             self.signature = _inspect.signature(parent)
             get_hierarchy(
                 parent,
-                root = self,
-                skip = skip, skipkeys = skipkeys,
-                forbiddenkeys = dir(self),
+                root=self,
+                skip=skip, skipkeys=skipkeys,
+                forbiddenkeys=dir(self),
                 )
             self.setitem_lock()
+
     def setitem_lock(self):
         self._set_locked = True
         for sub in self.subs.values():
             sub.setitem_lock()
+
     def setitem_unlock(self):
         self._set_locked = False
         for sub in self.subs.values():
             sub.setitem_unlock()
+
     @_lru_cache
     def __getitem__(self, key, /):
         return super().__getitem__(key)
+
     def __setitem__(self, key, val, /):
         if self._set_locked:
             raise TypeError(
@@ -221,6 +241,7 @@ class Signature(_Cascade):
                 f" {key} = {val}"
                 )
         super().__setitem__(key, val)
+
     def __contains__(self, key, /):
         if super().__contains__(key):
             return True
@@ -228,11 +249,14 @@ class Signature(_Cascade):
             if key in sub:
                 return True
         return False
+
     @_cached_property
     def bind(self):
         return _partial(Bound, self)
+
     def copy(self):
         raise TypeError(f"Cannot copy object of type={type(self)}")
+
 
 def merge_ignores(skip, skipkeys, args, kwargs):
     args = tuple((
@@ -244,6 +268,7 @@ def merge_ignores(skip, skipkeys, args, kwargs):
             raise ValueError(f"Cannot assign skipped key: {k}")
     kwargs = {**{k: IGNORE for k in skipkeys}, **kwargs}
     return args, kwargs
+
 
 def get_bound_args_kwargs(signature, skip, skipkeys, args, kwargs):
     args, kwargs = merge_ignores(skip, skipkeys, args, kwargs)
@@ -258,8 +283,10 @@ def get_bound_args_kwargs(signature, skip, skipkeys, args, kwargs):
     kwargs = {k: v for k, v in bound.kwargs.items() if v is not IGNORE}
     return bound, partial, args, kwargs
 
+
 class Bound(Signature):
     bound, partial, args, kwargs = None, None, None, None
+
     def __init__(self, parent, *args, **kwargs):
         if isinstance(parent, Bound):
             if (args or kwargs):
@@ -278,6 +305,7 @@ class Bound(Signature):
                     args, kwargs
                     )
             self.update(parent)
+
     @_lru_cache
     def __getitem__(self, key, /):
         out = super().__getitem__(key)
@@ -289,6 +317,7 @@ class Bound(Signature):
                 raise KeyError
             return out.default
         return out
+
 
 ###############################################################################
 ###############################################################################

@@ -2,6 +2,7 @@
 ''''''
 ###############################################################################
 
+
 from .adderclass import AdderClass as _AdderClass
 from . import _wordhash
 
@@ -22,23 +23,27 @@ class HashIDable(_AdderClass):
     _hashint = None
     _hashstr = None
     toadd = dict(
-        __init__ = extra_init,
+        __init__=extra_init,
         )
+
     @_AdderClass.decorate(property)
     def hashstr(self):
         hashval = self._hashstr
         if hashval is None:
             hashval = self._hashstr = _wordhash.quick_hash(self)
         return hashval
+
     @_AdderClass.decorate(property)
     def hashint(self):
         hashval = self._hashint
         if hashval is None:
             hashval = self._hashint = int(self.hashstr, 16)
         return hashval
+
     @_AdderClass.decorate(property)
     def hashID(self):
         return self._hashID
+
 
 ###############################################################################
 ###############################################################################

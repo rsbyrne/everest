@@ -15,9 +15,11 @@ def get_incision(obj):
         incision = obj._incision = obj.Space(obj)
         return incision
 
+
 @property
 def get_getitem(obj):
     return obj.incision.__getitem__
+
 
 @property
 def get_incise(obj):
@@ -32,7 +34,6 @@ class Bythic(_classtools.MROClassable):
             try:
                 Inc = getattr(cls, 'Incision')
                 if issubclass(Inc, Space) and issubclass(Inc, C):
-#                     if 'resol'
                     return True
             except AttributeError:
                 pass
