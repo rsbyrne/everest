@@ -5,10 +5,10 @@
 
 from . import _classtools, _everestutilities
 
-from . import _Schema, _functional
+from . import _Primary, _functional
 
 
-class ScalarMeta(type(_Schema)):
+class ScalarMeta(type(_Primary)):
     def __init__(cls, *args, **kwargs): # pylint: disable=E0213
         super().__init__(*args, **kwargs)
         cls._scalarmetatypes = _everestutilities.TypeMap({
@@ -18,7 +18,7 @@ class ScalarMeta(type(_Schema)):
 
 
 @_classtools.Operable
-class Scalar(_Schema, metaclass = ScalarMeta):
+class Scalar(_Primary, metaclass = ScalarMeta):
 
 
     comptype = None

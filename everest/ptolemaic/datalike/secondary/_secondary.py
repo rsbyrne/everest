@@ -3,9 +3,10 @@
 ###############################################################################
 
 
-from . import Armature as _Armature
+from . import _Datalike
 
-class Brace(_Armature):
+
+class Secondary(_Datalike):
     ...
 
 

@@ -3,15 +3,11 @@
 ###############################################################################
 
 
-from .. import _classtools, _everestutilities
+from ..exceptions import * # pylint: disable=W0401,W0614
 
-from .. import Ptolemaic as _Ptolemaic
-from .. import ur as _ur
 
-from ._datalike import Datalike
-
-from .primary import *
-from .secondary import *
+class SecondaryException(DatalikeException):
+    ...
 
 
 ###############################################################################

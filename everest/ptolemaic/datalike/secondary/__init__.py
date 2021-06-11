@@ -5,13 +5,13 @@
 
 from .. import _classtools, _everestutilities
 
-from .. import Ptolemaic as _Ptolemaic
-from .. import ur as _ur
+from .. import _Ptolemaic, _ur
+from .. import Datalike as _Datalike
 
-from ._datalike import Datalike
+from ._secondary import Secondary
 
-from .primary import *
-from .secondary import *
+from .armatures import *
+from .functional import *
 
 
 ###############################################################################

@@ -3,9 +3,10 @@
 ###############################################################################
 
 
-from . import _Datalike
+from ..exceptions import * # pylint: disable=W0401,W0614
 
-class Armature(_Datalike):
+
+class FunctionalException(SecondaryException):
     ...
 
 

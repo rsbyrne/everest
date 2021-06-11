@@ -3,15 +3,11 @@
 ###############################################################################
 
 
-from .. import _classtools, _everestutilities
+from . import _Secondary
 
-from .. import Ptolemaic as _Ptolemaic
-from .. import ur as _ur
 
-from ._datalike import Datalike
-
-from .primary import *
-from .secondary import *
+class Armature(_Secondary):
+    ...
 
 
 ###############################################################################

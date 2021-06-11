@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from .. import Datalike as _Datalike
+from .. import Secondary as _Secondary
 
 from ._armature import Armature
 

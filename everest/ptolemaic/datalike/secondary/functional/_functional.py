@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from . import _Datalike, _ur
+from . import _Secondary, _ur
 
 
 _Var = _ur.Var
@@ -13,7 +13,7 @@ def check_ur(objs, ur):
     return any(isinstance(obj, ur) for obj in objs)
 
 
-class Functional(_Datalike):
+class Functional(_Secondary):
 
 
     @classmethod

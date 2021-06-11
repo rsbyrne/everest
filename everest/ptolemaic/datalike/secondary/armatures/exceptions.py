@@ -3,15 +3,11 @@
 ###############################################################################
 
 
-from .. import _classtools
+from ..exceptions import * # pylint: disable=W0401,W0614
 
-from .. import Datalike as _Datalike
-from .. import _ur
 
-from ._functional import Functional
-
-from .operation import *
-# from .applicator import *
+class ArmatureException(SecondaryException):
+    ...
 
 
 ###############################################################################

@@ -2,10 +2,16 @@
 ''''''
 ###############################################################################
 
-from ..exceptions import * # pylint: disable=W0401,W0614
 
-class ArmatureException(DatalikeException):
-    ...
+from .. import _classtools, _ur
+
+from .. import Secondary as _Secondary
+
+from ._functional import Functional
+
+from .operation import *
+# from .applicator import *
+
 
 ###############################################################################
 ###############################################################################
