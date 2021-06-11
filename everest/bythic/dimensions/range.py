@@ -24,7 +24,7 @@ class Range(_Countable):
             return lower if step > 0 else upper
         if isinstance(arg, cls.Inf):
             return arg
-        return cls.typ(arg) # pylint: disable=E1102
+        return cls.typ(arg)  # pylint: disable=E1102
 
     @classmethod
     def construct(cls, *args):
@@ -45,7 +45,7 @@ class Range(_Countable):
             if any(isinstance(st, float) for st in (start, stop)):
                 return Real(*args)
             return Integral(*args)
-        return cls(*args) # pylint: disable=E1120
+        return cls(*args)  # pylint: disable=E1120
 
     @classmethod
     def proc_args(cls, start, stop, step, stepdefault = 1):
@@ -60,7 +60,7 @@ class Range(_Countable):
                     )):
                 raise ValueError("Zero-length range.")
             return start, stop, step
-        return cls.typ(start), cls.typ(stop), step # pylint: disable=E1102
+        return cls.typ(start), cls.typ(stop), step  # pylint: disable=E1102
 
     @classmethod
     def analyse_range_args(cls, arg0, arg1 = None, arg2 = None):
@@ -74,7 +74,7 @@ class Range(_Countable):
         self.start, self.stop, self.step = start, stop, step
         self.startinf, self.stopinf = startinf, stopinf
         super().__init__(**kwargs)
-        self.register_argskwargs(start, stop, step) # pylint: disable=E1101
+        self.register_argskwargs(start, stop, step)  # pylint: disable=E1101
 
 
 class Integral(Range):

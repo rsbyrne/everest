@@ -5,10 +5,25 @@
 from .adderclass import AdderClass as _AdderClass
 from . import _wordhash
 
+
+@_AdderClass.wrapmethod
+def extra_init(calledmeth, obj, *args, **kwargs):
+    calledmeth(obj, *args, **kwargs)
+    if 'get_hashID' in dir(obj):
+        hashval = obj.get_hashID()  # pylint: disable=E1101
+    else:
+        hashval = _wordhash.word_hash(obj)
+    obj._hashID = hashval  # pylint: disable=W0212
+
+
 class HashIDable(_AdderClass):
+
     _hashID = None
     _hashint = None
     _hashstr = None
+    toadd = dict(
+        __init__ = extra_init,
+        )
     @_AdderClass.decorate(property)
     def hashstr(self):
         hashval = self._hashstr
@@ -23,14 +38,7 @@ class HashIDable(_AdderClass):
         return hashval
     @_AdderClass.decorate(property)
     def hashID(self):
-        hashval = self._hashID
-        if hashval is None:
-            if 'get_hashID' in dir(self):
-                hashval = self.get_hashID() # pylint: disable=E1101
-            else:
-                hashval = _wordhash.word_hash(self)
-            self._hashID = hashval
-        return hashval
+        return self._hashID
 
 ###############################################################################
 ###############################################################################

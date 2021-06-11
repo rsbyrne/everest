@@ -19,7 +19,7 @@ class Operable(_AdderClass):
 
     @_AdderClass.decorate(classmethod)
     @_AdderClass.decorate(_lru_cache(maxsize = 32))
-    def get_operator(cls, operator): # pylint: disable=E0213,R0201
+    def get_operator(cls, operator):  # pylint: disable=E0213,R0201
         if isinstance(operator, str):
             if operator in OPS:
                 if operator in _REVOPS:
@@ -32,7 +32,7 @@ class Operable(_AdderClass):
 
     @_AdderClass.decorate(classmethod)
     @_AdderClass.decorate(_abstractmethod)
-    def operate(cls, operator, *args, **kwargs) -> object: # pylint: disable=E0213 R0201
+    def operate(cls, operator, *args, **kwargs) -> object:  # pylint: disable=E0213 R0201
         '''Carries out the actual operation and returns the result.'''
         raise TypeError(
             "This method is abstract and should never be called."

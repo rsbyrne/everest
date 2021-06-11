@@ -11,6 +11,9 @@ from .reloadable import ClassProxy as _ClassProxy
 class Overclass(_AdderClass):
     overclasstag = None
     fixedoverclass = NotImplemented
+    metaclassed = False
+class Metaclassed(Overclass):
+    metaclassed = True
 
 
 # class AnticipatedMethod(Exception):
@@ -69,11 +72,11 @@ def add_classpath(outercls, innercls, name):
 
 @_AdderClass.wrapmethod
 @classmethod
-def extra_subclass_init(calledmeth, ACls, ocls = False): # pylint: disable=E0213
+def extra_subclass_init(calledmeth, ACls, ocls = False):  # pylint: disable=E0213
     if not ocls:
-        ACls._process_mroclasses(ACls) # pylint: disable=W0212
+        ACls._process_mroclasses(ACls)  # pylint: disable=W0212
     # AnticipatedMethod.process_antips(ACls)
-    calledmeth() # pylint: disable=E1102
+    calledmeth()  # pylint: disable=E1102
 
 
 def check_if_fuserclass(cls):
@@ -157,8 +160,10 @@ class MROClassable(_AdderClass):
                     else:
                         over = fixtag
                     break
-            inheritees = (*inheritees, over)
-            ocls = type(name, inheritees, {}, ocls = True)
+            if any(ocin.metaclassed for ocin in ocins):
+                ocls = over(name, inheritees, {})
+            else:
+                ocls = type(name, (*inheritees, over), {}, ocls = True)
         else:
             ocls = None
         return mroclass, ocls

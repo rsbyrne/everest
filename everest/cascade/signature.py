@@ -4,22 +4,28 @@
 
 import string as _string
 import inspect as _inspect
-from itertools import zip_longest as _zip_longest
 from functools import (
     cached_property as _cached_property,
     lru_cache as _lru_cache,
     partial as _partial,
     )
 
-from . import _wordhash
+from . import _classtools
 
 from .hierarchy import Hierarchy as _Hierarchy
 from .cascade import Cascade as _Cascade
+
+def find_func_def(lines):
+    for i, line in enumerate(lines):
+        if line.strip().startswith('def '):
+            return i
+    raise ValueError
 
 def get_sourcelines(func):
     source = _inspect.getsource(func)
     source = source[:source.index(':\n')]
     lines = source.split('\n')
+    lines = lines[find_func_def(lines):]
     line0 = lines[0]
     return [
         line0[line0.index('(')+1:],
@@ -74,7 +80,7 @@ def get_paramlevels(func, skip = 0, skipkeys = None, forbiddenkeys = None):
     skipkeys = set() if skipkeys is None else skipkeys
     forbiddenkeys = {} if forbiddenkeys is None else forbiddenkeys
 
-    sourcelines = get_sourcelines(func)
+    sourcelines = tuple(line for line in get_sourcelines(func) if line)
 
     sig = _inspect.signature(func)
     params = sig.parameters
@@ -168,7 +174,7 @@ def get_cascade(func, **kwargs):
 def null_fn():
     ...
 
-@_wordhash.hashable
+@_classtools.HashIDable
 class Signature(_Cascade):
     _set_locked = False
     signature = None

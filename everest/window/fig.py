@@ -86,7 +86,7 @@ class Fig(_ABC):
 
 #     def show(self):
 #         self.update()
-#         return self.pilimg._repr_png_() # pylint: disable=W0212
+#         return self.pilimg._repr_png_()  # pylint: disable=W0212
 
     def _repr_png_(self):
         return self.pilimg._repr_png_()

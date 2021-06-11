@@ -33,7 +33,7 @@ class Functional(_Secondary):
 
     def __init__(self, *terms, **kwargs):
         self.terms = terms
-        self.register_argskwargs(*terms) # pylint: disable=E1101
+        self.register_argskwargs(*terms)  # pylint: disable=E1101
         super().__init__(**kwargs)
 
 
@@ -43,7 +43,7 @@ class Functional(_Secondary):
         def _termsresolved(self):
             return (
                 term.value if isinstance(term, _Var) else term
-                    for term in self.terms # pylint: disable=E1101
+                    for term in self.terms  # pylint: disable=E1101
                 )
 
     class Dat:
@@ -52,7 +52,7 @@ class Functional(_Secondary):
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self._termsresolved = tuple((term.value for term in self.terms)) # pylint: disable=E1101
+            self._termsresolved = tuple((term.value for term in self.terms))  # pylint: disable=E1101
 
 
 ###############################################################################

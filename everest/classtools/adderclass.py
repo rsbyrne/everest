@@ -9,10 +9,10 @@ from functools import wraps as _wraps
 
 
 @_dataclass
-class ForceMethod: # pylint: disable=R0903
+class ForceMethod:  # pylint: disable=R0903
     func: _FunctionType
 
-class WrapMethod: # pylint: disable=R0903
+class WrapMethod:  # pylint: disable=R0903
     __slots__ = ('func', 'kind')
     def __init__(self, func: _FunctionType, /):
         if isinstance(func, classmethod):
@@ -37,19 +37,19 @@ class WrapMethod: # pylint: disable=R0903
         return kind(wrapper)
 
 @_dataclass
-class Decorate: # pylint: disable=R0903
+class Decorate:  # pylint: disable=R0903
     decorator: type
     def __call__(self, func):
         return Decorated(self.decorator, func)
 
 @_dataclass
-class Decorated(Decorate): # pylint: disable=R0903
+class Decorated(Decorate):  # pylint: disable=R0903
     func: _FunctionType
     def __call__(self):
         func = self.func
         if isinstance(func, Decorated):
             func = func()
-        return self.decorator(func) # pylint: disable=E1101
+        return self.decorator(func)  # pylint: disable=E1101
 
 class HiddenMethod(_ABC):
     def __new__(cls, ameth):
@@ -86,7 +86,7 @@ class AdderClass(_ABC):
     def attributes_to_add(cls):
         for Base in cls.__mro__[:0:-1]:
             if issubclass(Base, AdderClass) and (Base is not AdderClass):
-                yield from Base.attributes_to_add() # pylint: disable=E1101
+                yield from Base.attributes_to_add()  # pylint: disable=E1101
         for name in set.difference(
                 set(cls.__dict__),
                 set(AdderClass.__dict__),
@@ -102,7 +102,7 @@ class AdderClass(_ABC):
     def attributes_required(cls):
         for B in cls.__bases__:
             if issubclass(B, AdderClass):
-                yield from B.required # pylint: disable=E1101
+                yield from B.required  # pylint: disable=E1101
         for name, att in cls.toadd.items():
             if isinstance(att, WrapMethod):
                 yield name

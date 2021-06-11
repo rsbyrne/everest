@@ -37,7 +37,7 @@ class DataPile(Sequence):
             else:
                 allD = None
             outs.append(allD)
-        return DataSpread(*outs) # pylint: disable=E1120
+        return DataSpread(*outs)  # pylint: disable=E1120
     def _delself(self):
         try:
             del self.concatenated

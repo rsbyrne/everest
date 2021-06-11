@@ -79,7 +79,7 @@ class Reseed:
         return int(self.rng.integers(low, high))
     rints = multi(rint)
 
-    def rshade(self, /): # pylint: disable=R0201
+    def rshade(self, /):  # pylint: disable=R0201
         return rint(0, 255)
     rshades = multi(rshade)
     rcolour = _partial(rshades, n = 3)

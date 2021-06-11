@@ -50,7 +50,7 @@ class Datalike(_Ptolemaic, metaclass = DatalikeMeta):
         if not dtype is None:
             if not dtype is self.dtype:
                 self.dtype = dtype
-                self.register_argskwargs(dtype = dtype) # pylint: disable=E1101
+                self.register_argskwargs(dtype = dtype)  # pylint: disable=E1101
         super().__init__(*args, **kwargs)
 
 

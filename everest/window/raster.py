@@ -136,14 +136,14 @@ def animate(
         for i, (dat, chro) in enumerate(zip(datas, chrons)):
             datas[i] = interp_rasters(dat, chro, sampleFactor)[:,:,:,0]
     if name is None:
-        name = disk.tempname(_mpiignore_ = True) # pylint: disable=E1123
+        name = disk.tempname(_mpiignore_ = True)  # pylint: disable=E1123
     pts *= 1. / sampleFactor
     outputPath = os.path.abspath(outputPath)
     outputFilename = os.path.join(outputPath, name + '.mp4')
     if not overwrite:
         if os.path.exists(outputFilename):
             raise Exception("Output file already exists!")
-    tempDir = os.path.join(outputPath, disk.tempname(_mpiignore_ = True)) # pylint: disable=E1123
+    tempDir = os.path.join(outputPath, disk.tempname(_mpiignore_ = True))  # pylint: disable=E1123
     inputFilename = os.path.join(tempDir, '*.jpg')
     shutil.rmtree(tempDir, ignore_errors = True)
     os.makedirs(tempDir)

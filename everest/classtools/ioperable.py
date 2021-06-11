@@ -14,7 +14,7 @@ class IOperable(_AdderClass):
 
 
     @_AdderClass.decorate(_abstractmethod)
-    def ioperate(self, operator, arg0, /) -> object: # pylint: disable=E0213 R0201
+    def ioperate(self, operator, arg0, /) -> object:  # pylint: disable=E0213 R0201
         '''Carries out the actual operation in place and returns self.'''
         raise TypeError(
             "This method is abstract and should never be called."

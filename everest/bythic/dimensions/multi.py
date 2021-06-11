@@ -79,7 +79,7 @@ class Multi(_Dimension):
         collapsed = self.collapsed = tuple(is_collapsed(dim) for dim in dims)
         self.activedepth = collapsed.count(False)
         super().__init__()
-        self.register_argskwargs(*dims) # pylint: disable=E1101
+        self.register_argskwargs(*dims)  # pylint: disable=E1101
 
     def iter_fn(self):
         try:
@@ -90,7 +90,7 @@ class Multi(_Dimension):
                 iter_fn = _partial(_itertools.product, *dims)
             else:
                 iter_fn = _partial(_muddle, dims)
-            self._iter_fn = iter_fn # pylint: disable=W0201
+            self._iter_fn = iter_fn  # pylint: disable=W0201
         return iter_fn()
     def calculate_len(self):
         return _reduce(_operator.mul, (dim.iterlen for dim in self.dims), 1)

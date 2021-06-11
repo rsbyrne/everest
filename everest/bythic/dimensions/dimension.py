@@ -130,7 +130,7 @@ class Dimension(metaclass = DimensionMeta):
         try:
             return self._repr
         except AttributeError:
-            _repr = self._repr = self.get_repr() # pylint: disable=W0201
+            _repr = self._repr = self.get_repr()  # pylint: disable=W0201
             return _repr
 
     class Iterator(_collabc.Iterator):
@@ -161,7 +161,7 @@ class Dimension(metaclass = DimensionMeta):
             else:
                 self._sourceget_ = type(source).__getitem__
             super().__init__(**kwargs)
-            self.register_argskwargs(*sources) # pylint: disable=E1101
+            self.register_argskwargs(*sources)  # pylint: disable=E1101
         def __getitem__(self, arg):
             return self._sourceget_(self, arg)
         def choose_getmeth(self, typ):
@@ -193,7 +193,7 @@ class Dimension(metaclass = DimensionMeta):
         def __init__(self, source, incisor, /, **kwargs):
             self.source, self.incisor = source, incisor
             super().__init__(source, **kwargs)
-            self.register_argskwargs(incisor) # pylint: disable=E1101
+            self.register_argskwargs(incisor)  # pylint: disable=E1101
 
     class Collapsed(Incision):
 

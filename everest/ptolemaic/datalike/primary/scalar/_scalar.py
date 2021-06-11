@@ -9,11 +9,11 @@ from . import _Primary, _functional
 
 
 class ScalarMeta(type(_Primary)):
-    def __init__(cls, *args, **kwargs): # pylint: disable=E0213
+    def __init__(cls, *args, **kwargs):  # pylint: disable=E0213
         super().__init__(*args, **kwargs)
         cls._scalarmetatypes = _everestutilities.TypeMap({
-            type: cls.Var, # pylint: disable=E1101
-            object: cls.Dat, # pylint: disable=E1101
+            type: cls.Var,  # pylint: disable=E1101
+            object: cls.Dat,  # pylint: disable=E1101
             })
 
 
@@ -32,9 +32,9 @@ class Scalar(_Primary, metaclass = ScalarMeta):
         super().__init_subclass__(*args, **kwargs)
 
     @classmethod
-    def instantiate(cls, arg, /, *args, dtype = None, **kwargs): # pylint: disable=W0221
+    def instantiate(cls, arg, /, *args, dtype = None, **kwargs):  # pylint: disable=W0221
         dtype = cls._process_dtype(arg if dtype is None else dtype)
-        outcls = cls._scalardtypes[dtype]._scalarmetatypes[type(arg)] # pylint: disable=W0212
+        outcls = cls._scalardtypes[dtype]._scalarmetatypes[type(arg)]  # pylint: disable=W0212
         return outcls(arg, *args, dtype = dtype, **kwargs)
 
     @classmethod
@@ -50,13 +50,13 @@ class Scalar(_Primary, metaclass = ScalarMeta):
             'get_value', 'set_value', 'del_value'
             )
 
-        def __init__(self, _, initval = None, **kwargs): # pylint: disable=W1113
+        def __init__(self, _, initval = None, **kwargs):  # pylint: disable=W1113
             self._value = None
             self._valuemode = 0 # 0: null, 1: unrectified, 2: rectified
             self.get_value = self._get_value_mode0
             self.set_value = self._set_value_mode0
             self.del_value = self._del_value_mode0
-            self._modemeths = { # pylint: disable=W0201
+            self._modemeths = {  # pylint: disable=W0201
                 0: ( # Null
                     self._get_value_mode0,
                     self._set_value_mode0,
@@ -78,11 +78,11 @@ class Scalar(_Primary, metaclass = ScalarMeta):
                 self.set_value(initval)
 
         def ioperate(self, operator, other, /):
-            self.value = operator(self.value, other) # pylint: disable=W0201,E0237,E1101
+            self.value = operator(self.value, other)  # pylint: disable=W0201,E0237,E1101
             return self
 
         def rectify(self):
-            self._value = self.dtype(self._value) # pylint: disable=E1101
+            self._value = self.dtype(self._value)  # pylint: disable=E1101
         def nullify(self):
             self._value = None
 
@@ -91,7 +91,7 @@ class Scalar(_Primary, metaclass = ScalarMeta):
                 self._modemeths[valuemode]
             self._valuemode = valuemode
 
-        def _get_value_mode0(self): # pylint: disable=R0201
+        def _get_value_mode0(self):  # pylint: disable=R0201
             raise ValueError('Null value detected.')
         def _set_value_mode0(self, val, /):
             self._change_mode(1)
@@ -126,14 +126,14 @@ class Scalar(_Primary, metaclass = ScalarMeta):
             self.nullify()
 
 
-    class Dat: # pylint: disable=R0903
+    class Dat:  # pylint: disable=R0903
 
         __slots__ = ('_value')
 
         def __init__(self, value, **kwargs):
             super().__init__(**kwargs)
-            value = self._value = self.dtype(value) # pylint: disable=E1101
-            self.register_argskwargs(value) # pylint: disable=E1101
+            value = self._value = self.dtype(value)  # pylint: disable=E1101
+            self.register_argskwargs(value)  # pylint: disable=E1101
 
         def get_value(self):
             return self._value

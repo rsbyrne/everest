@@ -14,7 +14,7 @@ class PtolemaicMeta(_ABCMeta):
 
 
 @_classtools.Diskable
-class Ptolemaic(metaclass = PtolemaicMeta): # pylint: disable=R0903
+class Ptolemaic(metaclass = PtolemaicMeta):  # pylint: disable=R0903
 
     @classmethod
     @_abstractmethod

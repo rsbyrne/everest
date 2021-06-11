@@ -18,7 +18,7 @@ class Operation(_Functional):
 
     def __init__(self, operator, /, *args, **kwargs):
         self.operator = operator
-        self.register_argskwargs(operator) # pylint: disable=E1101
+        self.register_argskwargs(operator)  # pylint: disable=E1101
         super().__init__(*args, **kwargs)
 
     @classmethod
@@ -29,17 +29,17 @@ class Operation(_Functional):
     class Var:
 
         def get_value(self):
-            return self.operator(*self._termsresolved) # pylint: disable=E1101
-        def set_value(self, value): # pylint: disable=R0201
+            return self.operator(*self._termsresolved)  # pylint: disable=E1101
+        def set_value(self, value):  # pylint: disable=R0201
             raise NotYetImplemented
-        def del_value(self): # pylint: disable=R0201
+        def del_value(self):  # pylint: disable=R0201
             raise NotYetImplemented
 
 
-    class Dat: # pylint: disable=R0903
+    class Dat:  # pylint: disable=R0903
 
         def get_value(self):
-            return self.operator(*self._termsresolved) # pylint: disable=E1101
+            return self.operator(*self._termsresolved)  # pylint: disable=E1101
 
 
 ###############################################################################

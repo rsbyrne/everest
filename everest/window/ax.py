@@ -70,7 +70,7 @@ class Ax:
         self.ax = ax
         self.collections = []
 
-        self.props.edges.margin = 0. # pylint: disable=E1101
+        self.props.edges.margin = 0.  # pylint: disable=E1101
 
         self.facecolour = None
         self.facecolourVisible = True
@@ -135,9 +135,9 @@ class Ax:
             data.auto_axis_configs(nTicks)
         axname = {0 : 'x', 1 : 'y', 2 : 'z'}[i]
         axis, ticks, grid = (
-            self.props.edges[axname], # pylint: disable=E1101
-            self.props.ticks[axname], # pylint: disable=E1101
-            self.props.grid[axname], # pylint: disable=E1101
+            self.props.edges[axname],  # pylint: disable=E1101
+            self.props.ticks[axname],  # pylint: disable=E1101
+            self.props.grid[axname],  # pylint: disable=E1101
             )
         axis.scale = scale
         axis.lims = lims

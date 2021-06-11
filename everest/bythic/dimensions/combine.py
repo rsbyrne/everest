@@ -29,7 +29,7 @@ class Combine(_Dimension):
         else:
             self.iter_fn = _partial(iterop, combinants)
         super().__init__(**kwargs)
-        self.register_argskwargs(*combinants, iterop = iterop) # pylint: disable=E1101
+        self.register_argskwargs(*combinants, iterop = iterop)  # pylint: disable=E1101
 
     @classmethod
     def muddle(cls, *args, **kwargs):

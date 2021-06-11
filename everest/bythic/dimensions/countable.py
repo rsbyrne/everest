@@ -137,7 +137,7 @@ class Selection(_Dimension.Incision):
     def __init__(self, source, selection, **kwargs):
         if isinstance(selection, tuple):
             selection = list(selection)
-        selection = type(self)[selection] # pylint: disable=E1136
+        selection = type(self)[selection]  # pylint: disable=E1136
         seltyp = selection.typ
         if issubclass(seltyp, bool):
             self.iter_fn = _partial(_itertools.compress, source, selection)
