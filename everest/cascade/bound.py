@@ -39,7 +39,8 @@ def get_bound_args_kwargs(signature, skip, skipkeys, args, kwargs):
 
 
 class Bound(_Signature):
-    bound, partial, args, kwargs = None, None, None, None
+
+    __slots__ = ('bound', 'partial', 'args', 'kwargs')
 
     def __init__(self, parent, *args, **kwargs):
         if isinstance(parent, Bound):
@@ -48,6 +49,7 @@ class Bound(_Signature):
             super().__init__(parent)
             self.bound = parent.bound
             self.bind = parent.bind
+            self.args, self.kwargs = (), {}
         else:
             if not isinstance(parent, _Signature):
                 parent = _Signature(parent)
@@ -59,6 +61,7 @@ class Bound(_Signature):
                     args, kwargs
                     )
             self.update(parent)
+        self.register_argskwargs(*self.args, **self.kwargs)
 
     @_lru_cache
     def __getitem__(self, key, /):

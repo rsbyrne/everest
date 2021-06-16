@@ -189,29 +189,32 @@ def null_fn():
     ...
 
 
-@_classtools.HashIDable
+@_classtools.Diskable
 class Signature(_Cascade):
-    _set_locked = False
-    signature = None
-    inputsskip, inputsskipkeys = None, None
+
+    __slots__ = (
+        '_set_locked', 'signature', 'inputsskip', 'inputsskipkeys',
+        *_classtools.Diskable.slots,
+        )
 
     def __init__(self, parent=null_fn, skip=None, skipkeys=None):
+        self._set_locked = False
         if isinstance(parent, Signature):
             if (skip is not None) or (skipkeys is not None):
                 raise ValueError(
                     "Cannot pass skip arguments to Signature child."
                     )
             super().__init__(parent=parent)
-            self.inputsskip, self.inputsskipkeys = \
+            skip, skipkeys = self.inputsskip, self.inputsskipkeys = \
                 parent.inputsskip, parent.inputsskipkeys
-            self.signature = parent.signature
+            sig = self.signature = parent.signature
         else:  # not ischild:
             super().__init__()
             skip = self.inputsskip = \
                 0 if skip is None else skip
             skipkeys = self.inputsskipkeys = \
                 {} if skipkeys is None else skipkeys
-            self.signature = _inspect.signature(parent)
+            sig = self.signature = _inspect.signature(parent)
             get_hierarchy(
                 parent,
                 root=self,
@@ -219,6 +222,7 @@ class Signature(_Cascade):
                 forbiddenkeys=dir(self),
                 )
             self.setitem_lock()
+        self.register_argskwargs(sig, skip, skipkeys)
 
     def setitem_lock(self):
         self._set_locked = True

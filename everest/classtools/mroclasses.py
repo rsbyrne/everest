@@ -4,7 +4,6 @@
 
 
 from .adderclass import AdderClass as _AdderClass
-from .reloadable import ClassProxy as _ClassProxy
 
 
 class Overclass(_AdderClass):
@@ -179,16 +178,13 @@ class MROClassable(_AdderClass):
         if ocls is None:
             setattr(ACls, name, mroclass)
             add_classpath(ACls, mroclass, name)
-            mroclass.classproxy = _ClassProxy(ACls, mroclass)
         else:
             remove_abstractmethods(ocls)
             add_classpath(ACls, ocls, name)
             altname = '_' + name + '_'
             add_classpath(ACls, mroclass, altname)
             setattr(ACls, altname, mroclass)
-            mroclass.classproxy = _ClassProxy(ACls, altname)
             setattr(ACls, name, ocls)
-            ocls.classproxy = _ClassProxy(ACls, name)
 
     @_AdderClass.hiddenmethod
     @classmethod

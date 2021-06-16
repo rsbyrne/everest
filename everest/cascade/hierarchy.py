@@ -22,8 +22,8 @@ def _flatten_hierarchy(hierarchy):
 
 
 class Item:
-    key: str = None
-    _value = None
+
+    __slots__ = ('key', '_value')
 
     def __init__(self, key, val, /):
         self.key = key
@@ -45,9 +45,8 @@ class Item:
 
 
 class Hierarchy(dict):
-    parent = None
-    subs = None
-    randhash = None
+
+    __slots__ = ('parent', 'subs', 'randhash')
 
     def __init__(self, *args, parent=None, **kwargs):
         super().__init__(*args, **kwargs)

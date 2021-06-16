@@ -15,6 +15,7 @@ from .ioperable import *
 from .reloadable import *
 from .hashidable import *
 from .diskable import *
+from .coproperty import *
 
 
 ###############################################################################

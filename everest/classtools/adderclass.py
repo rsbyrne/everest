@@ -7,6 +7,7 @@ from abc import ABC as _ABC
 from dataclasses import dataclass as _dataclass
 from types import FunctionType as _FunctionType
 from functools import wraps as _wraps
+import itertools as _itertools
 
 
 @_dataclass
@@ -55,7 +56,8 @@ class Decorate:  # pylint: disable=R0903
 
 
 @_dataclass
-class Decorated(Decorate):  # pylint: disable=
+class Decorated(Decorate):  # pylint: disable=R0903
+
     func: _FunctionType
 
     def __call__(self):
@@ -78,6 +80,9 @@ class HiddenMethod(_ABC):
 
 class AdderClass(_ABC):
 
+    # __slots__ = ()
+    slots = ()
+
     wrapmethod = WrapMethod
     forcemethod = ForceMethod
     hiddenmethod = HiddenMethod
@@ -87,6 +92,9 @@ class AdderClass(_ABC):
         cls.toadd = dict(cls.attributes_to_add())
         cls.required = set(cls.attributes_required())
         cls.allrequired = set.union(cls.required, cls.toadd)
+        cls.slots = tuple(sorted(set(_itertools.chain.from_iterable(
+            C.slots for C in cls.__mro__ if 'slots' in C.__dict__
+            ))))
         super().__init_subclass__(**kwargs)
 
     toadd = dict()
@@ -150,9 +158,22 @@ class AdderClass(_ABC):
                 f"Cannot create class without required attributes: {missing}"
                 )
 
+    @classmethod
+    def require_slots(cls, ACls):
+        if not all(hasattr(C, '__slots__') for C in (cls, ACls)):
+            return
+        missing = set(
+            slot for slot in cls.__slots__ if slot not in ACls.__slots__
+            )
+        if missing:
+            raise TypeError(
+                f"Class {ACls} is missing some slots: {missing}."
+                )
+
     def __new__(cls, ACls):
         if issubclass(ACls, cls):
             return ACls
+        cls.require_slots(ACls)
         cls.require_attributes(ACls)
         cls.add_attributes(ACls)
         if not hasattr(cls, 'adderclasses'):
