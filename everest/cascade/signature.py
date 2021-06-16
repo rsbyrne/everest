@@ -252,7 +252,8 @@ class Signature(_Cascade):
 
     @_cached_property
     def bind(self):
-        return _partial(Bound, self)
+        from .bound import Bound as _Bound
+        return _partial(_Bound, self)
 
     def copy(self):
         raise TypeError(f"Cannot copy object of type={type(self)}")
