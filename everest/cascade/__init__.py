@@ -11,7 +11,7 @@ from .. import (
 from .hierarchy import *
 from .cascade import *
 from .signature import *
-from .inputs import *
+from .params import *
 
 
 ###############################################################################

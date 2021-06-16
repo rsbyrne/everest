@@ -2,7 +2,6 @@
 ''''''
 ###############################################################################
 
-from abc import abstractmethod as _abstracmethod
 
 from .adderclass import AdderClass as _AdderClass
 from .reloadable import ClassProxy as _ClassProxy
@@ -12,6 +11,8 @@ class Overclass(_AdderClass):
     overclasstag = None
     fixedoverclass = NotImplemented
     metaclassed = False
+
+
 class Metaclassed(Overclass):
     metaclassed = True
 
@@ -150,7 +151,7 @@ class MROClassable(_AdderClass):
         if len(inheritees) == 1:
             mroclass = inheritees[0]
         else:
-            mroclass = type(name, inheritees, dict(mroclassfuser = True))
+            mroclass = type(name, inheritees, dict(mroclassfuser=True))
         if ocins := tuple((c for c in inheritees if issubclass(c, Overclass))):
             over = ACls
             for ocin in ocins:

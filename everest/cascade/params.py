@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-class Inputs:
+class Params:
     __slots__ = 'args', 'kwargs'
 
     def __init__(self, *args, **kwargs):
