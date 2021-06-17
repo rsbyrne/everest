@@ -25,7 +25,7 @@ class HashIDable(_AdderClass):
     #     __init__=extra_init,
     #     )
 
-    slots = ('_hashID', '_hashint', '_hashstr')
+    reqslots = ('_hashID', '_hashint', '_hashstr')
 
     @_AdderClass.decorate(property)
     def hashstr(self):

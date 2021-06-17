@@ -194,7 +194,7 @@ class Signature(_Cascade):
 
     __slots__ = (
         '_set_locked', 'signature', 'inputsskip', 'inputsskipkeys',
-        *_classtools.Diskable.slots,
+        *_classtools.Diskable.reqslots,
         )
 
     def __init__(self, parent=null_fn, skip=None, skipkeys=None):

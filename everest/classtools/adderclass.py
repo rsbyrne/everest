@@ -81,7 +81,7 @@ class HiddenMethod(_ABC):
 class AdderClass(_ABC):
 
     # __slots__ = ()
-    slots = ()
+    reqslots = ()
 
     wrapmethod = WrapMethod
     forcemethod = ForceMethod
@@ -92,8 +92,8 @@ class AdderClass(_ABC):
         cls.toadd = dict(cls.attributes_to_add())
         cls.required = set(cls.attributes_required())
         cls.allrequired = set.union(cls.required, cls.toadd)
-        cls.slots = tuple(sorted(set(_itertools.chain.from_iterable(
-            C.slots for C in cls.__mro__ if 'slots' in C.__dict__
+        cls.reqslots = tuple(sorted(set(_itertools.chain.from_iterable(
+            C.reqslots for C in cls.__mro__ if 'reqslots' in C.__dict__
             ))))
         super().__init_subclass__(**kwargs)
 
@@ -160,10 +160,10 @@ class AdderClass(_ABC):
 
     @classmethod
     def require_slots(cls, ACls):
-        if not all(hasattr(C, '__slots__') for C in (cls, ACls)):
+        if not hasattr(ACls, '__slots__'):
             return
         missing = set(
-            slot for slot in cls.__slots__ if slot not in ACls.__slots__
+            slot for slot in cls.reqslots if slot not in ACls.__slots__
             )
         if missing:
             raise TypeError(

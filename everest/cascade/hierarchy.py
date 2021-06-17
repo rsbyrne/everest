@@ -3,6 +3,8 @@
 ###############################################################################
 
 
+from collections.abc import Mapping as _Mapping
+
 from functools import lru_cache as _lru_cache
 
 from . import _reseed
@@ -44,12 +46,14 @@ class Item:
         return f'{type(self).__name__}({self.key}: {str(self)})'
 
 
-class Hierarchy(dict):
+class Hierarchy(_Mapping):
 
-    __slots__ = ('parent', 'subs', 'randhash')
+    __slots__ = ('content', 'parent', 'subs', 'randhash')
 
-    def __init__(self, *args, parent=None, **kwargs):
-        super().__init__(*args, **kwargs)
+    # def __init__(self, *args, parent=None, **kwargs):
+    # super().__init__(*args, **kwargs)
+    def __init__(self, *args, parent = None, **kwargs):
+        self.content = dict(*args, **kwargs)
         self.parent = parent
         self.subs = dict()
         self.randhash = _reseed.rdigits()
@@ -57,17 +61,23 @@ class Hierarchy(dict):
     def flatten(self) -> dict:
         return flatten_hierarchy(self)
 
-    def remove_ghosts(self):
-        for key, val in list(self.items()):
-            if key.startswith('_'):
-                del self[key]
-            elif isinstance(val, type(self)):
-                val.remove_ghosts()
+    # def remove_ghosts(self):
+    #     for key, val in list(self.items()):
+    #         if key.startswith('_'):
+    #             del self[key]
+    #         elif isinstance(val, type(self)):
+    #             val.remove_ghosts()
 
     def sub(self, key) -> 'Hierarchy':
         self.subs[key] = subhier = type(self)(parent=self)
-        super().__setitem__(key, subhier)
+        self.content.__setitem__(key, subhier)
         return subhier
+
+    def __iter__(self):
+        return iter(self.content)
+
+    def __len__(self):
+        return len(self.content)
 
     def __getitem__(self, arg, /):
         out = self.raw_getitem(arg)
@@ -106,15 +116,14 @@ class Hierarchy(dict):
             else:
                 if isinstance(val, Item):
                     val = val.value
-                super().__setitem__(key, Item(key, val))
+                self.content.__setitem__(key, Item(key, val))
+
+    def __delitem__(self, key):
+        self.content.__delitem__(key)
 
     def update(self, source):
-        for key, val in source.items():
-            self[key] = val
-
-    def items(self):
-        for key in self:
-            yield key, self[key]
+        for key in source:
+            self[key] = source[key]
 
     def __hash__(self):
         return self.randhash

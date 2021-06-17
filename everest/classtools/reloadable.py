@@ -20,7 +20,7 @@ def master_unreduce(constructor, args, kwargs):
 
 class Reloadable(_AdderClass):
 
-    slots = ('_args', '_kwargs', '_frozenkwargs')
+    reqslots = ('_args', '_kwargs', '_frozenkwargs')
 
     def register_argskwargs(self, *args, **kwargs):
         try:
