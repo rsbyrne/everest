@@ -23,8 +23,9 @@ class Operable(_AdderClass):
         if isinstance(operator, str):
             if operator in OPS:
                 if operator in _REVOPS:
-                    operator = operator[1:]
-                    operands = operands[::-1]
+                    raise ValueError
+                    # operator = operator[1:]
+                    # operands = operands[::-1]
                 operator = getattr(_operator, f"__{operator}__")
             else:
                 raise KeyError(operator)
