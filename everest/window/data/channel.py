@@ -74,6 +74,7 @@ class DataChannel:
 
         def merge(self, other):
             raise Exception
+
         def align(self, other):
             return other
 
@@ -97,6 +98,43 @@ class DataChannel:
                     )
                 tickVals = np.append(tickVals, uLim)
             return tickVals
+
+        def merge(self, other):
+            if not isinstance(other, type(self)):
+                raise TypeError(type(other))
+            return self._merge_self_other(
+                self.data, other.data,
+                self.lims, other.lims,
+                self.capped, other.capped,
+                self.label, other.label,
+                )
+
+        def _merge_self_other(self,
+                selfdata, otherdata,
+                selflims, otherlims,
+                selfcapped, othercapped,
+                selflabel, otherlabel,
+                **kwargs,
+                ):
+            alllims, allcapped = (selflims, otherlims), (selfcapped, othercapped)
+            minLim, minCapped = sorted(
+                [(lims[0], capped[0]) for (lims, capped) in zip(alllims, allcapped)],
+                key = lambda row: row[0]
+                )[0]
+            maxLim, maxCapped = sorted(
+                [(lims[1], capped[1]) for (lims, capped) in zip(alllims, allcapped)],
+                key = lambda row: row[0]
+                )[-1]
+            allLabel = ', '.join(unique_list(
+                [selflabel, otherlabel], lambda e: len(e)
+                ))
+            return type(self)(
+                np.concatenate([selfdata, otherdata]),
+                lims = (minLim, maxLim),
+                capped = (minCapped, maxCapped),
+                label = allLabel,
+                **kwargs,
+                )
 
     class Numeric(Orderable):
 
@@ -152,29 +190,18 @@ class DataChannel:
                 raise TypeError(type(other))
             selfdata, otherdata = self.data, other.data
             selflims, otherlims = self.lims, other.lims
+            selfcapped, othercapped = self.capped, other.capped
             if self.islog and not other.islog:
                 otherdata = np.log10(otherdata)
                 otherlims = tuple(math.log10(lim) for lim in otherlims)
             elif other.islog and not self.islog:
                 selfdata = np.log10(selfdata)
                 selflims = tuple(math.log10(lim) for lim in selflims)
-            alllims, allcapped = (selflims, otherlims), (self.capped, other.capped)
-            minLim, minCapped = sorted(
-                [(lims[0], capped[0]) for (lims, capped) in zip(alllims, allcapped)],
-                key = lambda row: row[0]
-                )[0]
-            maxLim, maxCapped = sorted(
-                [(lims[1], capped[1]) for (lims, capped) in zip(alllims, allcapped)],
-                key = lambda row: row[0]
-                )[-1]
-            allLabel = ', '.join(unique_list(
-                [d.label for d in (self, other)], lambda e: len(e)
-                ))
-            return type(self)(
-                np.concatenate([selfdata, otherdata]),
-                lims = (minLim, maxLim),
-                capped = (minCapped, maxCapped),
-                label = allLabel,
+            return self._merge_self_other(
+                selfdata, otherdata,
+                selflims, otherlims,
+                selfcapped, othercapped,
+                self.label, other.label,
                 islog = any(d.islog for d in (self, other)),
                 )
 
@@ -394,6 +421,7 @@ class DataChannel:
             if self.islog:
                 return self.nice_log_ticks(nTicks)
             tickVals, minorTickVals = self.nice_tickVals(nTicks)
+            tickVals = np.round(tickVals, 12)
             tickLabels, tickSuffix = self.nice_tickLabels(tickVals)
             return tickVals, minorTickVals, tickLabels, tickSuffix
 
@@ -437,6 +465,9 @@ class DataChannel:
                 )
             self.lims = lims
             self.capped = capped
+
+#         def merge(self, other):
+            
 
         def nice_interval(self, nTicks):
             lLim, uLim = self.lims
