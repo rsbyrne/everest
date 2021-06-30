@@ -1,7 +1,10 @@
 ###############################################################################
 ''''''
 ###############################################################################
+
+
 import sys
+import os
 import time
 import pickle
 from functools import wraps
@@ -10,10 +13,12 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-from everest import reseed
-
 from .exceptions import *
 
+
+class simpliError(EverestException):
+    '''Something went wrong with an MPI thing.'''
+    pass
 class SubMPIError(simpliError):
     '''Something went wrong inside an MPI block.'''
     pass
@@ -35,7 +40,7 @@ def share(obj):
             raise simpliError
         return shareObj
     except OverflowError:
-        tempfilename = reseed.rstr(16) + '.pkl'
+        tempfilename = 'temp.pkl' # PROBLEMATIC
         if rank == 0:
             with open(tempfilename, 'w') as file:
                 pickle.dump(obj, file)

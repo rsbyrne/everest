@@ -1,16 +1,16 @@
 ###############################################################################
 ''''''
 ###############################################################################
+
+
 import os
 import sys
 import shutil
 import importlib
-import h5py
-import numpy as np
-import string
 import time
-from contextlib import contextmanager
 from functools import wraps
+
+import h5py
 
 from everest import simpli as mpi
 from everest import reseed
@@ -19,12 +19,14 @@ from .exceptions import *
 
 osjoin = os.path.join
 
+
 # try:
 #     PYTEMP = os.environ['WORKSPACE']
 # except KeyError:
 #     PYTEMP = '.'
 PYTEMP = '.'
-if not PYTEMP in sys.path: sys.path.append(PYTEMP)
+if not PYTEMP in sys.path:
+    sys.path.append(PYTEMP)
 
 @mpi.dowrap
 def purge_address(name, path):
@@ -95,7 +97,7 @@ WRITEMODES = FILEMODES.difference(READONLYMODES)
 
 def compare_modes(*modes):
     if not all(mode in FILEMODES for mode in modes):
-        raise ValueError(f"File mode {mode} is not acceptable.")
+        raise ValueError(f"File mode is not acceptable.")
     clause1 = any(mode in READONLYMODES for mode in modes)
     clause2 = any(mode in WRITEMODES for mode in modes)
     if clause1 and clause2:
