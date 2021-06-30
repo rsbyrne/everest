@@ -27,6 +27,7 @@ class MPIPlaceholderError(SimpliError):
 COMM = MPI.COMM_WORLD
 RANK = COMM.Get_rank()
 SIZE = COMM.Get_size()
+DOWRAPPED = False
 
 
 def message(*args, **kwargs):
@@ -36,34 +37,38 @@ def message(*args, **kwargs):
     COMM.barrier()
 
 def share(obj):
+    if SIZE == 1 or DOWRAPPED:
+        return obj
     try:
-        shareObj = COMM.bcast(obj, root = 0)
-        allTypes = COMM.allgather(type(shareObj))
-        if not len(set(allTypes)) == 1:
-            raise simpliError
-        return shareObj
+        shareobj = COMM.bcast(obj, root = 0)
+        alltypes = COMM.allgather(type(shareobj))
+        if not len(set(alltypes)) == 1:
+            raise SimpliError
+        return shareobj
     except OverflowError:
         tempfilename = 'temp.pkl' # PROBLEMATIC
-        if RANK == 0:
-            with open(tempfilename, 'w') as file:
-                _pickle.dump(obj, file)
-            shareObj = obj
-        if not RANK == 0:
-            with open(tempfilename, 'r') as file:
-                shareObj = _pickle.load(file)
-        if RANK == 0:
-            _os.remove(tempfilename)
-        return shareObj
+        try:
+            if RANK == 0:
+                with open(tempfilename, 'w') as file:
+                    _pickle.dump(obj, file)
+                shareobj = obj
+            if not RANK == 0:
+                with open(tempfilename, 'r') as file:
+                    shareobj = _pickle.load(file)
+        finally:
+            if RANK == 0:
+                _os.remove(tempfilename)
+        return shareobj
 
 def dowrap(func):
     @_wraps(func)
     def wrapper(*args, _mpiignore_ = False, **kwargs):
-        if SIZE == 1:
-            _mpiignore_ = True
-        if _mpiignore_:
-            return func(*args, **kwargs)
+        if any((_mpiignore_, SIZE == 1, DOWRAPPED)):
+            output = func(*args, **kwargs)
         else:
             COMM.barrier()
+            global DOWRAPPED
+            DOWRAPPED = True
             output = MPIPlaceholderError()
             if RANK == 0:
                 try:
@@ -72,11 +77,11 @@ def dowrap(func):
                     exc_type, exc_val = _sys.exc_info()[:2]
                     output = exc_type(exc_val)
             output = share(output)
+            DOWRAPPED = False
             COMM.barrier()
             if isinstance(output, Exception):
                 raise output
-            else:
-                return output
+        return output
     return wrapper
 
 
