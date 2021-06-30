@@ -587,6 +587,10 @@ class DataChannel:
             # return tickVals
 
         @classmethod
+        def latex_safe_date(cls, label):
+            return label.replace(' ', r'\;')
+
+        @classmethod
         def nice_tickLabels(cls, tickVals, code):
             code = code[-1]
             dateVals = tickVals.tolist()
@@ -653,6 +657,8 @@ class DataChannel:
                     label = dateVal.strftime('%Y')
                     labels.append(label)
                 suffix = ''
+            labels = [cls.latex_safe_date(label) for label in labels]
+            suffix = cls.latex_safe_date(suffix)
             return np.array(labels), suffix
 
         def nice_ticks(self, nTicks):

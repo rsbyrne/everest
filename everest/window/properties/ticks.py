@@ -5,6 +5,8 @@
 
 import numpy as _np
 
+from . import _utilities
+
 from ._base import _Vanishable, _Colourable, _Fadable
 
 class _TickController(_Vanishable, _Colourable, _Fadable):
@@ -115,7 +117,7 @@ class TickSubs(_TickController):
         self.update()
     @property
     def labels(self):
-        return tuple(f"${label}$" if label else '' for label in self._labels)
+        return tuple(_utilities.latex_safe(label) for label in self._labels)
     @labels.setter
     def labels(self, vals):
         self._labels[:] = vals

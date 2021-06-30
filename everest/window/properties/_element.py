@@ -1,10 +1,15 @@
 ###############################################################################
 ''''''
 ###############################################################################
+
+
 import weakref
+
+from . import _utilities
 
 from .exceptions import MissingAsset
 from ._base import _PropertyController, _Vanishable, _Colourable, _Fadable, _Fillable, _Kwargs
+
 
 class _MplElement(_PropertyController):
     def __init__(self, *args, **kwargs):
@@ -52,8 +57,7 @@ class _MplText(_MplLinear):
         return self.mplelement
     @property
     def text(self):
-        strn = self._text
-        return f"${strn}$" if strn else ''
+        return _utilities.latex_safe(self._text)
     @text.setter
     def text(self, value):
         self._text = value

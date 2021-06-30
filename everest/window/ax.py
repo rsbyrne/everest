@@ -2,12 +2,15 @@
 ''''''
 ###############################################################################
 
+
 import math
 
 from everest.h5anchor import disk
-from .data import DataPile
 
+from . import utilities as _utilities
+from .data import DataPile
 from .properties import Props
+
 
 class Ax:
 
@@ -198,7 +201,7 @@ class Ax:
         if self.vol:
             raise Exception("Not working for 3D yet.")
         self.ax.annotate(
-            '$' + label + '$',
+            _utilities.latex_safe(label),
             (x, y),
             xytext = (10, 10) if points is None else points,
             textcoords = 'offset points',
