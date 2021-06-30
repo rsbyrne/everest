@@ -8,7 +8,7 @@ import ast
 import pickle
 import warnings
 
-from everest import simpli as mpi
+from . import _simpli as mpi
 
 from . import disk
 from .utilities import stack_dicts

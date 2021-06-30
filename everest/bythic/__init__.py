@@ -2,17 +2,22 @@
 ''''''
 ###############################################################################
 
+
 from .. import (
-    classtools as _classtools,
     special as _special,
-    reseed as _reseed,
     utilities as _everestutilities,
+    )
+
+from ..utilities import (
+    reseed as _reseed,
+    classtools as _classtools,
     )
 
 from .dimensions import *
 # from .incision import *
 # from .space import *
 from .exceptions import *
+
 
 ###############################################################################
 ###############################################################################

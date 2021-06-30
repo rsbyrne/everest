@@ -1,5 +1,5 @@
 ###############################################################################
-'''Defines the parent exceptions of all funcy abstract exceptions.'''
+'''Defines the parent exceptions of all utility exceptions.'''
 ###############################################################################
 
 from ..exceptions import EverestException, NotYetImplemented

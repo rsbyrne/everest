@@ -6,10 +6,10 @@ from abc import abstractmethod as _abstractmethod
 import operator as _operator
 from functools import partial as _partial, lru_cache as _lru_cache
 
-from . import _everestutilities
-_ARITHMOPS = _everestutilities.ARITHMOPS
-_RICHOPS = _everestutilities.RICHOPS
-_REVOPS = _everestutilities.REVOPS
+from . import _misc
+_ARITHMOPS = _misc.ARITHMOPS
+_RICHOPS = _misc.RICHOPS
+_REVOPS = _misc.REVOPS
 OPS = (*_ARITHMOPS, *_RICHOPS, *_REVOPS)
 
 from .adderclass import AdderClass as _AdderClass

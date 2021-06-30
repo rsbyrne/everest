@@ -3,79 +3,82 @@
 ###############################################################################
 
 
-import sys
-import os
-import time
-import pickle
-from functools import wraps
+import sys as _sys
+import os as _os
+import pickle as _pickle
+from functools import wraps as _wraps
+
 from mpi4py import MPI
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
 
-from .exceptions import *
+from .import exceptions as _exceptions
 
 
-class simpliError(EverestException):
+class SimpliError(_exceptions.UtilitiesException):
     '''Something went wrong with an MPI thing.'''
     pass
-class SubMPIError(simpliError):
+class SubMPIError(SimpliError):
     '''Something went wrong inside an MPI block.'''
     pass
-class MPIPlaceholderError(simpliError):
+class MPIPlaceholderError(SimpliError):
     '''An MPI broadcast operation failed.'''
     pass
 
+
+COMM = MPI.COMM_WORLD
+RANK = COMM.Get_rank()
+SIZE = COMM.Get_size()
+
+
 def message(*args, **kwargs):
-    comm.barrier()
-    if rank == 0:
+    COMM.barrier()
+    if RANK == 0:
         print(*[*args, *kwargs.items()])
-    comm.barrier()
+    COMM.barrier()
 
 def share(obj):
     try:
-        shareObj = comm.bcast(obj, root = 0)
-        allTypes = comm.allgather(type(shareObj))
+        shareObj = COMM.bcast(obj, root = 0)
+        allTypes = COMM.allgather(type(shareObj))
         if not len(set(allTypes)) == 1:
             raise simpliError
         return shareObj
     except OverflowError:
         tempfilename = 'temp.pkl' # PROBLEMATIC
-        if rank == 0:
+        if RANK == 0:
             with open(tempfilename, 'w') as file:
-                pickle.dump(obj, file)
+                _pickle.dump(obj, file)
             shareObj = obj
-        if not rank == 0:
+        if not RANK == 0:
             with open(tempfilename, 'r') as file:
-                shareObj = pickle.load(file)
-        if rank == 0:
-            os.remove(tempfilename)
+                shareObj = _pickle.load(file)
+        if RANK == 0:
+            _os.remove(tempfilename)
         return shareObj
 
 def dowrap(func):
-    @wraps(func)
+    @_wraps(func)
     def wrapper(*args, _mpiignore_ = False, **kwargs):
-        if size == 1:
+        if SIZE == 1:
             _mpiignore_ = True
         if _mpiignore_:
             return func(*args, **kwargs)
         else:
-            comm.barrier()
+            COMM.barrier()
             output = MPIPlaceholderError()
-            if rank == 0:
+            if RANK == 0:
                 try:
                     output = func(*args, **kwargs)
                 except:
-                    exc_type, exc_val = sys.exc_info()[:2]
+                    exc_type, exc_val = _sys.exc_info()[:2]
                     output = exc_type(exc_val)
             output = share(output)
-            comm.barrier()
+            COMM.barrier()
             if isinstance(output, Exception):
                 raise output
             else:
                 return output
     return wrapper
 
+
 ###############################################################################
-''''''
 ###############################################################################

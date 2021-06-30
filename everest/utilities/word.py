@@ -1,11 +1,14 @@
 ###############################################################################
 ''''''
 ###############################################################################
+
+
 import random
 import os
 import string
 
-from . import Reseed, reseed
+from . import reseed
+
 
 parentPath = os.path.abspath(os.path.dirname(__file__))
 namesDir = os.path.join(parentPath, '_namesources')
@@ -137,6 +140,7 @@ def get_random_proper(seed = None, n = 1):
 @reseed
 def get_random_cityword(seed = None):
     return '-'.join([seed.rchoice(s) for s in [CITIES, ENGLISH]])
+
 
 ###############################################################################
 ###############################################################################

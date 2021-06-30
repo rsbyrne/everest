@@ -12,8 +12,8 @@ from functools import wraps
 
 import h5py
 
-from everest import simpli as mpi
-from everest import reseed
+from . import _simpli as mpi
+from . import _reseed as reseed
 
 from .exceptions import *
 

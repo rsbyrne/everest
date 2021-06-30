@@ -3,11 +3,11 @@
 ###############################################################################
 
 
-from . import _everestutilities
+from . import _misc
 
 from .adderclass import AdderClass as _AdderClass
 
-FrozenMap = _everestutilities.FrozenMap
+FrozenMap = _misc.FrozenMap
 
 
 def master_unreduce(constructor, args, kwargs):

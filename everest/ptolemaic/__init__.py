@@ -3,12 +3,10 @@
 ###############################################################################
 
 
-from .. import (
-    classtools as _classtools,
-    utilities as _everestutilities,
-    )
+from .. import utilities as _everestutilities
+_classtools = _everestutilities.classtools
 
-from ._ptolemaic import Ptolemaic
+# from ._ptolemaic import Ptolemaic
 
 from .ur import *
 from .datalike import *
