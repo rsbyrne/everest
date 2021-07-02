@@ -3,25 +3,22 @@
 ###############################################################################
 
 
-import sys as _sys
+# import sys as _sys
 import os as _os
 import pickle as _pickle
 from functools import wraps as _wraps
 
-from mpi4py import MPI
+from mpi4py import MPI # pylint: disable=E0401
 
 from .import exceptions as _exceptions
 
 
 class SimpliError(_exceptions.UtilitiesException):
     '''Something went wrong with an MPI thing.'''
-    pass
 class SubMPIError(SimpliError):
     '''Something went wrong inside an MPI block.'''
-    pass
 class MPIPlaceholderError(SimpliError):
     '''An MPI broadcast operation failed.'''
-    pass
 
 
 COMM = MPI.COMM_WORLD
@@ -63,19 +60,20 @@ def share(obj):
 def dowrap(func):
     @_wraps(func)
     def wrapper(*args, _mpiignore_ = False, **kwargs):
+        global DOWRAPPED # pylint: disable=W0603
         if any((_mpiignore_, SIZE == 1, DOWRAPPED)):
             output = func(*args, **kwargs)
         else:
             COMM.barrier()
-            global DOWRAPPED
             DOWRAPPED = True
             output = MPIPlaceholderError()
             if RANK == 0:
                 try:
                     output = func(*args, **kwargs)
-                except:
-                    exc_type, exc_val = _sys.exc_info()[:2]
-                    output = exc_type(exc_val)
+                except Exception as output: # pylint: disable=W0703
+                    # exc_type, exc_val = _sys.exc_info()[:2]
+                    # output = exc_type(exc_val)
+                    pass
             output = share(output)
             DOWRAPPED = False
             COMM.barrier()

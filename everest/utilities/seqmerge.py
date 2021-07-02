@@ -5,7 +5,7 @@
 import itertools as _itertools
 from collections.abc import Iterable as _Iterable
 
-from .. import reseed as _reseed
+from . import reseed as _reseed
 
 def shuffled(sequence, seed = None):
     sequence = [*sequence]
