@@ -1,371 +1,490 @@
 ###############################################################################
 ''''''
 ###############################################################################
-import h5py
-import os
-import numpy as np
-import ast
-import pickle
-import warnings
 
-from . import _simpli as mpi
 
-from . import disk
-from .utilities import stack_dicts
-H5Manager = disk.H5Manager
-# H5Wrap = disk.H5Wrap
-from .fetch import Fetch
-from .scope import Scope
-# from .globevars import *
-from . import globevars
-from .exceptions import *
-from .array import AnchorArray
+import ast as _ast
+import pickle as _pickle
+import os as _os
+from collections import deque as _deque
+from collections.abc import Collection as _Collection
+from functools import partial as _partial #, lru_cache as _lru_cache
+import pickle as _pickle
+from abc import ABC as _ABC, abstractmethod as _abstractmethod
+import fnmatch as _fnmatch
 
-class PathNotInFrameError(H5AnchorException, KeyError):
-    pass
-class NotGroupError(H5AnchorException, KeyError):
-    pass
-class TagError(H5AnchorException, ValueError):
-    pass
+import h5py as _h5py
 
-# @disk.h5filewrap(mode = 'r')
-# def key_iterator():
+from . import disk as _disk
+from . import _utilities
 
-REMETACHARS = set('.^$*+?{}[]\|()')
-def isreg(instring):
-    return bool(set(instring).intersection(REMETACHARS))
-FNMATCHMETACHARS = set('*?[]')
-def isfnmatch(instring):
-    return bool(set(instring).intersection(FNMATCHMETACHARS))
+_classtools = _utilities.classtools
+_reseed = _utilities.reseed
+_TypeMap = _utilities.misc.TypeMap
+_makehash = _utilities.makehash
 
-# class Readlet:
-#     __slots__ = 'h5filename', 'route', 'h5file'
-#     def __init__(self, h5filename, route, attr = None):
-#         self.h5filename, self.route = h5filename, route
-#     def read(self):
-#         with H5Wrap(self, mode = 'r'):
-#             return self._read_meth()
-#     def _read(self):
-#         return self.h5file[self.route]
 
-# class RAttr(Readlet):
-#     __slots__ = 'attrname'
-#     def __init__(self, h5filename, route, attrname):
-#         self.attrname = attrname
-#         super().__init__(h5filename, route)
-#     def _read(self):
-#         return super()._read().attrs[attrname]
+def resolve_eval(strn):
+    out = _ast.literal_eval(strn)
+    typout = type(out)
+    if issubclass(typout, (list, tuple, frozenset)):
+        return typout(resolve(sub) for sub in out)
+    return out
 
-class Reader(H5Manager):
+stringresmeths = dict(
+    _bytes_ = lambda x: pickle.loads(ast.literal_eval(x)),
+    _eval_ = resolve_eval,
+    _string_ = lambda x: x,
+    )
 
-#     def __iter__(self):
-#         with H5Wrap(self, mode = 'r'):
-#             for key in self.h5file:
-#                 if not key.startswith('_'):
-#                     yield key
+def resolve_str(strn, /):
+    for key, meth in stringresmeths.items():
+        if strn.startswith(key):
+            return meth(strn[len(key):])
+    return strn
 
-    def keys(self):
-        return iter(self)
+def resolve_attrs(attrs):
+    return {key: resolve(attr) for key, attr in attrs.items()}
 
-    def _recursive_seek(self, key, searchArea = None):
-        # expects h5filewrap
-        if searchArea is None:
-            searchArea = self.h5file
-        # print("Seeking", key, "from", searchArea)
-        splitkey = key.split('/')
+def resolve_dataset(dset):
+    return dset[()]
+
+def resolve_group(grp):
+    out = {key: resolve(item) for key, item in grp.items()}
+    out.update(resolve_attrs(grp.attrs))
+    return out
+
+resmeths = {
+    str: resolve_str,
+    _h5py.AttributeManager: resolve_attrs,
+    _h5py.Dataset: resolve_dataset,
+    _h5py.Group: resolve_group,
+    }
+
+def resolve(obj):
+    for key, meth in resmeths.items():
+        if isinstance(obj, key):
+            return meth(obj)
+    return obj
+
+
+def process_query(strn):
+    split = strn.split('/')
+    if len(split) > 1:
+        for sub in split:
+            yield from process_query(sub)
+    elif isreg(strn):
+        yield Reg(strn)
+    elif isfnmatch(strn):
+        yield FnMatch(strn)
+    else:
+        yield strn
+
+def record_manifest_sub(h5grp, manifest, prename, name):
+    try:
+        h5grp = h5grp[name]
+    except KeyError:
+        return
+    if not (isgrp := isinstance(h5grp, _h5py.Group)):
+        name = '#' + name
+    fullname = f"{prename}/{name}"
+    manifest.append(fullname)
+    manifest.extend((f"{fullname}.{attname}" for attname in h5grp.attrs))
+    if isgrp:
+        for name in h5grp:
+            record_manifest_sub(h5grp, manifest, fullname, name)
+
+def record_manifest(h5grp, manifest = None):
+    manifest = _deque() if manifest is None else manifest
+    manifest.append('/')
+    manifest.extend((f"/.{attname}" for attname in h5grp.attrs))
+    for i, name in enumerate(h5grp):
+        record_manifest_sub(h5grp, manifest, '', name)
+        if not i % 1000:
+            print(i, name)
+
+
+@_classtools.Operable
+class _Reader(_ABC):
+
+    __slots__ = (
+        '_h5man', '_manifest', '_base', '_isunique', '_getmeths',
+        '_basedict', '_basehash',
+        )
+
+    @property
+    def base(self):
+        return self._base
+
+    @property
+    def manifest(self):
         try:
-            if splitkey[0] == '':
-                splitkey = splitkey[1:]
-            if splitkey[-1] == '':
-                splitkey = splitkey[:-1]
-        except IndexError:
-            raise Exception("Bad key: " + str(key) +  ', ' + str(type(key)))
-        primekey = splitkey[0]
-        remkey = '/'.join(splitkey[1:])
-        if primekey == '**':
-            raise NotYetImplemented
-            # found = self._recursive_seek('*/' + remkey, searchArea)
-            # found[''] = self._recursive_seek('*/' + key, searchArea)
-        elif primekey == '*':
-            localkeys = {*searchArea, *searchArea.attrs}
-            searchkeys = [
-                localkey + '/' + remkey \
-                    for localkey in localkeys
-                ]
-            found = dict()
-            for searchkey in searchkeys:
-                try:
-                    found[searchkey.split('/')[0]] = \
-                        self._recursive_seek(searchkey, searchArea)
-                except KeyError:
-                    pass
-        else:
-            try:
-                try:
-                    found = searchArea[primekey]
-                except KeyError:
-                    try:
-                        found = searchArea.attrs[primekey]
-                    except KeyError:
-                        raise PathNotInFrameError(
-                            "Path " \
-                            + primekey \
-                            + " does not exist in search area " \
-                            + str(searchArea) \
-                            )
-            except ValueError:
-                raise Exception("Value error???", primekey, type(primekey))
-            if not remkey == '':
-                if type(found) is h5py.Group:
-                    found = self._recursive_seek(remkey, found)
-                else:
-                    raise NotGroupError()
-        return found
+            return self._manifest
+        except AttributeError:
+            manifest = self._manifest = sorted(self.get_manifest())
+            return manifest
 
-    def _pre_seekresolve(self, inp, _indices = None):
-        # expects h5filewrap
-        if type(inp) is h5py.Group:
-            out = globevars._GROUPTAG_ + inp.name
-        elif type(inp) is h5py.Dataset:
-            if _indices is None:
-                _indices = Ellipsis
-            try:
-                out = AnchorArray(inp[_indices], **dict(inp.attrs))
-            except OSError:
-                warnings.warn("Possible corruption; returning empty: " + inp.name)
-                out = AnchorArray([], **dict(inp.attrs))
-        elif type(inp) is dict:
-            out = dict()
-            for key, sub in sorted(inp.items()):
-                out[key] = self._pre_seekresolve(sub)
-        else:
-            out = inp
-        return out
+    @_abstractmethod
+    def get_manifest(self):
+        '''Should return a list of internal h5 paths.'''
+        raise TypeError("Abstract method!")
 
-    @mpi.dowrap
-    def _seek(self, key, _indices = None):
-        presought = self._recursive_seek(key)
-        sought = self._pre_seekresolve(presought, _indices = _indices)
-        return sought
-
-    @staticmethod
-    def _process_tag(inp, tag):
-        if inp.startswith(tag):
-            processed = inp[len(tag):]
-            assert len(processed) > 0, "Len(processed) not greater than zero!"
-            return processed
-        else:
-            return inp
-
-    def _resolve_dict(self, inp):
-        out = dict()
-        for key, sub in sorted(inp.items()):
-            out[key] = self._seekresolve(sub)
-        return out
-
-    def _resolve_str(self, inp):
-        if inp.startswith('_'):
-            if inp.startswith(globevars._ADDRESSTAG_):
-                address = self._process_tag(inp, globevars._ADDRESSTAG_)
-                return self._getstr(address)
-            elif inp.startswith(globevars._GROUPTAG_):
-                groupname = self._process_tag(inp, globevars._GROUPTAG_)
-                return self._getstr(os.path.join(groupname, '*'))
-            elif inp.startswith(globevars._BYTESTAG_):
-                processed = self._process_tag(inp, globevars._BYTESTAG_)
-                bytesStr = ast.literal_eval(processed)
-                return pickle.loads(bytesStr)
-            elif inp.startswith(globevars._EVALTAG_):
-                processed = self._process_tag(inp, globevars._EVALTAG_)
-                out = ast.literal_eval(processed)
-                if type(out) in {list, tuple, frozenset}:
-                    procOut = list()
-                    for item in out:
-                        procOut.append(self._seekresolve(item))
-                    out = type(out)(procOut)
-                return out
-            elif inp.startswith(globevars._STRINGTAG_):
-                return self._process_tag(inp, globevars._STRINGTAG_)
-        return inp
-
-    def _resolve_array(self, inp):
-        return inp
-
-    _resolve_methods = {
-        dict: _resolve_dict,
-        str: _resolve_str,
-        np.ndarray: _resolve_array,
-        }
-
-    def _seekresolve(self, inp):
+    @property
+    def basekeys(self):
         try:
-            meth = self._resolve_methods(type(inp))
-        except KeyError as exc:
-            raise TypeError("Could not resolve this type.") from exc
-        return meth(inp)
+            return self._basekeys
+        except AttributeError:
+            basekeys = self._basekeys = sorted(self.get_basekeys())
+            return basekeys
 
-    def getfrom(self, *keys):
-        return self.__getitem__(os.path.join(*keys))
+    def get_basekeys(self):
+        manifest = self.manifest
+        if (base := self.base) is None:
+            return manifest
+        return ['/'.join(path.split('/')[:base+1]) for path in manifest]
 
-    def _getstr(self, key, _indices = None):
-        if type(key) in {tuple, list}:
-            key = self.join(*key)
-        key = os.path.abspath(os.path.join(self.cwd, key))
-        # print("Getting string:", key)
-        sought = self._seek(key, _indices = _indices)
-        resolved = self._seekresolve(sought)
-        return resolved
+    @property
+    def basedict(self):
+        try:
+            return self._basedict
+        except AttributeError:
+            basedict = self._basedict = dict(zip(self.basekeys, self.manifest))
+            return basedict
 
-    def _getfetch(self, fetch, scope = None):
-        return fetch(self.__getitem__, scope, path = self.cwd)
+    @property
+    def basehash(self):
+        try:
+            return self._basehash
+        except AttributeError:
+            basehash = self._basehash = _makehash.quick_hash(self.basekeys)
+            return basehash
 
-    def _getslice(self, inp):
-        start, stop, step = inp.start, inp.stop, inp.step
-        if not step is None:
-            raise NotYetImplemented
-        if type(start) is Scope:
-            inScope = start
-        elif type(start) is Fetch:
-            inScope = self._getfetch(start)
+    @property
+    def isunique(self):
+        try:
+            return self._isunique
+        except AttributeError:
+            if self.base is None:
+                isunique = True
+            else:
+                isunique = len(set(self.basekeys)) == len(self)
+            self._isunique = isunique
+            return isunique
+
+    @property
+    def h5man(self):
+        try:
+            return self._h5man
+        except AttributeError:
+            h5man = self._h5man = self.get_h5man()
+            return h5man
+
+    @_abstractmethod
+    def get_h5man(self):
+        '''Should return an H5Manager object.'''
+        raise TypeError("Abstract method!")
+
+    @property
+    def getmeths(self):
+        try:
+            return self._getmeths
+        except AttributeError:
+            getmeths = self._getmeths = _TypeMap({
+                tuple: self.getitem_tuple,
+                _Reader: self.getitem_mask,
+                str: self.getitem_str,
+                _Collection: self.getitem_collection,
+                int: self.getitem_int,
+                slice: self.getitem_slice,
+                object: self.getitem_bad,
+                })
+            return getmeths
+
+    def getitem_bad(self, key):
+        raise TypeError(type(arg))
+
+    def getitem_tuple(self, arg):
+        raise Exception("Getting from Reader with tuple not yet supported.")
+
+    def getitem_str(self, key):
+        if key in self.manifest:
+            return self.getitem_path(key)
+        return Pattern(self, key)
+
+    def getitem_pattern(self, key):
+        return Pattern(self, key)
+
+    def getitem_slice(self, key):
+        return Slice(self, key)
+
+    def getitem_collection(self, coll):
+        manifest = self.manifest
+        selection = [key for key in coll if key in manifest]
+        if len(selection) < len(coll):
+            raise KeyError
+        if isinstance(self, Selection):
+            return Selection(self.reader, selection)
+        return Selection(self, selection)
+
+    def getitem_path(self, key, *, h5file = None):
+        if h5file is None:
+            with self.h5man as h5file:
+                return self.getitem_path(key, h5file = h5file)
+        key = key.replace('#', '').replace('.', '/.')
+        if '.' in key:
+            key, attrkey = (
+                _os.path.dirname(key), _os.path.basename(key).strip('.')
+                )
+            raw = h5file[key].attrs[attrkey]
         else:
-            inScope = self.__getitem__(start)
-            if not type(inScope) is Scope:
-                raise TypeError('Slice start must evaluate to Scope type.')
-        if type(stop) is Fetch:
-            out = self._getfetch(stop, scope = inScope)
-        elif type(stop) is str:
-            stop = stop.lstrip('/')
-            out = dict()
-            for superkey, indices in inScope:
-                result = self._getstr([superkey, stop])
-                if type(result) is AnchorArray:
-                    if not indices == '...':
-                        result = result[list(indices)]
-#                     if 'indices' in result.metadata and not indices == '...':
-#                         counts = self._getstr(
-#                             [superkey, result.metadata['indices']]
-#                             )
-#                         maskArr = np.isin(
-#                             counts,
-#                             indices,
-#                             assume_unique = True
-#                             )
-#                         result = AnchorArray(
-#                             result[maskArr],
-#                             **result.metadata
-#                             )
-                out[superkey] = result
-        elif type(stop) is tuple:
-            return stack_dicts(*(
-                self._getslice(slice(start, substop))
-                    for substop in stop
-                ))
-        else:
-            raise TypeError
-        return out
+            raw = h5file[key]
+        return resolve(raw)
 
-    def _getellipsis(self, inp):
-        return self._getfetch(Fetch('**'))
+    def getitem_int(self, index):
+        return self.getitem_path(self.manifest[index])
 
-    def _getscope(self, inp):
-        raise ValueError(
-            "Must provide a key to pull data from a scope"
-            )
+    def getitem_mask(self, arg):
+        return Mask(self, arg)
+
+    def __getitem__(self, arg):
+        return self.getmeths[type(arg)](arg)
+
+    def read(self):
+        if not self.isunique:
+            raise ValueError("Cannot read from reader with non-unique basekeys")
+        manifest = self.manifest
+        with self.h5man as h5file:
+            results = (
+                self.getitem_path(path, h5file = h5file)
+                    for path in self.manifest
+                )
+            return dict(zip(self.basekeys, results))
 
     @classmethod
-    def _get_getmethods(cls):
-        return {
-            str: cls._getstr,
-            Fetch: cls._getfetch,
-            slice: cls._getslice,
-            Scope: cls._getscope,
-            type(Ellipsis): cls._getellipsis
-            }
-    @property
-    def _getmethods(self):
-        return self._get_getmethods()
+    def operate(cls, *args, typ = None, **kwargs):
+        return Transform(*args, **kwargs)
 
-    def _getitem(self, inp):
+    def __contains__(self, key):
+        return key in self.manifest
+
+    def __iter__(self):
+        return iter(self.read().values())
+
+    def __len__(self):
+        return len(self.manifest)
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.h5man.h5filename})"
+
+    def __hash__(self):
         try:
-            meth = self._getmethods[type(inp)]
-        except KeyError as exc:
-            raise TypeError("Input type not accepted!") from exc
-        return meth(self, inp)
+            return self._hashint
+        except AttributeError:
+            hashint = self._hashint = _reseed.randint(repr(self))
+            return hashint
 
-    @disk.h5filewrap
-    def __getitem__(self, inp):
-        if type(inp) is tuple:
-            return [self._getitem(sub) for sub in inp]
+
+class Reader(_Reader):
+
+    __slots__ = ('name', 'path')
+
+    def __init__(self, name, path, base = None):
+        self.name, self.path = name, path
+        self._base = base
+
+    def get_h5man(self):
+         return _disk.H5Manager(self.name, self.path, mode = 'r')
+
+    def get_manifest(self):
+        manfilepath = _os.path.join(self.path, self.name + '.pkl')
+        try:
+            with open(manfilepath, mode = 'rb') as file:
+                manifest = _pickle.loads(file.read())
+        except FileNotFoundError:
+            manifest = _deque()
+            with self.h5man as h5file:
+                record_manifest(h5file, manifest)
+            with open(manfilepath, mode = 'wb') as file:
+                file.write(_pickle.dumps(manifest))
+        return manifest
+
+
+class _Derived(_Reader):
+
+    __slots__ = ('_source', '_reader', "_incisor")
+
+    def __init__(self, source, incisor):
+        self._source = source
+        if isinstance(source, _Derived):
+            self._reader = source.reader
         else:
-            return self._getitem(inp)
+            self._reader = source
+        self._incisor = incisor
+
+    @property
+    def base(self):
+        return self.reader.base
+
+    @property
+    def name(self):
+        return self.reader.name
+
+    @property
+    def path(self):
+        return self.reader.path
+
+    @property
+    def source(self):
+        return self._source
+
+    @property
+    def reader(self):
+        return self._reader
+
+    @property
+    def incisor(self):
+        return self._incisor
+
+    def get_h5man(self):
+        return self.reader.h5man
+
+    def getitem_path(self, key, *, h5file = None):
+        return self.reader.getitem_path(key, h5file = h5file)
+
+    def __repr__(self):
+        return f"{type(self).__name__}({repr(self.reader)}, {self.incisor})"
+
+# class Readlet(_Derived):
+    
+
+
+class Pattern(_Derived):
+
+    def get_manifest(self):
+        return _fnmatch.filter(self.source.manifest, self.incisor)
+
+
+class Slice(_Derived):
+
+    def get_manifest(self):
+        return self.source.manifest[self.incisor]
+
+
+class Selection(_Derived):
+
+    def get_manifest(self):
+        return self.incisor
+
+
+class Mask(_Derived):
+
+    def get_manifest(self):
+        return (
+            entry
+            for entry, mask in zip(self.source.manifest, self.incisor)
+            if mask
+            )
+
+
+class Source:
+    def __hash__(self):
+        return 0
+    def __repr__(self):
+        return 'SOURCE'
+SOURCE = Source()
+
+class Transform(_Reader):
+
+    __slots__ = (
+        '_sources', '_operands', '_length', '_basekeys',
+        '_singlesource', '_operator', '_alloperands',
+        )
+
+    def __init__(self, operator, *args, **kwargs):
+        global SOURCE
+        sources = []
+        operands = []
+        for arg in args:
+            if isinstance(arg, _Reader):
+                sources.append(arg)
+                operands.append(SOURCE)
+            else:
+                operands.append(arg)
+        if not len(sources):
+            raise ValueError("No sources!")
+        if not (singlesource := len(sources) == 1):
+            if len(set(source.h5man.h5filename for source in sources)) != 1:
+                raise ValueError("Incongruous sources.")
+            if not all(source.isunique for source in sources):
+                raise ValueError("Sources must all have unambiguous basekeys.")
+            if not len(set(source.basehash for source in sources)):
+                raise ValueError("Sources must have matching basekeys.")
+        self._alloperands = args
+        self._sources, self._operands = sources, operands
+        self._singlesource = singlesource
+        self._operator = _partial(operator, **kwargs) if kwargs else operator
+        self._base = sources[0].base
+
+    @property
+    def alloperands(self):
+        return self._alloperands
+
+    @property
+    def sources(self):
+        return self._sources
+
+    @property
+    def source(self):
+        return self.sources[0]
+
+    @property
+    def singlesource(self):
+        return self._singlesource
+
+    @property
+    def operands(self):
+        return self._operands
+
+    @property
+    def operator(self):
+        return self._operator
+
+    def get_h5man(self):
+        return self.sources[0].h5man
+
+    def get_manifest(self):
+        sources = self.sources
+        if self.singlesource:
+            return self.source.manifest
+        else:
+            return zip(*(source.manifest for source in sources))
+
+    def get_basekeys(self):
+        sources = self.sources
+        if self.singlesource:
+            return self.source.basekeys
+        return sorted(set.intersection(
+            *(set(source.basekeys) for source in sources)
+            ))
+
+    def getitem_path(self, keys, h5file = None):
+        if h5file is None:
+            with self.h5man as h5file:
+                return self.getitem_path(*keys, h5file = h5file)
+        global SOURCE
+        keys = iter((keys,) if self.singlesource else keys)
+        sources = iter(self.sources)
+        return self.operator(*(
+            (
+                next(sources).getitem_path(next(keys), h5file = h5file)
+                if op is SOURCE
+                else op
+            ) for op in self.operands
+            ))
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.operator}, {self.alloperands})"
+
 
 ###############################################################################
-''''''
 ###############################################################################
-
-#     @disk.h5filewrap(mode = 'r')
-#     def visit(self, func):
-#         h5file = self.h5file
-#         def sub_visit(name):
-#             name = name.decode()
-#             if not (ret := func(name)) is None:
-#                 return ret
-#             def mod_func(subname):
-#                 return func('/'.join((name, subname)))
-#             h5file[name].visit(mod_func)
-#         retval, ind = self.h5file.id.links.iterate(sub_visit)
-
-#     def _recursive_seek(self, key, searchArea = None):
-#         # expects h5filewrap
-#         if searchArea is None:
-#             searchArea = self.h5file
-#         # print("Seeking", key, "from", searchArea)
-#         splitkey = key.split('/')
-#         try:
-#             if splitkey[0] == '':
-#                 splitkey = splitkey[1:]
-#             if splitkey[-1] == '':
-#                 splitkey = splitkey[:-1]
-#         except IndexError:
-#             raise Exception("Bad key: " + str(key) +  ', ' + str(type(key)))
-#         primekey = splitkey[0]
-#         remkey = '/'.join(splitkey[1:])
-#         if primekey == '**':
-#             raise NotYetImplemented
-#             # found = self._recursive_seek('*/' + remkey, searchArea)
-#             # found[''] = self._recursive_seek('*/' + key, searchArea)
-#         elif primekey == '*':
-#             localkeys = {*searchArea, *searchArea.attrs}
-#             searchkeys = [
-#                 localkey + '/' + remkey \
-#                     for localkey in localkeys
-#                 ]
-#             found = dict()
-#             for searchkey in searchkeys:
-#                 try:
-#                     found[searchkey.split('/')[0]] = \
-#                         self._recursive_seek(searchkey, searchArea)
-#                 except KeyError:
-#                     pass
-#         else:
-#             try:
-#                 try:
-#                     found = searchArea[primekey]
-#                 except KeyError:
-#                     try:
-#                         found = searchArea.attrs[primekey]
-#                     except KeyError:
-#                         raise PathNotInFrameError(
-#                             "Path " \
-#                             + primekey \
-#                             + " does not exist in search area " \
-#                             + str(searchArea) \
-#                             )
-#             except ValueError:
-#                 raise Exception("Value error???", primekey, type(primekey))
-#             if not remkey == '':
-#                 if type(found) is h5py.Group:
-#                     found = self._recursive_seek(remkey, found)
-#                 else:
-#                     raise NotGroupError()
-#         return found

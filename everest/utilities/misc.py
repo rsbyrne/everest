@@ -6,6 +6,8 @@
 from collections import abc as _collabc
 import itertools as _itertools
 import os as _os
+import random as _random
+from functools import lru_cache as _lru_cache
 
 import numpy as _np
 
@@ -93,16 +95,23 @@ class FrozenMap(dict):
     def __delitem__(self, name):
         raise ValueError(f"Cannot delete value on {type(self)}")
     def __repr__(self):
-        return f"FrozenMap{super().__repr__()}"
+        return f"{type(self)}{super().__repr__()}"
+    def __hash__(self):
+        try:
+            return self._hashint
+        except AttributeError:
+            hashint = self._hashint = _random.randint(int(1e12), int(1e13) - 1)
+            return hashint
 
-class TypeMap(dict):
+
+class TypeMap(FrozenMap):
+    @_lru_cache
     def __getitem__(self, key):
-        if not issubclass(type(key), type):
-            key = type(key)
         for compkey, arg in self.items():
             if issubclass(key, compkey):
                 return arg
         raise KeyError(key)
+
 
 class Slyce:
     __slots__ = ('start', 'stop', 'step', 'slc', 'rep')

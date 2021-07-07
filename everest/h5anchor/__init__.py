@@ -4,6 +4,7 @@
 # Requires:
 # simpli
 
+from .. import utilities  as _utilities
 from ..utilities import (
     simpli as _simpli,
     reseed as _reseed,
@@ -12,8 +13,7 @@ from ..utilities import (
 from .reader import Reader
 from .writer import Writer
 from .anchor import Anchor
-from .fetch import Fetch
-from .scope import Scope
+# from .scope import Scope
 from .disk import H5Manager
 # from .disk import
 

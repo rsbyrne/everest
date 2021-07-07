@@ -109,15 +109,19 @@ class H5Manager:
     lockcode = tempname()
     __slots__ = (
         'name', 'path', 'h5filename', 'omode', 'h5file',
-        'isopener', 'master',
+        'isopener', 'master', 'subpath',
         )
-    def __init__(self, name, path = '.', /, *, mode = None, purge = False):
+    def __init__(self,
+            name, path = '.', /, *,
+            subpath = None, mode = None, purge = False
+            ):
         if purge:
             purge_address(name, path)
         path = os.path.abspath(path)
         self.name, self.path = name, path
         self.h5filename = f"{osjoin(path, name)}.frm"
         self.omode = self.mode if mode is None else mode
+        self.subpath = subpath
     @mpi.dowrap
     def _open_h5file(self):
         if hasattr(self, 'h5file'):
@@ -128,7 +132,10 @@ class H5Manager:
             h5file = self.h5file = H5FILES[h5filename]
             compare_modes(h5file.mode, self.omode)
             return False
-        self.h5file = H5FILES[h5filename] = h5py.File(h5filename, self.omode)
+        h5file = h5py.File(h5filename, self.omode)
+        if (spath := self.subpath) is not None:
+            h5file = h5file[spath]
+        self.h5file = H5FILES[h5filename] = h5file
         return True
     def __enter__(self):
         while True:
