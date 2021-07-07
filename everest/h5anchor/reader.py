@@ -8,10 +8,11 @@ import pickle as _pickle
 import os as _os
 from collections import deque as _deque
 from collections.abc import Collection as _Collection
-from functools import partial as _partial #, lru_cache as _lru_cache
+from functools import partial as _partial, lru_cache as _lru_cache
 import pickle as _pickle
-from abc import ABC as _ABC, abstractmethod as _abstractmethod
+from abc import ABCMeta as _ABCMeta, abstractmethod as _abstractmethod
 import fnmatch as _fnmatch
+import weakref as _weakref
 
 import h5py as _h5py
 
@@ -19,7 +20,6 @@ from . import disk as _disk
 from . import _utilities
 
 _classtools = _utilities.classtools
-_reseed = _utilities.reseed
 _TypeMap = _utilities.misc.TypeMap
 _makehash = _utilities.makehash
 
@@ -100,17 +100,32 @@ def record_manifest(h5grp, manifest = None):
     manifest.extend((f"/.{attname}" for attname in h5grp.attrs))
     for i, name in enumerate(h5grp):
         record_manifest_sub(h5grp, manifest, '', name)
-        if not i % 1000:
+        if not i % 100:
             print(i, name)
 
 
-@_classtools.Operable
-class _Reader(_ABC):
+class _ReaderMeta(_ABCMeta):
+    _premade = _weakref.WeakValueDictionary()
+    def __call__(cls, *args, **kwargs):
+        out = super().__call__(*args, **kwargs)
+        hashID = out.hashID
+        premade = cls._premade
+        if hashID in premade:
+            return premade[hashID]
+        premade[hashID] = out
+        return out
 
-    __slots__ = (
-        '_h5man', '_manifest', '_base', '_isunique', '_getmeths',
-        '_basedict', '_basehash',
-        )
+
+@_classtools.Diskable
+@_classtools.Operable
+class _Reader(metaclass = _ReaderMeta):
+
+    __slots__ = tuple(set((
+        '_h5man', '_manifest', '_base', '_basekeys', '_isunique', '_getmeths',
+        '_basedict', '_basehash', '_hashint', '__weakref__',
+        *_classtools.Diskable.reqslots,
+        *_classtools.Operable.reqslots,
+        )))
 
     @property
     def base(self):
@@ -156,7 +171,7 @@ class _Reader(_ABC):
         try:
             return self._basehash
         except AttributeError:
-            basehash = self._basehash = _makehash.quick_hash(self.basekeys)
+            basehash = self._basehash = _makehash.quick_hashint(self.basekeys)
             return basehash
 
     @property
@@ -191,7 +206,6 @@ class _Reader(_ABC):
         except AttributeError:
             getmeths = self._getmeths = _TypeMap({
                 tuple: self.getitem_tuple,
-                _Reader: self.getitem_mask,
                 str: self.getitem_str,
                 _Collection: self.getitem_collection,
                 int: self.getitem_int,
@@ -218,13 +232,7 @@ class _Reader(_ABC):
         return Slice(self, key)
 
     def getitem_collection(self, coll):
-        manifest = self.manifest
-        selection = [key for key in coll if key in manifest]
-        if len(selection) < len(coll):
-            raise KeyError
-        if isinstance(self, Selection):
-            return Selection(self.reader, selection)
-        return Selection(self, selection)
+        return Selection(self, coll)
 
     def getitem_path(self, key, *, h5file = None):
         if h5file is None:
@@ -243,26 +251,26 @@ class _Reader(_ABC):
     def getitem_int(self, index):
         return self.getitem_path(self.manifest[index])
 
-    def getitem_mask(self, arg):
-        return Mask(self, arg)
-
     def __getitem__(self, arg):
         return self.getmeths[type(arg)](arg)
 
+    @_lru_cache(maxsize=1)
     def read(self):
         if not self.isunique:
             raise ValueError("Cannot read from reader with non-unique basekeys")
         manifest = self.manifest
         with self.h5man as h5file:
-            results = (
-                self.getitem_path(path, h5file = h5file)
-                    for path in self.manifest
-                )
-            return dict(zip(self.basekeys, results))
+            getfunc = _partial(self.getitem_path, h5file = h5file)
+            return dict(zip(self.basekeys, map(getfunc, self.manifest)))
+
+    @property
+    def data(self):
+        return self.read()
 
     @classmethod
-    def operate(cls, *args, typ = None, **kwargs):
-        return Transform(*args, **kwargs)
+    def operate(cls, op, *args, typ = None, **kwargs):
+#         if (opname := op.__name__) in {'}
+        return Transform(op, *args, **kwargs)
 
     def __contains__(self, key):
         return key in self.manifest
@@ -280,17 +288,33 @@ class _Reader(_ABC):
         try:
             return self._hashint
         except AttributeError:
-            hashint = self._hashint = _reseed.randint(repr(self))
+            hashint = self._hashint = _makehash.quick_hashint(repr(self))
             return hashint
+
+    def difference(self, other):
+        return SetOp(set.difference, self, other)
+    def __and__(self, other):
+        return SetOp(set.intersection, self, other)
+    def __or__(self, other):
+        return SetOp(set.union, self, other)
+    def __xor__(self, other):
+        return SetOp(set.symmetric_difference, self, other)
+
+    @property
+    @_abstractmethod
+    def reader(self):
+        '''Should return the 'base reader' of this reader object.'''
+        raise TypeError("Abstract method!")
 
 
 class Reader(_Reader):
 
     __slots__ = ('name', 'path')
 
-    def __init__(self, name, path, base = None):
+    def __init__(self, name, path, base = None, /):
         self.name, self.path = name, path
         self._base = base
+        self.register_argskwargs(name, path, base)
 
     def get_h5man(self):
          return _disk.H5Manager(self.name, self.path, mode = 'r')
@@ -308,18 +332,14 @@ class Reader(_Reader):
                 file.write(_pickle.dumps(manifest))
         return manifest
 
+    @property
+    def reader(self):
+        return self
+
 
 class _Derived(_Reader):
 
-    __slots__ = ('_source', '_reader', "_incisor")
-
-    def __init__(self, source, incisor):
-        self._source = source
-        if isinstance(source, _Derived):
-            self._reader = source.reader
-        else:
-            self._reader = source
-        self._incisor = incisor
+    __slots__ = ('_source', '_reader')
 
     @property
     def base(self):
@@ -339,17 +359,36 @@ class _Derived(_Reader):
 
     @property
     def reader(self):
-        return self._reader
-
-    @property
-    def incisor(self):
-        return self._incisor
+        try:
+            return self._reader
+        except AttributeError:
+            reader = self._reader = self.source.reader
+            return reader
 
     def get_h5man(self):
         return self.reader.h5man
 
     def getitem_path(self, key, *, h5file = None):
         return self.reader.getitem_path(key, h5file = h5file)
+
+
+class _Incision(_Derived):
+
+    __slots__ = ('_incisor',)
+
+    def __init__(self, source, incisor):
+        if isinstance(incisor, _Reader):
+            if incisor.reader is not source.reader:
+                raise ValueError(
+                    "Incisor reader and source reader must be identical."
+                    )
+        self._source = source
+        self._incisor = incisor
+        self.register_argskwargs(source, incisor)
+
+    @property
+    def incisor(self):
+        return self._incisor
 
     def __repr__(self):
         return f"{type(self).__name__}({repr(self.reader)}, {self.incisor})"
@@ -358,32 +397,74 @@ class _Derived(_Reader):
     
 
 
-class Pattern(_Derived):
+class Pattern(_Incision):
 
     def get_manifest(self):
         return _fnmatch.filter(self.source.manifest, self.incisor)
 
 
-class Slice(_Derived):
+class Slice(_Incision):
 
     def get_manifest(self):
         return self.source.manifest[self.incisor]
 
 
-class Selection(_Derived):
+class Selection(_Incision):
 
     def get_manifest(self):
-        return self.incisor
+        return (self.source.basedict[basekey] for basekey in self.basekeys)
+
+    def get_basekeys(self):
+        source, incisor = self.source, self.incisor
+        if isinstance(incisor, _Reader):
+            incisor = (key for key, val in incisor.read().items() if val)
+        return set.intersection(set(incisor), set(source.basekeys))
 
 
-class Mask(_Derived):
+class MultiDerived(_Derived):
+
+    __slots__ = ('_sources')
+
+    def __init__(self, *sources):
+        if not all(isinstance(source, _Reader) for source in sources):
+            raise ValueError("All sources must be _Reader instances.")
+        if len(set(source.reader for source in sources)) != 1:
+            raise ValueError("Cannot combine different reader objects.")
+        self._sources = sources
+        self._source = sources[0]
+        self.register_argskwargs(*sources)
+    
+    @property
+    def sources(self):
+        return self._sources
+
+
+class SetOp(MultiDerived):
+
+    __slots__ = ('_setop',)
+
+    def __init__(self, setop, *args):
+        self._setop = setop
+        self.register_argskwargs(setop)
+        super().__init__(*args)
+
+    @property
+    def setop(self):
+        return self._setop
 
     def get_manifest(self):
-        return (
-            entry
-            for entry, mask in zip(self.source.manifest, self.incisor)
-            if mask
-            )
+        for key in self.basekeys:
+            for source in self.sources:
+                basedict = source.basedict
+                if key in basedict:
+                    yield basedict[key]
+                    break
+
+    def get_basekeys(self):
+        return self._setop(*(set(source.basekeys) for source in self.sources))
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.setop}({self.sources}))"
 
 
 class Source:
@@ -393,7 +474,7 @@ class Source:
         return 'SOURCE'
 SOURCE = Source()
 
-class Transform(_Reader):
+class Transform(MultiDerived):
 
     __slots__ = (
         '_sources', '_operands', '_length', '_basekeys',
@@ -413,29 +494,21 @@ class Transform(_Reader):
         if not len(sources):
             raise ValueError("No sources!")
         if not (singlesource := len(sources) == 1):
-            if len(set(source.h5man.h5filename for source in sources)) != 1:
-                raise ValueError("Incongruous sources.")
             if not all(source.isunique for source in sources):
                 raise ValueError("Sources must all have unambiguous basekeys.")
             if not len(set(source.basehash for source in sources)):
                 raise ValueError("Sources must have matching basekeys.")
         self._alloperands = args
-        self._sources, self._operands = sources, operands
+        self._operands = operands
         self._singlesource = singlesource
-        self._operator = _partial(operator, **kwargs) if kwargs else operator
-        self._base = sources[0].base
+        operator = _partial(operator, **kwargs) if kwargs else operator
+        self._operator = operator
+        self.register_argskwargs(operator)
+        super().__init__(*sources)
 
     @property
     def alloperands(self):
         return self._alloperands
-
-    @property
-    def sources(self):
-        return self._sources
-
-    @property
-    def source(self):
-        return self.sources[0]
 
     @property
     def singlesource(self):
@@ -448,9 +521,6 @@ class Transform(_Reader):
     @property
     def operator(self):
         return self._operator
-
-    def get_h5man(self):
-        return self.sources[0].h5man
 
     def get_manifest(self):
         sources = self.sources
@@ -466,6 +536,9 @@ class Transform(_Reader):
         return sorted(set.intersection(
             *(set(source.basekeys) for source in sources)
             ))
+
+    def getitem_str(self, arg):
+        return self.getitem_path(arg.split(','))
 
     def getitem_path(self, keys, h5file = None):
         if h5file is None:
