@@ -52,6 +52,12 @@ class _Derived(_Reader):
     def get_getmeths(self):
         return self.reader.get_getmeths()
 
+    def get_manifest(self):
+        return tuple(self.basekeydict.keys())
+
+    def get_allbasekeys(self):
+        return tuple(self.basekeydict.values())
+
     def retrieve(self, key, *, h5file = None):
         return self.reader.retrieve(key, h5file = h5file)
 
@@ -70,17 +76,6 @@ class _Incision(_Derived):
         self._incisor = incisor
         self.register_argskwargs(source, incisor)
 
-    def get_basekeydict(self):
-        manifest = self.manifest
-        srcdict = self.source.basekeydict
-        return _FrozenOrderedMap(zip(
-            manifest,
-            map(srcdict.__getitem__, manifest)
-            ))
-
-    def get_basekeys(self):
-        return type(self.reader).get_basekeys(self)
-
     @property
     def incisor(self):
         return self._incisor
@@ -88,40 +83,50 @@ class _Incision(_Derived):
     def __repr__(self):
         return f"{type(self).__name__}({repr(self.reader)}, {self.incisor})"
 
-# class Readlet(_Derived):
-    
-
 
 class Pattern(_Incision):
 
     def get_manifest(self):
         return tuple(_fnmatch.filter(self.source.manifest, self.incisor))
 
+    def get_allbasekeys(self):
+        return tuple(
+            map(self.source.basekeydict.__getitem__, self.manifest)
+            )
+
 
 class Slice(_Incision):
 
-    def get_manifest(self):
-        return tuple(self.source.manifest)[self.incisor]
+    def get_basekeydict(self):
+        incisor = self.incisor
+        return _FrozenOrderedMap(
+            _itertools.islice(
+                self.source.basekeydict.items(),
+                incisor.start, incisor.stop, incisor.step
+                )
+            )
 
 
-class Selection(_Incision):
+class Filter(_Incision):
 
     def get_basekeys(self):
-        incisor = self.incisor
-        if isinstance(incisor, _Reader):
-            with self.h5man as h5file:
-                incisor = frozenset(_itertools.compress(
-                    incisor.basekeydict.values(),
-                    incisor._read(h5file)
-                    ))
-        return frozenset.intersection(incisor, self.source.basekeys)
+        source, incisor = self.source, self.incisor
+#         if source.basehash != incisor.basehash:
+#             raise ValueError("Source and incisor must share common basekeys.")
+        with self.h5man as h5file:
+            bks = frozenset(_itertools.compress(
+                source.allbasekeys,
+                incisor._read(h5file)
+                ))
+        return bks.intersection(source.basekeys)
 
-    def get_manifest(self):
-        srcbkd = self.source.basekeydict
-        return tuple(_itertools.compress(
-            srcbkd,
-            map(self.__contains__, srcbkd.values()),
+    def get_basekeydict(self):
+        source = self.source
+        return _FrozenOrderedMap(_itertools.compress(
+            source.basekeydict.items(),
+            map(self.basekeys.__contains__, source.allbasekeys),
             ))
+
 
 class _MultiDerived(_Derived):
 
@@ -136,11 +141,16 @@ class _MultiDerived(_Derived):
 #             raise ValueError("Sources must share identical basekeys.")
         self._sources = sources
         self._source = sources[0]
+        self._singlesource = len(sources) == 1
         self.register_argskwargs(*sources)
     
     @property
     def sources(self):
         return self._sources
+
+    @property
+    def source(self):
+        return self._source
 
 
 class SetOp(_MultiDerived):
@@ -166,20 +176,19 @@ class SetOp(_MultiDerived):
         return self._setop
 
     def get_basekeys(self):
-        if len(sources := self.sources) == 1:
+        if self._singlesource:
             return sources[0].basekeys
         return self._setop(*(source.basekeys for source in sources))
 
     def get_basekeydict(self):
+        if self._singlesource:
+            return sources[0].basekeydict
         return _FrozenOrderedMap(
             _itertools.chain.from_iterable((
                 (mk, bk) for mk, bk in src.basekeydict.items()
                     if bk in self.basekeys
                 ) for src in self.sources)
             )
-
-    def get_manifest(self):
-        return tuple(self.basekeydict)
 
     def __repr__(self):
         return f"{type(self).__name__}({self.setop}({self.sources}))"
@@ -209,7 +218,10 @@ class Transform(_MultiDerived):
         return self._operator
 
     def get_basekeys(self):
-        return self.sources[0].basekeys
+        return self.source.basekeys
+
+    def get_allbasekeys(self):
+        return self.source.allbasekeys
 
     def get_manifest(self):
         sources = self.sources
@@ -219,7 +231,7 @@ class Transform(_MultiDerived):
 
     def get_basekeydict(self):
         return _FrozenOrderedMap(
-            (mks, self.sources[0].basekeydict[mks[0]])
+            (mks, self.source.basekeydict[mks[0]])
                 for mks in self.manifest
             )
 

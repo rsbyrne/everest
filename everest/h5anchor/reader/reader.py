@@ -18,7 +18,7 @@ from .resolve import resolve as _resolve
 from .base import _Reader
 from .derived import (
     Pattern as _Pattern,
-    Selection as _Selection,
+    Filter as _Filter,
     Transform as _Transform,
     Slice as _Slice,
     )
@@ -76,21 +76,6 @@ class Reader(_Reader):
                 file.write(_pickle.dumps(manifest))
             return manifest
 
-    def get_basekeys(self):
-        base, manifest = self.base, self.manifest
-        if base is None:
-            return manifest
-        return frozenset(self.basekeydict.values())
-
-    def get_basekeydict(self):
-        base, manifest = self.base, self.manifest
-        if base is None:
-            return dict(zip(manifest, manifest))
-        return _FrozenOrderedMap(
-            (mk, '/'.join(mk.split('/')[:base+1]))
-                for mk in manifest
-            )
-
     @classmethod
     def get_getmeths(cls):
         return _TypeMap({
@@ -115,7 +100,7 @@ class Reader(_Reader):
         return _Slice(self, key)
 
     def getitem_collection(self, coll):
-        return _Selection(self, coll)
+        return _Filter(self, coll)
 
     @classmethod
     def operate(cls, op, *args, typ = None, **kwargs):

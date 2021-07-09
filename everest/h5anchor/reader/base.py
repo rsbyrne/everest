@@ -16,7 +16,7 @@ from . import _utilities
 from .resolve import resolve as _resolve
 
 _caching = _utilities.caching
-
+_FrozenOrderedMap = _utilities.misc.FrozenOrderedMap
 
 class _ReaderMeta(_ABCMeta):
     _premade = _weakref.WeakValueDictionary()
@@ -59,19 +59,23 @@ class _Reader(metaclass = _ReaderMeta):
         raise TypeError("Abstract method!")
     manifest = _caching.softcache('manifest')
 
-    @_abstractmethod
     def get_basekeys(self):
-        '''Should return the 'base' of of the manifest keys.'''
-        raise TypeError("Abstract method!")
+        return frozenset(self.allbasekeys)
     basekeys = _caching.softcache('basekeys')
 
+    def get_allbasekeys(self):
+        return tuple(
+            '/'.join(mk.split('/')[:self.base+1])
+                for mk in self.manifest
+            )
+    allbasekeys = _caching.softcache('allbasekeys')
+
     def get_basekeydict(self):
-        '''Should return a dictionary matching manifest keys to base keys.'''
-        raise TypeError("Abstract method!")
+        return _FrozenOrderedMap(zip(self.manifest, self.allbasekeys))
     basekeydict = _caching.softcache('basekeydict')
 
     def get_basehash(self):
-        return _utilities.makehash.quick_hash(self.basekeydict.values())
+        return _utilities.makehash.quick_hash(self.allbasekeys)
     basehash = _caching.softcache('basehash')
 
     @_abstractmethod
@@ -107,7 +111,7 @@ class _Reader(metaclass = _ReaderMeta):
     def read(self):
         with self.h5man as h5file:
             return tuple(zip(
-                self.basekeydict.values(),
+                self.allbasekeys,
                 self._read(h5file),
                 ))
 
