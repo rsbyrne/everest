@@ -2,15 +2,13 @@
 ''''''
 ###############################################################################
 
-from . import misc
-from . import seqmerge
-from . import cascade
-from . import classtools
-from . import simpli
-from . import reseed
-from . import makehash
-from . import word
-from . import caching
+
+from .. import _utilities
+
+from .. import disk as _disk
+
+from .reader import Reader
+
 
 ###############################################################################
 ###############################################################################

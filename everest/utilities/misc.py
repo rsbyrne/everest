@@ -4,6 +4,7 @@
 
 
 from collections import abc as _collabc
+import collections as _collections
 import itertools as _itertools
 import os as _os
 import random as _random
@@ -89,13 +90,21 @@ def add_headers(path, header = '#' * 80, footer = '#' * 80, ext = '.py'):
                     content = f"{content}\n\n{footer}\n"
                 file.write(content)
 
-class FrozenMap(dict):
+class FrozenMap(_collections.UserDict):
+    lock = False
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lock = True
     def __setitem__(self, name, value):
-        raise ValueError(f"Cannot set value on {type(self)}")
+        if self.lock:
+            raise ValueError(f"Cannot set value on {type(self)}")
+        super().__setitem__(name, value)
     def __delitem__(self, name):
-        raise ValueError(f"Cannot delete value on {type(self)}")
+        if self.lock:
+            raise ValueError(f"Cannot delete value on {type(self)}")
+        super().__delitem__(name)
     def __repr__(self):
-        return f"{type(self)}{super().__repr__()}"
+        return f"{type(self).__name__}(len=={len(self)})"
     def __hash__(self):
         try:
             return self._hashint
@@ -103,11 +112,15 @@ class FrozenMap(dict):
             hashint = self._hashint = _random.randint(int(1e12), int(1e13) - 1)
             return hashint
 
+class FrozenOrderedMap(FrozenMap, _collections.OrderedDict):
+    ...
 
-class TypeMap(FrozenMap):
+class TypeMap(FrozenOrderedMap):
     @_lru_cache
     def __getitem__(self, key):
-        for compkey, arg in self.items():
+        keys = tuple(iter(self))
+        vals = (super(type(self), self).__getitem__(key) for key in keys)
+        for compkey, arg in zip(keys, vals):
             if issubclass(key, compkey):
                 return arg
         raise KeyError(key)

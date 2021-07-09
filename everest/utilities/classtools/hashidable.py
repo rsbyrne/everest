@@ -25,7 +25,7 @@ class HashIDable(_AdderClass):
     #     __init__=extra_init,
     #     )
 
-    reqslots = ('_hashID', '_hashint', '_hashstr')
+    reqslots = ('_hashID', '_hashint', '_hashstr', '_repr')
 
     @_AdderClass.decorate(property)
     def hashstr(self):
@@ -54,6 +54,18 @@ class HashIDable(_AdderClass):
                 hashval = _makehash.word_hash(self)
             self._hashID = hashval  # pylint: disable=W0201
             return hashval
+
+    @_AdderClass.forcemethod
+    def __hash__(self):
+        return self.hashint
+
+    @_AdderClass.forcemethod
+    def __repr__(self):
+        try:
+            return self._repr
+        except AttributeError:
+            _repr = self._repr = f"{type(self).__name__}({self.hashID})"
+            return _repr
 
 
 ###############################################################################
