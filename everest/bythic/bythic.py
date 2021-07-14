@@ -2,59 +2,60 @@
 ''''''
 ###############################################################################
 
+
+from abc import ABCMeta as _ABCMeta
+import itertools as _itertools
+
 from . import _classtools
-
-from .space import Space
-
-
-@property
-def get_incision(obj):
-    try:
-        return obj._incision
-    except AttributeError:
-        incision = obj._incision = obj.Space(obj)
-        return incision
+from . import _utilities
 
 
-@property
-def get_getitem(obj):
-    return obj.incision.__getitem__
+class BythicMeta(_ABCMeta):
+
+    def __init__(cls, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls._cls_extra_init_()
 
 
-@property
-def get_incise(obj):
-    return obj.incision.incise
-
-
-class Bythic(_classtools.MROClassable):
+@_classtools.MROClassable
+@_classtools.Diskable
+class Bythic(metaclass = BythicMeta):
 
     @classmethod
-    def __subclasshook__(cls, C):
-        if cls is Space:
-            try:
-                Inc = getattr(cls, 'Incision')
-                if issubclass(Inc, Space) and issubclass(Inc, C):
-                    return True
-            except AttributeError:
-                pass
-        return NotImplemented
+    def _cls_extra_init_(cls):
+        cls.incmeths = cls.get_incmeths()
 
-    def __new__(cls, ACls):
-        '''Class decorator for designating an Incisable.'''
-        ACls = super().__new__(cls, ACls)
-        if not callable(ACls):
-            raise TypeError("Bythic classes must be callable.")
-        if not hasattr(ACls, 'Space'):
-            setattr(ACls, 'Space', Space)
-        if not hasattr(ACls, 'incision'):
-            ACls.incision = get_incision
-        if not hasattr(ACls, '__getitem__'):
-            ACls.__getitem__ = get_getitem
-        if not hasattr(ACls, 'incise'):
-            ACls.incise = get_incise
-        return ACls
+    @classmethod
+    def get_incmeths(cls):
+        return _utilities.misc.TypeMap(
+            _itertools.chain(
+                cls.priority_incision_methods(),
+                cls.incision_methods()
+                ),
+            defertos = (
+                parent.incmeths for parent in cls.__bases__
+                    if isinstance(parent, BythicMeta)
+                )
+            )
+
+    @classmethod
+    def incision_methods(cls):
+        yield object, cls.incise_bad
+
+    @classmethod
+    def priority_incision_methods(cls):
+        return ()
+
+    @classmethod
+    def incise_bad(cls, *args, **kwargs):
+        raise ValueError(
+            f"Object of type {cls} "
+            f"cannot be incised with inputs *{args}, **{kwargs}"
+            )
+
+    def __getitem__(self, incisor):
+        return self.incmeths[type(incisor)](incisor)
 
 
 ###############################################################################
-''''''
 ###############################################################################

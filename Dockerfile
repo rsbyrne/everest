@@ -139,7 +139,8 @@ RUN pip3 install -U --no-cache-dir \
 # Maths
 RUN pip3 install -U --no-cache-dir \
   mpmath \
-  sympy
+  sympy \
+  more-itertools
 
 # Productivity
 #RUN apt install -y nodejs

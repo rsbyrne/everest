@@ -3,6 +3,7 @@
 ###############################################################################
 
 
+from abc import ABC as _ABC
 from collections import abc as _collabc
 import collections as _collections
 import itertools as _itertools
@@ -90,50 +91,105 @@ def add_headers(path, header = '#' * 80, footer = '#' * 80, ext = '.py'):
                     content = f"{content}\n\n{footer}\n"
                 file.write(content)
 
+
 class FrozenMap(_collections.UserDict):
+
     lock = False
-    def __init__(self, *args, **kwargs):
+
+    def __init__(self, *args, defertos = (), **kwargs):
         super().__init__(*args, **kwargs)
+        self.defertos = tuple(defertos)
         self.lock = True
+
     def __setitem__(self, name, value):
         if self.lock:
             raise ValueError(f"Cannot set value on {type(self)}")
         super().__setitem__(name, value)
+
     def __delitem__(self, name):
         if self.lock:
             raise ValueError(f"Cannot delete value on {type(self)}")
         super().__delitem__(name)
+
+    def __getitem__(self, name):
+        try:
+            return super().__getitem__(name)
+        except KeyError:
+            return self._getitem_deferred(name)
+
+    def getitem_deferred(self, key):
+        for deferto in self.defertos:
+            try:
+                return deferto[key]
+            except KeyError:
+                continue
+        raise KeyError(key)
+
     def __repr__(self):
         return f"{type(self).__name__}(len=={len(self)})"
+
     def __hash__(self):
         try:
             return self._hashint
         except AttributeError:
-            hashint = self._hashint = _random.randint(int(1e12), int(1e13) - 1)
+            hashint = self._hashint = _random.randint(
+                int(1e12),
+                int(1e13) - 1
+                )
             return hashint
+
 
 class FrozenOrderedMap(FrozenMap, _collections.OrderedDict):
     ...
 
+
 class TypeMap(FrozenOrderedMap):
+
     @_lru_cache
     def __getitem__(self, key):
         keys = tuple(iter(self))
-        vals = (super(type(self), self).__getitem__(key) for key in keys)
+        vals = (super(type(self), self).__getitem__(k) for k in keys)
         for compkey, arg in zip(keys, vals):
             if issubclass(key, compkey):
                 return arg
-        raise KeyError(key)
+        return self.getitem_deferred(key)
 
+
+class SliceLike(_ABC):
+    ...
+_ = SliceLike.register(slice)
 
 class Slyce:
-    __slots__ = ('start', 'stop', 'step', 'slc', 'rep')
+
+    __slots__ = (
+        'start', 'stop', 'step',
+        'slc', 'args', 'hasargs',
+        )
+
     def __init__(self, start = None, stop = None, step = None, /):
-        self.start, self.stop, self.step = start, stop, step
+        args = self.args = self.start, self.stop, self.step = \
+            start, stop, step
+        self.hasargs = tuple(x is not None for x in args)
         self.slc = slice(start, stop, step)
-        self.rep = f"Slyce({self.start}, {self.stop}, {self.step})"
+
+    def __iter__(self):
+        return iter(self.args)
+
+    def __len__(self):
+        return 3
+
+    def __getitem__(self, arg):
+        return self.args[arg]
+
     def __repr__(self):
-        return self.rep
+        return f"Slyce({self.start}, {self.stop}, {self.step})"
+
+_ = SliceLike.register(Slyce)
+
+def slyce(arg, *args):
+    if isinstance(arg, slice) and not args:
+        return Slyce(arg.start, arg.stop, arg.step)
+    return Slyce(arg, *args)
 
 # def delim_split(seq, /, sep = ...):
 #     g = []
