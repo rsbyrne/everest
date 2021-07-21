@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from subprocess import PIPE
 
-from everest import simpli as mpi
+# from everest import simpli as mpi
 from everest.h5anchor import disk
 from .fig import Fig as _Fig
 
@@ -109,7 +109,7 @@ def interp_rasters(rasters, chron, sampleFactor = 1):
                     )
     return interpRasters
 
-@mpi.dowrap
+# @mpi.dowrap
 def animate(
         data,
         chron = None,

@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from matplotlib.pyplot import get_cmap as _mpl_get_cmap
 
 from . import turbo as _turbo

@@ -8,7 +8,7 @@ from abc import ABC as _ABC, abstractmethod as _abstractmethod
 
 import os
 
-from everest import simpli as mpi
+from everest.utilities import simpli as mpi
 from everest.h5anchor import disk
 
 class Fig(_ABC):
@@ -56,7 +56,7 @@ class Fig(_ABC):
         name += add
         if ext is None:
             ext = self.ext
-        if mpi.rank == 0:
+        if mpi.RANK == 0:
             if not os.path.isdir(path):
                 os.makedirs(path)
             assert os.path.isdir(path)
