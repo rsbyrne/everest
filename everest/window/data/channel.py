@@ -11,7 +11,7 @@ import itertools
 import numpy as np
 import pandas as pd
 
-from ..utilities import unique_list
+from ..utilities import unique_list, latex_safe
 
 class DataChannel:
 
@@ -63,8 +63,8 @@ class DataChannel:
             tickVals, minorTickVals, tickLabels, suffix = self.nice_ticks(nTicks)
             lims = (np.min(tickVals), np.max(tickVals))
             label = self.label
-            if len(suffix):
-                label += r"\quad" + f"({suffix})"
+            if suffix:
+                label = ' '.join((label, suffix))
             return label, tickVals, minorTickVals, tickLabels, lims
 
         def __iter__(self):
@@ -295,7 +295,7 @@ class DataChannel:
                     tickLabels[1] = ''
                 if diffs[-1] < minProx:
                     tickLabels[-2] = ''
-            return tickLabels, suffix
+            return tickLabels, f"${suffix}$"
 
         def nice_tickVals(self, nTicks, bases = {1, 2, 5}, origin = 0.):
             llim, ulim = self.lims
@@ -422,8 +422,8 @@ class DataChannel:
                 return self.nice_log_ticks(nTicks)
             tickVals, minorTickVals = self.nice_tickVals(nTicks)
             tickVals = np.round(tickVals, 12)
-            tickLabels, tickSuffix = self.nice_tickLabels(tickVals)
-            return tickVals, minorTickVals, tickLabels, tickSuffix
+            tickLabels, suffix = self.nice_tickLabels(tickVals)
+            return tickVals, minorTickVals, latex_safe(tickLabels), latex_safe(suffix)
 
     class Discrete(Numeric):
         def __init__(self, data, **kwargs):
@@ -587,8 +587,9 @@ class DataChannel:
             # return tickVals
 
         @classmethod
-        def latex_safe_date(cls, label):
-            return label.replace(' ', r'\;')
+        def latex_process_date(cls, label):
+            label = label.replace(' ', r'\;')
+            return latex_safe(label)
 
         @classmethod
         def nice_tickLabels(cls, tickVals, code):
@@ -657,9 +658,9 @@ class DataChannel:
                     label = dateVal.strftime('%Y')
                     labels.append(label)
                 suffix = ''
-            labels = [cls.latex_safe_date(label) for label in labels]
-            suffix = cls.latex_safe_date(suffix)
-            return np.array(labels), suffix
+            labels = tuple(map(cls.latex_process_date, labels))
+            suffix = latex_safe(suffix)
+            return labels, suffix
 
         def nice_ticks(self, nTicks):
             code = self.nice_interval(nTicks)

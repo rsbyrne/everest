@@ -20,8 +20,6 @@ def sort_kwargs(kwargs, clas):
     return localkwargs, kwargs
 
 
-
-
 class Image(_Fig):
     __slots__ = ('pilargs', 'pilkwargs')
     def __init__(self, *args, **kwargs):

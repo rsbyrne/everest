@@ -143,10 +143,16 @@ RUN pip3 install -U --no-cache-dir \
   more-itertools
 
 # Productivity
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  nodejs \
+  && rm -rf /var/lib/apt/lists/*
 #RUN apt install -y nodejs
 #RUN apt install -y npm
 RUN pip3 install -U --no-cache-dir \
+  flake8 \
   jupyterlab
+
+RUN jupyter labextension install jupyterlab-flake8
 
 # Finish
 RUN apt update -y && apt upgrade -y
