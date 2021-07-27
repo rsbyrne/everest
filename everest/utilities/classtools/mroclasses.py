@@ -3,50 +3,34 @@
 ###############################################################################
 
 
+# from abc import ABCMeta as _ABCMeta
+import weakref as _weakref
+
+
 from .adderclass import AdderClass as _AdderClass
 
 
-class Overclass(_AdderClass):
+class MROClass(_AdderClass):
+    _owner = None
+    @_AdderClass.decorate(classmethod)
+    def mroclass_init(cls, *, owner: type):
+        cls._owner = _weakref.ref(owner)
+    @_AdderClass.decorate(classmethod)
+    def get_owner(cls):
+        return cls._owner()
+
+
+class Overclass(MROClass):
     overclasstag = None
     fixedoverclass = NotImplemented
     metaclassed = False
+    @_AdderClass.decorate(classmethod)
+    def overclass_init(cls, *, owner: type):
+        cls.mroclass_init(owner = owner)
 
 
 class Metaclassed(Overclass):
     metaclassed = True
-
-
-# class AnticipatedMethod(Exception):
-#     '''Placeholder class for a missing method.'''
-#     __slots__ = 'func', 'name'
-#     @classmethod
-#     def isantip(cls, obj):
-#         return isinstance(obj, cls)
-#     @classmethod
-#     def get_antipnames(cls, ACls):
-#         filt = filter(cls.isantip, ACls.__dict__.values())
-#         names = [att.name for att in filt]
-#         for Base in ACls.__bases__:
-#             names.extend(cls.get_antipnames(Base))
-#         return sorted(set(names))
-#     @classmethod
-#     def process_antips(cls, ACls):
-#         names = cls.get_antipnames(ACls)
-#         for name in names:
-#             for B in ACls.__mro__:
-#                 try:
-#                     att = getattr(B, name)
-#                     if not cls.isantip(att):
-#                         setattr(ACls, name, att)
-#                         break
-#                 except AttributeError:
-#                     continue
-#     def __init__(self, func, /):
-#         self.func, self.name, self.doc = func, func.__name__, func.__doc__
-#         exc = f"A method called '{self.name}' is anticipated: {self.doc}"
-#         super().__init__(exc)
-#     def __call__(self, *args, **kwargs):
-#         raise self
 
 
 def remove_abstractmethods(cls):
@@ -103,12 +87,17 @@ class MROClassable(_AdderClass):
         mroclasses = []
         if cls is not ACls:
             mroclasses.extend(cls.get_mroclassnames(cls))
-        mroclasses.extend(ACls.mroclasses)
-        for c in (c for c in ACls.__bases__ if issubclass(c, MROClassable)):
-            try:
-                mroclasses.extend(c.mroclasses)
-            except AttributeError:
-                pass
+        for name, att in ACls.__dict__.items():
+            if isinstance(att, type):
+                if issubclass(att, MROClass):
+                    mroclasses.append(name)
+#         mroclasses.extend(ACls.mroclasses)
+        for c in ACls.__bases__:
+            if issubclass(c, MROClassable):
+                try:
+                    mroclasses.extend(c.mroclasses)
+                except AttributeError:
+                    pass
         return tuple(remove_duplicates(mroclasses))
 
     @_AdderClass.hiddenmethod
@@ -151,6 +140,7 @@ class MROClassable(_AdderClass):
             mroclass = inheritees[0]
         else:
             mroclass = type(name, inheritees, dict(mroclassfuser=True))
+            mroclass.mroclass_init(owner = ACls)
         if ocins := tuple((c for c in inheritees if issubclass(c, Overclass))):
             over = ACls
             for ocin in ocins:
@@ -164,6 +154,7 @@ class MROClassable(_AdderClass):
                 ocls = over(name, inheritees, {})
             else:
                 ocls = type(name, (*inheritees, over), {}, ocls = True)
+            ocls.overclass_init(owner = ACls)
         else:
             ocls = None
         return mroclass, ocls
@@ -211,70 +202,6 @@ class MROClassable(_AdderClass):
         return ACls
 
 
-            # if '__init_subclass__' in ACls.__dict__:
-            #     # addmeth = _MethAdder.wrapmethod(
-            #     #     _mroclassable_init_subclass,
-            #     #     ACls.__init_subclass__,
-            #     #     )
-            #     raise Exception("Not supported!")
-            # ACls.__init_subclass__ = classmethod(
-            #     _mroclassable_init_subclass
-            #     )
-
 ###############################################################################
-
-# from everest.mroclasses import *
-#
-# @MROClassable
-# class A:
-#     def meth1(self):
-#         return "Hello world!"
-#     def meth2(self):
-#         return 3
-#
-# class B(A):
-#     mroclasses = 'InnerA',
-#
-# class C(A):
-#     mroclasses = 'InnerB', 'Over',
-#     @Overclass
-#     class Over:
-#         @AnticipatedMethod
-#         def meth1(self):
-#             '''Should return a string.'''
-#         @AnticipatedMethod
-#         def meth2(self):
-#             '''Should return an integer'''
-#         def meth3(self):
-#             return self.meth1() * self.meth2()
-#
-# class D(B, C):
-#     class InnerA:
-#         def meth(self):
-#             return 'foo'
-#
-# class E(D):
-#     class InnerA:
-#         def meth(self):
-#             return ', '.join((super().meth(), 'bah'))
-#     class InnerB:
-#         ...
-#
-# class F(D):
-#     def meth2(self):
-#         return super().meth2() + 3
-#     class Over:
-#         def meth3(self):
-#             return super().meth3().upper()
-#
-# myobj = E.InnerA()
-# assert myobj.meth() == 'foo, bah'
-#
-# myobj = E.Over()
-# assert myobj.meth3() == 'Hello world!Hello world!Hello world!'
-#
-# myobj = F.Over()
-# assert myobj.meth3() == \
-#     'HELLO WORLD!HELLO WORLD!HELLO WORLD!HELLO WORLD!HELLO WORLD!HELLO WORLD!'
 
 ###############################################################################

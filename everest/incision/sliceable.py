@@ -7,10 +7,10 @@ import itertools as _itertools
 
 from . import _utilities
 
-from .bythic import Bythic as _Bythic
+from .incisable import Incisable as _Incisable
 
 
-class Sliceable(_Bythic):
+class Sliceable(_Incisable):
 
     @classmethod
     def _cls_extra_init_(cls):

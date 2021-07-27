@@ -3,10 +3,10 @@
 ###############################################################################
 
 
-from .bythic import Bythic as _Bythic
+from .incisable import Incisable as _Incisable
 
 
-class Chora(_Bythic):
+class Chora(_Incisable):
     ...
 
 

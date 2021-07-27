@@ -150,7 +150,9 @@ RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   && rm -rf /var/lib/apt/lists/*
 RUN pip3 install -U --no-cache-dir \
   flake8 \
-  jupyterlab
+  jupyterlab \
+  jupyterlab-lsp \
+  'python-lsp-server[all]'
 #RUN jupyter labextension install jupyterlab-flake8
 
 # Finish
