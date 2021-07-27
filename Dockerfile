@@ -10,6 +10,7 @@ ENV DEBCONF_NONINTERACTIVE_SEEN true
 
 # install with apt
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  gpgv2 \
   software-properties-common \
   dialog \
   sudo \
@@ -145,13 +146,11 @@ RUN pip3 install -U --no-cache-dir \
 # Productivity
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   nodejs \
+  npm \
   && rm -rf /var/lib/apt/lists/*
-#RUN apt install -y nodejs
-#RUN apt install -y npm
 RUN pip3 install -U --no-cache-dir \
   flake8 \
   jupyterlab
-
 RUN jupyter labextension install jupyterlab-flake8
 
 # Finish
