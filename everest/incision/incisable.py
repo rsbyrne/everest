@@ -26,6 +26,25 @@ class IncisableMeta(_ABCMeta):
         ...
 
 
+class ElementMeta(_ABCMeta):
+
+    def validate(cls, arg):
+        return False
+
+    def __contains__(cls, arg: _typing.Any) -> bool:
+        '''Returns true if `arg` is a valid product of `cls`.'''
+        if isinstance(arg, cls):
+            return cls.validate(arg)
+        return False
+
+    @_abstractmethod
+    def construct(cls, *args, **kwargs):
+        raise NotImplementedError("This method must be provided.")
+
+    def __call__(cls, arg):
+        return cls.construct(arg)
+
+
 @_classtools.MROClassable
 @_classtools.Diskable
 class Incisable(
@@ -47,8 +66,10 @@ class Incisable(
                     )
 
     @_classtools.MROClass
+    @_classtools.Diskable
     class Element:
-        ...
+        def __init__(self, *args, **kwargs):
+            self.register_argskwargs(*args, **kwargs)
 
     @classmethod
     def _cls_extra_init_(cls):
@@ -108,12 +129,9 @@ class Incisable(
         '''Returns like `.incision_methods` but takes priority.'''
         return ()
 
-    @_abstractmethod
     def __contains__(self, arg: _typing.Any) -> bool:
-        '''Checks if `arg` is 'contained' by `self`.'''
-        raise NotImplementedError(
-            f"Type {type(self)} must define __contains__"
-            )
+        '''Checks if `arg` is 'contained' by the incisable.'''
+        return arg in self.Element
 
 
 ###############################################################################
