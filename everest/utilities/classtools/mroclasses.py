@@ -11,22 +11,27 @@ from .adderclass import AdderClass as _AdderClass
 
 
 class MROClass(_AdderClass):
+
     _owner = None
+
     @_AdderClass.decorate(classmethod)
     def mroclass_init(cls, *, owner: type):
         cls._owner = _weakref.ref(owner)
+
     @_AdderClass.decorate(classmethod)
     def get_owner(cls):
         return cls._owner()
 
 
 class Overclass(MROClass):
+
     overclasstag = None
     fixedoverclass = NotImplemented
     metaclassed = False
+
     @_AdderClass.decorate(classmethod)
     def overclass_init(cls, *, owner: type):
-        cls.mroclass_init(owner = owner)
+        cls.mroclass_init(owner=owner)
 
 
 class Metaclassed(Overclass):
@@ -34,10 +39,12 @@ class Metaclassed(Overclass):
 
 
 def remove_abstractmethods(cls):
+
     abstracts = sorted(set((
         name for name, att in cls.__dict__.items()
-            if hasattr(att, '__isabstractmethod__')
+        if hasattr(att, '__isabstractmethod__')
         )))
+
     if abstracts:
         parents = cls.__mro__[1:]
         for name in abstracts:
@@ -49,34 +56,37 @@ def remove_abstractmethods(cls):
                     print(f"Deleted {name} from {cls}.")
                     break
 
+
 def add_classpath(outercls, innercls, name):
     if hasattr(outercls, 'classpath'):
         innercls.classpath = tuple((*outercls.classpath, name))
     innercls.classpath = (outercls, name)
 
+
 @_AdderClass.wrapmethod
 @classmethod
-def extra_subclass_init(calledmeth, ACls, ocls = False):  # pylint: disable=E0213
+def extra_subclass_init(calledmeth, ACls, ocls=False):
     if not ocls:
-        ACls._process_mroclasses(ACls)  # pylint: disable=W0212
-    # AnticipatedMethod.process_antips(ACls)
-    calledmeth()  # pylint: disable=E1102
+        ACls._process_mroclasses(ACls)
+    calledmeth()
 
 
 def check_if_fuserclass(cls):
     return 'mroclassfuser' in cls.__dict__
 
+
 def remove_duplicates(seq):
     out = []
     for thing in seq:
-        if not thing in out:
+        if thing not in out:
             out.append(thing)
     return out
+
 
 class MROClassable(_AdderClass):
 
     toadd = dict(
-        __init_subclass__ = extra_subclass_init,
+        __init_subclass__=extra_subclass_init,
         )
 
     mroclasses = ()
@@ -88,10 +98,11 @@ class MROClassable(_AdderClass):
         if cls is not ACls:
             mroclasses.extend(cls.get_mroclassnames(cls))
         for name, att in ACls.__dict__.items():
-            if isinstance(att, type):
+            try:
                 if issubclass(att, MROClass):
                     mroclasses.append(name)
-#         mroclasses.extend(ACls.mroclasses)
+            except TypeError:
+                continue
         for c in ACls.__bases__:
             if issubclass(c, MROClassable):
                 try:
@@ -123,7 +134,7 @@ class MROClassable(_AdderClass):
                 else:
                     inheritees.append(inheritee)
         new = ACls.__dict__[name] if name in ACls.__dict__ else None
-        if not new is None:
+        if new is not None:
             if check_if_fuserclass(new):
                 inheritees = (*new.__bases__, *inheritees)
             else:
@@ -140,7 +151,7 @@ class MROClassable(_AdderClass):
             mroclass = inheritees[0]
         else:
             mroclass = type(name, inheritees, dict(mroclassfuser=True))
-            mroclass.mroclass_init(owner = ACls)
+            mroclass.mroclass_init(owner=ACls)
         if ocins := tuple((c for c in inheritees if issubclass(c, Overclass))):
             over = ACls
             for ocin in ocins:
@@ -153,8 +164,8 @@ class MROClassable(_AdderClass):
             if any(ocin.metaclassed for ocin in ocins):
                 ocls = over(name, inheritees, {})
             else:
-                ocls = type(name, (*inheritees, over), {}, ocls = True)
-            ocls.overclass_init(owner = ACls)
+                ocls = type(name, (*inheritees, over), {}, ocls=True)
+            ocls.overclass_init(owner=ACls)
         else:
             ocls = None
         return mroclass, ocls

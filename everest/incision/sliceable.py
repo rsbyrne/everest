@@ -37,7 +37,7 @@ class Sliceable(_Incisable):
     def incise_slice_bad(cls, *slcargs):
         raise ValueError(" ".join((
             f"Object of type {cls}",
-            f"cannot be sliced with slice of",
+            "cannot be sliced with slice of",
             "start={0}, stop={1}, step={2}".format(*slcargs),
             )))
 

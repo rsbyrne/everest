@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from abc import ABCMeta as _ABCMeta, abstractmethod as _abstractmethod
 import itertools as _itertools
-import weakref as _weakref
 from collections import abc as _collabc
 import typing as _typing
 
@@ -17,49 +16,42 @@ from . import _utilities
 _TypeMap = _utilities.misc.TypeMap
 
 
-# class IncisableMeta(_ABCMeta):
+class IncisableMeta(_ABCMeta):
 
-#     def __init__(cls, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         cls._cls_extra_init_()
+    def __init__(cls, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls._cls_extra_init_()
 
-
-class IncisorMeta(_ABCMeta):
-    @property
-    def owner(cls):
-        return cls._owner()
-class Incisor(metaclass=_ABCMeta):
-    _owner = None
-
-
-class Incision(metaclass = _ABCMeta):
-    ...
-
-class BadIncision(Incision):
-    def __init__(self, *args, **kwargs):
-        raise ValueError(
-            f"Object of type {cls} "
-            f"cannot be incised with inputs *{args}, **{kwargs}"
-            )
-
-
-class Element(metaclass = _ABCMeta):
-    ...
+    def _cls_extra_init_(cls):
+        ...
 
 
 @_classtools.MROClassable
 @_classtools.Diskable
-class Incisable(metaclass=_ABCMeta):
+class Incisable(
+        metaclass=IncisableMeta
+        ):
 
-    Incisor = Incisor
-    Incision = Incision
-    BadIncision = BadIncision
-    Element = Element
+    class _Incisor(metaclass=_ABCMeta):
+        ...
 
-    incmeths = _utilities.misc.TypeMap(((object, BadIncision),))
+    @_classtools.Overclass
+    class Incision:
+
+        @_classtools.Overclass
+        class BadIncision:
+            def __init__(self, *args, **kwargs):
+                raise ValueError(
+                    f"Object of type {type(self)} "
+                    f"cannot be incised with inputs *{args}, **{kwargs}"
+                    )
+
+    @_classtools.MROClass
+    class Element:
+        ...
 
     @classmethod
-    def __init_subclass__(cls, **kwargs):
+    def _cls_extra_init_(cls):
 
         cls.incmeths = cls._get_incmeths()
 
@@ -68,26 +60,28 @@ class Incisable(metaclass=_ABCMeta):
             if inccls is cls.Incisor:
                 try:
                     incmeth = cls.incmeths[C]
-                    if not issubclass(incmeth, BadIncision):
+                    if not issubclass(incmeth, cls.Incision.BadIncision):
                         return True
                 except KeyError:
                     pass
             return NotImplemented
+
         Incisor = cls.Incisor = type(
-            f"{cls.__name__}Incisor", # name
-            (cls.Incisor,), # bases
-            dict(
-                _owner = _weakref.ref(cls),
-                __subclasshook__ = incisorcheck)
-                , # namespace
+            f"{cls.__name__}Incisor",  # name
+            (cls._Incisor,),  # bases
+            dict(__subclasshook__=__subclasshook__),  # namespace
             )
 
-        GetItemLike = cls._GetItemLike = cls.Incision | cls.Element
+        GetItemLike = cls.GetItemLike = _typing.Union[
+            cls.Incision, cls.Element
+            ]
+
         def __getitem__(self, incisor: Incisor) -> GetItemLike:
             return self.incmeths[type(incisor)](incisor)
+
         cls.__getitem__ = __getitem__
 
-        super().__init_subclass__(**kwargs)
+#         super()._cls_extra_init_()
 
     @classmethod
     def _get_incmeths(cls) -> _TypeMap:
@@ -103,22 +97,23 @@ class Incisable(metaclass=_ABCMeta):
             )
 
     _IncMethsLike = _collabc.Iterator[tuple[type, _collabc.Callable]]
+
     @classmethod
     def incision_methods(cls) -> _IncMethsLike:
         '''Returns acceptable incisor types and their associated getmeths.'''
-        return ()
+        yield object, cls.Incision.BadIncision
+
     @classmethod
     def priority_incision_methods(cls) -> _IncMethsLike:
         '''Returns like `.incision_methods` but takes priority.'''
         return ()
 
     @_abstractmethod
-    def __getitem__(self, arg: _typing.Any) -> _typing.NoReturn:
-        raise NotImplementedError("No __getitem__ method on base class.")
-
-#     def __getitem__(self, incisor: Incisor) -> Incision | Element:
-#         return self.incmeths[type(incisor)](incisor)
-        
+    def __contains__(self, arg: _typing.Any) -> bool:
+        '''Checks if `arg` is 'contained' by `self`.'''
+        raise NotImplementedError(
+            f"Type {type(self)} must define __contains__"
+            )
 
 
 ###############################################################################

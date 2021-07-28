@@ -152,7 +152,8 @@ RUN pip3 install -U --no-cache-dir \
   flake8 \
   jupyterlab \
   jupyterlab-lsp \
-  'python-lsp-server[all]'
+  'python-lsp-server[all]' \
+  pyls-flake8
 #RUN jupyter labextension install jupyterlab-flake8
 
 # Finish
