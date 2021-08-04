@@ -96,7 +96,7 @@ class FrozenMap(_collections.UserDict):
 
     lock = False
 
-    def __init__(self, *args, defertos = (), **kwargs):
+    def __init__(self, *args, defertos=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.defertos = tuple(defertos)
         self.lock = True
@@ -154,6 +154,14 @@ class TypeMap(FrozenOrderedMap):
                 return arg
         return self.getitem_deferred(key)
 
+    @_lru_cache
+    def __contains__(self, key):
+        try:
+            _ = self[key]
+            return True
+        except KeyError:
+            return False
+
 
 class SliceLike(_ABC):
     ...
@@ -190,6 +198,15 @@ def slyce(arg, *args):
     if isinstance(arg, slice) and not args:
         return Slyce(arg.start, arg.stop, arg.step)
     return Slyce(arg, *args)
+
+
+# def inject_extra_init(cls, func):
+#     cls.__init__ = 
+#     old_init = cls.__init__
+#     def extra_init(self, *args, **kwargs):
+#         args, kwargs = func(self, old_init, *args, **kwargs)
+#     cls.__init__ = extra_init
+
 
 # def delim_split(seq, /, sep = ...):
 #     g = []

@@ -7,8 +7,6 @@ from . import _misc
 
 from .adderclass import AdderClass as _AdderClass
 
-FrozenMap = _misc.FrozenMap
-
 
 def master_unreduce(constructor, args, kwargs):
     if isinstance(constructor, tuple):
@@ -20,9 +18,24 @@ def master_unreduce(constructor, args, kwargs):
 
 class Reloadable(_AdderClass):
 
-    reqslots = ('_args', '_kwargs', '_frozenkwargs')
+    reqslots = ('_args', '_kwargs', '_frozenkwargs', '_argskwargslocked')
+
+    _argskwargslocked = False
+
+    @_AdderClass.decorate(property)
+    def argskwargslocked(self):
+        try:
+            return self._argskwargslocked
+        except AttributeError:
+            self._argskwargslocked = False
+            return False
+
+    def freeze_argskwargs(self, *args, **kwargs):
+        self._argskwargslocked = True
 
     def register_argskwargs(self, *args, **kwargs):
+        if self.argskwargslocked:
+            return
         try:
             _args = self._args
         except AttributeError:
@@ -51,7 +64,7 @@ class Reloadable(_AdderClass):
                 kwargs = self._kwargs
             except AttributeError:
                 kwargs = dict()
-            frkw = self._frozenkwargs = FrozenMap(kwargs)  # pylint: disable=W0201
+            frkw = self._frozenkwargs = _misc.FrozenMap(kwargs)  # pylint: disable=W0201
             return frkw
 
     @_AdderClass.decorate(classmethod)
@@ -60,6 +73,8 @@ class Reloadable(_AdderClass):
             return cls.constructor  # pylint: disable=E1101
         if hasattr(cls, 'classpath'):
             return cls.classpath  # pylint: disable=E1101
+        if hasattr(cls, 'get_classpath'):
+            return cls.get_classpath()
         return cls
 
     @_AdderClass.decorate(property)
