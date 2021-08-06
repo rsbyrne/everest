@@ -11,7 +11,9 @@ import more_itertools as _moreitertools
 from .adderclass import AdderClass as _AdderClass
 
 def yield_classpath(cls):
-    if 'mroclassowner' in cls.__dict__:
+    if 'classpath' in cls.__dict__:
+        yield from cls.classpath
+    elif 'mroclassowner' in cls.__dict__:
         yield from yield_classpath(cls.mroclassowner)
         yield cls.mroclassname
     else:
@@ -57,12 +59,6 @@ def remove_abstractmethods(cls):
                     print(f"Deleted {name} from {cls}.")
                     break
 
-@_AdderClass.wrapmethod
-@classmethod
-def extra_subclass_init(calledmeth, ACls):
-    MROClassable.update_mroclasses(ACls)
-    calledmeth()
-
 
 def yield_mroclassnames(cls):
     seen = set()
@@ -81,50 +77,53 @@ def yield_mroclassnames(cls):
                 except TypeError:
                     continue
 
+
+@_AdderClass.wrapmethod
+@classmethod
+def extra_subclass_init(calledmeth, cls):
+    cls.update_mroclasses()
+    calledmeth()
+
 class MROClassable(_AdderClass):
 
     toadd = dict(
         __init_subclass__=extra_subclass_init,
         )
 
-    @_AdderClass.hiddenmethod
-    @classmethod
-    def get_inheritees(cls, ACls, name):
+    @_AdderClass.decorate(classmethod)
+    def mroclass_get_inheritees(cls, name):
         inheritees = []
-        for base in ACls.__bases__:
+        for base in cls.__bases__:
             if name in base.__dict__:
+#             if hasattr(base, name):
                 inheritee = getattr(base, name)
-                if inheritee is None:
-                    print(ACls, base, name)
-                    raise ValueError
                 if 'overclassmrobases' in inheritee.__dict__:
                     inheritees.extend(inheritee.overclassmrobases)
                 elif 'mroclassfuser' in inheritee.__dict__:
                     inheritees.extend(inheritee.__bases__)
                 else:
                     inheritees.append(inheritee)
-        if name in ACls.__dict__:
-            new = ACls.__dict__[name]
+        if name in cls.__dict__:
+            new = cls.__dict__[name]
             if 'mroclassfuser' in new.__dict__:
                 inheritees = (*new.__bases__, *inheritees)
             else:
                 inheritees = (new, *inheritees)
         return tuple(_moreitertools.unique_everseen(inheritees))
 
-    @_AdderClass.hiddenmethod
-    @classmethod
-    def merge_mroclass(cls, ACls, name):
-        inheritees = cls.get_inheritees(ACls, name)
+    @_AdderClass.decorate(classmethod)
+    def merge_mroclass(cls, name):
+        inheritees = cls.mroclass_get_inheritees(name)
         if not inheritees:
             return
-        clskwargs = dict(mroclassowner=ACls, mroclassname=name)
+        clskwargs = dict(mroclassowner=cls, mroclassname=name)
         if ocins := tuple((c for c in inheritees if issubclass(c, Overclass))):
-            over = ACls
+            over = cls
             clskwargs.update(overclassmrobases=inheritees)
             for ocin in ocins:
                 if (fixtag := ocin.fixedoverclass) is not NotImplemented:
                     if fixtag is None:
-                        ocin.fixedoverclass = ACls
+                        ocin.fixedoverclass = cls
                     else:
                         over = fixtag
                     break
@@ -135,25 +134,51 @@ class MROClassable(_AdderClass):
         else:
             if len(inheritees) == 1:
                 mroclass = inheritees[0]
+                for key, val in clskwargs.items():
+                    setattr(mroclass, key, val)
             else:
                 mroclass = type(name, inheritees, clskwargs)
         return mroclass
 
-    @_AdderClass.hiddenmethod
-    @classmethod
-    def update_mroclasses(cls, ACls):
-        for name in yield_mroclassnames(ACls):
-            mroclass = cls.merge_mroclass(ACls, name)
+    @_AdderClass.decorate(classmethod)
+    def get_mroclassnames(cls):
+        return tuple(yield_mroclassnames(cls))
+
+    @_AdderClass.decorate(classmethod)
+    def update_mroclasses(cls):
+        for name in cls.get_mroclassnames():
+            mroclass = cls.merge_mroclass(name)
             if mroclass is not None:
-                setattr(ACls, name, mroclass)
+                setattr(cls, name, mroclass)
 
     def __new__(cls, ACls):
         '''Wrapper which adds mroclasses to ACls.'''
         ACls = super().__new__(cls, ACls)
         if not any(issubclass(b, MROClassable) for b in ACls.__bases__):
-            cls.update_mroclasses(ACls)
+            ACls.update_mroclasses()
         return ACls
 
 
 ###############################################################################
+
+
+# @_classtools.MROClassable
+# class A:
+#     ...
+#     @_classtools.Overclass
+#     class B:
+#         ...
+#         @_classtools.Overclass
+#         class C:
+#             def foo(self):
+#                 return 'foo'
+
+# class D(A.B):
+#     class C:
+#         def foo(self):
+#             return super().foo * 2
+
+# assert D.C().foo() == 'foofoo'
+
+
 ###############################################################################

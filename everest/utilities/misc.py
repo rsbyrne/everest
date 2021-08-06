@@ -126,7 +126,10 @@ class FrozenMap(_collections.UserDict):
         raise KeyError(key)
 
     def __repr__(self):
-        return f"{type(self).__name__}(len=={len(self)})"
+        return (
+            f"{type(self).__name__}(len=={len(self)})"
+            + super().__repr__()
+            )
 
     def __hash__(self):
         try:
@@ -172,12 +175,14 @@ class Slyce:
     __slots__ = (
         'start', 'stop', 'step',
         'slc', 'args', 'hasargs',
+        'trueargs',
         )
 
     def __init__(self, start = None, stop = None, step = None, /):
         args = self.args = self.start, self.stop, self.step = \
             start, stop, step
-        self.hasargs = tuple(x is not None for x in args)
+        hasargs = self.hasargs = tuple(x is not None for x in args)
+        self.trueargs = tuple(_itertools.compress(args, hasargs))
         self.slc = slice(start, stop, step)
 
     def __iter__(self):

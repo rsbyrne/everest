@@ -3,156 +3,172 @@
 ###############################################################################
 
 
-from __future__ import annotations
-
+import functools as _functools
 from abc import ABCMeta as _ABCMeta
 import itertools as _itertools
 from collections import abc as _collabc
-import typing as _typing
-from functools import lru_cache as _lru_cache
 
-from . import _classtools
-from . import _utilities
-
-_TypeMap = _utilities.misc.TypeMap
+from everest.utilities.misc import (
+    TypeMap as _TypeMap,
+    )
+from everest.utilities import classtools as _classtools
 
 
 class ChoraMeta(_ABCMeta):
 
-    def __init__(cls, *args, **kwargs):
+    def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         cls._cls_extra_init_()
 
-    def _cls_extra_init_(cls):
-        ...
+    def add_child_class(cls, ACls):
+        truename = ACls.__name__.strip('_')
+        if ACls in cls.__mro__:
+            addcls = cls
+        else:
+            classpath = []
+            if 'classpath' in cls.__dict__:
+                classpath.extend(cls.classpath)
+            else:
+                classpath.append(cls)
+            addcls = type(
+                truename,
+                (ACls, cls),
+                dict(classpath=tuple((*classpath, truename)))
+                )
+        setattr(cls, truename, addcls)
 
 
-class ElementMeta(_ABCMeta):
-
-    def construct(cls, inp):
-        return NotImplemented
-
-    def __call__(cls, inp):
-        '''Creates the Element.'''
-        return cls.construct(inp)
+_IncMethsLike = _collabc.Iterator[tuple[type, _collabc.Callable]]
 
 
-@_classtools.MROClassable
 @_classtools.Diskable
-class Chora(
-        metaclass=ChoraMeta
-        ):
+@_classtools.MROClassable
+class Chora(metaclass=ChoraMeta):
 
-    comptypes = (object,)
+    @classmethod
+    def child_classes(cls):
+        return iter(())
 
-    class _Incisor(metaclass=_ABCMeta):
-        ...
+    @_classtools.MROClass
+    class Element:
+        __slots__ = ('context', 'index')
+        def __init__(self, context, index):
+            self.context, self.index = context, index
+        def __call__(self):
+            return self.context.retrieve(self.index)
 
-    Incisor = _Incisor
-
-    class _Element(metaclass=ElementMeta):
-        comptypes = tuple()
-        @classmethod
-        @_lru_cache
-        def __subclasshook__(cls, C):
-            return all(issubclass(C, base) for base in cls.comptypes)
-
-    Element = _Element
-
-    @_classtools.Overclass
+    @_classtools.Diskable
+    @_classtools.MROClass
     class Incision:
 
-        @_classtools.Overclass
-        class BadIncision:
-            def __init__(self, *args, **kwargs):
-                raise ValueError(
-                    f"Object of type {type(self)} "
-                    f"cannot be incised with inputs *{args}, **{kwargs}"
-                    )
+        def __init__(self, context, chora):
+            self.context, self.chora = context, chora
+            self.register_argskwargs(context, chora)
+
+        @property
+        def choracontext(self):
+            return self.context
+
+        def retrieve(self, arg):
+            return self.context.retrieve(arg)
 
     @classmethod
-    def _cls_extra_init_(cls):
-
-        comptypes = cls.comptypes = tuple(set(
-            _itertools.chain.from_iterable(
-                _itertools.chain.from_iterable(
-                    ctyp.__mro__ for ctyp in base.comptypes
-                    )
-                for base in (cls, *cls.__bases__)
-                if hasattr(base, 'comptypes')
+    def decorate(cls, ACls, /):
+        old_init = ACls.__init__
+        if not hasattr(ACls, 'chora_args'):
+            def chora_args(self):
+                return iter(())
+            ACls.chora_args = chora_args
+        if not hasattr(ACls, 'chora_kwargs'):
+            def chora_kwargs(self):
+                return iter(())
+            ACls.chora_kwargs = chora_kwargs
+        if not hasattr(ACls, 'retrieve'):
+            raise TypeError(
+                "Incisable must provide a callable `.retrieve` attribute."
                 )
-            ))
-
-        cls.incmeths = cls._get_incmeths()
-
-        @classmethod
-        def __subclasshook__(inccls, C):
-            if inccls is cls.Incisor:
-                try:
-                    incmeth = cls.incmeths[C]
-                    if not issubclass(incmeth, cls.Incision.BadIncision):
-                        return True
-                except KeyError:
-                    pass
-            return NotImplemented
-
-        cls.Incisor = type(
-            f"{cls.__name__}Incisor",  # name
-            (cls._Incisor,),  # bases
-            dict(__subclasshook__=__subclasshook__),  # namespace
-            )
-
-        cls.Element = type(
-            f"{cls.__name__}Element",  # name
-            (cls._Element,),  # bases
-            dict(comptypes=comptypes),  # namespace
-            )
+        def chora_extra_init(self, *args, **kwargs):
+            old_init(self, *args, **kwargs)
+            self.chora = cls(
+                *self.chora_args(),
+                **dict(self.chora_kwargs())
+                )
+        ACls.__init__ = chora_extra_init
+        cls.add_defer_methods(ACls)
+        return ACls
 
     @classmethod
-    def _get_incmeths(cls) -> _TypeMap:
+    def add_defer_methods(cls, ACls, /):
+        if not hasattr(ACls, 'choracontext'):
+            ACls.choracontext = property(lambda x: x)
+        def __getitem__(self, incisor):
+            out = self.chora.__getitem__(incisor, context=self.choracontext)
+            if isinstance(out, self.chora.Element):
+                return out()
+            return self.chora.Incision(self.choracontext, out)
+        ACls.__getitem__ = __getitem__
+        def __contains__(self, arg):
+            return self.chora.__contains__(arg)
+        ACls.__contains__ = __contains__
+
+    @classmethod
+    def _cls_extra_init_(cls, /):
+        cls.incmeths = cls._get_incmeths()
+        cls.add_defer_methods(cls.Incision)
+        for child in set(cls.child_classes()):
+            cls.add_child_class(child)
+
+    @classmethod
+    def incision_methods(cls, /) -> _IncMethsLike:
+        '''Returns acceptable incisor types and their associated getmeths.'''
+        return iter(())
+
+    @classmethod
+    def priority_incision_methods(cls, /) -> _IncMethsLike:
+        '''Returns like `.incision_methods` but takes priority.'''
+        yield tuple, cls.incise_tuple
+        yield type(Ellipsis), cls.incise_trivial
+
+    @classmethod
+    def _get_incmeths(cls, /) -> _TypeMap:
         return _TypeMap(
             _itertools.chain(
                 cls.priority_incision_methods(),
                 cls.incision_methods()
                 ),
-            defertos=(
-                parent.incmeths for parent in cls.__bases__
-                if hasattr(parent, 'incmeths')
-                )
             )
 
-    def validate(self, inp):
-        return True
+    def __init__(self, /, *, criterion):
+        self.register_argskwargs(criterion=criterion)
+        if isinstance(type(criterion), type):
+            criterionclass = criterion
+            def criterion(arg):
+                return isinstance(arg, criterionclass)
+        elif not callable(criterion):
+            raise TypeError(criterion)
+        self.criterion = criterion
 
-    def retrieve(self, inp):
-        '''Returns a single `Element` from inside the `Chora`.'''
-        if self.validate(inp):
-            return self.Element(inp)
-        raise ValueError(inp)
+    def __getitem__(self, incisor, /, *, context):
+        try:
+            meth = self.incmeths[type(incisor)]
+        except KeyError as exc:
+            raise TypeError from exc
+        return meth(self, incisor, context=context)
 
-    def __contains__(self, arg: _typing.Any) -> bool:
-        '''Returns true if `arg` is a valid product of `cls`.'''
-        if isinstance(arg, self.Element):
-            return self.validate(arg)
-        return False
+    def __contains__(self, arg, /):
+        return self.criterion(arg)
 
-    _IncMethsLike = _collabc.Iterator[tuple[type, _collabc.Callable]]
+    def incise_tuple(self, incisor, /, *, context):
+        '''Captures the special behaviour implied by `context[a,b,c...]`'''
+        raise TypeError("Tuple slicing not supported.")
 
-    @classmethod
-    def incision_methods(cls) -> _IncMethsLike:
-        '''Returns acceptable incisor types and their associated getmeths.'''
-        yield cls.Element, cls.retrieve
-        yield object, cls.Incision.BadIncision
+    def incise_trivial(self, incisor=None, /, *, context):
+        '''Captures the special behaviour implied by `context[...]`.'''
+        return context
 
-    @classmethod
-    def priority_incision_methods(cls) -> _IncMethsLike:
-        '''Returns like `.incision_methods` but takes priority.'''
-        return iter(())
-
-    GetItemLike = _typing.Union[Incision, Element]
-
-    def __getitem__(self, incisor: Incisor) -> GetItemLike:
-        return self.incmeths[type(incisor)](self, incisor)
+    def incise_strict(self, incisor, /, *, context):
+        '''Captures the sense of retrieving a single item from `context`.'''
+        return self.Element(context, incisor)
 
 
 ###############################################################################
