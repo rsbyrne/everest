@@ -69,7 +69,7 @@ class Orderable(_Sampleable):
             for st in (start, stop) if st is not None
             )
 
-    def incise_delimit(self, start, stop, /, *, context):
+    def incise_delimit(self, start, stop, /):
         if not self.slice_in_range(start, stop):
             raise KeyError("Slice out of range.")
         return self.Delimited(
@@ -77,13 +77,13 @@ class Orderable(_Sampleable):
             **(self.kwargs | dict(lbnd=start, ubnd=stop)),
             )
 
-    def incise_delimit_slice(self, start, stop, _, /, *, context):
-        return self.incise_delimit(start, stop, context=context)
+    def incise_delimit_slice(self, start, stop, _, /):
+        return self.incise_delimit(start, stop)
 
-    def incise_delimit_sample(self, start, stop, step, /, *, context):
+    def incise_delimit_sample(self, start, stop, step, /):
         return (
-            self.incise_delimit(start, stop, context=context)
-            .incise_sampler(step, context=context)
+            self.incise_delimit(start, stop)
+            .incise_sampler(step)
             )
 
 

@@ -45,8 +45,8 @@ class Advanceable(_Orderable):
                 return
             yield val
 
-    def (self):
-        return self._iterfn()
+#     def (self):
+#         return self._iterfn()
 
 
 ###############################################################################

@@ -3,14 +3,15 @@
 ###############################################################################
 
 
-import itertools as _itertools
-
 from . import _utilities
 
-from .chora import Chora as _Chora
+from ._chorabase import ChoraBase as _ChoraBase
 
 
-class Sliceable(_Chora):
+_slyce = _utilities.misc.slyce
+
+
+class Sliceable(_ChoraBase):
 
     @classmethod
     def _cls_extra_init_(cls, /):
@@ -21,13 +22,10 @@ class Sliceable(_Chora):
     def slice_methods(cls, /):
         yield (False, False, False), cls.incise_trivial
 
-    def incise_slice(self, slc, /, *, context):
-        return self.incise_slyce(
-            _utilities.misc.slyce(slc),
-            context=context,
-            )
+    def incise_slice(self, slc, /):
+        return self.incise_slyce(_slyce(slc))
 
-    def incise_slyce(self, slc, /, *, context):
+    def incise_slyce(self, slc, /):
         try:
             slcmeth = self.slcmeths[slc.hasargs]
         except KeyError:
@@ -36,7 +34,7 @@ class Sliceable(_Chora):
                 "cannot be sliced with slice of",
                 "start={0}, stop={1}, step={2}".format(*slc.args),
                 )))
-        return slcmeth(self, *slc, context=context)
+        return slcmeth(self, *slc)
 
     @classmethod
     def incision_methods(cls, /):

@@ -3,11 +3,12 @@
 ###############################################################################
 
 
-from .. import utilities as _utilities
-from ..utilities import classtools as _classtools
+from ._chorabase import ChoraBase as _ChoraBase
 
-from .chora import Chora
-# from . import metrics
+
+class Operable(_ChoraBase):
+
+    ...
 
 
 ###############################################################################

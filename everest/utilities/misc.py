@@ -117,7 +117,7 @@ class FrozenMap(_collections.UserDict):
         except KeyError:
             return self._getitem_deferred(name)
 
-    def getitem_deferred(self, key):
+    def _getitem_deferred(self, key):
         for deferto in self.defertos:
             try:
                 return deferto[key]
@@ -155,7 +155,7 @@ class TypeMap(FrozenOrderedMap):
         for compkey, arg in zip(keys, vals):
             if issubclass(key, compkey):
                 return arg
-        return self.getitem_deferred(key)
+        return self._getitem_deferred(key)
 
     @_lru_cache
     def __contains__(self, key):

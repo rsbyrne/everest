@@ -10,7 +10,7 @@ from .bounded import Bounded as _Bounded
 
 class _Advanceable_(_Chora):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, advancer, **kwargs):
         self.advancer = advancer
         self.register_argskwargs(advancer=advancer)
         super().__init__(*args, **kwargs)
@@ -64,7 +64,7 @@ class Progression(_Bounded, _Advanceable_):
             val = advancer(val)
         if self.last:
             yield val
-        
+
     def __iter__(self):
         return self._iterfn()
 
@@ -79,7 +79,7 @@ class Advanceable(_Advanceable_, _Sliceable):
             yield (*comb, False), cls.incise_enbounding_slice
         yield from super().slice_methods()
 
-    def incise_enbounding(self, start, stop, /, *, context):
+    def incise_enbounding(self, start, stop, /):
         return Progression(
             *self.args,
             **(self.kwargs | dict(lbnd=start, ubnd=stop)),
