@@ -64,12 +64,12 @@ class Orderable(_Chora):
 
     @classmethod
     def slice_start_methods(cls, /):
-        yield object, cls.incise_delimit_start
+        yield cls.Element, cls.incise_delimit_start
         yield from super().slice_start_methods()
 
     @classmethod
     def slice_stop_methods(cls, /):
-        yield object, cls.incise_delimit_stop
+        yield cls.Element, cls.incise_delimit_stop
         yield from super().slice_stop_methods()
 
     def __contains__(self, item):

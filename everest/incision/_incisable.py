@@ -24,6 +24,10 @@ class Incisable(metaclass=_IncisableMeta):
     def _cls_extra_init_(cls, /):
         pass
 
+    @classmethod
+    def element_types(cls, /):
+        return iter(())
+
     def incise_tuple(self, incisor, /):
         '''Captures the special behaviour implied by `self[a,b,c...]`'''
         raise TypeError("Tuple slicing not supported.")

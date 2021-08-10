@@ -45,9 +45,13 @@ def get_criterion_function(*criteria):
     return criterion_function
 
 
+def always_true(arg):
+    return True
+
+
 class Sampleable(_Sliceable):
 
-    def __init__(self, /, *args, criterion, **kwargs):
+    def __init__(self, /, *args, criterion=always_true, **kwargs):
         crfn = self.criterion_function = get_criterion_function(criterion)
         self.register_argskwargs(criterion=crfn.criteria)
         super().__init__(*args, **kwargs)

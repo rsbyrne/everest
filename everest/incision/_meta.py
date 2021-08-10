@@ -29,9 +29,11 @@ class IncisableMeta(_ABCMeta):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls._add_rider_class(_Element_)
         for child in set(cls.child_classes()):
             cls._add_child_class(child)
+        Element = cls._add_rider_class(_Element_)
+        for typ in cls.element_types():
+            _ = Element.register(typ)
         incmeths = cls.incmeths = cls._get_incmeths()
         Incisor = cls._add_rider_class(_Incisor_)
         for typ in incmeths:
@@ -42,13 +44,16 @@ class IncisableMeta(_ABCMeta):
     def _cls_extra_init_():
         pass
 
+    def child_classes(cls, /):
+        return iter(())
+
     def incision_methods(cls, /):
         return iter(())
 
     def priority_incision_methods(cls, /):
         return iter(())
 
-    def child_classes(cls, /):
+    def element_types(cls, /):
         return iter(())
 
     def _get_incmeths(cls, /) -> _TypeMap:
