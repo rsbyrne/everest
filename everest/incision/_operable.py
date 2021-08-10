@@ -3,10 +3,10 @@
 ###############################################################################
 
 
-from ._chorabase import ChoraBase as _ChoraBase
+from ._incisable import Incisable as _Incisable
 
 
-class Operable(_ChoraBase):
+class Operable(_Incisable):
 
     ...
 

@@ -8,12 +8,12 @@ from .orderable import Orderable as _Orderable
 
 class Advanceable(_Orderable):
 
-    @classmethod
-    def add_defer_methods(cls, ACls, /):
-        def __iter__(self):
-            return map(self.retrieve, self.chora.__iter__())
-        ACls.__iter__ = __iter__
-        super().add_defer_methods(ACls)
+#     @classmethod
+#     def add_defer_methods(cls, ACls, /):
+#         def __iter__(self):
+#             return map(self.retrieve, self.chora.__iter__())
+#         ACls.__iter__ = __iter__
+#         super().add_defer_methods(ACls)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

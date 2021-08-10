@@ -5,42 +5,53 @@
 
 from . import _utilities
 
-from ._chorabase import ChoraBase as _ChoraBase
+from ._incisable import Incisable as _Incisable
 
 
 _slyce = _utilities.misc.slyce
+_TypeMap = _utilities.misc.TypeMap
 
 
-class Sliceable(_ChoraBase):
+class Sliceable(_Incisable):
 
     @classmethod
     def _cls_extra_init_(cls, /):
         super()._cls_extra_init_()
-        cls.slcmeths = dict(reversed(tuple(cls.slice_methods())))
+        Incisor = cls.Incisor
+        slcmeths = []
+        for name in ('start', 'stop', 'step'):
+            get_meths = getattr(cls, f"slice_{name}_methods")
+            meths = _TypeMap(get_meths())
+            setattr(cls, f"slc{name}meths", meths)
+            slcmeths.append(meths)
+        cls.slcmeths = tuple(slcmeths)
 
     @classmethod
-    def slice_methods(cls, /):
-        yield (False, False, False), cls.incise_trivial
-
-    def incise_slice(self, slc, /):
-        return self.incise_slyce(_slyce(slc))
-
-    def incise_slyce(self, slc, /):
-        try:
-            slcmeth = self.slcmeths[slc.hasargs]
-        except KeyError:
-            raise ValueError(" ".join((
-                f"Object of type {type(self)}",
-                "cannot be sliced with slice of",
-                "start={0}, stop={1}, step={2}".format(*slc.args),
-                )))
-        return slcmeth(self, *slc)
+    def slice_start_methods(cls, /):
+        return iter(())
 
     @classmethod
-    def incision_methods(cls, /):
+    def slice_stop_methods(cls, /):
+        return iter(())
+
+    @classmethod
+    def slice_step_methods(cls, /):
+        return iter(())
+
+    def incise_slyce(self, incisor: _slyce, /):
+        for slcarg, slcmeths in zip(incisor.args, self.slcmeths):
+            if slcarg is not None:
+                self = slcmeths[type(slcarg)](self, slcarg)
+        return self
+
+    def incise_slice(self, incisor: slice, /):
+        return self.incise_slyce(_slyce(incisor))
+
+    @classmethod
+    def priority_incision_methods(cls, /):
         yield slice, cls.incise_slice
         yield _utilities.misc.Slyce, cls.incise_slyce
-        yield from super().incision_methods()
+        yield from super().priority_incision_methods()
 
 
 ###############################################################################
