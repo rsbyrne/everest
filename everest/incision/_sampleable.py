@@ -56,9 +56,10 @@ class Sampleable(_Sliceable):
         self.register_argskwargs(criterion=crfn.criteria)
         super().__init__(*args, **kwargs)
 
-    @property
-    def __contains__(self):
-        return self.criterion_function
+    def __contains__(self, item):
+        if not super().__contains__(item):
+            return False
+        return self.criterion_function(item)
 
     @classmethod
     def slice_step_methods(cls, /):
@@ -66,11 +67,7 @@ class Sampleable(_Sliceable):
         yield from super().slice_step_methods()
 
     def incise_sampler(self, sampler):
-        '''Captures the sense of `self[::sampler]`'''
-        return type(self)(
-            *self.args,
-            **(self.kwargs | dict(criterion=(self.criterion, sampler))),
-            )
+        return self.new_self(criterion=(self.criterion, sampler))
 
 
 ###############################################################################

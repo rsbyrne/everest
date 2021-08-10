@@ -4,6 +4,8 @@
 
 
 from collections import abc as _collabc
+import itertools as _itertools
+import functools as _functools
 
 from . import _utilities
 
@@ -14,6 +16,11 @@ _classtools = _utilities.classtools
 
 
 _IncMethsLike = _collabc.Iterator[tuple[type, _collabc.Callable]]
+
+
+def not_none(a, b):
+    return b if a is None else a
+overprint = _functools.partial(_itertools.starmap, not_none)
 
 
 @_classtools.Diskable
@@ -54,8 +61,14 @@ class Incisable(metaclass=_IncisableMeta):
             raise TypeError from exc
         return meth(self, incisor)
 
-    def __contains__(self, arg):
-        return True
+    def new_self(self, *args, **kwargs):
+        return type(self)(
+            *overprint(_itertools.zip_longest(self.args, args)),
+            **(self.kwargs | kwargs),
+            )
+
+    def __contains__(self, item):
+        return isinstance(item, self.Element)
 
 
 ###############################################################################

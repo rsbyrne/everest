@@ -42,10 +42,7 @@ class Orderable(_Chora):
                 incisor = ubnd
         if not self.__contains__(incisor):
             raise KeyError("Delimit out of range")
-        return type(self)(
-            *self.args,
-            **(self.kwargs | dict(lbnd=incisor)),
-            )
+        return self.new_self(lbnd=incisor)
 
     def incise_delimit_stop(self, incisor, /):
         lbnd, ubnd, comparator = self.lbnd, self.ubnd, self.comparator
@@ -57,10 +54,7 @@ class Orderable(_Chora):
                 incisor = lbnd
         if not self.__contains__(incisor):
             raise KeyError("Delimit out of range")
-        return type(self)(
-            *self.args,
-            **(self.kwargs | dict(ubnd=incisor)),
-            )
+        return self.new_self(ubnd=incisor)
 
     @classmethod
     def slice_start_methods(cls, /):

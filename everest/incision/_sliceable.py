@@ -41,7 +41,11 @@ class Sliceable(_Incisable):
     def incise_slyce(self, incisor: _slyce, /):
         for slcarg, slcmeths in zip(incisor.args, self.slcmeths):
             if slcarg is not None:
-                self = slcmeths[type(slcarg)](self, slcarg)
+                try:
+                    slcmeth = slcmeths[type(slcarg)]
+                except KeyError as exc:
+                    raise TypeError from exc
+                self = slcmeth(self, slcarg)
         return self
 
     def incise_slice(self, incisor: slice, /):
