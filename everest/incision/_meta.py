@@ -36,7 +36,7 @@ class IncisableMeta(_ABCMeta):
     def rider_classes(cls, /):
         return iter(())
 
-    def add_child_class(cls, ACls, /, **namespace):
+    def add_child_class(cls, ACls, /, prior = True, **namespace):
         name = ACls.__name__.strip('_')
         if ACls in cls.__mro__:
             addcls = cls
@@ -46,19 +46,22 @@ class IncisableMeta(_ABCMeta):
                 classpath.extend(cls.classpath)
             else:
                 classpath.append(cls)
-            bases = (ACls, cls)
+            bases = (ACls, cls) if prior else (cls, ACls)
             classpath = tuple((*classpath, name))
             addcls = type(name, bases, namespace | dict(classpath=classpath))
         setattr(cls, name, addcls)
         return addcls
 
-    def add_rider_class(cls, ACls, /, **namespace):
+    def add_rider_class(cls, ACls, /, inherit = True, **namespace):
         name = ACls.__name__.strip('_')
-        bases = tuple(
-            getattr(BCls, name)
-            for BCls in cls.__bases__
-            if hasattr(BCls, name)
-            )
+        if inherit:
+            bases = tuple(
+                getattr(BCls, name)
+                for BCls in cls.__bases__
+                if hasattr(BCls, name)
+                )
+        else:
+            bases = ()
         rider = type(
             f'{cls.__name__}_{name}',
             bases if bases else (ACls,),

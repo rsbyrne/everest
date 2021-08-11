@@ -3,49 +3,42 @@
 ###############################################################################
 
 
-from abc import ABCMeta as _ABCMeta
-import functools as _functools
+from abc import ABCMeta as _ABCMeta, abstractmethod as _abstractmethod
 import operator as _operator
 
 from .chora import Chora as _Chora
 from .orderable import Orderable as _Orderable
 
 
-def make_comparator(origin, metric):
-    def comparator(a, b, o=origin, m=metric, /):
-        return m(o, b) - m(o, a)
-    return comparator
-
-def make_metric(comparator):
-    def metric(a, b, comparator=comparator, /):
-        return abs(comparator(a, b))
-
-
 class _Originated_(_Orderable):
 
-    metrictype = type(None)
+    metrictype = float
+
+    def comparator(self, a, b):
+        o, m = self.origin, self.metric
+        return m(o, b) - m(o, a)
+
+    def gt(self, a, b):
+        return self.comparator(a, b) > 0
+
+    def pos(self, arg):
+        return self.comparator(self.origin, arg)
 
     def __init__(
             self, /, *args,
-            origin, metric=None, comparator=_operator.gt,
-            lbnd=None, ubnd=None,
+            origin=0., lbnd=None, ubnd=None,
             **kwargs
             ):
-        self.origin = origin
-        self.register_argskwargs(origin=origin)
-        if metric is None:
-            self.metric = make_metric(comparator)
-            self.register_argskwargs(comparator)
+        if hasattr(self, 'origin'):
+            origin = self.origin
         else:
-            self.metric = metric
-            self.register_argskwargs(metric=metric)
-            comparator = self.comparator = make_comparator(origin, metric)
-        pos = self.pos = _functools.partial(comparator, origin)
+            self.origin = origin
+            self.register_argskwargs(origin=origin)
         if lbnd is None:
-            lbnd = pos(origin)
+            lbnd = self.pos(origin)
         elif isinstance(lbnd, self.Element):
-            lbnd = pos(lbnd)
-        ubnd = pos(ubnd) if isinstance(ubnd, self.Element) else ubnd
+            lbnd = self.pos(lbnd)
+        ubnd = self.pos(ubnd) if isinstance(ubnd, self.Element) else ubnd
         super().__init__(*args, lbnd=lbnd, ubnd=ubnd, **kwargs)
 
     def process_relative_metric_incisor(self, incisor):
@@ -107,21 +100,17 @@ class _Originated_(_Orderable):
 
 class Measurable(_Chora):
 
-    metrictype = type(None)
     _Originated_ = _Originated_
+
+    @_abstractmethod
+    def metric(self, a, b):
+        '''Returns the 'distance' between any two elements.'''
+        raise NotImplementedError
 
     @classmethod
     def child_classes(cls, /):
         yield from super().child_classes()
-        yield cls._Originated_, dict(metrictype=cls.metrictype)
-
-    def __init__(self, /, *args, metric=None, **kwargs):
-        if not hasattr(self, 'metric'):
-            if metric is None:
-                raise ValueError("Must provide a value for 'metric'.")
-            self.metric = metric
-            self.register_argskwargs(metric=metric)
-        super().__init__(*args, **kwargs)
+        yield cls._Originated_, dict(prior=False)
 
     def incise_measurable_origin(self, incisor, /):
         return self.new_self(cls=self.Originated, origin=incisor)
@@ -130,6 +119,21 @@ class Measurable(_Chora):
     def slice_start_methods(cls, /):
         yield from super().slice_start_methods()
         yield cls.Element, cls.incise_measurable_origin
+
+
+Originated = Measurable.Originated
+
+
+# class Reals(Measurable):
+
+#     metrictype = float
+#     origin = 0.
+#     metric = make_metric()
+
+#     def __init__(self):
+#         super().__init__()
+
+# reals = Reals()
 
 
 ###############################################################################

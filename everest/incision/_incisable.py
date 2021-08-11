@@ -59,9 +59,9 @@ class Incisable(metaclass=_IncisableMeta):
 
     @classmethod
     def rider_classes(cls, /):
-        yield cls._Element_
-        yield cls._Incisor_
-        yield cls._Retriever_
+        yield cls._Element_, dict(inherit=False)
+        yield cls._Incisor_, dict(inherit=False)
+        yield cls._Retriever_, dict(inherit=False)
 
     @classmethod
     def element_types(cls, /):

@@ -8,25 +8,16 @@ import operator as _operator
 from .chora import Chora as _Chora
 
 
-def make_comparator_from_gt(gt):
-    def comparator(a, b):
-        return gt(a, b) - gt(b, a)
-    return comparator
-
-
 class Orderable(_Chora):
 
-    def __init__(
-            self, /, *args,
-            comparator=None, gt=_operator.gt, lbnd=None, ubnd=None, **kwargs
-            ):
-        if not hasattr(self, 'comparator'):
-            if comparator is None:
-                self.comparator = make_comparator_from_gt(gt)
-                self.register_argskwargs(gt=gt)
-            else:
-                self.comparator = comparator
-                self.register_argskwargs(comparator=comparator)
+    def comparator(self, a, b, /):
+        '''Should return `>0` if `a>b`, `<0` if `a<b`, or `0` if `a==b`'''
+        gt = self.gt
+        return gt(a, b) - gt(b, a)
+
+    gt = _operator.gt
+
+    def __init__(self, /, *args, lbnd=None, ubnd=None, **kwargs):
         self.bnds = self.lbnd, self.ubnd = lbnd, ubnd
         if lbnd is not None:
             self.register_argskwargs(lbnd=lbnd)
