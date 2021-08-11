@@ -80,9 +80,9 @@ def yield_mroclassnames(cls):
 
 @_AdderClass.wrapmethod
 @classmethod
-def extra_subclass_init(calledmeth, cls):
+def extra_subclass_init(calledmeth, cls, **kwargs):
     cls.update_mroclasses()
-    calledmeth()
+    calledmeth(**kwargs)
 
 class MROClassable(_AdderClass):
 

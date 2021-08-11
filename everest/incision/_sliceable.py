@@ -39,8 +39,9 @@ class Sliceable(_Incisable):
         return iter(())
 
     def incise_slyce(self, incisor: _slyce, /):
-        for slcarg, slcmeths in zip(incisor.args, self.slcmeths):
+        for i, slcarg in enumerate(incisor.args):
             if slcarg is not None:
+                slcmeths = self.slcmeths[i]
                 try:
                     slcmeth = slcmeths[type(slcarg)]
                 except KeyError as exc:

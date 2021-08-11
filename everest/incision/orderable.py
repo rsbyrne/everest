@@ -5,8 +5,6 @@
 
 import operator as _operator
 
-from . import _classtools
-
 from .chora import Chora as _Chora
 
 
@@ -18,27 +16,31 @@ def make_comparator_from_gt(gt):
 
 class Orderable(_Chora):
 
-    def __init__(self,
-            /, *args,
+    def __init__(
+            self, /, *args,
             comparator=None, gt=_operator.gt, lbnd=None, ubnd=None, **kwargs
             ):
-        if comparator is None:
-            self.comparator = make_comparator_from_gt(gt)
-            self.register_argskwargs(gt=gt)
-        else:
-            self.comparator = comparator
-            self.register_argskwargs(comparator=comparator)
+        if not hasattr(self, 'comparator'):
+            if comparator is None:
+                self.comparator = make_comparator_from_gt(gt)
+                self.register_argskwargs(gt=gt)
+            else:
+                self.comparator = comparator
+                self.register_argskwargs(comparator=comparator)
         self.bnds = self.lbnd, self.ubnd = lbnd, ubnd
-        self.register_argskwargs(lbnd=lbnd, ubnd=ubnd)
+        if lbnd is not None:
+            self.register_argskwargs(lbnd=lbnd)
+        if ubnd is not None:
+            self.register_argskwargs(ubnd=ubnd)
         super().__init__(*args, **kwargs)
 
     def incise_delimit_start(self, incisor, /):
         lbnd, ubnd, comparator = self.lbnd, self.ubnd, self.comparator
         if lbnd is not None:
-            if comparator(incisor, lbnd) < 1:
+            if comparator(incisor, lbnd) <= 0:
                 return self
         if ubnd is not None:
-            if comparator(incisor, ubnd) > -1:
+            if comparator(incisor, ubnd) >= 0:
                 incisor = ubnd
         if not self.__contains__(incisor):
             raise KeyError("Delimit out of range")
@@ -47,10 +49,10 @@ class Orderable(_Chora):
     def incise_delimit_stop(self, incisor, /):
         lbnd, ubnd, comparator = self.lbnd, self.ubnd, self.comparator
         if ubnd is not None:
-            if comparator(incisor, ubnd) > -1:
+            if comparator(incisor, ubnd) >= 0:
                 return self
         if lbnd is not None:
-            if comparator(incisor, lbnd) < 1:
+            if comparator(incisor, lbnd) <= 0:
                 incisor = lbnd
         if not self.__contains__(incisor):
             raise KeyError("Delimit out of range")
@@ -66,14 +68,17 @@ class Orderable(_Chora):
         yield cls.Element, cls.incise_delimit_stop
         yield from super().slice_stop_methods()
 
+    def item_in_range(self, item):
+        lbnd, ubnd, comparator = self.lbnd, self.ubnd, self.comparator
+        return all((
+            True if lbnd is None else comparator(item, self.lbnd) >= 0,
+            True if ubnd is None else comparator(item, self.ubnd) < 0,
+            ))
+
     def __contains__(self, item):
         if not super().__contains__(item):
             return False
-        lbnd, ubnd, comparator = self.lbnd, self.ubnd, self.comparator
-        return all((
-            True if lbnd is None else comparator(item, self.lbnd) > -1,
-            True if ubnd is None else comparator(item, self.ubnd) < 0,
-            ))
+        return self.item_in_range(item)
 
 
 ###############################################################################

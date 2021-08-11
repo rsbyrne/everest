@@ -6,65 +6,37 @@
 import itertools as _itertools
 from abc import ABCMeta as _ABCMeta
 
-from . import _utilities
 
-_TypeMap = _utilities.misc.TypeMap
-
-
-class _Element_(metaclass=_ABCMeta):
-
-    __slots__ = ('index')
-
-    def __init__(self, index):
-        self.index = index
-
-class _Incisor_(metaclass=_ABCMeta):
-    ...
-
-# class _Incision_:
-#     ...
+def correct_classiterator(clsiter):
+    seen = dict()
+    for item in clsiter:
+        if isinstance(item, tuple):
+            if not len(item) == 2:
+                raise ValueError(
+                    "Class iterator items must be of length 2"
+                    )
+            cls, ns = item
+        else:
+            cls, ns = item, {}
+        if cls in seen:
+            seen[cls].update(ns)
+        else:
+            seen[cls] = ns
+            yield cls, ns
 
 
 class IncisableMeta(_ABCMeta):
 
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for child in set(cls.child_classes()):
-            cls._add_child_class(child)
-        Element = cls._add_rider_class(_Element_)
-        for typ in cls.element_types():
-            _ = Element.register(typ)
-        incmeths = cls.incmeths = cls._get_incmeths()
-        Incisor = cls._add_rider_class(_Incisor_)
-        for typ in incmeths:
-            _ = Incisor.register(typ)
-#         cls._add_child_class('_Incision_')
-        cls._cls_extra_init_()
-
-    def _cls_extra_init_():
+    def _cls_extra_init_(cls, **kwargs):
         pass
 
     def child_classes(cls, /):
         return iter(())
 
-    def incision_methods(cls, /):
+    def rider_classes(cls, /):
         return iter(())
 
-    def priority_incision_methods(cls, /):
-        return iter(())
-
-    def element_types(cls, /):
-        return iter(())
-
-    def _get_incmeths(cls, /) -> _TypeMap:
-        return _TypeMap(
-            _itertools.chain(
-                cls.priority_incision_methods(),
-                cls.incision_methods()
-                ),
-            )
-
-    def _add_child_class(cls, ACls, /):
+    def add_child_class(cls, ACls, /, **namespace):
         name = ACls.__name__.strip('_')
         if ACls in cls.__mro__:
             addcls = cls
@@ -74,15 +46,13 @@ class IncisableMeta(_ABCMeta):
                 classpath.extend(cls.classpath)
             else:
                 classpath.append(cls)
-            addcls = type(
-                name,
-                (ACls, cls),
-                dict(classpath=tuple((*classpath, name)))
-                )
+            bases = (ACls, cls)
+            classpath = tuple((*classpath, name))
+            addcls = type(name, bases, namespace | dict(classpath=classpath))
         setattr(cls, name, addcls)
         return addcls
 
-    def _add_rider_class(cls, ACls, /):
+    def add_rider_class(cls, ACls, /, **namespace):
         name = ACls.__name__.strip('_')
         bases = tuple(
             getattr(BCls, name)
@@ -92,10 +62,18 @@ class IncisableMeta(_ABCMeta):
         rider = type(
             f'{cls.__name__}_{name}',
             bases if bases else (ACls,),
-            dict(classpath=(cls, name)),
+            namespace | dict(classpath=(cls, name)),
             )
         setattr(cls, name, rider)
         return rider
+
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(*args)
+        for child, ns in correct_classiterator(cls.child_classes()):
+            cls.add_child_class(child, **ns)
+        for rider, ns in correct_classiterator(cls.rider_classes()):
+            cls.add_rider_class(rider, **ns)
+        cls._cls_extra_init_(**kwargs)
 
 
 ###############################################################################

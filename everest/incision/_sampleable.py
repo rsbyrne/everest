@@ -4,10 +4,8 @@
 
 
 import functools as _functools
-import itertools as _itertools
 import collections.abc as _collabc
 
-from . import _utilities
 
 from ._sliceable import Sliceable as _Sliceable
 
@@ -20,6 +18,7 @@ def yield_criteria(*criteria):
             if not callable(criterion):
                 raise TypeError("Criteria must be callable.")
             yield criterion
+
 
 @_functools.lru_cache
 def get_single_criterion_function(criterion):
