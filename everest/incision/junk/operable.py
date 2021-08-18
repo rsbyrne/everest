@@ -3,10 +3,10 @@
 ###############################################################################
 
 
-from ._incisable import Incisable as _Incisable
+from .chora import Chora as _Chora
 
 
-class Operable(_Incisable):
+class Operable(_Chora):
 
     ...
 

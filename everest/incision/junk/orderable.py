@@ -5,10 +5,10 @@
 
 import operator as _operator
 
-from .chora import Chora as _Chora
+from .sett import Sett as _Sett
 
 
-class Orderable(_Chora):
+class Orderable(_Sett):
 
     def comparator(self, a, b, /):
         '''Should return `>0` if `a>b`, `<0` if `a<b`, or `0` if `a==b`'''
@@ -39,12 +39,12 @@ class Orderable(_Chora):
 
     def incise_delimit_stop(self, incisor, /):
         lbnd, ubnd, comparator = self.lbnd, self.ubnd, self.comparator
-        if ubnd is not None:
-            if comparator(incisor, ubnd) >= 0:
-                return self
         if lbnd is not None:
             if comparator(incisor, lbnd) <= 0:
                 incisor = lbnd
+        if ubnd is not None:
+            if comparator(incisor, ubnd) >= 0:
+                return self
         if not self.__contains__(incisor):
             raise KeyError("Delimit out of range")
         return self.new_self(ubnd=incisor)

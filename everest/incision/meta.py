@@ -25,7 +25,7 @@ def correct_classiterator(clsiter):
             yield cls, ns
 
 
-class IncisableMeta(_ABCMeta):
+class ChoraMeta(_ABCMeta):
 
     def _cls_extra_init_(cls, **kwargs):
         pass

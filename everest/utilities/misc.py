@@ -1,5 +1,5 @@
 ###############################################################################
-'''Generally useful code snippets for funcy.'''
+'''Generally useful code snippets.'''
 ###############################################################################
 
 
@@ -7,9 +7,10 @@ from abc import ABC as _ABC
 from collections import abc as _collabc
 import collections as _collections
 import itertools as _itertools
+import functools as _functools
+import operator as _operator
 import os as _os
 import random as _random
-from functools import lru_cache as _lru_cache
 
 import numpy as _np
 
@@ -92,30 +93,95 @@ def add_headers(path, header = '#' * 80, footer = '#' * 80, ext = '.py'):
                 file.write(content)
 
 
-class FrozenMap(_collections.UserDict):
+def unpack_criterion(criterion):
+    if isinstance(criterion, tuple):
+        return criterion
+    elif isinstance(criterion, list):
+        yield from unpack_criterion(*criterion)
+    else:
+        if not callable(criterion):
+            raise TypeError("Criteria must be callable.")
+        yield criterion
 
-    lock = False
+
+def process_criterion(criterion):
+    if isinstance(criterion, _collabc.Iterable):
+        if not (istup := isinstance(criterion, tuple)):
+            criteria = unpack_criterion(criterion)
+        criteria = tuple(map(process_criterion, criterion))
+        if (ncrit := len(criteria)) == 0:
+            raise ValueError
+        if ncrit == 1:
+            criterion = criteria[0]
+        elif istup:
+            def criterion(args, /, *, funcs=criteria):
+                return all(
+                    func(arg)
+                    for func, arg in _itertools.zip_longest(funcs, args)
+                    )
+        else:
+            def criterion(arg, /, *, funcs=criteria):
+                return all(
+                    func(arg)
+                    for func in funcs
+                    )
+    elif isinstance(criterion, type):
+        def criterion(arg, argtyp=criterion, /):
+            return isinstance(arg, argtyp)
+    elif not callable(criterion):
+        raise TypeError(criterion)
+    return criterion
+
+
+def process_criteria(*criteria):
+    func = process_criterion(criteria)
+    def criterion(*args, func=func):
+        return func(args)
+    return criterion
+
+
+class FrozenMap(_collabc.Mapping):
 
     def __init__(self, *args, defertos=(), **kwargs):
-        super().__init__(*args, **kwargs)
+        content = dict(*args, **kwargs)
+        self.content = dict(zip(
+            map(self.process_key, content),
+            content.values()
+            ))
         self.defertos = tuple(defertos)
-        self.lock = True
 
-    def __setitem__(self, name, value):
-        if self.lock:
-            raise ValueError(f"Cannot set value on {type(self)}")
-        super().__setitem__(name, value)
+    @classmethod
+    def process_key(cls, key):
+        return key
 
-    def __delitem__(self, name):
-        if self.lock:
-            raise ValueError(f"Cannot delete value on {type(self)}")
-        super().__delitem__(name)
+    @classmethod
+    def process_req(cls, req):
+        return req
 
     def __getitem__(self, name):
         try:
-            return super().__getitem__(name)
+            return self.content.__getitem__(self.process_req(name))
         except KeyError:
             return self._getitem_deferred(name)
+
+    def __len__(self):
+        return len(self.content) + sum(map(len, self.defertos))
+
+    def __iter__(self):
+        return _itertools.chain(
+            self.content,
+            _itertools.chain(*self.defertos)
+            )
+
+    def merge(self):
+        return _functools.reduce(
+            _operator.__or__,
+            (self.content, *self.defertos)
+            )
+
+    @property
+    def __or__(self):
+        return self.merge().__or__
 
     def _getitem_deferred(self, key):
         for deferto in self.defertos:
@@ -128,7 +194,7 @@ class FrozenMap(_collections.UserDict):
     def __repr__(self):
         return (
             f"{type(self).__name__}(len=={len(self)})"
-            + super().__repr__()
+            + repr(self.content)
             )
 
     def __hash__(self):
@@ -142,28 +208,60 @@ class FrozenMap(_collections.UserDict):
             return hashint
 
 
-class FrozenOrderedMap(FrozenMap, _collections.OrderedDict):
-    ...
+class BoolMap(FrozenMap):
 
+    @classmethod
+    def process_key(cls, key):
+        if not isinstance(key, tuple):
+            key = (key,)
+        return process_criteria(*key)
 
-class TypeMap(FrozenOrderedMap):
+    def __getitem__(self, req):
+        if not isinstance(req, tuple):
+            req = (req,)
+        for dkey, dval in self.items():
+            if dkey(*req):
+                return dval
+        return self._getitem_deferred(req)
 
-    @_lru_cache
-    def __getitem__(self, key):
-        keys = tuple(iter(self))
-        vals = (super(type(self), self).__getitem__(k) for k in keys)
-        for compkey, arg in zip(keys, vals):
-            if issubclass(key, compkey):
-                return arg
-        return self._getitem_deferred(key)
+    @property
+    def items(self):
+        return self.content.items
 
-    @_lru_cache
-    def __contains__(self, key):
+    def __contains__(self, req):
         try:
-            _ = self[key]
+            _ = self[req]
             return True
         except KeyError:
             return False
+
+
+class TypeMap(BoolMap):
+
+    @classmethod
+    def process_key(cls, key):
+        def keyfunc(arg, /, *, key=key):
+            return issubclass(arg, key)
+        return keyfunc
+
+    @_functools.lru_cache
+    def __getitem__(self, req):
+        return super().__getitem__(req)
+
+    @_functools.lru_cache
+    def __contains__(self, key):
+        return super().__getitem__(req)
+
+
+class MultiTypeMap(TypeMap):
+
+    @classmethod
+    def process_key(cls, key):
+        if isinstance(key, tuple):
+            def keyfunc(*args, keys=key):
+                return all(map(issubclass, args, keys))
+            return keyfunc
+        return super().process_key(key)
 
 
 class SliceLike(_ABC):

@@ -3,12 +3,12 @@
 ###############################################################################
 
 
-from .chora import Chora as _Chora
+from .sett import Sett as _Sett
 from .sliceable import Sliceable as _Sliceable
 from .bounded import Bounded as _Bounded
 
 
-class _Advanceable_(_Chora):
+class _Advanceable_(_Sett):
 
     def __init__(self, *args, advancer, **kwargs):
         self.advancer = advancer

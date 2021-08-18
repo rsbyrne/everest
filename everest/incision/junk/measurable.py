@@ -3,10 +3,9 @@
 ###############################################################################
 
 
-from abc import ABCMeta as _ABCMeta, abstractmethod as _abstractmethod
-import operator as _operator
+from abc import abstractmethod as _abstractmethod
 
-from .chora import Chora as _Chora
+from .sett import Sett as _Sett
 from .orderable import Orderable as _Orderable
 
 
@@ -43,7 +42,25 @@ class _Originated_(_Orderable):
 
     def process_relative_metric_incisor(self, incisor):
         lbnd, ubnd = self.bnds
-        return incisor + lbnd if incisor > 0 else incisor + ubnd
+        if incisor > 0:
+            try:
+                return incisor + lbnd
+            except TypeError as exc:
+                if lbnd is None:
+                    raise IndexError(
+                        "Cannot slice from undefined `.lbnd`."
+                        ) from exc
+                raise TypeError from exc
+        elif incisor < 0:
+            try:
+                return incisor + ubnd
+            except TypeError as exc:
+                if ubnd is None:
+                    raise IndexError(
+                        "Cannot slice from undefined `.ubnd`."
+                        ) from exc
+                raise TypeError from exc
+        return incisor
 
     def process_element_to_metric(self, incisor):
         return self.metrictype(self.pos(incisor))
@@ -98,7 +115,7 @@ class _Originated_(_Orderable):
         return pos >= self.lbnd and pos < self.ubnd
 
 
-class Measurable(_Chora):
+class Measurable(_Sett):
 
     _Originated_ = _Originated_
 
