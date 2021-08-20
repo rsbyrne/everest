@@ -6,6 +6,60 @@
 from . import _misc
 
 from .adderclass import AdderClass as _AdderClass
+from .hashidable import HashIDable as _HashIDable
+
+_FrozenMap = _misc.FrozenMap
+
+
+@_HashIDable
+class Registrar:
+
+    __slots__ = (
+        '_args', '_kwargs', '_argtup', '_frozenkwargs', '_argskwargslocked',
+        *_HashIDable.reqslots
+        )
+
+    def __init__(self, /):
+        self._argskwargslocked = False
+        self._args = []
+        self._kwargs = {}
+
+    @property
+    def argskwargslocked(self):
+        return self._argskwargslocked
+
+    def register(self, *args, **kwargs):
+        if self.argskwargslocked:
+            raise RuntimeError("Cannot register on frozen registrar.")
+        for att in ('_argtup', '_frozenkwargs'):
+            if hasattr(self, att):
+                delattr(self, att)
+        self._args.extend(args)
+        self._kwargs.update(kwargs)
+
+    def freeze(self):
+        self._argskwargslocked = True
+
+    @property
+    def args(self):
+        try:
+            return self._argtup
+        except AttributeError:
+            argtup = self._argtup = tuple(self._args)
+            self.freeze()
+            return argtup
+
+    @property
+    def kwargs(self):
+        try:
+            return self._frozenkwargs
+        except AttributeError:
+            fkw = self._frozenkwargs = _FrozenMap(**self._kwargs)
+            self.freeze()
+            return fkw
+
+    def get_hashcontent(self):
+        return self.args, self.kwargs
 
 
 def master_unreduce(constructor, args, kwargs):
@@ -18,54 +72,31 @@ def master_unreduce(constructor, args, kwargs):
 
 class Reloadable(_AdderClass):
 
-    reqslots = ('_args', '_kwargs', '_frozenkwargs', '_argskwargslocked')
-
-    _argskwargslocked = False
+    reqslots = ('_registrar',)
 
     @_AdderClass.decorate(property)
-    def argskwargslocked(self):
+    def registrar(self):
         try:
-            return self._argskwargslocked
+            return self._registrar
         except AttributeError:
-            self._argskwargslocked = False
-            return False
+            registrar = self._registrar = Registrar()
+            return registrar
 
-    def freeze_argskwargs(self, *args, **kwargs):
-        self._argskwargslocked = True
+    @_AdderClass.decorate(property)
+    def freeze_argskwargs(self):
+        return self.registrar.freeze()
 
-    def register_argskwargs(self, *args, **kwargs):
-        if self.argskwargslocked:
-            return
-        try:
-            _args = self._args
-        except AttributeError:
-            _args = self._args = list()  # pylint: disable=W0201
-        try:
-            _kwargs = self._kwargs
-        except AttributeError:
-            _kwargs = self._kwargs = dict()  # pylint: disable=W0201
-        _args.extend(args)
-        _kwargs.update(kwargs)
+    @_AdderClass.decorate(property)
+    def register_argskwargs(self):
+        return self.registrar.register
 
     @_AdderClass.decorate(property)
     def args(self):
-        try:
-            return tuple(self._args)
-        except AttributeError:
-            _args = self._args = tuple()  # pylint: disable=W0201
-            return _args
+        return self.registrar.args
 
     @_AdderClass.decorate(property)
     def kwargs(self):
-        try:
-            return self._frozenkwargs
-        except AttributeError:
-            try:
-                kwargs = self._kwargs
-            except AttributeError:
-                kwargs = dict()
-            frkw = self._frozenkwargs = _misc.FrozenMap(kwargs)  # pylint: disable=W0201
-            return frkw
+        return self.registrar.kwargs
 
     @_AdderClass.decorate(classmethod)
     def get_constructor(cls):  # pylint: disable=E0213

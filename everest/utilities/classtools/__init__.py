@@ -16,6 +16,7 @@ from .reloadable import *
 from .hashidable import *
 from .diskable import *
 from .coproperty import *
+from .perpetual import *
 
 
 ###############################################################################

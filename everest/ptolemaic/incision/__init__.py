@@ -3,8 +3,9 @@
 ###############################################################################
 
 
-from .. import utilities as _utilities
-from ..utilities import classtools as _classtools
+from .. import _utilities
+
+from ..ptolemaic import Ptolemaic as _Ptolemaic
 
 from .chora import Chora
 # from . import metrics
