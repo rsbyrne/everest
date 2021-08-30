@@ -5,33 +5,58 @@
 
 import os as _os
 import pickle as _pickle
-from functools import wraps as _wraps
+import functools as _functools
+import inspect as _inspect
+from collections import abc as _collabc
 
 from .makehash import quick_hash as _quick_hash
 
 
-def softcache(propname):
-    cachename = f'_{propname}'
-    getfuncname = f'get_{propname}'
-    @property
-    def wrapper(self):
-        try:
-            return getattr(self, cachename)
-        except AttributeError:
-            getfunc = getattr(self, getfuncname)
-            out = getfunc()
-            setattr(self, cachename, out)
-            return out
-    return wrapper
+def softcache(storage):
+    if storage is None:
+        store, retrieve = None, None
+    else:
+        store, retrieve = storage.__setitem__, storage.__getitem__
+    def decorator(func):
+        cachename = f"_softcache_{func.__name__}"
+        parameters = _inspect.signature(func).parameters
+        nonestorage = storage is None
+        def wrapper(
+                *args,
+                cachename=cachename, storage=storage, func=func, **kwargs
+                ):
+            try:
+                return storage[cachename]
+            except KeyError:
+                out = storage[cachename] = func(*args, **kwargs)
+                return out
+        if len(parameters) > (1 if nonestorage else 0):
+            def wrapper(*args, storage=storage, func=wrapper, **kwargs):
+                arghash = _quick_hash((args, tuple(kwargs.items())))
+                cachename = f"{cachename}_{arghash}"
+                return func(
+                    *args,
+                    storage=storage, cachename=cachename, **kwargs
+                    )
+        if nonestorage:
+            def wrapper(arg0, *args, func=wrapper, **kwargs):
+                try:
+                    storage = arg0.__dict__['_softcache']
+                except KeyError:
+                    storage = arg0._softcache = dict()
+                return func(arg0, *args, storage=storage, **kwargs)
+        return _functools.wraps(func)(wrapper)
+    return decorator
 
-def hard_cache(cachedir):
+
+def hardcache(cachedir):
     def decorator(func):
         _os.makedirs(cachedir, exist_ok = True)
         path = _os.path.join(
             cachedir,
             f"hardcache_{func.__module__}_{func.__name__}"
             )
-        @_wraps(func)
+        @_functools.wraps(func)
         def wrapper(*args, refresh = False, cache = True, **kwargs):
             if args or kwargs:
                 cachepath = f"{path}_{_quick_hash((args, tuple(kwargs.items())))}"
