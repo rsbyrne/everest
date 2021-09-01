@@ -93,51 +93,122 @@ def add_headers(path, header = '#' * 80, footer = '#' * 80, ext = '.py'):
                 file.write(content)
 
 
-def unpack_criterion(criterion):
-    if isinstance(criterion, tuple):
-        return criterion
-    elif isinstance(criterion, list):
-        yield from unpack_criterion(*criterion)
-    else:
-        if not callable(criterion):
-            raise TypeError("Criteria must be callable.")
-        yield criterion
+class IsInstance:
+
+    __slots__ = ('typ',)
+
+    def __init__(self, typ):
+        self.typ = typ
+
+    def __call__(self, arg):
+        return isinstance(arg, self.typ)
 
 
-def process_criterion(criterion):
-    if isinstance(criterion, _collabc.Iterable):
-        if not (istup := isinstance(criterion, tuple)):
-            criteria = unpack_criterion(criterion)
-        criteria = tuple(map(process_criterion, criterion))
-        if (ncrit := len(criteria)) == 0:
-            raise ValueError
-        if ncrit == 1:
-            criterion = criteria[0]
-        elif istup:
-            def criterion(args, /, *, funcs=criteria):
-                return all(
-                    func(arg)
-                    for func, arg in _itertools.zip_longest(funcs, args)
-                    )
+class IsSubclass:
+
+    __slots__ = ('typ',)
+
+    def __init__(self, typ):
+        self.typ = typ
+
+    def __call__(self, arg):
+        return issubclass(arg, self.typ)
+
+
+class _CriterionMeta(type):
+
+    def _process_criterion(cls, criterion):
+        if isinstance(criterion, cls):
+            return criterion
+        if isinstance(criterion, _collabc.Iterable):
+            if isinstance(criterion, tuple):
+                return MultiCriterion(*criterion, merge=all)
+            if isinstance(criterion, list):
+                return MultiCriterion(*criterion, merge=any)
+            if isinstance(criterion, frozenset):
+                return Criterion(*criterion, merge=all)
+            if isinstance(criterion, set):
+                return Criterion(*criterion, merge=any)
+            return Criterion(*criterion)
+        if isinstance(criterion, type):
+            return IsInstance(criterion)
+        if callable(criterion):
+            return criterion
+        raise TypeError(type(criterion))
+
+    def __call__(cls, criteria0, *criteria, **kwargs):
+        if criteria:
+            return super().__call__(
+                *map(Criterion, (criteria0, *criteria)),
+                **kwargs
+                )
         else:
-            def criterion(arg, /, *, funcs=criteria):
-                return all(
-                    func(arg)
-                    for func in funcs
-                    )
-    elif isinstance(criterion, type):
-        def criterion(arg, argtyp=criterion, /):
-            return isinstance(arg, argtyp)
-    elif not callable(criterion):
-        raise TypeError(criterion)
-    return criterion
+            if callable(criteria0):
+                return criteria0
+            if isinstance(type(criteria0), type(cls)):
+                return criteria0
+            if isinstance(criteria0, type):
+                return IsInstance(criterion)
+            if isinstance(criterion, _collabc.Iterable):
+                if isinstance(criterion, tuple):
+                    return MultiCriterion(*criterion, merge=all)
+                if isinstance(criterion, list):
+                    return MultiCriterion(*criterion, merge=any)
+                if isinstance(criterion, frozenset):
+                    return Criterion(*criterion, merge=all)
+                if isinstance(criterion, set):
+                    return Criterion(*criterion, merge=any)
+                return Criterion(*criterion, **kwargs)
+            raise TypeError(type(criteria0))
 
 
-def process_criteria(*criteria):
-    func = process_criterion(criteria)
-    def criterion(*args, func=func):
-        return func(args)
-    return criterion
+class Criterion(metaclass=_CriterionMeta):
+
+    __slots__ = ('func', 'funcs', 'merge', 'criteria')
+
+    def _multi_func(self, arg):
+        return self.merge(func(arg) for func in self.funcs)
+
+    def __init__(self, criteria0, /, *criteria, merge=all):
+        self.merge = merge
+        if criteria:
+            self.criteria = (criteria0, *criteria)
+            self.func = self._multi_func
+        else:
+            self.func = criteria0
+            self.criteria = criteria0
+
+    @property
+    def __call__(self):
+        return self.func
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.criteria}, merge={self.merge})"
+
+
+class MultiCriterion(Criterion):
+
+    def _multi_func(self, *args):
+        return self.merge(
+            func(arg)
+            for func, arg in _itertools.zip_longest(self.funcs, args)
+            )
+
+    def __init__(self, criteria0, criteria1, /, *criteria, merge=all):
+        super().__init__(criteria0, criteria1, *criteria, merge=merge)
+
+    def __call__(self, arg0, *args):
+        if args:
+            return self.func(arg0, *args)
+        return self.func(*arg0)
+
+
+Criterion.MultiCriterion = MultiCriterion
+Criterion.IsSubclass = IsSubclass
+
+
+# assert Criterion((lambda x: x > 10, {int, float}))(11., 2)
+# assert Criterion(lambda x: x > 10, {int, float})(11)
 
 
 class FrozenMap(_collabc.Mapping):

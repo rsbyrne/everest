@@ -13,14 +13,13 @@ from .makehash import quick_hash as _quick_hash
 
 
 def softcache(storage):
-    if storage is None:
-        store, retrieve = None, None
-    else:
-        store, retrieve = storage.__setitem__, storage.__getitem__
-    def decorator(func):
+
+    def decorator(func, storage=storage):
+
         cachename = f"_softcache_{func.__name__}"
         parameters = _inspect.signature(func).parameters
         nonestorage = storage is None
+
         def wrapper(
                 *args,
                 cachename=cachename, storage=storage, func=func, **kwargs
@@ -30,22 +29,32 @@ def softcache(storage):
             except KeyError:
                 out = storage[cachename] = func(*args, **kwargs)
                 return out
+
         if len(parameters) > (1 if nonestorage else 0):
-            def wrapper(*args, storage=storage, func=wrapper, **kwargs):
+
+            def wrapper(
+                    *args,
+                    cachename=cachename, storage=storage, func=wrapper,
+                    **kwargs
+                    ):
                 arghash = _quick_hash((args, tuple(kwargs.items())))
                 cachename = f"{cachename}_{arghash}"
                 return func(
                     *args,
                     storage=storage, cachename=cachename, **kwargs
                     )
+
         if nonestorage:
+
             def wrapper(arg0, *args, func=wrapper, **kwargs):
                 try:
-                    storage = arg0.__dict__['_softcache']
-                except KeyError:
+                    storage = arg0._softcache
+                except AttributeError:
                     storage = arg0._softcache = dict()
                 return func(arg0, *args, storage=storage, **kwargs)
+
         return _functools.wraps(func)(wrapper)
+
     return decorator
 
 

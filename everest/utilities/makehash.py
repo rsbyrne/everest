@@ -25,10 +25,12 @@ def quick_hash(content):
         # content = _pickle.dumps(content)
     return _hashlib.md5(content).hexdigest()
 
+
 def quick_hashint(content):
     if hasattr(content, 'get_hashint'):
         return content.get_hashint()
     return int(quick_hash(content), 16)
+
 
 def fic_hash(obj, depth = 2):
     return _word.get_random_phrase(
@@ -37,11 +39,14 @@ def fic_hash(obj, depth = 2):
         phraselength = depth,
         )
 
+
 def proper_hash(obj, depth = 2):
     return _word.get_random_proper(seed = quick_hash(obj), n = depth)
 
+
 def english_hash(obj, depth = 2):
     return _word.get_random_english(seed = quick_hash(obj), n = depth)
+
 
 def word_hash(obj, depth = 2):
     if isinstance(obj, type):
@@ -49,6 +54,7 @@ def word_hash(obj, depth = 2):
     if isinstance(obj, _Mapping):
         return english_hash(obj, depth)
     return fic_hash(obj, depth)
+
 
 ###############################################################################
 ###############################################################################

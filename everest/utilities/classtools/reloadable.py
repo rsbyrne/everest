@@ -61,6 +61,9 @@ class Registrar:
     def get_hashcontent(self):
         return self.args, self.kwargs
 
+    def __call__(self, *args, **kwargs):
+        return self.register(*args, **kwargs)
+
 
 def master_unreduce(constructor, args, kwargs):
     if isinstance(constructor, tuple):
