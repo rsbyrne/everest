@@ -12,7 +12,7 @@ from . import _utilities
 from .base import _Reader
 
 
-_FrozenOrderedMap = _utilities.misc.FrozenOrderedMap
+_FrozenMap = _utilities.misc.FrozenMap
 
 
 class _Derived(_Reader):
@@ -99,7 +99,7 @@ class Slice(_Incision):
 
     def get_basekeydict(self):
         incisor = self.incisor
-        return _FrozenOrderedMap(
+        return _FrozenMap(
             _itertools.islice(
                 self.source.basekeydict.items(),
                 incisor.start, incisor.stop, incisor.step
@@ -122,7 +122,7 @@ class Filter(_Incision):
 
     def get_basekeydict(self):
         source = self.source
-        return _FrozenOrderedMap(_itertools.compress(
+        return _FrozenMap(_itertools.compress(
             source.basekeydict.items(),
             map(self.basekeys.__contains__, source.allbasekeys),
             ))
@@ -183,7 +183,7 @@ class SetOp(_MultiDerived):
     def get_basekeydict(self):
         if self._singlesource:
             return sources[0].basekeydict
-        return _FrozenOrderedMap(
+        return _FrozenMap(
             _itertools.chain.from_iterable((
                 (mk, bk) for mk, bk in src.basekeydict.items()
                     if bk in self.basekeys
@@ -230,7 +230,7 @@ class Transform(_MultiDerived):
         return tuple(zip(*(src.manifest for src in sources)))
 
     def get_basekeydict(self):
-        return _FrozenOrderedMap(
+        return _FrozenMap(
             (mks, self.source.basekeydict[mks[0]])
                 for mks in self.manifest
             )

@@ -16,7 +16,7 @@ from . import _utilities
 from .resolve import resolve as _resolve
 
 _caching = _utilities.caching
-_FrozenOrderedMap = _utilities.misc.FrozenOrderedMap
+_FrozenMap = _utilities.misc.FrozenMap
 
 class _ReaderMeta(_ABCMeta):
     _premade = _weakref.WeakValueDictionary()
@@ -71,7 +71,7 @@ class _Reader(metaclass = _ReaderMeta):
     allbasekeys = _caching.softcache('allbasekeys')
 
     def get_basekeydict(self):
-        return _FrozenOrderedMap(zip(self.manifest, self.allbasekeys))
+        return _FrozenMap(zip(self.manifest, self.allbasekeys))
     basekeydict = _caching.softcache('basekeydict')
 
     def get_basehash(self):

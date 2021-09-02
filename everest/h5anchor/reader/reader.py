@@ -23,7 +23,6 @@ from .derived import (
     Slice as _Slice,
     )
 
-_FrozenOrderedMap = _utilities.misc.FrozenOrderedMap
 _TypeMap = _utilities.misc.TypeMap
 
 
