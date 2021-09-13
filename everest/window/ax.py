@@ -24,6 +24,7 @@ class Ax:
             projection = 'rectilinear',
             name = None,
             mplkwargs = None,
+            ticksPerInch=0.8,
             **kwargs
             ):
 
@@ -36,6 +37,7 @@ class Ax:
 
         self.canvas, self.index, self.projection, self.name = \
             canvas, index, projection, name
+        self.ticksPerInch = ticksPerInch
 
         ax = canvas.fig.add_subplot(
             canvas.nrows,
@@ -117,13 +119,15 @@ class Ax:
         return self.canvas.sizeinches[i] / self.canvas.shape[::-1][i]
 
     def _autoconfigure_axes(self, *args, **kwargs):
-        for i, dim in enumerate(self.dims):
-            self._autoconfigure_axis(
-                i,
-                self.pile.concatenated[dim],
-                *args,
-                **kwargs,
-                )
+        with self.props:
+            for i, dim in enumerate(self.dims):
+                self._autoconfigure_axis(
+                    i,
+                    self.pile.concatenated[dim],
+                    *args,
+                    **kwargs,
+                    )
+
     def _autoconfigure_axis(self,
             i,
             data,
@@ -136,11 +140,10 @@ class Ax:
         label, tickVals, minorTickVals, tickLabels, lims = \
             data.auto_axis_configs(nTicks)
         axname = {0 : 'x', 1 : 'y', 2 : 'z'}[i]
-        axis, ticks, grid = (
-            self.props.edges[axname],  # pylint: disable=E1101
-            self.props.ticks[axname],  # pylint: disable=E1101
-            self.props.grid[axname],  # pylint: disable=E1101
-            )
+        props = self.props
+        axis = props.edges[axname]
+        ticks = axis.ticks
+        grid = props.grid[axname]
         axis.scale = scale
         axis.lims = lims
         ticks.major.set_values_labels(tickVals, tickLabels)
@@ -165,7 +168,7 @@ class Ax:
             **kwargs,
             ):
         spread = self.pile.add(x, y, z, c, s, l)
-        self._autoconfigure_axes()
+        self._autoconfigure_axes(ticksPerInch=self.ticksPerInch)
         drawFunc = getattr(self.ax, self._plotFuncs[variety])
         collections = drawFunc(
             *spread.drawArgs,

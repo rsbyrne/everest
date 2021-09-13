@@ -26,12 +26,17 @@ class _Kwargs(dict):
 
 class _PropertyController:
     def __init__(self):
+        self.update = self._true_update
         self._masters = list()
         self._subs = dict()
+        self._controller = None
     def _add_sub(self, sub, name):
         self._subs[name] = sub
         setattr(self, name, sub)
         sub._masters.append(weakref.ref(self))
+    @property
+    def subs(self):
+        return tuple(self._subs.values())
     @property
     def masters(self):
         outs = []
@@ -40,11 +45,44 @@ class _PropertyController:
             if not out is None:
                 outs.append(out)
         return tuple(outs)
-    def update(self):
-        for sub in self._subs.values():
-            sub.update()
+    def _ultimate_masters(self):
+        for master in self.masters:
+            if master.masters:
+                yield from master._ultimate_masters()
+            else:
+                yield master
+    @property
+    def ultimatemasters(self):
+        return tuple(set(self._ultimate_masters()))
+    def _update(self):
+        pass
+    def outerupdate(self):
+        if (masters := self.masters):
+            for master in self.ultimatemasters:
+                master.outerupdate()
+    def _true_update(self, _controller=True):
+        self._update()  # The order is important!
+        for sub in self.subs:
+            sub.update(_controller=False)
+        if _controller:
+            self.outerupdate()
+        
+    def _faux_update(self):
+        pass
     def __getitem__(self, key):
         return self._subs[key]
+    def __enter__(self, controller=True):
+        self.update = self._faux_update
+        self._controller = controller
+        for sub in self.subs:
+            sub.__enter__(controller=False)
+    def __exit__(self, *args):
+        update = self.update = self._true_update
+        for sub in self.subs:
+            sub.__exit__()
+        if self._controller:
+            self.update()
+        self._controller = None
 
 class _Vanishable(_PropertyController):
     def __init__(self, *args, visible = None, **kwargs):
@@ -73,9 +111,9 @@ class _Vanishable(_PropertyController):
         self.update()
     def toggle(self):
         self.visible = not self.visible
-    def update(self):
-        super().update()
+    def _update(self):
         self._set_visible(self.visible)
+        super()._update()
     def _set_visible(self, value):
         ...
 
@@ -96,9 +134,9 @@ class _Fadable(_PropertyController):
     def alpha(self, value):
         self._alpha = float(value)
         self.update()
-    def update(self):
-        super().update()
+    def _update(self):
         self._set_alpha(self.alpha)
+        super()._update()
     def _set_alpha(self, value):
         ...
 
@@ -129,9 +167,9 @@ class _Colourable(_PropertyController):
     def colour(self, value):
         self._colour = value
         self.update()
-    def update(self):
-        super().update()
+    def _update(self):
         self._set_colour(self.colour)
+        super()._update()
     def _set_colour(self, value):
         ...
 
@@ -162,9 +200,9 @@ class _Fillable(_PropertyController):
     def fill(self, value):
         self._fill = value
         self.update()
-    def update(self):
-        super().update()
+    def _update(self):
         self._set_fill(self.fill)
+        super()._update()
     def _set_fill(self, value):
         ...
 

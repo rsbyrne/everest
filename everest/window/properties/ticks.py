@@ -40,6 +40,37 @@ class TickParallels(_TickController):
         for stature in self._statures:
             sub = TickSubs(mplax, dim, stature)
             self._add_sub(sub, stature)
+    @property
+    def values(self):
+        return tuple(self[st].values for st in self._statures)
+    @values.setter
+    def values(self, vals):
+        for st, val in zip(self._statures, vals):
+            self[st]._values[:] = val
+        self.update()
+    @property
+    def labels(self):
+        return tuple(self[st].labels for st in self._statures)
+    @labels.setter
+    def labels(self, labs):
+        for st, lab in zip(self._statures, labs):
+            self[st]._labels[:] = lab
+        self.update()
+    def _set_values_labels(self, values, labels):
+        for st, vals, labs in zip(self._statures, values, labels):
+            ticks = self[st]
+            ticks._set_values_labels(vals, labs)
+    def set_values_labels(self, values, labels):
+        self._set_values_labels(values, labels)
+        self.update()
+    def _lock_to(self, other, /):
+        self._set_values_labels(
+            other.values,
+            other.labels,
+            )
+    def lock_to(self, other, /):
+        self._lock_to(other)
+        self.update()
 
 class TickSubs(_TickController):
     def __init__(self,
@@ -70,10 +101,10 @@ class TickSubs(_TickController):
     @property
     def mplticklabels(self):
         return self.mplaxAxis.get_ticklabels(self._minor)
-    def update(self):
-        super().update()
+    def _update(self):
         self._set_values(self.values)
         self._set_labels(self.labels)
+        super()._update()
     def _set_labels(self, labels, *args, **kwargs):
         getattr(self.mplax, f'set_{self.dim}ticklabels')(
             labels,
@@ -102,9 +133,11 @@ class TickSubs(_TickController):
             tickline.set_alpha(value)
         for ticklabel in self.mplticklabels:
             ticklabel.set_alpha(value)
-    def set_values_labels(self, vals, labels):
+    def _set_values_labels(self, vals, labels):
         self._values[:] = vals
         self._labels[:] = labels
+    def set_values_labels(self, vals, labels):
+        self._set_values_labels(vals, labels)
         self.update()
     @property
     def values(self):

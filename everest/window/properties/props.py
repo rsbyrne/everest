@@ -64,10 +64,6 @@ class Props(_PropsController):
             colour = 'grey',
             alpha = 0.5,
             ), 'grid')
-        self._add_sub(Ticks(
-            mplax,
-            dims = dims,
-            ), 'ticks')
         self._add_sub(Edges(
             mplax,
             dims = dims,
@@ -81,12 +77,12 @@ class Props(_PropsController):
             alpha = 0.,
             ), 'patch')
 
-        for dim in dims:
-            self['edges'][dim]._add_sub(self['ticks'][dim], 'ticks')
-            self['edges'][dim]['primary']._add_sub(self['ticks'][dim], 'ticks')
+#         self._add_sub(self['edges']['ticks'], 'ticks')
 
-    def update(self):
-        super().update()
+#         for dim in dims:
+#             self['edges'][dim]._add_sub(self['grid'][dim], 'grid')
+
+    def outerupdate(self):
         self._outerupdate()
 
 ###############################################################################

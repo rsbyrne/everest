@@ -55,8 +55,7 @@ class GridSubs(_GridController):
             )
         self.dim = dim
         self.stature = stature
-    def update(self):
-        super().update()
+    def _update(self):
         self.mplax.grid(
             b = True,
             axis = self.dim,
@@ -64,6 +63,7 @@ class GridSubs(_GridController):
             alpha = self.alpha if self.visible else 0.,
             color = self.colour,
             )
+        super()._update()
     def _set_colour(self, value):
         ...
     def _set_alpha(self, value):

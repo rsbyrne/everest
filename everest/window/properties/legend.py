@@ -67,13 +67,13 @@ class Legend(_MplElement, _LegendController):
         self.handles.append(handle)
         self.labels.append(label)
         self.update()
-    def update(self):
+    def _update(self):
         handles, labels = self.handles, self.labels
         if not len(handles) == len(labels):
             raise ValueError("Mismatching handles and labels")
         self._remove()
         self._draw()
-        super().update()
+        super()._update()
     def _set_visible(self, value):
         if not len(self.handles):
             value = False
@@ -100,16 +100,16 @@ class _LegendElementController(_MplElement):
 class LegendTitle(_LegendElementController, _MplText):
     def __init__(self, legend, **kwargs):
         super().__init__(legend, 'title', **kwargs)
-    def update(self):
-        super().update()
+    def _update(self):
         self._legend.mpllegend.set_title(self.text)
+        super()._update()
 
 class LegendFrame(_LegendElementController, _MplGeometry):
     def __init__(self, legend, **kwargs):
         super().__init__(legend, 'frame', **kwargs)
-    def update(self):
-        super().update()
+    def _update(self):
         self.mplelement.set_snap(True)
+        super()._update()
     def _set_colour(self, value):
         self.mplelement.set_edgecolor(value)
 

@@ -12,12 +12,12 @@ from collections import abc as _collabc
 from .makehash import quick_hash as _quick_hash
 
 
-def softcache(storage):
+def soft_cache(storage):
 
     def decorator(func, storage=storage):
 
         cachename = f"_softcache_{func.__name__}"
-        parameters = _inspect.signature(func).parameters
+        sig = _inspect.signature(func)
         nonestorage = storage is None
 
         def wrapper(
@@ -30,18 +30,21 @@ def softcache(storage):
                 out = storage[cachename] = func(*args, **kwargs)
                 return out
 
-        if len(parameters) > (1 if nonestorage else 0):
+        if len(sig.parameters) > (1 if nonestorage else 0):
 
             def wrapper(
                     *args,
                     cachename=cachename, storage=storage, func=wrapper,
+                    _sig=sig,
                     **kwargs
                     ):
-                arghash = _quick_hash((args, tuple(kwargs.items())))
-                cachename = f"{cachename}_{arghash}"
+                inps = _sig.bind(*args, **kwargs)
+                inps.apply_defaults()
+                cachename = f"{cachename}_{_quick_hash(repr(inps))}"
                 return func(
                     *args,
-                    storage=storage, cachename=cachename, **kwargs
+                    storage=storage, cachename=cachename,
+                    **kwargs
                     )
 
         if nonestorage:
@@ -58,31 +61,55 @@ def softcache(storage):
     return decorator
 
 
-def hardcache(cachedir):
-    def decorator(func):
+def hard_cache(cachedir, /, *subcaches):
+
+    def decorator(func, /, subcaches=subcaches, cachedir=cachedir):
+
         _os.makedirs(cachedir, exist_ok = True)
-        path = _os.path.join(
+        cachename = _os.path.join(
             cachedir,
             f"hardcache_{func.__module__}_{func.__name__}"
             )
-        @_functools.wraps(func)
-        def wrapper(*args, refresh = False, cache = True, **kwargs):
-            if args or kwargs:
-                cachepath = f"{path}_{_quick_hash((args, tuple(kwargs.items())))}"
-            else:
-                cachepath = path
+
+        sig = _inspect.signature(func)
+
+        def wrapper(
+                *args,
+                cachename=cachename, func=func, subcaches=subcaches,
+                refresh=0, **kwargs,
+                ):
+#             deeprefresh = int(refresh) - 1
+#             if deeprefresh > 0:
+#                 for subcache in subcaches
             if not refresh:
                 try:
-                    with open(cachepath, mode = 'rb') as file:
+                    with open(cachename, mode='rb') as file:
                         return _pickle.load(file)
                 except FileNotFoundError:
                     pass
             out = func(*args, **kwargs)
-            if cache:
-                with open(cachepath, mode = 'wb') as file:
-                    _pickle.dump(out, file)
+            with open(cachename, mode='wb') as file:
+                _pickle.dump(out, file)
             return out
-        return wrapper
+
+        if sig.parameters:
+
+            def wrapper(
+                    *args,
+                    _sig=sig, cachename=cachename, func=wrapper,
+                    refresh=False, **kwargs
+                    ):
+                inps = _sig.bind(*args, **kwargs)
+                inps.apply_defaults()
+                cachename = f"{cachename}_{_quick_hash(repr(inps))}"
+                return func(
+                    *args,
+                    cachename=cachename, refresh=refresh,
+                    **kwargs
+                    )
+
+        return _functools.wraps(func)(wrapper)
+
     return decorator
 
 

@@ -128,11 +128,13 @@ class DataChannel:
             allLabel = ', '.join(unique_list(
                 [selflabel, otherlabel], lambda e: len(e)
                 ))
+            data = np.concatenate([selfdata, otherdata])
+            data.sort()
             return type(self)(
-                np.concatenate([selfdata, otherdata]),
-                lims = (minLim, maxLim),
-                capped = (minCapped, maxCapped),
-                label = allLabel,
+                data,
+                lims=(minLim, maxLim),
+                capped=(minCapped, maxCapped),
+                label=allLabel,
                 **kwargs,
                 )
 
@@ -161,7 +163,8 @@ class DataChannel:
             self.islog = islog
             self.lims = (llim, ulim)
             self.capped = capped
-            super().__init__(data, label = label, **kwargs)
+            super().__init__(data, label=label, **kwargs)
+            self.truelims = (data.min(), data.max())
 
         def align(self, other):
             other = super().align(other)
@@ -227,13 +230,14 @@ class DataChannel:
             lLim, uLim = self.lims
             lLim = origin if (origin or (lLim > origin and uLim > 3 * lLim)) else lLim
             uLim = origin if (origin or (uLim < origin and lLim < 3 * uLim)) else uLim
+            truel, trueu = self.truelims
             if not round(lLim % step / step, 5) in {0., 1.}:
                 lLim -= lLim % step
-                if self.data.min() < lLim + 1. / 3. * step:
+                if truel < lLim + 1/3 * step:
                     lLim -= step
             if not round(uLim % step / step, 5) in {0., 1.}:
                 uLim += step - uLim % step
-                if self.data.max() > uLim - 1. / 3. * step:
+                if trueu > uLim - 1/3 * step:
                     uLim += step
             lLim, uLim = [round(v, 15) for v in (lLim, uLim)]
             return lLim, uLim
@@ -295,7 +299,7 @@ class DataChannel:
                     tickLabels[1] = ''
                 if diffs[-1] < minProx:
                     tickLabels[-2] = ''
-            return tickLabels, f"${suffix}$"
+            return tickLabels, suffix
 
         def nice_tickVals(self, nTicks, bases = {1, 2, 5}, origin = 0.):
             llim, ulim = self.lims
@@ -354,11 +358,11 @@ class DataChannel:
                 self.nice_log_minortickvals(lm, um)
                     for lm, um in zip(majors[:-1], majors[1:])
                 ))
-            if (nmaj := len(majors)) <= (2/3) * nTicks:
+            if (nmaj := len(majors)) <= 2 / 3 * nTicks:
                 majors.extend(minors[3::8])
                 del minors[3::8]
                 majors.sort()
-            elif nmaj >= (4/3) * nTicks:
+            elif nmaj >= (4/3) * nTicks and len(majors) > 4:
                 minors.extend(majors[1:-1:2])
                 del majors[1:-1:2]
                 minors.sort()
@@ -415,7 +419,10 @@ class DataChannel:
         def nice_log_ticks(self, nTicks):
             tickVals, minorTickVals = self.nice_log_tickVals(nTicks)
             tickLabels, tickSuffix = self.nice_log_tickLabels(tickVals)
-            return tickVals, minorTickVals, tickLabels, tickSuffix
+            return (
+                tickVals, minorTickVals,
+                latex_safe(tickLabels), latex_safe(tickSuffix),
+                )
 
         def nice_ticks(self, nTicks):
             if self.islog:
@@ -423,7 +430,10 @@ class DataChannel:
             tickVals, minorTickVals = self.nice_tickVals(nTicks)
             tickVals = np.round(tickVals, 12)
             tickLabels, suffix = self.nice_tickLabels(tickVals)
-            return tickVals, minorTickVals, latex_safe(tickLabels), latex_safe(suffix)
+            return (
+                tickVals, minorTickVals,
+                latex_safe(tickLabels), latex_safe(suffix),
+                )
 
     class Discrete(Numeric):
         def __init__(self, data, **kwargs):
@@ -459,12 +469,14 @@ class DataChannel:
             if not len(types) == 1:
                 raise ValueError('Anomalous types detected', types)
             super().__init__(data, **kwargs)
-            lims = (
-                (np.datetime64(lims[0]) if not lims[0] is None else self.data.min()),
-                (np.datetime64(lims[1]) if not lims[1] is None else self.data.max()),
+            truel, trueu = self.truelims = (self.data.min(), self.data.max())
+            llim, ulim = lims
+            self.lims = (
+                (np.datetime64(llim) if not llim is None else truel),
+                (np.datetime64(ulim) if not ulim is None else trueu),
                 )
-            self.lims = lims
             self.capped = capped
+            
 
 #         def merge(self, other):
             
@@ -510,6 +522,7 @@ class DataChannel:
             if len(mult): mult = int(mult)
             else: mult = 1
             lLim, uLim = self.lims
+            truel, trueu = self.truelims
             if code == 'w':
                 increment = mult * 7
                 start = np.datetime64(lLim, 'D')
@@ -530,8 +543,8 @@ class DataChannel:
                 tickVals.append(tickVals[-1] + increment)
             tickVals = np.array(tickVals)
             to_s = lambda x: np.datetime64(x, 's').astype('long')
-            begins = to_s(self.data.min()) - to_s(tickVals[0])
-            rems = to_s(tickVals[-1]) - to_s(self.data.max())
+            begins = to_s(truel) - to_s(tickVals[0])
+            rems = to_s(tickVals[-1]) - to_s(trueu)
             intervals = to_s(tickVals[-1]) - to_s(tickVals[-2])
             beginFrac = begins / intervals
             remFrac = rems / intervals

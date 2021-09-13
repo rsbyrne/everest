@@ -18,9 +18,9 @@ class _MplElement(_PropertyController):
         return self._get_mplelement()
     def _get_mplelement(self):
         raise MissingAsset
-    def update(self):
-        super().update()
+    def _update(self):
         self.mplelement.set(**self.mplprops)
+        super()._update()
     @property
     def mplprops(self):
         return self._mplprops
@@ -60,11 +60,11 @@ class _MplText(_MplLinear):
     def text(self, value):
         self._text = value
         self.update()
-    def update(self):
-        super().update()
+    def _update(self):
         self._set_text(self.text)
+        super()._update()
     def _set_text(self, value):
-        self.mpltext.set_text(self.text)
+        self.mpltext.set_text(value)
 
 ###############################################################################
 ''''''

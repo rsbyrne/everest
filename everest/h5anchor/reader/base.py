@@ -57,39 +57,39 @@ class _Reader(metaclass = _ReaderMeta):
     def get_manifest(self):
         '''Should return a list of internal h5 paths.'''
         raise TypeError("Abstract method!")
-    manifest = _caching.softcache('manifest')
+    manifest = _caching.soft_cache('manifest')
 
     def get_basekeys(self):
         return frozenset(self.allbasekeys)
-    basekeys = _caching.softcache('basekeys')
+    basekeys = _caching.soft_cache('basekeys')
 
     def get_allbasekeys(self):
         return tuple(
             '/'.join(mk.split('/')[:self.base+1])
                 for mk in self.manifest
             )
-    allbasekeys = _caching.softcache('allbasekeys')
+    allbasekeys = _caching.soft_cache('allbasekeys')
 
     def get_basekeydict(self):
         return _FrozenMap(zip(self.manifest, self.allbasekeys))
-    basekeydict = _caching.softcache('basekeydict')
+    basekeydict = _caching.soft_cache('basekeydict')
 
     def get_basehash(self):
         return _utilities.makehash.quick_hash(self.allbasekeys)
-    basehash = _caching.softcache('basehash')
+    basehash = _caching.soft_cache('basehash')
 
     @_abstractmethod
     def get_h5man(self):
         '''Should return an H5Manager object.'''
         raise TypeError("Abstract method!")
-    h5man = _caching.softcache('h5man')
+    h5man = _caching.soft_cache('h5man')
 
     @classmethod
     @_abstractmethod
     def get_getmeths(self):
         '''Should return a TypeMap of getitem methods.'''
         raise TypeError("Abstract method!")
-    getmeths = _caching.softcache('getmeths')
+    getmeths = _caching.soft_cache('getmeths')
 
     def __getitem__(self, arg):
         return self.getmeths[type(arg)](self, arg)
