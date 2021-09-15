@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 -m nbconvert --clear-output $1/*.ipynb
+python3 -m nbconvert --clear-output "$(dirname "$0")"/*.ipynb
