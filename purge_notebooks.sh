@@ -1,2 +1,5 @@
 #!/bin/bash
-python3 -m nbconvert --clear-output "$(dirname "$0")"/*.ipynb
+currentDir=$PWD
+cd "$(dirname "$0")"
+python3 -m nbconvert --clear-output **/*.ipynb
+cd $currentDir
