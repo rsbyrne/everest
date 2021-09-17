@@ -4,6 +4,11 @@
 
 
 from .. import utilities as _utilities
+_classtools = _utilities.classtools
+
+from .ptolemaic import *
+# from .ur import *
+# from .datalike import *
 
 
 ###############################################################################

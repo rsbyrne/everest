@@ -11,6 +11,7 @@ from . import reseed
 from . import makehash
 from . import word
 from . import caching
+from . import params
 
 from .misc import *
 

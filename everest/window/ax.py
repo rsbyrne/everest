@@ -71,7 +71,7 @@ class Ax:
         rowNo = int((index - colNo) / canvas.ncols)
         self.colNo, self.rowNo = colNo, rowNo
 
-        self.ax = ax
+        self.mplax = ax
         self.collections = []
 
         self.props.edges.margin = 0.  # pylint: disable=E1101
@@ -84,7 +84,7 @@ class Ax:
         self.set_facecolour()
 
     def set_facecolour(self, colour = None):
-        self.ax.set_facecolor((0, 0, 0, 0))
+        self.mplax.set_facecolor((0, 0, 0, 0))
         if colour is None:
             colour = self.facecolour
         if not self.facecolourVisible:
@@ -94,7 +94,7 @@ class Ax:
         else:
             setcolour = colour
         axStack = self._get_axStack()
-        axStack[0].ax.set_facecolor(setcolour)
+        axStack[0].mplax.set_facecolor(setcolour)
         for ax in axStack:
             ax.facecolour = colour
     def toggle_facecolour(self):
@@ -118,16 +118,16 @@ class Ax:
             return ver / 2
         return self.canvas.sizeinches[i] / self.canvas.shape[::-1][i]
 
-    def _autoconfigure_axes(self, *args, **kwargs):
+#     def _autoconfigure_axes(self, *args, **kwargs):
         with self.props:
-#             pass
-            for i, dim in enumerate(self.dims):
-                self._autoconfigure_axis(
-                    i,
-                    self.pile.concatenated[dim],
-                    *args,
-                    **kwargs,
-                    )
+            pass
+#             for i, dim in enumerate(self.dims):
+#                 self._autoconfigure_axis(
+#                     i,
+#                     self.pile.concatenated[dim],
+#                     *args,
+#                     **kwargs,
+#                     )
 
     def _autoconfigure_axis(self,
             i,
@@ -171,8 +171,8 @@ class Ax:
             **kwargs,
             ):
         spread = self.pile.add(x, y, z, c, s, l)
-        self._autoconfigure_axes(ticksPerInch=self.ticksPerInch)
-        drawFunc = getattr(self.ax, self._plotFuncs[variety])
+#         self._autoconfigure_axes(ticksPerInch=self.ticksPerInch)
+        drawFunc = getattr(self.mplax, self._plotFuncs[variety])
         collections = drawFunc(
             *spread.drawArgs,
             **{**spread.drawKwargs, **kwargs},
@@ -180,7 +180,7 @@ class Ax:
         self.collections.append(collections)
 
     def clear(self):
-        self.ax.clear()
+        self.mplax.clear()
         self.pile.clear()
         self.collections = []
 
@@ -205,7 +205,7 @@ class Ax:
         arrowprops.update(arrowProps)
         if self.vol:
             raise Exception("Not working for 3D yet.")
-        self.ax.annotate(
+        self.mplax.annotate(
             label,
             (x, y),
             xytext = (10, 10) if points is None else points,
