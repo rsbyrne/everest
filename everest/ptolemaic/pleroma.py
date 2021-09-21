@@ -104,9 +104,8 @@ class Pleroma(_ABCMeta):
         obj.__init__()
         return obj
 
-    @property
-    def __call__(cls):
-        return cls.concrete.__call__
+    def __call__(cls, /, *args, **kwargs):
+        return cls.concrete(*args, **kwargs)
 
 
 class Concrete(Pleroma):
@@ -119,7 +118,7 @@ class Concrete(Pleroma):
         cls.__signature__ = base.__signature__
         return cls
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, /, *args, **kwargs):
         bind = _Binder()
         cls.parameterise(bind, *args, **kwargs)
         params = _Params(cls.__signature__, *bind.args, **bind.kwargs)

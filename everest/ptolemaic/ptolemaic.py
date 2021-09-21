@@ -36,7 +36,7 @@ class Ptolemaic(PtolemaicBase):
 
     @_utilities.caching.soft_cache(None)
     def __repr__(self, /):
-        return f"{type(self).__name__}({self._repr()})"
+        return f"{type(self).basecls.__name__}({self._repr()})"
 
 
 ###############################################################################
