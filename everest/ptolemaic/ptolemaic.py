@@ -5,11 +5,11 @@
 
 from . import _utilities
 
-from .pleroma import Pleroma as _Pleroma
+from .pleroma import Pleromatic as _Pleromatic
 from .primitive import Primitive as _Primitive
 
 
-class PtolemaicBase(metaclass=_Pleroma):
+class PtolemaicBase(_Pleromatic):
     '''
     The base class of all object types
     understood by the Ptolemaic system.
@@ -19,10 +19,6 @@ _ = PtolemaicBase.register(_Primitive)
 
 
 class Ptolemaic(PtolemaicBase):
-
-    @classmethod
-    def _cls_extra_init_(cls, /):
-        pass
 
     @classmethod
     def check_param(cls, arg, /):

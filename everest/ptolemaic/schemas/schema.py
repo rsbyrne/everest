@@ -7,7 +7,7 @@ from . import _Ptolemaic, _aspects
 from . import _aspects
 
 
-class Schema(_Ptolemaic, _aspects.Singleton):
+class Schema(_aspects.Singleton, _Ptolemaic):
 
     @classmethod
     def prekey(cls, params):

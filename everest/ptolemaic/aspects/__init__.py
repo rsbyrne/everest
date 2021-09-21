@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from ..pleroma import Pleroma as _Pleroma
+from ..pleroma import Pleromatic as _Pleromatic
 
 
 from .singleton import *

@@ -12,7 +12,9 @@ class Singleton(_Aspect):
 
     @classmethod
     def _cls_extra_init_(cls, /):
+        print("Singleton cls init called")
         cls.premade = _weakref.WeakValueDictionary()
+        super()._cls_extra_init_()
 
     @classmethod
     def prekey(cls, params):

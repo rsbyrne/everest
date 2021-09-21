@@ -125,5 +125,12 @@ class Concrete(Pleroma):
         return cls.instantiate(params)
 
 
+class Pleromatic(metaclass=Pleroma):
+
+    @classmethod
+    def _cls_extra_init_(cls, /):
+        type(cls)._cls_extra_init_(cls)
+
+
 ###############################################################################
 ###############################################################################

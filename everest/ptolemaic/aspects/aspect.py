@@ -3,10 +3,10 @@
 ###############################################################################
 
 
-from . import _Pleroma
+from . import _Pleromatic
 
 
-class Aspect(metaclass=_Pleroma):
+class Aspect(_Pleromatic):
     '''
     Aspect classes are compatible as bases for other classes.
     '''
