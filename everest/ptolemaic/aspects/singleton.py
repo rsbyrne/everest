@@ -5,16 +5,10 @@
 
 import weakref as _weakref
 
-from .meta import PtolemaicMeta as _PtolemaicMeta
+from .aspect import Aspect as _Aspect
 
 
-class Aspect(metaclass=_PtolemaicMeta):
-    '''
-    Aspect classes are compatible as bases for other classes.
-    '''
-
-
-class Singleton(Aspect):
+class Singleton(_Aspect):
 
     @classmethod
     def _cls_extra_init_(cls, /):
@@ -26,7 +20,7 @@ class Singleton(Aspect):
 
     @classmethod
     def instantiate(cls, params):
-        premade = cls.__dict__['premade']
+        premade = cls.premade
         prekey = cls.prekey(params)
         if prekey in premade:
             return premade[prekey]

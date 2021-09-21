@@ -2,17 +2,15 @@
 ''''''
 ###############################################################################
 
-from . import misc
-from . import seqmerge
-from . import cascade
-from . import classtools
-from . import simpli
-from . import reseed
-from . import makehash
-from . import word
-from . import caching
 
-from .misc import *
+def add_defer_meth(cls, methname: str, defertoname: str, /):
+    exec('\n'.join((
+        f"@property",
+        f"def {methname}(self, /):"
+        f"    return self.{defertoname}.{methname}"
+        )))
+    setattr(cls, methname, eval(methname))
+
 
 ###############################################################################
 ###############################################################################

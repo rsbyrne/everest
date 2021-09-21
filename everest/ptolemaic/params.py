@@ -11,40 +11,50 @@ import functools as _functools
 import hashlib as _hashlib
 import itertools as _itertools
 
-from . import (
-    caching as _caching,
-    word as _word,
-    )
+from . import _utilities
+
+_caching = _utilities.caching
+_word = _utilities.word
 
 
 class Param:
 
-    __slots__ = ('annotation', 'kind')
+    __slots__ = ('name', 'default', 'parameter',)
 
-    def __init__(self,
-            annotation: str = _Parameter.empty, /, *,
-            kind: _ParameterKind
-            ):
-        self.annotation, self.kind = annotation, kind
+    hint = _Parameter.empty
+    kind = _ParameterKind.POSITIONAL_OR_KEYWORD
 
-    def __call__(self, name: str, default=_Parameter.empty, /):
-        return _Parameter(
+    def __init__(self, name, default=_Parameter.empty, /):
+        self.name, self.default = name, default
+        self.parameter = _Parameter(
             name, self.kind,
-            default=default, annotation=self.annotation,
+            default=default, annotation=self.hint,
             )
+
+    def __get__(self, instance, /, owner=None):
+        return getattr(instance.params, self.name)
+
+    @classmethod
+    def __class_getitem__(cls, arg: type, /):
+        return type(
+            f"{cls.__name__}[{arg.__name__}]",
+            (cls,),
+            dict(hint=arg),
+            )
+
+    def _repr(self):
+        return f"name={self.name}, default={self.default}"
 
     def __repr__(self):
-        return (
-            f"{type(self).__name__}"
-            f"({self.annotation}, kind={self.kind})"
-            )
+        return f"{type(self).__name__}({self._repr()})"
 
 
-for kind, alias in zip(
-        _ParameterKind,
-        ('Pos', 'PosKw', 'Args', 'Kw', 'Kwargs'),
-        ):
-    setattr(Param, alias, _functools.partial(Param, kind=kind))
+for kind, nm in zip(_ParameterKind, ('Pos', 'PosKw', 'Args', 'Kw', 'Kwargs')):
+    if nm == 'PosKw':
+        subcls = Param
+    else:
+        subcls = type(f"{Param.__name__}.{nm}", (Param,), dict(kind=kind))
+    setattr(Param, nm, subcls)
 
 
 class Params:
@@ -105,26 +115,16 @@ class Params:
             )
 
 
-class Bind:
+class Binder:
 
-    __slots__ = ('checker', 'args', 'kwargs')
+    __slots__ = ('args', 'kwargs')
 
-    def __init__(self, checker, /):
-        self.checker = checker
+    def __init__(self, /):
         self.args, self.kwargs = [], {}
 
     def __call__(self, /, *args, **kwargs):
         self.args.extend(args)
         self.kwargs.update(kwargs)
-
-    def get_params(self, signature, /):
-        args, kwargs = self.args, self.kwargs
-        bad = tuple(_itertools.filterfalse(
-            self.checker, _itertools.chain(args, kwargs.values())
-            ))
-        if bad:
-            raise TypeError(f"Bad inputs: {bad}")
-        return Params(signature, *args, **kwargs)
 
 
 ###############################################################################

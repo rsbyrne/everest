@@ -2,17 +2,20 @@
 ''''''
 ###############################################################################
 
-from . import misc
-from . import seqmerge
-from . import cascade
-from . import classtools
-from . import simpli
-from . import reseed
-from . import makehash
-from . import word
-from . import caching
 
-from .misc import *
+from . import _Ptolemaic, _aspects
+from . import _aspects
+
+
+class Schema(_Ptolemaic, _aspects.Singleton):
+
+    @classmethod
+    def prekey(cls, params):
+        return params.hashstr()
+
+    def _repr(self):
+        return self.params.hashstr()
+
 
 ###############################################################################
 ###############################################################################

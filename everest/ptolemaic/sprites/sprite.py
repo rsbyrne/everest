@@ -3,20 +3,19 @@
 ###############################################################################
 
 
-import weakref as _weakref
-
-from .base import PtolemaicBase as _PtolemaicBase, Primitive as _Primitive
+from . import _Ptolemaic, _Primitive
 
 
-class Sprite(_PtolemaicBase):
+class Sprite(_Ptolemaic):
     '''
     The base class for all 'sprites',
     or classes whose inputs are restricted to being Primitive.
     '''
 
     @classmethod
-    def param_checker(cls, arg):
-        return isinstance(arg, _Primitive)
+    def check_param(cls, arg):
+        if isinstance(arg, _Primitive):
+            return super().check_param(arg)
 
     def _repr(self):
         args = self.params.arguments
