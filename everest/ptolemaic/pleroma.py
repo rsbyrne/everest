@@ -7,6 +7,7 @@ from abc import ABCMeta as _ABCMeta, abstractmethod as _abstractmethod
 import weakref as _weakref
 import itertools as _itertools
 import inspect as _inspect
+import collections as _collections
 
 from . import _utilities
 from . import params as _params
@@ -22,6 +23,11 @@ def gather_slots(bases, /):
     return set(_itertools.chain.from_iterable(
         base.reqslots for base in bases if hasattr(base, 'reqslots')
         ))
+
+def sort_params(params, /):
+    params = sorted(params, key=(lambda x: x.default is not _inspect._empty))
+    params = sorted(params, key=(lambda x: x.kind))
+    return params
 
 
 class Pleroma(_ABCMeta):
@@ -53,17 +59,17 @@ class Pleroma(_ABCMeta):
             for name, annotation in mcls.__annotations__.items():
                 if issubclass(annotation, _Param):
                     annotations[name] = annotation
-        paramsdict = cls._paramsdict = dict()
+        params = _collections.deque()
         for name, annotation in annotations.items():
             if hasattr(cls, name):
                 att = getattr(cls, name)
                 param = annotation(name, att)
             else:
                 param = annotation(name)
-            paramsdict[name] = param
-        cls.__signature__ = _inspect.Signature(
-            param.parameter for param in paramsdict.values()
-            )
+            params.append(param)
+        params = sort_params(params)
+        cls._paramsdict = {pm.name: pm for pm in params}
+        cls.__signature__ = _inspect.Signature(pm.parameter for pm in params)
 
     def _cls_extra_init_(cls, /):
         cls._combine_reqslots()
