@@ -18,6 +18,12 @@ _Binder = _params.Binder
 _Params = _params.Params
 
 
+def gather_slots(bases, /):
+    return set(_itertools.chain.from_iterable(
+        base.reqslots for base in bases if hasattr(base, 'reqslots')
+        ))
+
+
 class Pleroma(_ABCMeta):
     '''
     The metaclass of all proper Ptolemaic classes.
@@ -27,48 +33,42 @@ class Pleroma(_ABCMeta):
 
     reqslots = ('_softcache', 'params', '__weakref__')
 
-    def _cls_extra_init_(cls, /):
-        pass
-
-    @staticmethod
-    def gather_slots(bases, /):
-        return set(_itertools.chain.from_iterable(
-            base.reqslots for base in bases if hasattr(base, 'reqslots')
-            ))
-
-    @classmethod
-    def _add_concrete_(meta, cls, /):
-        reqslots = meta.gather_slots((meta, *meta.__bases__))
-        reqslots.update(meta.gather_slots(cls.__bases__))
+    def _combine_reqslots(cls, /):
+        meta = type(cls)
+        reqslots = set()
+        reqslots.update(gather_slots((meta, *meta.__bases__)))
+        reqslots.update(gather_slots(cls.__bases__))
         if 'reqslots' in cls.__dict__:
             reqslots.update(set(cls.reqslots))
-        reqslots = cls.reqslots = tuple(reqslots)
-        cls.concrete = Concrete(
-            f"{cls.__name__}_concrete", (cls,),
-            {'__slots__': reqslots, 'basecls': cls}
-            )
+        cls.reqslots = tuple(sorted(reqslots))
 
-    def process_classbody_params(cls, /):
-        toadd = dict()
-        for mcls in cls.__mro__:
+    def _add_concrete(cls, /):
+        cls.concrete = Concrete(cls)
+
+    def _process_classbody_params(cls, /):
+        annotations = dict()
+        for mcls in reversed(cls.__mro__):
             if '__annotations__' not in mcls.__dict__:
                 continue
             for name, annotation in mcls.__annotations__.items():
-                if not issubclass(annotation, _Param):
-                    continue
-                if name in toadd:
-                    continue
-                specname = f'_param_{name}'
-                if hasattr(cls, specname):
-                    param = getattr(cls, specname)
-                elif hasattr(cls, name):
-                    att = getattr(cls, name)
-                    param = annotation(name, att)
-                else:
-                    param = annotation(name)
-                setattr(cls, name, param)
-                toadd[name] = param.parameter
-        cls.__signature__ = _inspect.Signature(toadd.values())
+                if issubclass(annotation, _Param):
+                    annotations[name] = annotation
+        paramsdict = cls._paramsdict = dict()
+        for name, annotation in annotations.items():
+            if hasattr(cls, name):
+                att = getattr(cls, name)
+                param = annotation(name, att)
+            else:
+                param = annotation(name)
+            paramsdict[name] = param
+        cls.__signature__ = _inspect.Signature(
+            param.parameter for param in paramsdict.values()
+            )
+
+    def _cls_extra_init_(cls, /):
+        cls._combine_reqslots()
+        cls._process_classbody_params()
+        cls._add_concrete()
 
     def __new__(meta,
             name, bases, namespace, /, *,
@@ -81,8 +81,6 @@ class Pleroma(_ABCMeta):
         namespace['__slots__'] = ()
         cls = super().__new__(meta, name, bases, namespace, **kwargs)
         cls._cls_extra_init_()
-        cls.process_classbody_params()
-        meta._add_concrete_(cls)
         return cls
 
     def check_param(cls, arg, /):
@@ -110,11 +108,14 @@ class Pleroma(_ABCMeta):
 
 class Concrete(Pleroma):
 
-    def __new__(meta, name, bases, namespace, /,):
-        if len(bases) > 1:
-            raise RuntimeError
+    def __new__(meta, base, /,):
+        name = f"{base.__name__}_concrete"
+        namespace = dict(
+            __slots__=base.reqslots,
+            basecls=base,
+            ) | base._paramsdict
+        bases = (base,)
         cls = super().__new__(meta, name, bases, namespace, _concrete=True)
-        base = bases[0]
         cls.__signature__ = base.__signature__
         return cls
 
