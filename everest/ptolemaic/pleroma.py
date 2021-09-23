@@ -98,15 +98,18 @@ class Pleroma(_ABCMeta):
         bound.apply_defaults()
         return bound
 
-    def instantiate(cls, params, /):
+    def instantiate(cls, params, /, *args, **kwargs):
         obj = object.__new__(cls.Concrete)
         obj._softcache = dict()
         obj.params = params
-        obj.__init__()
+        obj.__init__(*args, **kwargs)
         return obj
 
+    def construct(cls, *pa, args=(), kwargs=_utilities.FrozenMap(), **pk):
+        return cls.instantiate(cls.Params(*pa, **pk), *args, **kwargs)
+
     def __call__(cls, /, *args, **kwargs):
-        return cls.instantiate(cls.Params(*args, **kwargs))
+        return cls.construct(*args, **kwargs)
 
     def __getitem__(cls, arg, /):
         if isinstance(arg, cls.Params):
@@ -155,8 +158,12 @@ class Pleromatic(metaclass=Pleroma):
         return type(cls).parameterise(cls, *args, **kwargs)
 
     @classmethod
-    def instantiate(cls, params, /):
-        return type(cls).instantiate(cls, params)
+    def instantiate(cls, params, /, *args, **kwargs):
+        return type(cls).instantiate(cls, params, *args, **kwargs)
+
+    @classmethod
+    def construct(cls, /, *args, **kwargs):
+        return type(cls).construct(cls, *args, **kwargs)
 
     def __init__(self, /):
         pass
