@@ -3,18 +3,18 @@
 ###############################################################################
 
 
-from . import _Ptolemaic, _aspects
-from . import _aspects
+from . import _Ptolemaic
+from . import _behaviours
 
 
-class Schema(_aspects.Singleton, _Ptolemaic):
+class Schema(_behaviours.Singleton, _Ptolemaic):
 
     @classmethod
     def prekey(cls, params):
-        return params.hashstr()
+        return params.hashID
 
     def _repr(self):
-        return self.params.hashstr()
+        return self.params.hashID
 
 
 ###############################################################################

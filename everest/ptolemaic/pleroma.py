@@ -16,20 +16,11 @@ from . import params as _params
 
 _classtools = _utilities.classtools
 
-_Param = _params.Param
-_Binder = _params.Binder
-_Params = _params.Params
-
 
 def gather_slots(bases, /):
     return set(_itertools.chain.from_iterable(
         base.reqslots for base in bases if hasattr(base, 'reqslots')
         ))
-
-def sort_params(params, /):
-    params = sorted(params, key=(lambda x: x.default is not _inspect._empty))
-    params = sorted(params, key=(lambda x: x.kind))
-    return params
 
 
 class Pleroma(_ABCMeta):
@@ -37,29 +28,27 @@ class Pleroma(_ABCMeta):
     The metaclass of all proper Ptolemaic classes.
     '''
 
-    Param = _Param
+    Param = _params.Param
+    _concrete = False
 
     reqslots = ('_softcache', 'params', '__weakref__')
 
-    def _combine_reqslots(cls, /):
+    def _process_reqslots(cls, /):
         meta = type(cls)
         reqslots = set()
         reqslots.update(gather_slots((meta, *meta.__bases__)))
         reqslots.update(gather_slots(cls.__bases__))
         if 'reqslots' in cls.__dict__:
             reqslots.update(set(cls.reqslots))
-        cls.reqslots = tuple(sorted(reqslots))
+        return tuple(sorted(reqslots))
 
-    def _add_concrete(cls, /):
-        cls.concrete = Concrete(cls)
-
-    def _process_classbody_params(cls, /):
+    def _process_params(cls, paramtype, /):
         annotations = dict()
         for mcls in reversed(cls.__mro__):
             if '__annotations__' not in mcls.__dict__:
                 continue
             for name, annotation in mcls.__annotations__.items():
-                if not issubclass(annotation, _Param):
+                if not issubclass(annotation, paramtype):
                     continue
                 if name in annotations:
                     row = annotations[name]
@@ -75,76 +64,109 @@ class Pleroma(_ABCMeta):
             else:
                 param = annotation(name)
             params.append(param)
-        params = sort_params(params)
-        cls._paramsdict = {pm.name: pm for pm in params}
-        cls.__signature__ = _inspect.Signature(pm.parameter for pm in params)
+        return _params.sort_params(params)
 
-    def _cls_extra_init_(cls, /):
-        cls._combine_reqslots()
-        cls._process_classbody_params()
-        cls._add_concrete()
+    @classmethod
+    def __prepare__(meta, name, bases, /):
+        return dict()
 
-    def __new__(meta,
-            name, bases, namespace, /, *,
-            _concrete=False, **kwargs
-            ):
+    def __new__(meta, name, bases, namespace, /, *, _concrete=False):
         if any(isinstance(base, Concrete) for base in bases):
             raise TypeError("Cannot subclass a Concrete type.")
         if _concrete:
-            return super().__new__(meta, name, bases, namespace, **kwargs)
+            return super().__new__(meta, name, bases, namespace)
         namespace['__slots__'] = ()
-        cls = super().__new__(meta, name, bases, namespace, **kwargs)
+        return super().__new__(meta, name, bases, namespace)
+
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if cls._concrete:
+            return
+        cls.reqslots = cls._process_reqslots()
+        params = cls._process_params(_params.Param)
+        cls._paramsdict = {pm.name: pm for pm in params}
+        cls.__signature__ = _inspect.Signature(pm.parameter for pm in params)
+        cls.Params = _params.Params[cls]
+        cls.Concrete = Concrete(cls)
         cls._cls_extra_init_()
-        return cls
 
-    def check_param(cls, arg, /):
-        return True
+    def _cls_extra_init_(cls, /):
+        pass
 
-    def parameterise(cls, bind, /, *args, **kwargs):
-        bind(*args, **kwargs)
-        args, kwargs = bind.args, bind.kwargs
-        bad = tuple(_itertools.filterfalse(
-            cls.check_param, _itertools.chain(args, kwargs.values())
-            ))
-        if bad:
-            raise TypeError(f"Bad inputs: {bad}")
+    def parameterise(cls, /, *args, **kwargs):
+        bound = cls.__signature__.bind(*args, **kwargs)
+        bound.apply_defaults()
+        return bound
 
-    def instantiate(cls, params):
-        obj = object.__new__(cls)
+    def instantiate(cls, params, /):
+        obj = object.__new__(cls.Concrete)
         obj._softcache = dict()
         obj.params = params
         obj.__init__()
         return obj
 
     def __call__(cls, /, *args, **kwargs):
-        return cls.concrete(*args, **kwargs)
+        return cls.instantiate(cls.Params(*args, **kwargs))
+
+    def __getitem__(cls, arg, /):
+        if isinstance(arg, cls.Params):
+            return cls.instantiate(arg)
+        raise TypeError(type(arg))
 
 
 class Concrete(Pleroma):
 
     def __new__(meta, base, /,):
-        name = f"{base.__name__}_concrete"
+        name = f"{base.__qualname__}.Concrete"
         namespace = dict(
             __slots__=base.reqslots,
             basecls=base,
+            _concrete=True,
             ) | base._paramsdict
         bases = (base,)
-        cls = super().__new__(meta, name, bases, namespace, _concrete=True)
-        cls.__signature__ = base.__signature__
-        return cls
+        return super().__new__(meta, name, bases, namespace, _concrete=True)
+
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls.__signature__ = cls.basecls.__signature__
 
     def __call__(cls, /, *args, **kwargs):
-        bind = _Binder()
-        cls.parameterise(bind, *args, **kwargs)
-        params = _Params(cls.__signature__, *bind.args, **bind.kwargs)
-        return cls.instantiate(params)
+        raise TypeError("Cannot directly call a Concrete class.")
 
 
 class Pleromatic(metaclass=Pleroma):
 
     @classmethod
     def _cls_extra_init_(cls, /):
-        type(cls)._cls_extra_init_(cls)
+        pass
+
+    @classmethod
+    def check_param(cls, arg, /):
+        return True
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        bad = tuple(_itertools.filterfalse(
+            cls.check_param,
+            _itertools.chain(args, kwargs.values())
+            ))
+        if bad:
+            raise RuntimeError(f"Bad parameterisation of {cls}: {bad}.")
+        return type(cls).parameterise(cls, *args, **kwargs)
+
+    @classmethod
+    def instantiate(cls, params, /):
+        return type(cls).instantiate(cls, params)
+
+    def __init__(self, /):
+        pass
+
+    def _repr(self, /):
+        return self.params.__str__()
+
+    @_utilities.caching.soft_cache(None)
+    def __repr__(self, /):
+        return f"{type(self).basecls.__qualname__}({self._repr()})"
 
 
 ###############################################################################

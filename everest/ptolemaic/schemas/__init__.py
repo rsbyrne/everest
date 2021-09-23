@@ -4,7 +4,7 @@
 
 
 from ..ptolemaic import Ptolemaic as _Ptolemaic
-from .. import aspects as _aspects
+from .. import behaviours as _behaviours
 
 
 ###############################################################################

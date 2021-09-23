@@ -5,10 +5,10 @@
 
 import weakref as _weakref
 
-from .aspect import Aspect as _Aspect
+from .behaviour import Behaviour as _Behaviour
 
 
-class Singleton(_Aspect):
+class Singleton(_Behaviour):
 
     @classmethod
     def _cls_extra_init_(cls, /):

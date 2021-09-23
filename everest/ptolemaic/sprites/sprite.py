@@ -17,10 +17,6 @@ class Sprite(_Ptolemaic):
         if isinstance(arg, _Primitive):
             return super().check_param(arg)
 
-    def _repr(self):
-        args = self.params.arguments
-        return ', '.join(map('='.join, zip(args, map(str, args.values()))))
-
 
 ###############################################################################
 ###############################################################################

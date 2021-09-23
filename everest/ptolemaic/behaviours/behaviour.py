@@ -6,7 +6,7 @@
 from . import _Pleromatic
 
 
-class Aspect(_Pleromatic):
+class Behaviour(_Pleromatic):
     '''
     Aspect classes are compatible as bases for other classes.
     '''

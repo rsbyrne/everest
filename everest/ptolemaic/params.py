@@ -32,6 +32,12 @@ def get_hint(hints):
     return _inspect._empty
 
 
+def sort_params(params, /):
+    params = sorted(params, key=(lambda x: x.default is not _inspect._empty))
+    params = sorted(params, key=(lambda x: x.kind))
+    return params
+
+
 class ParamMeta(type):
 
     _kinds = dict(zip(
@@ -122,33 +128,19 @@ class Params:
 
     __slots__ = ('bound', 'arguments', '_getter', '_softcache')
 
-    def __init__(self, signature, /, *args, **kwargs):
-        object.__setattr__(self, '_softcache', dict())
-        bound = signature.bind(*args, **kwargs)
-        bound.apply_defaults()
-        object.__setattr__(self, 'bound', bound)
-        arguments = bound.arguments
-        object.__setattr__(self, 'arguments', arguments)
-        getter = bound.arguments.__getitem__
-        object.__setattr__(self, '_getter', getter)
+    def parameterise(self, /, *args, **kwargs):
+        return args, kwargs
 
-    @property
-    def __getattr__(self):
-        return self._getter
+    signed = False
 
-    def __setattr__(self, *args):
-        raise TypeError(f"Cannot set attributes on {type(self)}")
+    def __init__(self, /, *args, **kwargs):
+        bound = self.bound = self.parameterise(*args, **kwargs)
+        self.arguments = bound.arguments
 
-    def __delattr__(self, *args):
-        raise TypeError(f"Cannot delete attributes on {type(self)}")
-
-    @property
-    def args(self):
-        return self.bound.args
-
-    @property
-    def kwargs(self):
-        return self.bound.kwargs
+    def __getattr__(self, name):
+        if name in (arguments := self.arguments):
+            return arguments[name]
+        return super().__getattr__(name)
 
     @_caching.soft_cache(None)
     def __str__(self):
@@ -159,33 +151,41 @@ class Params:
     def __repr__(self):
         return f"{type(self).__name__}({self.__str__()})"
 
+    @property
     @_caching.soft_cache(None)
     def hashcode(self):
         content = str(self).encode()
         return _hashlib.md5(content).hexdigest()
 
+    @property
     @_caching.soft_cache(None)
     def hashint(self):
-        return int(self.hashcode(), 16)
+        return int(self.hashcode, 16)
 
+    @property
     @_caching.soft_cache(None)
-    def hashstr(self):
-        return _word.get_random_english(
-            seed=self.hashint(),
-            n=2,
+    def hashID(self):
+        return _word.get_random_english(seed=self.hashint, n=2)
+
+    def __getitem__(self, arg, /):
+        return self.arguments[arg]
+
+    @classmethod
+    def __init_subclass__(cls, /, *, parameterise, **kwargs):
+        if cls.signed:
+            raise TypeError(f"{type(cls)} already signed.")
+        cls.parameterise = parameterise
+        cls.signed = True
+        super().__init_subclass__(**kwargs)
+
+    @classmethod
+    def __class_getitem__(cls, arg, /):
+        return type(cls)(
+            f"{cls.__name__}[{repr(arg)}]",
+            (cls,),
+            dict(),
+            parameterise=arg.parameterise
             )
-
-
-class Binder:
-
-    __slots__ = ('args', 'kwargs')
-
-    def __init__(self, /):
-        self.args, self.kwargs = [], {}
-
-    def __call__(self, /, *args, **kwargs):
-        self.args.extend(args)
-        self.kwargs.update(kwargs)
 
 
 ###############################################################################
