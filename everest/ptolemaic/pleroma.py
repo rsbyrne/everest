@@ -8,6 +8,8 @@ import weakref as _weakref
 import itertools as _itertools
 import inspect as _inspect
 import collections as _collections
+import functools as _functools
+import operator as _operator
 
 from . import _utilities
 from . import params as _params
@@ -57,10 +59,16 @@ class Pleroma(_ABCMeta):
             if '__annotations__' not in mcls.__dict__:
                 continue
             for name, annotation in mcls.__annotations__.items():
-                if issubclass(annotation, _Param):
-                    annotations[name] = annotation
+                if not issubclass(annotation, _Param):
+                    continue
+                if name in annotations:
+                    row = annotations[name]
+                else:
+                    row = annotations[name] = list()
+                row.append(annotation)
         params = _collections.deque()
-        for name, annotation in annotations.items():
+        for name, row in annotations.items():
+            annotation = _functools.reduce(_operator.getitem, reversed(row))
             if hasattr(cls, name):
                 att = getattr(cls, name)
                 param = annotation(name, att)
