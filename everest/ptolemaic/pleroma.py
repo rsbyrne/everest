@@ -42,13 +42,13 @@ class Pleroma(_ABCMeta):
             reqslots.update(set(cls.reqslots))
         return tuple(sorted(reqslots))
 
-    def _process_params(cls, paramtype, /):
+    def _process_params(cls, /):
         annotations = dict()
         for mcls in reversed(cls.__mro__):
             if '__annotations__' not in mcls.__dict__:
                 continue
             for name, annotation in mcls.__annotations__.items():
-                if not issubclass(annotation, paramtype):
+                if not isinstance(annotation, _params.ParamMeta):
                     continue
                 if name in annotations:
                     row = annotations[name]
@@ -83,7 +83,7 @@ class Pleroma(_ABCMeta):
         if cls._concrete:
             return
         cls.reqslots = cls._process_reqslots()
-        params = cls._process_params(_params.Param)
+        params = cls._process_params()
         cls._paramsdict = {pm.name: pm for pm in params}
         cls.__signature__ = _inspect.Signature(pm.parameter for pm in params)
         cls.Params = _params.Params[cls]

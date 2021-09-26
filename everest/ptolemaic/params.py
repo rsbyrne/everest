@@ -124,6 +124,9 @@ for name in Param._revkinds:
     setattr(Param, name, subcls)
 
 
+Param = Param.PosKw
+
+
 class Params:
 
     __slots__ = ('bound', 'arguments', '_getter', '_softcache')
