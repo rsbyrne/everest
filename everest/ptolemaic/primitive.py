@@ -19,6 +19,9 @@ class Primitive(_ABC):
         str,
         bytes,
         bool,
+        type(None),
+        type(Ellipsis),
+        type(NotImplemented),
         )
 
     @classmethod

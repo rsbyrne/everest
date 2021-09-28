@@ -118,16 +118,15 @@ class Ax:
             return ver / 2
         return self.canvas.sizeinches[i] / self.canvas.shape[::-1][i]
 
-#     def _autoconfigure_axes(self, *args, **kwargs):
+    def _autoconfigure_axes(self, *args, **kwargs):
         with self.props:
-            pass
-#             for i, dim in enumerate(self.dims):
-#                 self._autoconfigure_axis(
-#                     i,
-#                     self.pile.concatenated[dim],
-#                     *args,
-#                     **kwargs,
-#                     )
+            for i, dim in enumerate(self.dims):
+                self._autoconfigure_axis(
+                    i,
+                    self.pile.concatenated[dim],
+                    *args,
+                    **kwargs,
+                    )
 
     def _autoconfigure_axis(self,
             i,
@@ -171,7 +170,7 @@ class Ax:
             **kwargs,
             ):
         spread = self.pile.add(x, y, z, c, s, l)
-#         self._autoconfigure_axes(ticksPerInch=self.ticksPerInch)
+        self._autoconfigure_axes(ticksPerInch=self.ticksPerInch)
         drawFunc = getattr(self.mplax, self._plotFuncs[variety])
         collections = drawFunc(
             *spread.drawArgs,
@@ -223,6 +222,7 @@ class Ax:
 
     def show(self):
         return self.canvas.show()
+
 
 ###############################################################################
 ''''''

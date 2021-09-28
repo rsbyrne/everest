@@ -111,10 +111,13 @@ class Pleroma(_ABCMeta):
     def __call__(cls, /, *args, **kwargs):
         return cls.construct(*args, **kwargs)
 
-    def __getitem__(cls, arg, /):
+    def __class_getitem__(cls, arg, /):
         if isinstance(arg, cls.Params):
             return cls.instantiate(arg)
         raise TypeError(type(arg))
+
+    def __getitem__(cls, arg, /):
+        return cls.__class_getitem__(arg)
 
 
 class Concrete(Pleroma):
@@ -174,6 +177,10 @@ class Pleromatic(metaclass=Pleroma):
     @_utilities.caching.soft_cache(None)
     def __repr__(self, /):
         return f"{type(self).basecls.__qualname__}({self._repr()})"
+
+    @classmethod
+    def __class_getitem__(cls, arg, /):
+        return type(cls).__class_getitem__(cls, arg)
 
 
 ###############################################################################
