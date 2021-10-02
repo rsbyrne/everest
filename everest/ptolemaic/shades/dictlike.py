@@ -8,22 +8,32 @@ from collections.abc import Mapping as _Mapping
 
 from . import _Param
 
+from .shade import Shade as _Shade
 from .tuplelike import TupleLike as _TupleLike
 
 
-class DictLike(_Mapping, _TupleLike):
+class DictLike(_Mapping, _Shade):
 
     reqslots = ('dct',)
 
     pairtype = _TupleLike
 
     @classmethod
-    def parameterise(cls, arg, /, *args):
-        if not args:
-            if isinstance(arg, _Mapping):
-                arg = arg.items()
-            return super().parameterise(arg)
-        return super().parameterise(arg, *args)
+    def parameterise(cls, /, *args, **kwargs):
+        if args:
+            if kwargs:
+                raise RuntimeError(
+                    "Cannot input both args and kwargs to DictLike."
+                    )
+            arg0, *argn = args
+            if argn:
+                return super().parameterise(arg0, *argn)
+            if isinstance(arg0, _Mapping):
+                arg0 = arg0.items()
+            return super().parameterise(*arg0)
+        if kwargs:
+            return super().parameterise(*kwargs.items())
+        return super().parameterise()
 
     @classmethod
     def check_param(cls, arg, /):
@@ -32,6 +42,16 @@ class DictLike(_Mapping, _TupleLike):
         if not len(arg) == 2:
             raise ValueError("Input pairs must be of length 2.")
         return super().check_param(arg)
+
+    def __init__(self, /):
+        super().__init__()
+        args = self.args
+        self._len = len(args)
+        typs = set(map(type, args))
+        if len(typs) == 1:
+            self.typ = typs.pop()
+        else:
+            self.typ = None
 
     def __init__(self, /):
         super().__init__()
