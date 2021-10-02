@@ -3,14 +3,15 @@
 ###############################################################################
 
 
-from . import _Param, _behaviours
+from . import _Param, _shades
 
 from .sprite import Sprite as _Sprite
 
 
-class Tuuple(_behaviours.TupleLike, _Sprite):
+class Tuuple(_shades.TupleLike, _Sprite):
 
-    ...
+    def _repr(self, /):
+        return self.__str__()
 
 
 ###############################################################################
