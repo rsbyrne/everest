@@ -17,12 +17,6 @@ from . import params as _params
 _classtools = _utilities.classtools
 
 
-def gather_slots(bases, /):
-    return set(_itertools.chain.from_iterable(
-        base.reqslots for base in bases if hasattr(base, 'reqslots')
-        ))
-
-
 class Pleroma(_ABCMeta):
     '''
     The metaclass of all proper Ptolemaic classes.
@@ -31,16 +25,29 @@ class Pleroma(_ABCMeta):
     Param = _params.Param
     _concrete = False
 
+    mergenames = ('reqslots',)
+
     reqslots = ('_softcache', 'params', '__weakref__')
 
-    def _process_reqslots(cls, /):
+    @staticmethod
+    def gather_names(bases, name, /):
+        return set(_itertools.chain.from_iterable(
+            getattr(base, name) for base in bases if hasattr(base, name)
+            ))
+
+    def merge_names(cls, name, /):
         meta = type(cls)
-        reqslots = set()
-        reqslots.update(gather_slots((meta, *meta.__bases__)))
-        reqslots.update(gather_slots(cls.__bases__))
-        if 'reqslots' in cls.__dict__:
-            reqslots.update(set(cls.reqslots))
-        return tuple(sorted(reqslots))
+        merged = set()
+        merged.update(cls.gather_names((meta, *meta.__bases__), name))
+        merged.update(cls.gather_names(cls.__bases__, name))
+        if name in cls.__dict__:
+            merged.update(set(getattr(cls, name)))
+        setattr(cls, name, tuple(sorted(merged)))
+
+    def merge_names_all(cls, overname='mergenames'):
+        cls.merge_names(overname)
+        for name in getattr(cls, overname):
+            cls.merge_names(name)
 
     def _process_params(cls, /):
         annotations = dict()
@@ -82,7 +89,7 @@ class Pleroma(_ABCMeta):
         super().__init__(*args, **kwargs)
         if cls._concrete:
             return
-        cls.reqslots = cls._process_reqslots()
+        cls.merge_names_all()
         params = cls._process_params()
         cls._paramsdict = {pm.name: pm for pm in params}
         cls.__signature__ = _inspect.Signature(pm.parameter for pm in params)
@@ -91,7 +98,10 @@ class Pleroma(_ABCMeta):
         cls._cls_extra_init_()
 
     def _cls_extra_init_(cls, /):
-        pass
+        for name in dir(cls):
+            if name.startswith('_cls_') and name.endswith('_init_'):
+                if name != '_cls_extra_init_':
+                    getattr(cls, name)()
 
     def parameterise(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
@@ -144,21 +154,18 @@ class Pleromatic(metaclass=Pleroma):
 
     @classmethod
     def _cls_extra_init_(cls, /):
-        pass
+        type(cls)._cls_extra_init_(cls)
 
     @classmethod
     def check_param(cls, arg, /):
-        return True
+        return arg
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        bad = tuple(_itertools.filterfalse(
-            cls.check_param,
-            _itertools.chain(args, kwargs.values())
-            ))
-        if bad:
-            raise RuntimeError(f"Bad parameterisation of {cls}: {bad}.")
-        return type(cls).parameterise(cls, *args, **kwargs)
+        return type(cls).parameterise(cls,
+            *map(cls.check_param, args),
+            **dict(zip(kwargs, map(cls.check_param, kwargs.values()))),
+            )
 
     @classmethod
     def instantiate(cls, params, /, *args, **kwargs):
@@ -167,16 +174,6 @@ class Pleromatic(metaclass=Pleroma):
     @classmethod
     def construct(cls, /, *args, **kwargs):
         return type(cls).construct(cls, *args, **kwargs)
-
-    def __init__(self, /):
-        pass
-
-    def _repr(self, /):
-        return self.params.__str__()
-
-    @_utilities.caching.soft_cache(None)
-    def __repr__(self, /):
-        return f"{type(self).basecls.__qualname__}({self._repr()})"
 
     @classmethod
     def __class_getitem__(cls, arg, /):

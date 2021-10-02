@@ -3,10 +3,14 @@
 ###############################################################################
 
 
-import os as _os
+from . import _Param, _behaviours
 
-from .. import exceptions as _exceptions
-from .. import utilities as _utilities
+from .sprite import Sprite as _Sprite
+
+
+class Tuuple(_behaviours.TupleLike, _Sprite):
+
+    ...
 
 
 ###############################################################################

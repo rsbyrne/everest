@@ -3,13 +3,18 @@
 ###############################################################################
 
 
-from . import _Pleromatic
+from . import _Param
+
+from .sprite import Sprite as _Sprite
 
 
-class Behaviour(_Pleromatic):
+class Proxy(_Sprite):
     '''
-    Aspect classes are compatible as bases for other classes.
+    The base class for sprite classes
+    that are intended to substitute for typical Python types (e.g. tuple).
     '''
+
+    pytyp = None
 
 
 ###############################################################################

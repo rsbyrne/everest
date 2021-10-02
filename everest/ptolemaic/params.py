@@ -7,6 +7,8 @@ import inspect as _inspect
 import functools as _functools
 import hashlib as _hashlib
 import itertools as _itertools
+from collections import abc as _collabc
+
 import more_itertools as _mitertools
 
 from . import _utilities
@@ -127,7 +129,7 @@ for name in Param._revkinds:
 Param = Param.PosKw
 
 
-class Params:
+class Params(_collabc.Mapping):
 
     __slots__ = ('bound', 'arguments', '_getter', '_softcache')
 
@@ -172,6 +174,12 @@ class Params:
 
     def __getitem__(self, arg, /):
         return self.arguments[arg]
+
+    def __iter__(self, /):
+        return iter(self.arguments)
+
+    def __len__(self, /):
+        return len(self.arguments)
 
     @classmethod
     def __init_subclass__(cls, /, *, parameterise, **kwargs):

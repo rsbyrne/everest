@@ -1,14 +1,17 @@
 ###############################################################################
-''''''
+'''
+Defines the exceptions or exception base classes
+for all excpetions thrown by sprites.
+'''
 ###############################################################################
 
 
-from ..pleroma import Pleromatic as _Pleromatic
+from . import _exceptions
 
 
-from .singleton import *
+class SpriteException(_exceptions.PtolemaicException):
+    '''The base class of all exceptions thrown by Sprite subclasses.'''
 
 
 ###############################################################################
-
 ###############################################################################

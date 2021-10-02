@@ -4,7 +4,10 @@
 
 
 from ..ptolemaic import Ptolemaic as _Ptolemaic
-from .. import behaviours as _behaviours
+from .. import shades as _shades
+from .. import exceptions as _exceptions
+
+from .schema import *
 
 
 ###############################################################################

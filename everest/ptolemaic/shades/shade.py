@@ -3,10 +3,17 @@
 ###############################################################################
 
 
-import os as _os
+from . import _Pleromatic
 
-from .. import exceptions as _exceptions
-from .. import utilities as _utilities
+
+class Shade(_Pleromatic):
+    '''
+    Shade classes are compatible as bases for other classes.
+    '''
+
+    @classmethod
+    def _cls_shades_init_(cls, /):
+        pass
 
 
 ###############################################################################
