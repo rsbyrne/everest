@@ -43,7 +43,7 @@ class Pleroma(_ABCMeta):
             merged.update(set(getattr(cls, name)))
         setattr(cls, name, tuple(sorted(merged)))
 
-    def _merge_names_all(cls, overname='mergenames'):
+    def _merge_names_all(cls, overname='mergenames', /):
         cls._merge_names(overname)
         for name in getattr(cls, overname):
             cls._merge_names(name)
@@ -104,7 +104,7 @@ class Pleroma(_ABCMeta):
                     "could be found."
                     )
         base = getattr(cls, adjname)
-        subcls = type(name, (SubClass, base, cls), {})
+        subcls = type(name, (base, cls, SubClass), {})
         setattr(cls, fusename, subcls)
         setattr(cls, name, subcls)
         cls._subclasses.append(subcls)
@@ -152,22 +152,26 @@ class Pleroma(_ABCMeta):
                     getattr(cls, name)()
 
     def parameterise(cls, /, *args, **kwargs):
-        bound = cls.__signature__.bind(*args, **kwargs)
-        bound.apply_defaults()
-        return bound
+        return args, kwargs
 
-    def instantiate(cls, params, /, *args, **kwargs):
+    def _create_object(cls, /):
         obj = object.__new__(cls.Concrete)
         obj._softcache = dict()
-        obj.params = params
-        obj.__init__(*args, **kwargs)
         return obj
 
-    def construct(cls, *pa, args=(), kwargs=_utilities.FrozenMap(), **pk):
-        return cls.instantiate(cls.Params(*pa, **pk), *args, **kwargs)
+    def instantiate(cls, params, /):
+        obj = cls._create_object()
+        obj.params = params
+        return obj
+
+    def construct(cls, *args, **kwargs):
+        params = cls.Params(*args, **kwargs)
+        return cls.instantiate(params)
 
     def __call__(cls, /, *args, **kwargs):
-        return cls.construct(*args, **kwargs)
+        obj = cls.construct(*args, **kwargs)
+        obj.__init__()
+        return obj
 
     def __class_getitem__(cls, arg, /):
         if isinstance(arg, cls.Params):
@@ -201,8 +205,14 @@ class Concrete(Pleroma):
 class SubClass(metaclass=Pleroma):
 
     @classmethod
-    def _add_subclasses(cls, /):
-        pass
+    def _merge_names_all(cls, /):
+        type(cls)._merge_names_all(cls)
+        if (name := cls.__name__) in cls.subclasses:
+            cls.subclasses = tuple(nm for nm in cls.subclasses if nm != name)
+        
+#     @classmethod
+#     def _add_subclasses(cls, /):
+#         pass
 
 
 ###############################################################################

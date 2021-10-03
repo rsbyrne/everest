@@ -139,7 +139,9 @@ class Params(_collabc.Mapping):
     signed = False
 
     def __init__(self, /, *args, **kwargs):
-        bound = self.bound = self.parameterise(*args, **kwargs)
+        args, kwargs = self.parameterise(*args, **kwargs)
+        bound = self.bound = self.sig.bind(*args, **kwargs)
+        bound.apply_defaults()
         self.arguments = bound.arguments
 
     def __getattr__(self, name):
@@ -182,9 +184,10 @@ class Params(_collabc.Mapping):
         return len(self.arguments)
 
     @classmethod
-    def __init_subclass__(cls, /, *, parameterise, **kwargs):
+    def __init_subclass__(cls, /, *, sig, parameterise, **kwargs):
         if cls.signed:
             raise TypeError(f"{type(cls)} already signed.")
+        cls.sig = sig
         cls.parameterise = parameterise
         cls.signed = True
         super().__init_subclass__(**kwargs)
@@ -195,7 +198,8 @@ class Params(_collabc.Mapping):
             f"{cls.__name__}[{repr(arg)}]",
             (cls,),
             dict(),
-            parameterise=arg.parameterise
+            sig=arg.__signature__,
+            parameterise=arg.parameterise,
             )
 
 

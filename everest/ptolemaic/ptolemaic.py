@@ -67,8 +67,8 @@ class Ptolemaic(PtolemaicBase):
             )
 
     @classmethod
-    def instantiate(cls, params, /, *args, **kwargs):
-        return type(cls).instantiate(cls, params, *args, **kwargs)
+    def instantiate(cls, params, /):
+        return type(cls).instantiate(cls, params)
 
     @classmethod
     def construct(cls, /, *args, **kwargs):

@@ -5,17 +5,31 @@
 
 from collections import abc as _collabc
 
-from . import _Ptolemaic
-from . import _shades
+from . import _Ptolemaic, _Primitive, _shades
 
 
-class Schema(_shades.Singleton, _Ptolemaic):
+# class Var(_Ptolemaic):
+#     ...
+
+
+class Dat(_shades.Singleton):
+
+    isdat = True
+
+
+class Schema(_Ptolemaic):
 
     fixedsubclasses = ('Mapp', 'Brace', 'Slyce')
 
     Mapp = _shades.DictLike
     Brace = _shades.TupleLike
     Slyce = _shades.SliceLike
+
+    subclasses = ('Dat',)
+
+    Dat = Dat
+
+    isdat = False
 
     @classmethod
     def yield_checktypes(cls, /):
@@ -27,6 +41,15 @@ class Schema(_shades.Singleton, _Ptolemaic):
     @classmethod
     def prekey(cls, params):
         return params.hashID
+
+    @classmethod
+    def instantiate(cls, params, /, *args, **kwargs):
+        if all(
+                isinstance(param, (Dat, _Primitive, tuple, dict))
+                for param in params.values()
+                ):
+            return cls.Dat.instantiate(params, *args, **kwargs)
+        return super().instantiate(params, *args, **kwargs)
 
     def _repr(self):
         return self.params.hashID
