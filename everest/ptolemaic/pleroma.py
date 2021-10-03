@@ -14,8 +14,6 @@ import operator as _operator
 from . import _utilities
 from . import params as _params
 
-_classtools = _utilities.classtools
-
 
 class Pleroma(_ABCMeta):
     '''
@@ -25,29 +23,30 @@ class Pleroma(_ABCMeta):
     Param = _params.Param
     _concrete = False
 
-    mergenames = ('reqslots',)
-
+    mergenames = ('reqslots', 'mroclasses', 'subclasses')
     reqslots = ('_softcache', 'params', '__weakref__')
+    mroclasses = tuple()
+    subclasses = tuple()
 
     @staticmethod
-    def gather_names(bases, name, /):
+    def _gather_names(bases, name, /):
         return set(_itertools.chain.from_iterable(
             getattr(base, name) for base in bases if hasattr(base, name)
             ))
 
-    def merge_names(cls, name, /):
+    def _merge_names(cls, name, /):
         meta = type(cls)
         merged = set()
-        merged.update(cls.gather_names((meta, *meta.__bases__), name))
-        merged.update(cls.gather_names(cls.__bases__, name))
+        merged.update(cls._gather_names((meta, *meta.__bases__), name))
+        merged.update(cls._gather_names(cls.__bases__, name))
         if name in cls.__dict__:
             merged.update(set(getattr(cls, name)))
         setattr(cls, name, tuple(sorted(merged)))
 
-    def merge_names_all(cls, overname='mergenames'):
-        cls.merge_names(overname)
+    def _merge_names_all(cls, overname='mergenames'):
+        cls._merge_names(overname)
         for name in getattr(cls, overname):
-            cls.merge_names(name)
+            cls._merge_names(name)
 
     def _process_params(cls, /):
         annotations = dict()
@@ -73,6 +72,53 @@ class Pleroma(_ABCMeta):
             params.append(param)
         return _params.sort_params(params)
 
+    def _add_mroclass(cls, name: str, /):
+        adjname = f'_mroclassbase_{name}'
+        fusename = f'_mroclassfused_{name}'
+        if name in cls.__dict__:
+            setattr(cls, adjname, cls.__dict__[name])
+        inhclasses = []
+        for mcls in cls.__mro__:
+            if adjname in mcls.__dict__:
+                inhcls = mcls.__dict__[adjname]
+                if not inhcls in inhclasses:
+                    inhclasses.append(inhcls)
+        inhclasses = tuple(inhclasses)
+        mroclass = type(name, inhclasses, {})
+        setattr(cls, fusename, mroclass)
+        setattr(cls, name, mroclass)
+
+    def _add_mroclasses(cls, /):
+        for name in cls.mroclasses:
+            cls._add_mroclass(name)
+
+    def _add_subclass(cls, name: str, /):
+        adjname = f'_subclassbase_{name}'
+        fusename = f'_subclassfused_{name}'
+        if not hasattr(cls, adjname):
+            if hasattr(cls, name):
+                setattr(cls, adjname, getattr(cls, name))
+            else:
+                raise AttributeError(
+                    f"No subclass base of name '{name}' or '{adjname}' "
+                    "could be found."
+                    )
+        base = getattr(cls, adjname)
+        subcls = type(name, (SubClass, base, cls), {})
+        setattr(cls, fusename, subcls)
+        setattr(cls, name, subcls)
+        cls._subclasses.append(subcls)
+
+    def _add_subclasses(cls, /):
+        cls._subclasses = []
+        for name in cls.subclasses:
+            cls._add_subclass(name)
+        attrname = 'fixedsubclasses'
+        if attrname in cls.__dict__:
+            for name in cls.__dict__[attrname]:
+                cls._add_subclass(name)
+        cls._subclasses = tuple(cls._subclasses)
+
     @classmethod
     def __prepare__(meta, name, bases, /):
         return dict()
@@ -89,7 +135,9 @@ class Pleroma(_ABCMeta):
         super().__init__(*args, **kwargs)
         if cls._concrete:
             return
-        cls.merge_names_all()
+        cls._merge_names_all()
+        cls._add_mroclasses()
+        cls._add_subclasses()
         params = cls._process_params()
         cls._paramsdict = {pm.name: pm for pm in params}
         cls.__signature__ = _inspect.Signature(pm.parameter for pm in params)
@@ -150,34 +198,11 @@ class Concrete(Pleroma):
         raise TypeError("Cannot directly call a Concrete class.")
 
 
-class Pleromatic(metaclass=Pleroma):
+class SubClass(metaclass=Pleroma):
 
     @classmethod
-    def _cls_extra_init_(cls, /):
-        type(cls)._cls_extra_init_(cls)
-
-    @classmethod
-    def check_param(cls, arg, /):
-        return arg
-
-    @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        return type(cls).parameterise(cls,
-            *map(cls.check_param, args),
-            **dict(zip(kwargs, map(cls.check_param, kwargs.values()))),
-            )
-
-    @classmethod
-    def instantiate(cls, params, /, *args, **kwargs):
-        return type(cls).instantiate(cls, params, *args, **kwargs)
-
-    @classmethod
-    def construct(cls, /, *args, **kwargs):
-        return type(cls).construct(cls, *args, **kwargs)
-
-    @classmethod
-    def __class_getitem__(cls, arg, /):
-        return type(cls).__class_getitem__(cls, arg)
+    def _add_subclasses(cls, /):
+        pass
 
 
 ###############################################################################

@@ -14,9 +14,9 @@ from .tuplelike import TupleLike as _TupleLike
 
 class DictLike(_Mapping, _Shade):
 
-    reqslots = ('dct',)
+    args: _Param.Args
 
-    pairtype = _TupleLike
+    reqslots = ('dct',)
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -37,21 +37,9 @@ class DictLike(_Mapping, _Shade):
 
     @classmethod
     def check_param(cls, arg, /):
-        if not isinstance(arg, pairtype := cls.pairtype):
-            arg = pairtype(arg)
         if not len(arg) == 2:
             raise ValueError("Input pairs must be of length 2.")
         return super().check_param(arg)
-
-    def __init__(self, /):
-        super().__init__()
-        args = self.args
-        self._len = len(args)
-        typs = set(map(type, args))
-        if len(typs) == 1:
-            self.typ = typs.pop()
-        else:
-            self.typ = None
 
     def __init__(self, /):
         super().__init__()
@@ -64,7 +52,7 @@ class DictLike(_Mapping, _Shade):
         return iter(self.dct)
 
     def __len__(self, /):
-        return self._len
+        return self.dct.__len__()
 
     def __str__(self, /):
         return ', '.join(map(

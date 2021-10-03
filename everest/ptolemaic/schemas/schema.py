@@ -9,32 +9,20 @@ from . import _Ptolemaic
 from . import _shades
 
 
-def pass_func(arg, /):
-    return arg
-
-
 class Schema(_shades.Singleton, _Ptolemaic):
 
-    Brace = _Ptolemaic.BadParameter.trigger
-    Mapp = _Ptolemaic.BadParameter.trigger
+    fixedsubclasses = ('Mapp', 'Brace', 'Slyce')
 
-    @classmethod
-    def _process_dictlike(cls, arg, /):
-        return cls.Mapp(arg)
-
-    @classmethod
-    def _process_tuplelike(cls, arg, /):
-        return cls.Brace(arg)
-
-    @classmethod
-    def _process_slicelike(cls, arg, /):
-        return cls.Slyce(arg)
+    Mapp = _shades.DictLike
+    Brace = _shades.TupleLike
+    Slyce = _shades.SliceLike
 
     @classmethod
     def yield_checktypes(cls, /):
-        yield _collabc.Mapping, cls._process_dictlike
-        yield _collabc.Sequence, cls._process_tuplelike
-        yield slice, cls._process_slicelike
+        yield from super().yield_checktypes()
+        yield _collabc.Mapping, lambda x: cls.Mapp(x)
+        yield _collabc.Sequence, lambda x: cls.Brace(x)
+        yield slice, lambda x: cls.Slyce(x)
 
     @classmethod
     def prekey(cls, params):
@@ -43,24 +31,9 @@ class Schema(_shades.Singleton, _Ptolemaic):
     def _repr(self):
         return self.params.hashID
 
-
-class Brace(_shades.TupleLike, Schema):
-    ...
-
-
-class Mapp(_shades.DictLike, Brace):
-
-    _pairtype = Brace
-
-
-class Slyce(_shades.SliceLike, Schema):
-    ...
-    
-
-
-Schema.Brace = Brace
-Schema.Mapp = Mapp
-Schema.Slyce = Slyce
+    @property
+    def hashID(self):
+        return self._repr()
 
 
 ###############################################################################

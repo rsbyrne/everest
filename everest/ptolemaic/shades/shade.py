@@ -3,10 +3,10 @@
 ###############################################################################
 
 
-from . import _Pleromatic
+from . import _Pleroma
 
 
-class Shade(_Pleromatic):
+class Shade(metaclass=_Pleroma):
     '''
     Shade classes are compatible as bases for other classes.
     '''

@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from ..pleroma import Pleromatic as _Pleromatic
+from ..pleroma import Pleroma as _Pleroma
 from ..params import Param as _Param
 
 from .shade import *

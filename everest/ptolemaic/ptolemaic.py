@@ -7,7 +7,7 @@ import itertools as _itertools
 
 from . import _utilities
 
-from .pleroma import Pleromatic as _Pleromatic
+from .pleroma import Pleroma as _Pleroma
 from .primitive import Primitive as _Primitive
 
 from . import exceptions as _exceptions
@@ -34,7 +34,7 @@ class BadParameter(_exceptions.ParameterisationException):
             yield rep
 
 
-class PtolemaicBase(_Pleromatic):
+class PtolemaicBase(metaclass=_Pleroma):
     '''
     The base class of all object types
     understood as inputs for the Ptolemaic system.
@@ -49,13 +49,43 @@ class Ptolemaic(PtolemaicBase):
     BadParameter = BadParameter
 
     @classmethod
+    def check_param(cls, arg, /):
+        if not isinstance(arg, PtolemaicBase):
+            try:
+                meth = cls.checktypes[type(arg)]
+            except KeyError as exc:
+                raise BadParameter(arg) from exc
+            else:
+                arg = meth(arg)
+        return arg
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        return type(cls).parameterise(cls,
+            *map(cls.check_param, args),
+            **dict(zip(kwargs, map(cls.check_param, kwargs.values()))),
+            )
+
+    @classmethod
+    def instantiate(cls, params, /, *args, **kwargs):
+        return type(cls).instantiate(cls, params, *args, **kwargs)
+
+    @classmethod
+    def construct(cls, /, *args, **kwargs):
+        return type(cls).construct(cls, *args, **kwargs)
+
+    @classmethod
+    def __class_getitem__(cls, arg, /):
+        return type(cls).__class_getitem__(cls, arg)
+
+    @classmethod
     def yield_checktypes(cls, /):
         return
         yield
 
     @classmethod
     def _cls_extra_init_(cls, /):
-        super()._cls_extra_init_()
+        type(cls)._cls_extra_init_(cls)
         cls.checktypes = _utilities.TypeMap(cls.yield_checktypes())
 
     def __init__(self, /):
@@ -67,17 +97,6 @@ class Ptolemaic(PtolemaicBase):
     @_utilities.caching.soft_cache(None)
     def __repr__(self, /):
         return f"{type(self).basecls.__qualname__}({self._repr()})"
-
-    @classmethod
-    def check_param(cls, arg, /):
-        if not isinstance(arg, PtolemaicBase):
-            try:
-                meth = cls.checktypes[type(arg)]
-            except KeyError as exc:
-                raise BadParameter(arg) from exc
-            else:
-                arg = meth(arg)
-        return super().check_param(arg)
 
 
 ###############################################################################

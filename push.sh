@@ -7,6 +7,6 @@ bash ./purge_notebooks.sh
 git config --global user.email "rohan.byrne@gmail.com"
 git config --global user.name "rsbyrne"
 git add .
-git commit -m "Quick push"
+git commit -m "${1:-"Quick push."}"
 git push
 cd $currentDir

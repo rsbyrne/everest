@@ -13,7 +13,12 @@ class Singleton(_Shade):
     @classmethod
     def _cls_extra_init_(cls, /):
         cls.premade = _weakref.WeakValueDictionary()
-        super()._cls_extra_init_()
+        try:
+            nextmeth = super()._cls_extra_init_
+        except AttributeError:
+            pass
+        else:
+            nextmeth()
 
     @classmethod
     def prekey(cls, params):
