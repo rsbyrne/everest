@@ -104,7 +104,7 @@ class Pleroma(_ABCMeta):
                     "could be found."
                     )
         base = getattr(cls, adjname)
-        subcls = type(name, (base, cls, SubClass), {})
+        subcls = type(name, (base, cls, SubClass), {'superclass': cls})
         setattr(cls, fusename, subcls)
         setattr(cls, name, subcls)
         cls._subclasses.append(subcls)
@@ -143,13 +143,12 @@ class Pleroma(_ABCMeta):
         cls.__signature__ = _inspect.Signature(pm.parameter for pm in params)
         cls.Params = _params.Params[cls]
         cls.Concrete = Concrete(cls)
-        cls._cls_extra_init_()
+        cls._cls_inits_()
 
-    def _cls_extra_init_(cls, /):
+    def _cls_inits_(cls, /):
         for name in dir(cls):
             if name.startswith('_cls_') and name.endswith('_init_'):
-                if name != '_cls_extra_init_':
-                    getattr(cls, name)()
+                getattr(cls, name)()
 
     def parameterise(cls, /, *args, **kwargs):
         return args, kwargs
@@ -180,6 +179,12 @@ class Pleroma(_ABCMeta):
 
     def __getitem__(cls, arg, /):
         return cls.__class_getitem__(arg)
+
+    def _cls_repr(cls, /):
+        return super().__repr__()
+
+    def __repr__(cls, /):
+        return cls._cls_repr()
 
 
 class Concrete(Pleroma):

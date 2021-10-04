@@ -16,6 +16,12 @@ class Dat(_shades.Singleton):
 
     isdat = True
 
+    superclass = None
+
+    @classmethod
+    def _cls_repr(cls, /):
+        return f"{repr(cls.superclass)}.{super()._cls_repr()}"
+
 
 class Schema(_Ptolemaic):
 

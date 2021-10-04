@@ -85,7 +85,6 @@ class Ptolemaic(PtolemaicBase):
 
     @classmethod
     def _cls_extra_init_(cls, /):
-        type(cls)._cls_extra_init_(cls)
         cls.checktypes = _utilities.TypeMap(cls.yield_checktypes())
 
     def __init__(self, /):
@@ -94,9 +93,15 @@ class Ptolemaic(PtolemaicBase):
     def _repr(self, /):
         return self.params.__str__()
 
+    @classmethod
+    def _cls_repr(cls, /):
+        if cls._concrete:
+            cls = cls.basecls
+        return cls.__qualname__
+
     @_utilities.caching.soft_cache(None)
     def __repr__(self, /):
-        return f"{type(self).basecls.__qualname__}({self._repr()})"
+        return f"{self._cls_repr()}({self._repr()})"
 
 
 ###############################################################################
