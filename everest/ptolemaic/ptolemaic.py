@@ -80,8 +80,7 @@ class Ptolemaic(PtolemaicBase):
 
     @classmethod
     def yield_checktypes(cls, /):
-        return
-        yield
+        yield _Pleroma, lambda x: x
 
     @classmethod
     def _cls_extra_init_(cls, /):
@@ -95,7 +94,7 @@ class Ptolemaic(PtolemaicBase):
 
     @classmethod
     def _cls_repr(cls, /):
-        if cls._concrete:
+        if cls._pleroma_concrete__:
             cls = cls.basecls
         return cls.__qualname__
 

@@ -14,11 +14,11 @@ from .makehash import quick_hash as _quick_hash
 
 def soft_cache(storage):
 
-    def decorator(func, storage=storage):
+    def decorator(func, storage='_softcache'):
 
         cachename = f"_softcache_{func.__name__}"
         sig = _inspect.signature(func)
-        nonestorage = storage is None
+        nonestorage = isinstance(storage, 
 
         def wrapper(
                 *args,

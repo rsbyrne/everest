@@ -20,33 +20,37 @@ class Pleroma(_ABCMeta):
     The metaclass of all proper Ptolemaic classes.
     '''
 
-    Param = _params.Param
-    _concrete = False
+    _pleroma_concrete__ = False
 
-    mergenames = ('reqslots', 'mroclasses', 'subclasses')
-    reqslots = ('_softcache', 'params', '__weakref__')
-    mroclasses = tuple()
-    subclasses = tuple()
+    _pleroma_mergetuples__ = ('_pleroma_slots__', '_pleroma_mroclasses__', '_pleroma_subclasses__')
+    _pleroma_mergedicts__ = ('_pleroma_annotations__',)
+    _pleroma_slots__ = ('_softcache', 'params', '__weakref__')
+    _pleroma_mroclasses__ = tuple()
+    _pleroma_subclasses__ = tuple()
+    _pleroma_fixedsubclasses__ = tuple()
+    _pleroma_annotations__ = dict()
 
     @staticmethod
-    def _gather_names(bases, name, /):
+    def _gather_names(bases, name, methcall, /):
         return set(_itertools.chain.from_iterable(
-            getattr(base, name) for base in bases if hasattr(base, name)
+            methcall(getattr(base, name))
+            for base in bases if hasattr(base, name)
             ))
 
-    def _merge_names(cls, name, /):
+    def _merge_names(cls, name, /, *, mergetyp=tuple, itermeth='__iter__'):
+        methcall = _operator.methodcaller(itermeth)
         meta = type(cls)
         merged = set()
-        merged.update(cls._gather_names((meta, *meta.__bases__), name))
-        merged.update(cls._gather_names(cls.__bases__, name))
+        merged.update(cls._gather_names((meta, *meta.__bases__), name, methcall))
+        merged.update(cls._gather_names(cls.__bases__, name, methcall))
         if name in cls.__dict__:
-            merged.update(set(getattr(cls, name)))
-        setattr(cls, name, tuple(sorted(merged)))
+            merged.update(set(methcall(getattr(cls, name))))
+        setattr(cls, name, mergetyp(merged))
 
-    def _merge_names_all(cls, overname='mergenames', /):
+    def _merge_names_all(cls, overname, /, **kwargs):
         cls._merge_names(overname)
         for name in getattr(cls, overname):
-            cls._merge_names(name)
+            cls._merge_names(name, **kwargs)
 
     def _process_params(cls, /):
         annotations = dict()
@@ -73,8 +77,8 @@ class Pleroma(_ABCMeta):
         return _params.sort_params(params)
 
     def _add_mroclass(cls, name: str, /):
-        adjname = f'_mroclassbase_{name}'
-        fusename = f'_mroclassfused_{name}'
+        adjname = f'_mroclassbase_{name}__'
+        fusename = f'_mroclassfused_{name}__'
         if name in cls.__dict__:
             setattr(cls, adjname, cls.__dict__[name])
         inhclasses = []
@@ -89,12 +93,15 @@ class Pleroma(_ABCMeta):
         setattr(cls, name, mroclass)
 
     def _add_mroclasses(cls, /):
-        for name in cls.mroclasses:
+        for name in cls._pleroma_mroclasses__:
             cls._add_mroclass(name)
 
+    def subclass(cls, name, /, *bases, **namespace):
+        return type(cls)(name, (cls, *bases), namespace)
+
     def _add_subclass(cls, name: str, /):
-        adjname = f'_subclassbase_{name}'
-        fusename = f'_subclassfused_{name}'
+        adjname = f'_subclassbase_{name}__'
+        fusename = f'_subclassfused_{name}__'
         if not hasattr(cls, adjname):
             if hasattr(cls, name):
                 setattr(cls, adjname, getattr(cls, name))
@@ -107,17 +114,17 @@ class Pleroma(_ABCMeta):
         subcls = type(name, (base, cls, SubClass), {'superclass': cls})
         setattr(cls, fusename, subcls)
         setattr(cls, name, subcls)
-        cls._subclasses.append(subcls)
+        cls._pleroma_subclasses__.append(subcls)
 
     def _add_subclasses(cls, /):
-        cls._subclasses = []
-        for name in cls.subclasses:
+        cls._pleroma_subclasses__ = []
+        for name in cls._pleroma_subclasses__:
             cls._add_subclass(name)
-        attrname = 'fixedsubclasses'
+        attrname = '_pleroma_fixedsubclasses__'
         if attrname in cls.__dict__:
             for name in cls.__dict__[attrname]:
                 cls._add_subclass(name)
-        cls._subclasses = tuple(cls._subclasses)
+        cls._pleroma_subclasses__ = tuple(cls._pleroma_subclasses__)
 
     @classmethod
     def __prepare__(meta, name, bases, /):
@@ -133,9 +140,13 @@ class Pleroma(_ABCMeta):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if cls._concrete:
+        if cls._pleroma_concrete__:
             return
-        cls._merge_names_all()
+        cls._merge_names_all('_pleroma_mergetuples__')
+        cls._merge_names_all('_pleroma_mergedicts__', mergetyp=_utilities.FrozenMap, itermeth='items')
+        if not hasattr(cls, '__annotations__'):
+            cls.__annotations__ = dict()
+        cls.__annotations__.update(cls._pleroma_annotations__)
         cls._add_mroclasses()
         cls._add_subclasses()
         params = cls._process_params()
@@ -192,9 +203,9 @@ class Concrete(Pleroma):
     def __new__(meta, base, /,):
         name = f"{base.__qualname__}.Concrete"
         namespace = dict(
-            __slots__=base.reqslots,
+            __slots__=base._pleroma_slots__,
             basecls=base,
-            _concrete=True,
+            _pleroma_concrete__=True,
             ) | base._paramsdict
         bases = (base,)
         return super().__new__(meta, name, bases, namespace, _concrete=True)
@@ -210,10 +221,11 @@ class Concrete(Pleroma):
 class SubClass(metaclass=Pleroma):
 
     @classmethod
-    def _merge_names_all(cls, /):
-        type(cls)._merge_names_all(cls)
-        if (name := cls.__name__) in cls.subclasses:
-            cls.subclasses = tuple(nm for nm in cls.subclasses if nm != name)
+    def _merge_names_all(cls, overname, /, **kwargs):
+        type(cls)._merge_names_all(cls, overname, **kwargs)
+        if overname == '_pleroma_mergetuples__':
+            if (name := cls.__name__) in cls._pleroma_subclasses__:
+                cls._pleroma_subclasses__ = tuple(nm for nm in cls._pleroma_subclasses__ if nm != name)
         
 #     @classmethod
 #     def _add_subclasses(cls, /):

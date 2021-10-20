@@ -16,7 +16,7 @@ class DictLike(_Mapping, _Shade):
 
     args: _Param.Args
 
-    reqslots = ('dct',)
+    _pleroma_slots__ = ('dct',)
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):

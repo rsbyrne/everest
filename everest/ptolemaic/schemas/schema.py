@@ -25,13 +25,13 @@ class Dat(_shades.Singleton):
 
 class Schema(_Ptolemaic):
 
-    fixedsubclasses = ('Mapp', 'Brace', 'Slyce')
+    _pleroma_fixedsubclasses__ = ('Mapp', 'Brace', 'Slyce')
 
     Mapp = _shades.DictLike
     Brace = _shades.TupleLike
     Slyce = _shades.SliceLike
 
-    subclasses = ('Dat',)
+    _pleroma_subclasses__ = ('Dat',)
 
     Dat = Dat
 

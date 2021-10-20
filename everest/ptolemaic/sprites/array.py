@@ -17,7 +17,7 @@ class Array(_Sprite):
     inbytes: _Param.Pos[bytes]
     dtype: _Param.Kw[str]
 
-    reqslots = ('_arr',)
+    _pleroma_slots__ = ('_arr',)
 
     @classmethod
     def parameterise(cls, arg, /, *, dtype=None):
