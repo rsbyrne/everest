@@ -177,6 +177,7 @@ class Ax:
             **{**spread.drawKwargs, **kwargs},
             )
         self.collections.append(collections)
+        return collections
 
     def clear(self):
         self.mplax.clear()
@@ -184,9 +185,9 @@ class Ax:
         self.collections = []
 
     def scatter(self, *args, **kwargs):
-        self.draw(*args, variety = 'scatter', **kwargs)
+        return self.draw(*args, variety = 'scatter', **kwargs)
     def line(self, *args, **kwargs):
-        self.draw(*args, variety = 'line', **kwargs)
+        return self.draw(*args, variety = 'line', **kwargs)
 
     def annotate(self,
             x,

@@ -76,6 +76,7 @@ class _PropertyController:
         self._controller = controller
         for sub in self.subs:
             sub.__enter__(controller=False)
+        return self
     def __exit__(self, *args):
         update = self.update = self._true_update
         for sub in self.subs:

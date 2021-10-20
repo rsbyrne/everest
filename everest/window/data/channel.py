@@ -1,11 +1,12 @@
 ###############################################################################
 ''''''
 ###############################################################################
+
 import math
 import numbers
 from collections import OrderedDict
 import time
-from datetime import datetime
+import datetime
 import itertools
 
 import numpy as np
@@ -155,8 +156,8 @@ class DataChannel:
                 islog = True
                 llim = data.min() if llim is None else math.log10(llim)
                 ulim = data.max() if ulim is None else math.log10(ulim)
-                if label:
-                    label = r"\log_{10}\;" + label
+#                 if label:
+#                     label = r"\log_{10}\;" + label
             else:
                 llim = data.min() if llim is None else llim
                 ulim = data.max() if ulim is None else ulim
@@ -465,7 +466,7 @@ class DataChannel:
                 **kwargs
                 ):
             data = np.array(data)
-            types = set([type(d) for d in data.astype(datetime)])
+            types = set([type(d) for d in data.astype(datetime.datetime)])
             if not len(types) == 1:
                 raise ValueError('Anomalous types detected', types)
             super().__init__(data, **kwargs)
@@ -526,7 +527,7 @@ class DataChannel:
             if code == 'w':
                 increment = mult * 7
                 start = np.datetime64(lLim, 'D')
-                start -= int(start.astype(datetime).strftime('%w'))
+                start -= int(start.astype(datetime.datetime).strftime('%w'))
             else:
                 increment = mult
                 formatCode = '%' + {
@@ -607,7 +608,18 @@ class DataChannel:
         @classmethod
         def nice_tickLabels(cls, tickVals, code):
             code = code[-1]
-            dateVals = tickVals.tolist()
+            if tickVals.dtype == '<M8[ns]':
+                dateVals = tuple(map(
+                    datetime.datetime.fromtimestamp,
+                    (tickVals.astype(int) / 1e9).round(),
+                    ))
+            else:
+                dateVals = tickVals.tolist()
+            if not all(
+                    isinstance(val, (datetime.datetime, datetime.date, datetime.time))
+                    for val in dateVals
+                    ):
+                raise TypeError(tuple(set(map(type, dateVals))))
             labels = []
             if code == 's':
                 labels.append(dateVals[0].strftime('%Mm %Ss'))
