@@ -5,7 +5,7 @@
 
 import weakref as _weakref
 
-from .shade import Shade as _Shade
+from . import _Shade
 
 
 class Singleton(_Shade):

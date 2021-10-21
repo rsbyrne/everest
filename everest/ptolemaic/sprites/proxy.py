@@ -3,9 +3,7 @@
 ###############################################################################
 
 
-from . import _Param
-
-from .sprite import Sprite as _Sprite
+from . import _Param, _Sprite
 
 
 class Proxy(_Sprite):

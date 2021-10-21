@@ -3,9 +3,7 @@
 ###############################################################################
 
 
-from . import _Param, _shades
-
-from .sprite import Sprite as _Sprite
+from . import _Param, _shades, _Sprite
 
 
 class Tuuple(_shades.TupleLike, _Sprite):

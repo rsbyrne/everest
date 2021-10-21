@@ -7,14 +7,13 @@ import itertools as _itertools
 
 from . import _utilities
 
-from .pleroma import Pleroma as _Pleroma
+from .shade import Shade as _Shade
 from .primitive import Primitive as _Primitive
 
 from . import exceptions as _exceptions
 
 
 class BadParameter(_exceptions.ParameterisationException):
-    '''Raised when an unrecognised parameter type is detected.'''
 
     __slots__ = ('param',)
 
@@ -32,32 +31,21 @@ class BadParameter(_exceptions.ParameterisationException):
         else:
             yield 'The object looked something like this:'
             yield rep
+        yield ''.join((
+            "Note that this class only accepts inputs which are Primitives",
+            " (e.g. Python int, float, bool)"
+            ))
 
 
-class PtolemaicBase(metaclass=_Pleroma):
-    '''
-    The base class of all object types
-    understood as inputs for the Ptolemaic system.
-    '''
+class Sprite(_Shade):
 
-
-_ = PtolemaicBase.register(_Primitive)
-
-
-class Ptolemaic(PtolemaicBase):
-
-    BadParameter = BadParameter
+    _BadParameter = BadParameter
 
     @classmethod
     def check_param(cls, arg, /):
-        if not isinstance(arg, PtolemaicBase):
-            try:
-                meth = cls.checktypes[type(arg)]
-            except KeyError as exc:
-                raise BadParameter(arg) from exc
-            else:
-                arg = meth(arg)
-        return arg
+        if isinstance(arg, _Primitive):
+            return arg
+        raise cls._BadParameter(arg)
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -77,14 +65,6 @@ class Ptolemaic(PtolemaicBase):
     @classmethod
     def __class_getitem__(cls, arg, /):
         return type(cls).__class_getitem__(cls, arg)
-
-    @classmethod
-    def yield_checktypes(cls, /):
-        yield _Pleroma, lambda x: x
-
-    @classmethod
-    def _cls_extra_init_(cls, /):
-        cls.checktypes = _utilities.TypeMap(cls.yield_checktypes())
 
     def __init__(self, /):
         pass

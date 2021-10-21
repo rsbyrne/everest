@@ -6,9 +6,8 @@
 from abc import abstractmethod as _abstractmethod
 from collections.abc import Mapping as _Mapping
 
-from . import _Param
+from . import _Param, _Shade
 
-from .shade import Shade as _Shade
 from .tuplelike import TupleLike as _TupleLike
 
 

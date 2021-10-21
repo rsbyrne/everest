@@ -3,10 +3,9 @@
 ###############################################################################
 
 
-from ..pleroma import Pleroma as _Pleroma
+from ..shade import Shade as _Shade
 from ..params import Param as _Param
 
-from .shade import *
 from .singleton import *
 from .tuplelike import *
 from .dictlike import *

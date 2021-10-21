@@ -7,7 +7,7 @@ from collections.abc import Iterable as _Iterable, Sequence as _Sequence
 
 from . import _Param
 
-from .shade import Shade as _Shade
+from . import _Shade
 
 
 class TupleLike(_Sequence, _Shade):

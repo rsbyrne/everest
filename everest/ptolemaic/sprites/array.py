@@ -7,9 +7,7 @@ from collections.abc import Iterable as _Iterable
 
 import numpy as _np
 
-from . import _Param
-
-from .sprite import Sprite as _Sprite
+from . import _Param, _Sprite
 
 
 class Array(_Sprite):

@@ -14,7 +14,7 @@ class EverestException(Exception):
         yield '\nSomething went wrong within Everest'
 
     def __str__(self, /):
-        return '\n'.join(self.message())
+        return '\n'.join(self.message()) + '.'
 
 
 class MissingAsset(EverestException):

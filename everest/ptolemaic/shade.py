@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from . import _Pleroma
+from .pleroma import Pleroma as _Pleroma
 
 
 class Shade(metaclass=_Pleroma):
@@ -11,9 +11,9 @@ class Shade(metaclass=_Pleroma):
     Shade classes are compatible as bases for other classes.
     '''
 
-    @classmethod
-    def _cls_shades_init_(cls, /):
-        pass
+#     @classmethod
+#     def _cls_shades_init_(cls, /):
+#         pass
 
     @classmethod
     def _cls_repr(cls, /):

@@ -5,7 +5,7 @@
 
 from . import _Param
 
-from .shade import Shade as _Shade
+from . import _Shade
 
 
 class SliceLike(_Shade):
