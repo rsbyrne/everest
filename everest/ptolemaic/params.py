@@ -5,6 +5,7 @@
 
 import inspect as _inspect
 import functools as _functools
+import operator as _operator
 import hashlib as _hashlib
 import itertools as _itertools
 from collections import abc as _collabc
@@ -30,7 +31,7 @@ def get_hint(hints):
     if nhints:
         if nhints == 1:
             return hints[0]
-        return hints
+        return _functools.reduce(_operator.__getitem__, hints)
     return _inspect._empty
 
 
@@ -75,11 +76,12 @@ class ParamMeta(type):
         bhs = (base.hints for base in reversed(bases) if isinstance(base, meta))
         hints = (*_itertools.chain.from_iterable(bhs), hint)
         hints = tuple(hint for hint in hints if hint is not _inspect._empty)
-        hintstr = get_hintstr(hints)[1:-1]
+        hint = get_hint(hints)
+        hintstr = get_hintstr(hint) #get_hintstr(hints)[1:-1]
 
         namespace.update(
             hints=hints,
-            hint=get_hint(hints),
+            hint=hint,
             kind=kind,
             _rootname=name,
             )

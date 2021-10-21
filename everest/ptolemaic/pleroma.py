@@ -162,7 +162,7 @@ class Pleroma(_ABCMeta):
         cls._add_mroclasses()
         cls._add_subclasses()
         params = cls._process_params()
-        cls._paramsdict = {pm.name: pm for pm in params}
+        cls.classparams = {pm.name: pm for pm in params}
         cls.__signature__ = _inspect.Signature(pm.parameter for pm in params)
         cls.Params = _params.Params[cls]
         cls.Concrete = Concrete(cls)
@@ -210,6 +210,18 @@ class Pleroma(_ABCMeta):
     def __repr__(cls, /):
         return cls._cls_repr()
 
+    def __contains__(cls, arg, /):
+        return cls._pleroma_contains__(arg)
+
+    def _pleroma_contains__(cls, arg, /):
+        return isinstance(arg, cls)
+
+#     def __iter__(cls, arg, /):
+#         return cls._pleroma_contains__(arg)
+
+#     def _pleroma_contains__(cls, arg, /):
+#         return False
+
 
 class Concrete(Pleroma):
 
@@ -219,7 +231,7 @@ class Concrete(Pleroma):
             __slots__=base._pleroma_slots__,
             basecls=base,
             _pleroma_concrete__=True,
-            ) | base._paramsdict
+            ) | base.classparams
         bases = (base,)
         return super().__new__(meta, name, bases, namespace, _concrete=True)
 
