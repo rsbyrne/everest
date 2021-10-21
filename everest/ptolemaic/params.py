@@ -149,28 +149,28 @@ class Params(_collabc.Mapping):
             return arguments[name]
         return super().__getattr__(name)
 
-    @_caching.soft_cache(None)
+    @_caching.soft_cache()
     def __str__(self):
         args = self.arguments
         return ', '.join(map('='.join, zip(args, map(repr, args.values()))))
 
-    @_caching.soft_cache(None)
+    @_caching.soft_cache()
     def __repr__(self):
         return f"{type(self).__name__}({self.__str__()})"
 
     @property
-    @_caching.soft_cache(None)
+    @_caching.soft_cache()
     def hashcode(self):
         content = str(self).encode()
         return _hashlib.md5(content).hexdigest()
 
     @property
-    @_caching.soft_cache(None)
+    @_caching.soft_cache()
     def hashint(self):
         return int(self.hashcode, 16)
 
     @property
-    @_caching.soft_cache(None)
+    @_caching.soft_cache()
     def hashID(self):
         return _word.get_random_english(seed=self.hashint, n=2)
 

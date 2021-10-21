@@ -11,6 +11,8 @@ import collections as _collections
 import functools as _functools
 import operator as _operator
 
+from boltons.setutils import IndexedSet as _IndexedSet
+
 from . import _utilities
 from . import params as _params
 
@@ -24,7 +26,7 @@ class Pleroma(_ABCMeta):
 
     _pleroma_mergetuples__ = ('_pleroma_slots__', '_pleroma_mroclasses__', '_pleroma_subclasses__')
     _pleroma_mergedicts__ = ('_pleroma_annotations__',)
-    _pleroma_slots__ = ('_softcache', 'params', '__weakref__')
+    _pleroma_slots__ = ('_softcache', '_weakcache', 'params', '__weakref__')
     _pleroma_mroclasses__ = tuple()
     _pleroma_subclasses__ = tuple()
     _pleroma_fixedsubclasses__ = tuple()
@@ -32,7 +34,7 @@ class Pleroma(_ABCMeta):
 
     @staticmethod
     def _gather_names(bases, name, methcall, /):
-        return set(_itertools.chain.from_iterable(
+        return _IndexedSet(_itertools.chain.from_iterable(
             methcall(getattr(base, name))
             for base in bases if hasattr(base, name)
             ))
@@ -40,11 +42,15 @@ class Pleroma(_ABCMeta):
     def _merge_names(cls, name, /, *, mergetyp=tuple, itermeth='__iter__'):
         methcall = _operator.methodcaller(itermeth)
         meta = type(cls)
-        merged = set()
-        merged.update(cls._gather_names((meta, *meta.__bases__), name, methcall))
+        merged = _IndexedSet()
+        merged.update(cls._gather_names(
+            (meta, *meta.__bases__),
+            name,
+            methcall,
+            ))
         merged.update(cls._gather_names(cls.__bases__, name, methcall))
         if name in cls.__dict__:
-            merged.update(set(methcall(getattr(cls, name))))
+            merged.update(_IndexedSet(methcall(getattr(cls, name))))
         setattr(cls, name, mergetyp(merged))
 
     def _merge_names_all(cls, overname, /, **kwargs):
@@ -114,17 +120,19 @@ class Pleroma(_ABCMeta):
         subcls = type(name, (base, cls, SubClass), {'superclass': cls})
         setattr(cls, fusename, subcls)
         setattr(cls, name, subcls)
-        cls._pleroma_subclasses__.append(subcls)
+        cls._pleroma_subclass_classes__.append(subcls)
 
     def _add_subclasses(cls, /):
-        cls._pleroma_subclasses__ = []
+        cls._pleroma_subclass_classes__ = []
         for name in cls._pleroma_subclasses__:
             cls._add_subclass(name)
         attrname = '_pleroma_fixedsubclasses__'
         if attrname in cls.__dict__:
             for name in cls.__dict__[attrname]:
                 cls._add_subclass(name)
-        cls._pleroma_subclasses__ = tuple(cls._pleroma_subclasses__)
+        cls._pleroma_subclass_classes__ = tuple(
+            cls._pleroma_subclass_classes__
+            )
 
     @classmethod
     def __prepare__(meta, name, bases, /):
@@ -143,7 +151,11 @@ class Pleroma(_ABCMeta):
         if cls._pleroma_concrete__:
             return
         cls._merge_names_all('_pleroma_mergetuples__')
-        cls._merge_names_all('_pleroma_mergedicts__', mergetyp=_utilities.FrozenMap, itermeth='items')
+        cls._merge_names_all(
+            '_pleroma_mergedicts__',
+            mergetyp=_utilities.FrozenMap,
+            itermeth='items',
+            )
         if not hasattr(cls, '__annotations__'):
             cls.__annotations__ = dict()
         cls.__annotations__.update(cls._pleroma_annotations__)
@@ -167,6 +179,7 @@ class Pleroma(_ABCMeta):
     def _create_object(cls, /):
         obj = object.__new__(cls.Concrete)
         obj._softcache = dict()
+        obj._weakcache = _weakref.WeakValueDictionary()
         return obj
 
     def instantiate(cls, params, /):
@@ -225,8 +238,10 @@ class SubClass(metaclass=Pleroma):
         type(cls)._merge_names_all(cls, overname, **kwargs)
         if overname == '_pleroma_mergetuples__':
             if (name := cls.__name__) in cls._pleroma_subclasses__:
-                cls._pleroma_subclasses__ = tuple(nm for nm in cls._pleroma_subclasses__ if nm != name)
-        
+                cls._pleroma_subclasses__ = tuple(
+                    nm for nm in cls._pleroma_subclasses__ if nm != name
+                    )
+
 #     @classmethod
 #     def _add_subclasses(cls, /):
 #         pass

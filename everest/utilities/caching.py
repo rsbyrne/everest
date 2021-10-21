@@ -12,13 +12,16 @@ from collections import abc as _collabc
 from .makehash import quick_hash as _quick_hash
 
 
-def soft_cache(storage):
+def soft_cache(storage='_softcache'):
 
-    def decorator(func, storage='_softcache'):
+    if not isinstance(storage, (str, _collabc.Collection)):
+        raise TypeError("Storage must be str or Collection type.")
+
+    def decorator(func, storage=storage):
 
         cachename = f"_softcache_{func.__name__}"
         sig = _inspect.signature(func)
-        nonestorage = isinstance(storage, 
+        attrstorage = isinstance(storage, str)
 
         def wrapper(
                 *args,
@@ -30,7 +33,7 @@ def soft_cache(storage):
                 out = storage[cachename] = func(*args, **kwargs)
                 return out
 
-        if len(sig.parameters) > (1 if nonestorage else 0):
+        if len(sig.parameters) > (1 if attrstorage else 0):
 
             def wrapper(
                     *args,
@@ -47,13 +50,13 @@ def soft_cache(storage):
                     **kwargs
                     )
 
-        if nonestorage:
+        if attrstorage:
 
-            def wrapper(arg0, *args, func=wrapper, **kwargs):
+            def wrapper(arg0, *args, func=wrapper, storage=storage, **kwargs):
                 try:
-                    storage = arg0._softcache
+                    storage = getattr(arg0, storage)
                 except AttributeError:
-                    storage = arg0._softcache = dict()
+                    setattr(arg0, storage, storage := dict())
                 return func(arg0, *args, storage=storage, **kwargs)
 
         return _functools.wraps(func)(wrapper)

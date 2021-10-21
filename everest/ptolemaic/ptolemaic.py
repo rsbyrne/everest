@@ -98,7 +98,7 @@ class Ptolemaic(PtolemaicBase):
             cls = cls.basecls
         return cls.__qualname__
 
-    @_utilities.caching.soft_cache(None)
+    @_utilities.caching.soft_cache()
     def __repr__(self, /):
         return f"{self._cls_repr()}({self._repr()})"
 
