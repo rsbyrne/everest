@@ -3,28 +3,33 @@
 ###############################################################################
 
 
-from abc import ABCMeta as _ABCMeta, abstractmethod as _abstractmethod
 import weakref as _weakref
 import itertools as _itertools
+import more_itertools as _mitertools
 import inspect as _inspect
 import collections as _collections
 import functools as _functools
 import operator as _operator
 
-from boltons.setutils import IndexedSet as _IndexedSet
-
 from . import _utilities
+from .ousia import Ousia as _Ousia
 from . import params as _params
 
 
-class Pleroma(_ABCMeta):
+def ordered_set(itr):
+    return tuple(_mitertools.unique_everseen(itr))
+
+
+class Pleroma(_Ousia):
     '''
     The metaclass of all proper Ptolemaic classes.
     '''
 
     _pleroma_concrete__ = False
 
-    _pleroma_mergetuples__ = ('_pleroma_slots__', '_pleroma_mroclasses__', '_pleroma_subclasses__')
+    _pleroma_mergetuples__ = (
+        '_pleroma_slots__', '_pleroma_mroclasses__', '_pleroma_subclasses__'
+        )
     _pleroma_mergedicts__ = ('_pleroma_annotations__',)
     _pleroma_slots__ = ('_softcache', '_weakcache', 'params', '__weakref__')
     _pleroma_mroclasses__ = tuple()
@@ -34,7 +39,7 @@ class Pleroma(_ABCMeta):
 
     @staticmethod
     def _gather_names(bases, name, methcall, /):
-        return _IndexedSet(_itertools.chain.from_iterable(
+        return ordered_set(_itertools.chain.from_iterable(
             methcall(getattr(base, name))
             for base in bases if hasattr(base, name)
             ))
@@ -42,15 +47,16 @@ class Pleroma(_ABCMeta):
     def _merge_names(cls, name, /, *, mergetyp=tuple, itermeth='__iter__'):
         methcall = _operator.methodcaller(itermeth)
         meta = type(cls)
-        merged = _IndexedSet()
-        merged.update(cls._gather_names(
+        merged = []
+        merged.extend(cls._gather_names(
             (meta, *meta.__bases__),
             name,
             methcall,
             ))
-        merged.update(cls._gather_names(cls.__bases__, name, methcall))
+        merged.extend(cls._gather_names(cls.__bases__, name, methcall))
         if name in cls.__dict__:
-            merged.update(_IndexedSet(methcall(getattr(cls, name))))
+            merged.extend(ordered_set(methcall(getattr(cls, name))))
+        merged = ordered_set(merged)
         setattr(cls, name, mergetyp(merged))
 
     def _merge_names_all(cls, overname, /, **kwargs):
@@ -64,7 +70,9 @@ class Pleroma(_ABCMeta):
             if '__annotations__' not in mcls.__dict__:
                 continue
             for name, annotation in mcls.__annotations__.items():
-                if not isinstance(annotation, _params.ParamMeta):
+                if annotation is _params.Param:
+                    annotation = _params.Param()
+                elif not isinstance(annotation, _params.Param):
                     continue
                 if name in annotations:
                     row = annotations[name]
@@ -101,9 +109,6 @@ class Pleroma(_ABCMeta):
     def _add_mroclasses(cls, /):
         for name in cls._pleroma_mroclasses__:
             cls._add_mroclass(name)
-
-    def subclass(cls, name, /, *bases, **namespace):
-        return type(cls)(name, (cls, *bases), namespace)
 
     def _add_subclass(cls, name: str, /):
         adjname = f'_subclassbase_{name}__'
@@ -196,13 +201,10 @@ class Pleroma(_ABCMeta):
         obj.__init__()
         return obj
 
-    def __class_getitem__(cls, arg, /):
-        if isinstance(arg, cls.Params):
-            return cls.instantiate(arg)
-        raise TypeError(type(arg))
-
-    def __getitem__(cls, arg, /):
-        return cls.__class_getitem__(arg)
+#     def __class_getitem__(cls, arg, /):
+#         if isinstance(arg, cls.Params):
+#             return cls.instantiate(arg)
+#         raise TypeError(type(arg))
 
     def _cls_repr(cls, /):
         return super().__repr__()

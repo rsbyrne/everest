@@ -3,114 +3,42 @@
 ###############################################################################
 
 
-import inspect as _inspect
-import functools as _functools
-import operator as _operator
-import hashlib as _hashlib
-import itertools as _itertools
 from collections import abc as _collabc
+import functools as _functools
+import inspect as _inspect
+import hashlib as _hashlib
 
-import more_itertools as _mitertools
-
+from .ousia import Ousia as _Ousia, Blank as _Blank
+from .primitive import Primitive as _Primitive
 from . import _utilities
 
 _caching = _utilities.caching
 _word = _utilities.word
 
 
-def get_hintstr(hint):
-    if isinstance(hint, tuple):
-        return f"({', '.join(map(get_hintstr, hint))})"
-    if isinstance(hint, type):
-        return hint.__name__
-    return repr(hint)
-
-
-def get_hint(hints):
-    nhints = len(hints)
-    if nhints:
-        if nhints == 1:
-            return hints[0]
-        return _functools.reduce(_operator.__getitem__, hints)
-    return _inspect._empty
+KINDS = dict(zip(
+    ('Pos', 'PosKw', 'Args', 'Kw', 'Kwargs'),
+    _inspect._ParameterKind,
+    ))
 
 
 def sort_params(params, /):
     params = sorted(params, key=(lambda x: x.default is not _inspect._empty))
-    params = sorted(params, key=(lambda x: x.kind))
+    params = sorted(params, key=(lambda x: KINDS[x.kind]))
     return params
 
 
-class ParamMeta(type):
+class ParamProp:
+    
+    __slots__ = ('param', 'kind', 'hint', 'name', 'default', 'parameter',)
 
-    _kinds = dict(zip(
-        _inspect._ParameterKind,
-        ('Pos', 'PosKw', 'Args', 'Kw', 'Kwargs')
-        ))
-    _revkinds = dict(zip(_kinds.values(), _kinds.keys()))
-    _defaultkind = _inspect._ParameterKind.POSITIONAL_OR_KEYWORD
-
-    def __new__(meta,
-            name, bases, namespace,
-            kind=None,
-            hint=_inspect._empty,
-            **kwargs
-            ):
-
-        bases = tuple(_mitertools.unique_everseen(bases))
-
-        if isinstance(kind, str):
-            kind = meta._revkinds[kind]
-        bks = (base.kind for base in bases if isinstance(base, meta))
-        kinds = (*bks, kind)
-        kinds = tuple(set(kind for kind in kinds if kind is not None))
-        nkinds = len(kinds)
-        if nkinds:
-            if nkinds > 1:
-                raise TypeError
-            kind = kinds[0]
-        else:
-            kind = None
-        kindstr = meta._kinds[meta._defaultkind if kind is None else kind]
-
-        bhs = (base.hints for base in reversed(bases) if isinstance(base, meta))
-        hints = (*_itertools.chain.from_iterable(bhs), hint)
-        hints = tuple(hint for hint in hints if hint is not _inspect._empty)
-        hint = get_hint(hints)
-        hintstr = get_hintstr(hint) #get_hintstr(hints)[1:-1]
-
-        namespace.update(
-            hints=hints,
-            hint=hint,
-            kind=kind,
-            _rootname=name,
-            )
-
-        name += f".{kindstr}"
-        if hintstr:
-            name += f"[{hintstr}]"
-
-        return super().__new__(meta, name, bases, namespace, **kwargs)
-
-    def __getitem__(cls, arg, /):
-        if arg is cls:
-            return cls
-        if isinstance(arg, type(cls)):
-            return type(cls)(arg._rootname, (cls, arg), {}, kind=arg.kind)
-        return type(cls)(cls._rootname, (cls,), {}, hint=arg, kind=cls.kind)
-
-
-class Param(metaclass=ParamMeta):
-
-    __slots__ = ('name', 'default', 'parameter',)
-
-    def __init__(self, name, default=_inspect.Parameter.empty, /):
+    def __init__(self, param, name, default=_inspect.Parameter.empty, /):
+        self.param = param
         self.name, self.default = name, default
-        kind = self.kind
-        if kind is None:
-            kind = type(self)._defaultkind
+        kind = self.kind = param.kind
+        hint = self.hint = param.hint
         self.parameter = _inspect.Parameter(
-            name, kind, default=default, annotation=self.hint,
+            name, KINDS[param.kind], default=default, annotation=param.hint,
             )
 
     def __get__(self, instance, /, owner=None):
@@ -123,12 +51,62 @@ class Param(metaclass=ParamMeta):
         return f"{type(self).__name__}({self._repr()})"
 
 
-for name in Param._revkinds:
-    subcls = type(Param)(Param._rootname, (Param,), {}, kind=name)
-    setattr(Param, name, subcls)
+# class ParamProxy:
+
+#     __slots__ = ('kind',)
+
+#     def __init__(self, kind, /):
+#         self.kind = kind
+
+#     def __call__(self, *args, **kwargs):
+#         return Param(self.kind, *args, **kwargs)
+
+#     def __getitem__(self, arg, /):
+#         return self.
 
 
-Param = Param.PosKw
+class _ParamMeta(_Ousia):
+
+    def __getattr__(cls, name, /):
+        if name in KINDS:
+            return Param(name)
+        return super().__getattr__(name)
+
+
+class Param(metaclass=_ParamMeta):
+
+    KINDS = KINDS
+
+    __slots__ = ('kind', 'hint',)
+
+    @classmethod
+    def _check_hint(cls, hint, /):
+        if isinstance(hint, _Ousia):
+            return hint
+        if isinstance(type(hint), _Ousia):
+            return hint
+        if issubclass(hint, _Primitive):
+            return hint
+        raise TypeError(hint, type(hint))
+
+    def __init__(self, kind='PosKw', hint=_Blank, /):
+        if not kind in self.KINDS:
+            raise ValueError(kind)
+        self.kind = kind
+        self.hint = self._check_hint(hint)
+
+    def __call__(self, *args, **kwargs):
+        return ParamProp(self, *args, **kwargs)
+
+    @classmethod
+    def __class_getitem__(cls, arg, /):
+        return cls()[arg]
+
+    def __getitem__(self, arg, /):
+        return type(self)(self.kind, self.hint[arg])
+
+    def __repr__(self, /):
+        return f"Param.{self.kind}[{repr(self.hint)}]"
 
 
 class Params(_collabc.Mapping):
