@@ -57,7 +57,11 @@ class InttRange(_Sprite):
     def __getitem__(self, arg, /):
         if isinstance(arg, int):
             return self._rangeobj[arg]
+        if arg is Ellipsis:
+            return cls
         if isinstance(arg, slice):
+            if arg.start is None and arg.stop is None and arg.step is None:
+                return self
             nrang = self._rangeobj[arg]
             return InttRange(nrang.start, nrang.stop, nrang.step)
         raise TypeError(arg)
@@ -95,8 +99,12 @@ class InttCount(_Sprite):
     def __getitem__(self, arg, /):
         if isinstance(arg, int):
             return _nth(self, arg)
+        if arg is Ellipsis:
+            return cls
         if isinstance(arg, slice):
             if arg.stop is None:
+                if arg.start is None and arg.step is None:
+                    return self
                 start, nstart = self.start, arg.start
                 if nstart is not None:
                     if nstart < 0:
@@ -122,11 +130,15 @@ class Intt(_Sprite):
         return int(arg)
 
     @classmethod
-    def __class_getitem__(self, arg, /):
+    def __class_getitem__(cls, arg, /):
         if isinstance(arg, int):
             return arg
+        if arg is Ellipsis:
+            return cls
         if isinstance(arg, slice):
             if arg.stop is None:
+                if arg.start is None and arg.step is None:
+                    return cls
                 return InttCount(arg.start, arg.step)
             return InttRange(arg.start, arg.stop, arg.step)
         raise TypeError(arg)

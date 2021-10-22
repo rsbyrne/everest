@@ -19,8 +19,9 @@ class Ousia(_ABCMeta):
     def __class_getitem__(cls, arg, /):
         if isinstance(arg, Ousia):
             return arg
-        if issubclass(arg, _Primitive):
-            return arg
+        if isinstance(arg, type):
+            if issubclass(arg, _Primitive):
+                return arg
         raise TypeError(arg, type(arg))
 
     def __getitem__(cls, arg, /):

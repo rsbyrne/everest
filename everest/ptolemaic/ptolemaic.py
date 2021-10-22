@@ -4,7 +4,7 @@
 
 
 from . import _utilities
-from .pleroma import Pleroma as _Pleroma
+from .ousia import Ousia as _Ousia
 from .sprite import Sprite as _Sprite, BadParameter as _BadParameter
 
 
@@ -22,7 +22,7 @@ class Ptolemaic(_Sprite):
 
     @classmethod
     def check_param(cls, arg, /):
-        if isinstance(type(arg), _Pleroma):
+        if isinstance(type(arg), _Ousia):
             return arg
         try:
             return super().check_param(arg)
@@ -36,7 +36,7 @@ class Ptolemaic(_Sprite):
 
     @classmethod
     def yield_checktypes(cls, /):
-        yield _Pleroma, lambda x: x
+        yield _Ousia, lambda x: x
 
     @classmethod
     def _cls_extra_init_(cls, /):

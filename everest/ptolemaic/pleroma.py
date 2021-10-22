@@ -161,9 +161,9 @@ class Pleroma(_Ousia):
             mergetyp=_utilities.FrozenMap,
             itermeth='items',
             )
-        if not hasattr(cls, '__annotations__'):
-            cls.__annotations__ = dict()
-        cls.__annotations__.update(cls._pleroma_annotations__)
+#         if not hasattr(cls, '__annotations__'):
+#             cls.__annotations__ = dict()
+#         cls.__annotations__ = {**cls.__annotations__, **cls._pleroma_annotations__}
         cls._add_mroclasses()
         cls._add_subclasses()
         params = cls._process_params()
@@ -190,6 +190,7 @@ class Pleroma(_Ousia):
     def instantiate(cls, params, /):
         obj = cls._create_object()
         obj.params = params
+        obj.__init__()
         return obj
 
     def construct(cls, *args, **kwargs):
@@ -197,9 +198,7 @@ class Pleroma(_Ousia):
         return cls.instantiate(params)
 
     def __call__(cls, /, *args, **kwargs):
-        obj = cls.construct(*args, **kwargs)
-        obj.__init__()
-        return obj
+        return cls.construct(*args, **kwargs)
 
 #     def __class_getitem__(cls, arg, /):
 #         if isinstance(arg, cls.Params):

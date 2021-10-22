@@ -9,6 +9,7 @@ from .ptolemaic import Ptolemaic as _Ptolemaic
 
 from .primitive import Primitive as _Primitive
 from . import shades as _shades
+# from .shade import Shade as _Shade
 
 
 # class Var(_Ptolemaic):
@@ -16,6 +17,7 @@ from . import shades as _shades
 
 
 class Dat(_shades.Singleton):
+# class Dat(_Shade):
 
     isdat = True
 
