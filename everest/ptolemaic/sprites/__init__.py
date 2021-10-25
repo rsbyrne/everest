@@ -9,7 +9,7 @@ from ..params import Param as _Param
 from .. import exceptions as _exceptions
 
 from .tuuple import *
-from .array import *
+# from .array import *
 from .intt import *
 
 

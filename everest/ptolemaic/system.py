@@ -39,7 +39,8 @@ class System(_Sprite):
         yield _Ousia, lambda x: x
 
     @classmethod
-    def _cls_extra_init_(cls, /):
+    def __class_init__(cls, /):
+        super().__class_init__()
         cls.checktypes = _utilities.TypeMap(cls.yield_checktypes())
 
     @classmethod
@@ -52,6 +53,9 @@ class System(_Sprite):
     @property
     def hashID(self):
         return self._repr()
+
+    def __init__(self, /):
+        pass
 
 
 ###############################################################################

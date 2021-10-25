@@ -8,7 +8,8 @@ import functools as _functools
 import inspect as _inspect
 import hashlib as _hashlib
 
-from .ousia import Ousia as _Ousia, Blank as _Blank
+from .ousia import Ousia as _Ousia
+from .eidos import Eidos as _Eidos
 from .primitive import Primitive as _Primitive
 from . import _utilities
 
@@ -51,45 +52,17 @@ class ParamProp:
         return f"{type(self).__name__}({self._repr()})"
 
 
-# class ParamProxy:
-
-#     __slots__ = ('kind',)
-
-#     def __init__(self, kind, /):
-#         self.kind = kind
-
-#     def __call__(self, *args, **kwargs):
-#         return Param(self.kind, *args, **kwargs)
-
-#     def __getitem__(self, arg, /):
-#         return self.
-
-
-class _ParamMeta(_Ousia):
-
-    def __getattribute__(cls, name, /):
-        if name in KINDS:
-            return Param(name)
-        return super().__getattribute__(name)
-
-
-class Param(metaclass=_ParamMeta):
+class Param(metaclass=_Ousia):
 
     KINDS = KINDS
 
-    _req_slots__ = (*_ParamMeta._req_slots__, 'kind', 'hint',)
+    _req_slots__ = ('kind', 'hint',)
 
     @classmethod
     def _check_hint(cls, hint, /):
-        if isinstance(hint, _Ousia):
-            return hint
-        if isinstance(type(hint), _Ousia):
-            return hint
-        if issubclass(hint, _Primitive):
-            return hint
-        raise TypeError(hint, type(hint))
+        return hint
 
-    def __init__(self, kind='PosKw', hint=_Blank, /):
+    def __init__(self, kind='PosKw', hint=_Eidos, /):
         if not kind in self.KINDS:
             raise ValueError(kind)
         self.kind = kind
@@ -105,10 +78,14 @@ class Param(metaclass=_ParamMeta):
     def __getitem__(self, arg, /):
         if isinstance(arg, Param):
             arg = arg.hint
-        return type(self)(self.kind, self.hint[arg])
+        return type(self).construct(self.kind, self.hint[arg])
 
     def __repr__(self, /):
         return f"Param.{self.kind}[{repr(self.hint)}]"
+
+
+for name in KINDS:
+    setattr(Param, name, Param(name))
 
 
 class Params(_collabc.Mapping):

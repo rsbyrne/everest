@@ -24,5 +24,12 @@ class ParameterisationException(PtolemaicException):
         yield 'during parameterisation'
 
 
+class InitialisationException(PtolemaicException):
+
+    def message(self, /):
+        yield from super().message()
+        yield 'during initialisation'
+
+
 ###############################################################################
 ###############################################################################

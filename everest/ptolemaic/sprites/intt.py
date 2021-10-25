@@ -130,7 +130,7 @@ class Intt(_Sprite):
         return int(arg)
 
     @classmethod
-    def __class_getitem__(cls, arg, /):
+    def _ptolemaic_getitem__(cls, arg, /):
         if isinstance(arg, int):
             return arg
         if arg is Ellipsis:
@@ -144,7 +144,7 @@ class Intt(_Sprite):
         raise TypeError(arg)
 
     @classmethod
-    def _pleroma_contains__(cls, arg, /):
+    def _ptolemaic_contains__(cls, arg, /):
         return isinstance(arg, int)
 
 

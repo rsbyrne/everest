@@ -3,194 +3,30 @@
 ###############################################################################
 
 
-import itertools as _itertools
-import more_itertools as _mitertools
-import inspect as _inspect
-import collections as _collections
-import functools as _functools
-import operator as _operator
-
-from . import _utilities
-from .ousia import Ousia as _Ousia
-from . import params as _params
+from .primitive import Primitive as _Primitive
 
 
-def ordered_set(itr):
-    return tuple(_mitertools.unique_everseen(itr))
+class Pleroma(type):
 
+    def _pleroma_contains__(cls, arg, /):
+        if isinstance(arg, cls):
+            return True
+        return arg in _Primitive.PRIMITIVETYPES
 
-class Pleroma(_Ousia):
-    '''
-    The metaclass of all proper Ptolemaic classes.
-    '''
+    def __contains__(cls, arg, /):
+        return cls._pleroma_contains__(arg)
 
-    _pleroma_mergetuples__ = (
-        '_req_slots__', '_pleroma_mroclasses__', '_pleroma_subclasses__'
-        )
-    _pleroma_mergedicts__ = ('_pleroma_annotations__',)
-    _req_slots__ = ('params',)
-    _pleroma_mroclasses__ = tuple()
-    _pleroma_subclasses__ = tuple()
-    _pleroma_fixedsubclasses__ = tuple()
-    _pleroma_annotations__ = dict()
+    def _pleroma_getitem__(cls, arg, /):
+        if isinstance(arg, type):
+            if issubclass(arg, cls):
+                return arg
+        if arg in cls:
+            return arg
+        raise KeyError(arg)
 
-    @staticmethod
-    def _gather_names(bases, name, methcall, /):
-        return ordered_set(_itertools.chain.from_iterable(
-            methcall(getattr(base, name))
-            for base in bases if hasattr(base, name)
-            ))
-
-    def _merge_names(cls, name, /, *, mergetyp=tuple, itermeth='__iter__'):
-        methcall = _operator.methodcaller(itermeth)
-        meta = type(cls)
-        merged = []
-        merged.extend(cls._gather_names(
-            (meta, *meta.__bases__),
-            name,
-            methcall,
-            ))
-        merged.extend(cls._gather_names(cls.__bases__, name, methcall))
-        if name in cls.__dict__:
-            merged.extend(ordered_set(methcall(getattr(cls, name))))
-        merged = ordered_set(merged)
-        setattr(cls, name, mergetyp(merged))
-
-    def _merge_names_all(cls, overname, /, **kwargs):
-        cls._merge_names(overname)
-        for name in getattr(cls, overname):
-            cls._merge_names(name, **kwargs)
-
-    def _process_params(cls, /):
-        annotations = dict()
-        for mcls in reversed(cls.__mro__):
-            if '__annotations__' not in mcls.__dict__:
-                continue
-            for name, annotation in mcls.__annotations__.items():
-                if annotation is _params.Param:
-                    annotation = _params.Param()
-                elif not isinstance(annotation, _params.Param):
-                    continue
-                if name in annotations:
-                    row = annotations[name]
-                else:
-                    row = annotations[name] = list()
-                row.append(annotation)
-        params = _collections.deque()
-        for name, row in annotations.items():
-            annotation = _functools.reduce(_operator.getitem, reversed(row))
-            if hasattr(cls, name):
-                att = getattr(cls, name)
-                param = annotation(name, att)
-            else:
-                param = annotation(name)
-            params.append(param)
-        return _params.sort_params(params)
-
-    def _add_mroclass(cls, name: str, /):
-        adjname = f'_mroclassbase_{name}__'
-        fusename = f'_mroclassfused_{name}__'
-        if name in cls.__dict__:
-            setattr(cls, adjname, cls.__dict__[name])
-        inhclasses = []
-        for mcls in cls.__mro__:
-            if adjname in mcls.__dict__:
-                inhcls = mcls.__dict__[adjname]
-                if not inhcls in inhclasses:
-                    inhclasses.append(inhcls)
-        inhclasses = tuple(inhclasses)
-        mroclass = type(name, inhclasses, {})
-        setattr(cls, fusename, mroclass)
-        setattr(cls, name, mroclass)
-
-    def _add_mroclasses(cls, /):
-        for name in cls._pleroma_mroclasses__:
-            cls._add_mroclass(name)
-
-    def _add_subclass(cls, name: str, /):
-        adjname = f'_subclassbase_{name}__'
-        fusename = f'_subclassfused_{name}__'
-        if not hasattr(cls, adjname):
-            if hasattr(cls, name):
-                setattr(cls, adjname, getattr(cls, name))
-            else:
-                raise AttributeError(
-                    f"No subclass base of name '{name}' or '{adjname}' "
-                    "could be found."
-                    )
-        base = getattr(cls, adjname)
-        subcls = type(name, (base, cls, SubClass), {'superclass': cls})
-        setattr(cls, fusename, subcls)
-        setattr(cls, name, subcls)
-        cls._pleroma_subclass_classes__.append(subcls)
-
-    def _add_subclasses(cls, /):
-        cls._pleroma_subclass_classes__ = []
-        for name in cls._pleroma_subclasses__:
-            cls._add_subclass(name)
-        attrname = '_pleroma_fixedsubclasses__'
-        if attrname in cls.__dict__:
-            for name in cls.__dict__[attrname]:
-                cls._add_subclass(name)
-        cls._pleroma_subclass_classes__ = tuple(
-            cls._pleroma_subclass_classes__
-            )
-
-    def _ousia_signature__(cls, /):
-        return _inspect.Signature(
-            pm.parameter for pm in cls.classparams.values()
-            )
-
-    def _class_init__(cls, /, *args, **kwargs):
-        cls._merge_names_all('_pleroma_mergetuples__')
-        cls._merge_names_all(
-            '_pleroma_mergedicts__',
-            mergetyp=_utilities.FrozenMap,
-            itermeth='items',
-            )
-        if not hasattr(cls, '__annotations__'):
-            cls.__annotations__ = dict()
-        cls.__annotations__ = _utilities.FrozenMap(
-            {**cls.__annotations__, **cls._pleroma_annotations__}
-            )
-        cls._add_mroclasses()
-        cls._add_subclasses()
-        cls.classparams = {pm.name: pm for pm in cls._process_params()}
-        super()._class_init__(*args, **kwargs)
-        cls.Params = _params.Params[cls]
-
-    def _ousia_concrete_namespace__(cls, /):
-        return super()._ousia_concrete_namespace__() | cls.classparams
-
-    def parameterise(cls, /, *args, **kwargs):
-        return args, kwargs
-
-    def instantiate(cls, params, /):
-        obj = cls._ousia_create_object__()
-        obj.params = params
-        obj.__init__()
-        return obj
-
-    def construct(cls, *args, **kwargs):
-        params = cls.Params(*args, **kwargs)
-        return cls.instantiate(params)
-
-
-class SubClass(metaclass=Pleroma):
-
-    @classmethod
-    def _merge_names_all(cls, overname, /, **kwargs):
-        type(cls)._merge_names_all(cls, overname, **kwargs)
-        if overname == '_pleroma_mergetuples__':
-            if (name := cls.__name__) in cls._pleroma_subclasses__:
-                cls._pleroma_subclasses__ = tuple(
-                    nm for nm in cls._pleroma_subclasses__ if nm != name
-                    )
-
-#     @classmethod
-#     def _add_subclasses(cls, /):
-#         pass
+    def __getitem__(cls, arg, /):
+        return cls._pleroma_getitem__(arg)
 
 
 ###############################################################################
-###############################################################################
+###############################################################################\

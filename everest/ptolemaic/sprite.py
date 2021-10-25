@@ -49,22 +49,10 @@ class Sprite(_Shade):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        return type(cls).parameterise(cls,
+        return super().parameterise(
             *map(cls.check_param, args),
             **dict(zip(kwargs, map(cls.check_param, kwargs.values()))),
             )
-
-    @classmethod
-    def instantiate(cls, params, /):
-        return type(cls).instantiate(cls, params)
-
-    @classmethod
-    def construct(cls, /, *args, **kwargs):
-        return type(cls).construct(cls, *args, **kwargs)
-
-    @classmethod
-    def __class_getitem__(cls, arg, /):
-        return type(cls).__class_getitem__(cls, arg)
 
     def __init__(self, /):
         pass
@@ -74,7 +62,7 @@ class Sprite(_Shade):
 
     @classmethod
     def _cls_repr(cls, /):
-        if cls._ousia_concrete__:
+        if cls._ptolemaic_concrete__:
             cls = cls.basecls
         return cls.__qualname__
 

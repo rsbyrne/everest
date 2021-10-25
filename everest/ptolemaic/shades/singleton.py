@@ -11,14 +11,9 @@ from . import _Shade
 class Singleton(_Shade):
 
     @classmethod
-    def _cls_extra_init_(cls, /):
+    def __class_init__(cls, /):
         cls.premade = _weakref.WeakValueDictionary()
-        try:
-            nextmeth = super()._cls_extra_init_
-        except AttributeError:
-            pass
-        else:
-            nextmeth()
+        super().__class_init__()
 
     @classmethod
     def prekey(cls, params):
@@ -30,7 +25,7 @@ class Singleton(_Shade):
         prekey = cls.prekey(params)
         if prekey in premade:
             return premade[prekey]
-        obj = type(cls).instantiate(cls, params)
+        obj = cls.metacls.instantiate(cls, params)
         premade[prekey] = obj
         return obj
 
