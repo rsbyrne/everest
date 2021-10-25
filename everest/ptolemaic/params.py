@@ -67,17 +67,17 @@ class ParamProp:
 
 class _ParamMeta(_Ousia):
 
-    def __getattr__(cls, name, /):
+    def __getattribute__(cls, name, /):
         if name in KINDS:
             return Param(name)
-        return super().__getattr__(name)
+        return super().__getattribute__(name)
 
 
 class Param(metaclass=_ParamMeta):
 
     KINDS = KINDS
 
-    __slots__ = ('kind', 'hint',)
+    _req_slots__ = (*_ParamMeta._req_slots__, 'kind', 'hint',)
 
     @classmethod
     def _check_hint(cls, hint, /):
@@ -103,6 +103,8 @@ class Param(metaclass=_ParamMeta):
         return cls()[arg]
 
     def __getitem__(self, arg, /):
+        if isinstance(arg, Param):
+            arg = arg.hint
         return type(self)(self.kind, self.hint[arg])
 
     def __repr__(self, /):

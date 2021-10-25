@@ -14,7 +14,7 @@ class TupleLike(_Sequence, _Shade):
 
     args: _Param.Args
 
-    _pleroma_slots__ = ('typ', '_len',)
+    _req_slots__ = ('typ', '_len',)
 
     @classmethod
     def parameterise(cls, arg, /, *args):

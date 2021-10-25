@@ -74,7 +74,7 @@ class Sprite(_Shade):
 
     @classmethod
     def _cls_repr(cls, /):
-        if cls._pleroma_concrete__:
+        if cls._ousia_concrete__:
             cls = cls.basecls
         return cls.__qualname__
 

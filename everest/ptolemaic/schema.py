@@ -5,7 +5,7 @@
 
 from collections import abc as _collabc
 
-from .ptolemaic import Ptolemaic as _Ptolemaic
+from .system import System as _System
 
 from .primitive import Primitive as _Primitive
 from . import shades as _shades
@@ -28,7 +28,7 @@ class Dat(_shades.Singleton):
         return f"{repr(cls.superclass)}.{super()._cls_repr()}"
 
 
-class Schema(_Ptolemaic):
+class Schema(_System):
 
     _pleroma_fixedsubclasses__ = ('Mapp', 'Brace', 'Slyce')
 

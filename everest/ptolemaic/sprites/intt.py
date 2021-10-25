@@ -24,7 +24,7 @@ class InttRange(_Sprite):
     stop: _Param[int]
     step: _Param[int]
 
-    _pleroma_slots__ = ('_iterfn', '_lenfn', '_rangeobj')
+    _req_slots__ = ('_iterfn', '_lenfn', '_rangeobj')
 
     @classmethod
     def parameterise(self, start, stop, step, /):
@@ -72,7 +72,7 @@ class InttCount(_Sprite):
     start: _Param[int] = 0
     step: _Param[int] = 1
 
-    _pleroma_slots__ = ('_iterfn',)
+    _req_slots__ = ('_iterfn',)
 
     @classmethod
     def parameterise(self, start, step, /):

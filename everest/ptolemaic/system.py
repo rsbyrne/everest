@@ -13,10 +13,10 @@ class BadParameter(_BadParameter):
 
     def message(self, /):
         yield from super().message()
-        yield "or other Ptolemaics, or seen to be convertible to such"
+        yield "or other Systems, or seen to be convertible to such"
 
 
-class Ptolemaic(_Sprite):
+class System(_Sprite):
 
     _BadParameter = BadParameter
 

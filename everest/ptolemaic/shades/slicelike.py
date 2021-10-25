@@ -14,7 +14,7 @@ class SliceLike(_Shade):
     stop: _Param.Pos = None
     step: _Param.Pos = None
 
-    _pleroma_slots__ = ('slc',)
+    _req_slots__ = ('slc',)
 
     @classmethod
     def parameterise(self, arg0, /, *argn):
