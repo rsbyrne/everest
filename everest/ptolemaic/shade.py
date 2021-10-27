@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from .ptolemaic import Ptolemaic as _Ptolemaic
+from .schema import Schema as _Schema
 
 from .exceptions import PtolemaicException as _InitialisationException
 
@@ -18,7 +18,7 @@ class CannotInitialiseShade(_InitialisationException):
         yield 'to allow initialisation of your class.'
 
 
-class Shade(metaclass=_Ptolemaic):
+class Shade(metaclass=_Schema):
     '''
     Shade classes are compatible as bases for other classes.
     '''

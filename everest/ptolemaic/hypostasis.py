@@ -3,11 +3,10 @@
 ###############################################################################
 
 
-from .ousia import Ousia as _Ousia
-from .hypostasis import Hypostasis as _Hypostasis
+from .essence import Essence as _Essence
 
 
-class Ptolemaic(_Hypostasis, metaclass=_Ousia):
+class Hypostasis(metaclass=_Essence):
 
     ...
 

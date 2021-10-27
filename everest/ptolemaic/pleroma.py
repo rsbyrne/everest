@@ -27,6 +27,13 @@ class Pleroma(type):
     def __getitem__(cls, arg, /):
         return cls._pleroma_getitem__(arg)
 
+    def __meta_init__(meta, /):
+        pass
+
+    def __init__(meta, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        meta.__meta_init__()
+
 
 ###############################################################################
 ###############################################################################\
