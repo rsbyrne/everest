@@ -38,7 +38,8 @@ class _ConcreteMetaBase(_Essence):
     def construct(cls, /, *args, **kwargs):
         return cls.basecls.construct(*args, **kwargs)
 
-    def _ptolemaic_signature__(cls, /):
+    @property
+    def __signature__(cls, /):
         return cls.basecls.__signature__
 
     def __class_init__(cls, /):
@@ -140,18 +141,18 @@ class Ousia(_Essence):
         cls._add_subclasses()
         cls.Concrete = cls._ConcreteMeta(cls)
 
-    def preinitialise(obj, /, *args, **kwargs):
+    def create_object(cls, /, **kwargs):
+        obj = object.__new__(cls.Concrete)
         obj._softcache = dict()
         obj._weakcache = _weakref.WeakValueDictionary()
-
-    def instantiate(cls, /, *args, **kwargs):
-        obj = object.__new__(cls.Concrete)
-        obj.preinitialise(*
-        obj.__init__(*args, **kwargs)
+        for key, val in kwargs.items():
+            setattr(obj, key, val)
         return obj
 
     def construct(cls, /, *args, **kwargs):
-        return cls.instantiate(*args, **kwargs)
+        obj = cls.create_object()
+        obj.__init__(*args, **kwargs)
+        return obj
 
 
 class SubClass(metaclass=Ousia):

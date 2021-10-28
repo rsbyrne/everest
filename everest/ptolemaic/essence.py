@@ -21,8 +21,7 @@ def ordered_set(itr):
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     _ptolemaic_mergetuples__ = ()
-    _ptolemaic_mergedicts__ = ('_ptolemaic_annotations__',)
-    _ptolemaic_annotations__ = dict()
+    _ptolemaic_mergedicts__ = ()
 
     @classmethod
     def __meta_init__(meta, /):
@@ -66,16 +65,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         for name in getattr(cls, overname):
             cls._merge_names(name, **kwargs)
 
-    def _ptolemaic_signature__(cls, /):
-        return _inspect.signature(cls.__init__)
-
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if not hasattr(cls, '__annotations__'):
+            cls.__annotations__ = dict()
         cls.__class_init__()
 
     def __class_init__(cls, /):
-        if not hasattr(cls, '__annotations__'):
-            cls.__annotations__ = dict()
         cls._merge_names('_ptolemaic_mergetuples_')
         cls._merge_names('_ptolemaic_mergedicts__')
         cls._merge_names_all(
@@ -86,10 +82,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             mergetyp=_utilities.FrozenMap,
             itermeth='items',
             )
-        cls.__annotations__ = _utilities.FrozenMap(
-            {**cls.__annotations__, **cls._ptolemaic_annotations__}
-            )
-        cls.__signature__ = cls._ptolemaic_signature__()
+
+    @property
+    def __signature__(cls, /):
+        return _inspect.signature(cls.__init__)
 
     @classmethod
     def __prepare__(meta, name, bases, /):

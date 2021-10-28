@@ -3,14 +3,12 @@
 ###############################################################################
 
 
-from collections import abc as _collabc
-import functools as _functools
 import inspect as _inspect
 import hashlib as _hashlib
+import collections as _collabc
 
 from .ousia import Ousia as _Ousia
 from .eidos import Eidos as _Eidos
-from .primitive import Primitive as _Primitive
 from . import _utilities
 
 _caching = _utilities.caching
@@ -23,94 +21,133 @@ KINDS = dict(zip(
     ))
 
 
-def sort_params(params, /):
-    params = sorted(params, key=(lambda x: x.default is not _inspect._empty))
-    params = sorted(params, key=(lambda x: KINDS[x.kind]))
-    return params
+class ParamMeta(_Ousia):
+
+    for kind in KINDS:
+        exec('\n'.join((
+            '@property',
+            f'def {kind}(cls, /):'
+            f"    return cls(kind='{kind}')"
+            )))
 
 
-class ParamProp:
-    
-    __slots__ = ('param', 'kind', 'hint', 'name', 'default', 'parameter',)
+class Param(metaclass=ParamMeta):
 
-    def __init__(self, param, name, default=_inspect.Parameter.empty, /):
-        self.param = param
-        self.name, self.default = name, default
-        kind = self.kind = param.kind
-        hint = self.hint = param.hint
-        self.parameter = _inspect.Parameter(
-            name, KINDS[param.kind], default=default, annotation=param.hint,
-            )
-
-    def __get__(self, instance, /, owner=None):
-        return getattr(instance.params, self.name)
-
-    def _repr(self):
-        return f"name={self.name}, default={self.default}"
-
-    def __repr__(self):
-        return f"{type(self).__name__}({self._repr()})"
-
-
-class Param(metaclass=_Ousia):
-
-    KINDS = KINDS
-
-    _req_slots__ = ('kind', 'hint',)
+    _req_slots__ = ('name', 'value', 'kind', 'hint', 'parameter', 'inps')
 
     @classmethod
     def _check_hint(cls, hint, /):
         return hint
 
-    def __init__(self, kind='PosKw', hint=_Eidos, /):
-        if not kind in self.KINDS:
+    def __init__(self, /, *,
+            name='anon',
+            hint=_Eidos,
+            kind='PosKw',
+            value=NotImplemented,
+            ):
+        if not kind in KINDS:
             raise ValueError(kind)
-        self.kind = kind
-        self.hint = self._check_hint(hint)
+        hint = self._check_hint(hint)
+        self.kind, self.hint = kind, hint
+        if kind in {'Args', 'Kwargs'}:
+            if value is not NotImplemented:
+                raise TypeError
+        self.name, self.value = name, value
+        default = (
+            _inspect.Parameter.empty if value is NotImplemented
+            else value
+            )
+        self.parameter = _inspect.Parameter(
+            name, KINDS[kind], default=default, annotation=hint,
+            )
+        self.inps = dict(
+            name=self.name, hint=self.hint, kind=self.kind, value=self.value
+            )
+        super().__init__()
 
-    def __call__(self, *args, **kwargs):
-        return ParamProp(self, *args, **kwargs)
-
-    @classmethod
-    def __class_getitem__(cls, arg, /):
-        return cls()[arg]
+    def __call__(self, **kwargs):
+        return type(self).construct(**(self.inps | kwargs))
 
     def __getitem__(self, arg, /):
         if isinstance(arg, Param):
-            arg = arg.hint
-        return type(self).construct(self.kind, self.hint[arg])
+            return self(**{**arg.inps, 'hint': self.hint[arg.hint]})
+        return self(hint=self.hint[arg])
 
     def __repr__(self, /):
-        return f"Param.{self.kind}[{repr(self.hint)}]"
+        return (
+            f"Param.{self.kind}[{repr(self.hint)}]"
+            f"({self.name}={self.value})"
+            )
+
+    def __get__(self, instance, /, owner=None):
+        return instance.params[self.name]
 
 
-for name in KINDS:
-    setattr(Param, name, Param(name))
+class Signature(_collabc.Mapping, metaclass=_Ousia):
 
+    _req_slots__ = ('parameters', 'signature', 'paramdict')
 
-class Params(_collabc.Mapping):
+    @staticmethod
+    def sort_params(params, /):
+        params = sorted(
+            params,
+            key=(lambda x: x.parameter.default is not _inspect._empty)
+            )
+        params = sorted(
+            params,
+            key=(lambda x: x.parameter.kind)
+            )
+        return params
 
-    __slots__ = ('bound', 'arguments', '_getter', '_softcache')
+    def __init__(self, *parameters):
+        parameters = self.parameters = tuple(self.sort_params(parameters))
+        self.signature = _inspect.Signature(
+            param.parameter for param in parameters
+            )
+        self.paramdict = {param.name: param for param in parameters}
+        super().__init__()
 
-    def parameterise(self, /, *args, **kwargs):
-        return args, kwargs
+    def __iter__(self, /):
+        return self.paramdict.__iter__()
 
-    signed = False
+    def __len__(self, /):
+        return self.paramdict.__len__()
 
-    def __init__(self, /, *args, **kwargs):
-        args, kwargs = self.parameterise(*args, **kwargs)
-        bound = self.bound = self.sig.bind(*args, **kwargs)
-        bound.apply_defaults()
-        self.arguments = bound.arguments
+    def __getitem__(self, key, /):
+        return self.paramdict.__getitem__(key)
 
     def __getattr__(self, name):
-        if name in (arguments := self.arguments):
-            return arguments[name]
+        if name in (paramdict := self.paramdict):
+            return paramdict[name]
+        return super().__getattr__(name)
+
+    def bind(self, /, *args, **kwargs):
+        bound = self.signature.bind(*args, **kwargs)
+        bound.apply_defaults()
+        return bound
+
+    def __call__(self, /, *args, **kwargs):
+        bound = self.signature.bind(*args, **kwargs)
+        bound.apply_defaults()
+        return Params(**bound.arguments)
+
+
+class Params(_collabc.Mapping, metaclass=_Ousia):
+
+    _req_slots__ = ('parameters',)
+
+    def __init__(self, **parameters):
+        super().__init__()
+        self.parameters = parameters
+
+    def __getattr__(self, name):
+        if name in (parameters := self.parameters):
+            return parameters[name]
         return super().__getattr__(name)
 
     @_caching.soft_cache()
     def __str__(self):
-        args = self.arguments
+        args = self.parameters
         return ', '.join(map('='.join, zip(args, map(repr, args.values()))))
 
     @_caching.soft_cache()
@@ -134,32 +171,53 @@ class Params(_collabc.Mapping):
         return _word.get_random_english(seed=self.hashint, n=2)
 
     def __getitem__(self, arg, /):
-        return self.arguments[arg]
+        return self.parameters[arg]
 
     def __iter__(self, /):
-        return iter(self.arguments)
+        return iter(self.parameters)
 
     def __len__(self, /):
-        return len(self.arguments)
+        return len(self.parameters)
 
-    @classmethod
-    def __init_subclass__(cls, /, *, sig, parameterise, **kwargs):
-        if cls.signed:
-            raise TypeError(f"{type(cls)} already signed.")
-        cls.sig = sig
-        cls.parameterise = parameterise
-        cls.signed = True
-        super().__init_subclass__(**kwargs)
 
-    @classmethod
-    def __class_getitem__(cls, arg, /):
-        return type(cls)(
-            f"{cls.__name__}[{repr(arg)}]",
-            (cls,),
-            dict(),
-            sig=arg.__signature__,
-            parameterise=arg.parameterise,
-            )
+# class Registrar:
+
+#     __slots__ = ('_args', '_kwargs', 'signature', 'bound')
+
+#     def __init__(self, signature, /):
+#         self.signature = signature
+#         self._args, self._kwargs = [], {}
+#         self.bound = signature.bind_partial()
+
+#     def __call__(self, *args, **kwargs):
+#         _args, _kwargs = self._args, self._kwargs
+#         self._args.extend(args)
+#         self._kwargs.update(kwargs)
+#         try:
+#             _ = self.signature.bind_partial(*_args, **_kwargs)
+#         except TypeError as exc:
+#             raise TypeError from exc
+
+#     @staticmethod
+#     def _process_int_key(arguments, key):
+#         if isinstance(key, int):
+#             key = tuple(arguments.keys()).index(key)
+#         return key
+
+#     def __getitem__(self, key, /):
+#         arguments = self.bound.arguments
+#         key = self._process_int_key(arguments, key)
+#         return arguments[key]
+
+#     def __setitem__(self, key, val, /):
+#         arguments = self.bound.arguments
+#         key = self._process_int_key(arguments, key)
+#         arguments[key] = val
+
+#     def __delitem__(self, key, /):
+#         arguments = self.bound.arguments
+#         key = self._process_int_key(arguments, key)
+#         del arguments[key]
 
 
 ###############################################################################
