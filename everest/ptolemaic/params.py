@@ -4,15 +4,11 @@
 
 
 import inspect as _inspect
-import hashlib as _hashlib
 import collections as _collabc
 
+from .ptolemaic import Ptolemaic as _Ptolemaic, Mapp as _Mapp
 from .ousia import Ousia as _Ousia
 from .eidos import Eidos as _Eidos
-from . import _utilities
-
-_caching = _utilities.caching
-_word = _utilities.word
 
 
 KINDS = dict(zip(
@@ -31,7 +27,7 @@ class ParamMeta(_Ousia):
             )))
 
 
-class Param(metaclass=ParamMeta):
+class Param(_Ptolemaic, metaclass=ParamMeta):
 
     _req_slots__ = ('name', 'value', 'kind', 'hint', 'parameter', 'inps')
 
@@ -68,6 +64,10 @@ class Param(metaclass=ParamMeta):
     def __call__(self, **kwargs):
         return type(self).construct(**(self.inps | kwargs))
 
+    @classmethod
+    def __class_getitem__(cls, arg, /):
+        return cls.construct()[arg]
+
     def __getitem__(self, arg, /):
         if isinstance(arg, Param):
             return self(**{**arg.inps, 'hint': self.hint[arg.hint]})
@@ -83,7 +83,7 @@ class Param(metaclass=ParamMeta):
         return instance.params[self.name]
 
 
-class Signature(_collabc.Mapping, metaclass=_Ousia):
+class Signature(_Mapp, _collabc.Mapping):
 
     _req_slots__ = ('parameters', 'signature', 'paramdict')
 
@@ -104,80 +104,23 @@ class Signature(_collabc.Mapping, metaclass=_Ousia):
         self.signature = _inspect.Signature(
             param.parameter for param in parameters
             )
-        self.paramdict = {param.name: param for param in parameters}
+        self._obj = self.paramdict = {param.name: param for param in parameters}
         super().__init__()
-
-    def __iter__(self, /):
-        return self.paramdict.__iter__()
-
-    def __len__(self, /):
-        return self.paramdict.__len__()
-
-    def __getitem__(self, key, /):
-        return self.paramdict.__getitem__(key)
-
-    def __getattr__(self, name):
-        if name in (paramdict := self.paramdict):
-            return paramdict[name]
-        return super().__getattr__(name)
-
-    def bind(self, /, *args, **kwargs):
-        bound = self.signature.bind(*args, **kwargs)
-        bound.apply_defaults()
-        return bound
 
     def __call__(self, /, *args, **kwargs):
         bound = self.signature.bind(*args, **kwargs)
         bound.apply_defaults()
-        return Params(**bound.arguments)
+        return Params(bound.args, bound.kwargs, bound.arguments)
 
 
-class Params(_collabc.Mapping, metaclass=_Ousia):
+class Params(_Mapp):
 
-    _req_slots__ = ('parameters',)
+    _req_slots__ = ('args', 'kwargs', 'arguments')
 
-    def __init__(self, **parameters):
+    def __init__(self, args, kwargs, arguments, /):
         super().__init__()
-        self.parameters = parameters
-
-    def __getattr__(self, name):
-        if name in (parameters := self.parameters):
-            return parameters[name]
-        return super().__getattr__(name)
-
-    @_caching.soft_cache()
-    def __str__(self):
-        args = self.parameters
-        return ', '.join(map('='.join, zip(args, map(repr, args.values()))))
-
-    @_caching.soft_cache()
-    def __repr__(self):
-        return f"{type(self).__name__}({self.__str__()})"
-
-    @property
-    @_caching.soft_cache()
-    def hashcode(self):
-        content = str(self).encode()
-        return _hashlib.md5(content).hexdigest()
-
-    @property
-    @_caching.soft_cache()
-    def hashint(self):
-        return int(self.hashcode, 16)
-
-    @property
-    @_caching.soft_cache()
-    def hashID(self):
-        return _word.get_random_english(seed=self.hashint, n=2)
-
-    def __getitem__(self, arg, /):
-        return self.parameters[arg]
-
-    def __iter__(self, /):
-        return iter(self.parameters)
-
-    def __len__(self, /):
-        return len(self.parameters)
+        self.args, self.kwargs, self.arguments = args, kwargs, arguments
+        self._obj = arguments
 
 
 # class Registrar:

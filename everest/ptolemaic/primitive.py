@@ -22,6 +22,7 @@ class Primitive(_ABC):
         type(None),
         type(Ellipsis),
         type(NotImplemented),
+        type,
         )
 
     @classmethod

@@ -6,9 +6,10 @@
 import weakref as _weakref
 import inspect as _inspect
 
-
 from .primitive import Primitive as _Primitive
 from .essence import Essence as _Essence
+
+from . import exceptions as _exceptions
 
 
 class _ConcreteMetaBase(_Essence):
@@ -45,6 +46,9 @@ class _ConcreteMetaBase(_Essence):
     def __class_init__(cls, /):
         pass
 
+    def __class_repr__(cls, /):
+        return repr(cls.basecls)
+
 
 class Ousia(_Essence):
 #     '''
@@ -57,7 +61,7 @@ class Ousia(_Essence):
         '_ptolemaic_subclasses__',
         '_ptolemaic_fixedsubclasses__',
         )
-    _req_slots__ = ('_softcache', '_weakcache', '__weakref__')
+    _req_slots__ = ('_softcache', '_weakcache', '__weakref__', 'params')
     _ptolemaic_mroclasses__ = tuple()
     _ptolemaic_subclasses__ = tuple()
     _ptolemaic_fixedsubclasses__ = tuple()
@@ -149,9 +153,31 @@ class Ousia(_Essence):
             setattr(obj, key, val)
         return obj
 
+    @property
+    def __signature__(cls, /):
+        return (
+            (sig := _inspect.signature(cls.__init__))
+            .replace(
+                parameters=tuple(sig.parameters.values())[1:],
+                return_annotation=cls,
+                )
+            )
+
+    def check_param(cls, arg, /):
+        return arg
+
+    def parameterise(cls, /, *args, **kwargs):
+        params = cls.__signature__.bind(
+            *map(cls.check_param, args),
+            **dict(zip(kwargs, map(cls.check_param, kwargs.values()))),
+            )
+        params.apply_defaults()
+        return params
+
     def construct(cls, /, *args, **kwargs):
-        obj = cls.create_object()
-        obj.__init__(*args, **kwargs)
+        params = cls.parameterise(*args, **kwargs)
+        obj = cls.create_object(params=params)
+        obj.__init__(*params.args, **params.kwargs)
         return obj
 
 

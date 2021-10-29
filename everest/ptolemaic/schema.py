@@ -19,19 +19,20 @@ class Schema(_Eidos):
     The metaclass of all Schema classes.
     '''
 
-    _req_slots__ = ('params',)
-
     def _collect_params(cls, /):
         params = dict()
         for name, note in cls.__annotations__.items():
-            if isinstance(note, _Param):
-                value = (
-                    cls.__dict__[name] if name in cls.__dict__
-                    else NotImplemented
-                    )
-                bound = note(name=name, value=value)
-                deq = params.setdefault(name, _collections.deque())
-                deq.append(bound)
+            if note is _Param:
+                note = note()
+            elif not isinstance(note, _Param):
+                continue
+            value = (
+                cls.__dict__[name] if name in cls.__dict__
+                else NotImplemented
+                )
+            bound = note(name=name, value=value)
+            deq = params.setdefault(name, _collections.deque())
+            deq.append(bound)
         for base in cls.__bases__:
             if not isinstance(base, Schema):
                 continue
@@ -54,7 +55,7 @@ class Schema(_Eidos):
 
     @property
     def __signature__(cls, /):
-        return cls.signature.signature
+        return cls.signature.signature.replace(return_annotation=cls)
 
     def _ptolemaic_concrete_namespace__(cls, /):
         return {

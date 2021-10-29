@@ -65,7 +65,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         for name in getattr(cls, overname):
             cls._merge_names(name, **kwargs)
 
+    def __class_pre_init__(cls, /):
+        pass
+
     def __init__(cls, /, *args, **kwargs):
+        cls.__class_pre_init__()
         super().__init__(*args, **kwargs)
         if not hasattr(cls, '__annotations__'):
             cls.__annotations__ = dict()
@@ -83,25 +87,21 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             itermeth='items',
             )
 
-    @property
-    def __signature__(cls, /):
-        return _inspect.signature(cls.__init__)
-
     @classmethod
     def __prepare__(meta, name, bases, /):
         return dict()
-
-    def _cls_repr(cls, /):
-        return super().__repr__()
-
-    def __repr__(cls, /):
-        return cls._cls_repr()
 
     def construct(cls, /, *args, **kwargs):
         raise NotImplementedError
 
     def __call__(cls, /, *args, **kwargs):
         return cls.construct(*args, **kwargs)
+
+    def __class_repr__(cls, /):
+        return cls.__qualname__
+
+    def __repr__(cls, /):
+        return cls.__class_repr__()
 
 
 ###############################################################################
