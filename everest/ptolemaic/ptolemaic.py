@@ -9,6 +9,7 @@ import hashlib as _hashlib
 from . import _utilities
 
 from .pleroma import Pleroma as _Pleroma
+from .essence import Essence as _Essence
 from .shade import Shade as _Shade
 from .ousia import Ousia as _Ousia
 from .hypostasis import Hypostasis as _Hypostasis
@@ -52,7 +53,9 @@ class Ptolemaic(_Hypostasis, metaclass=_Ousia):
     def check_param(cls, arg, /):
         if isinstance(arg, _Pleroma):
             return arg
-        if isinstance(arg, Ptolemaic):
+        if isinstance(arg, _Essence):
+            return arg
+        if isinstance(arg, _Hypostasis):
             return arg
         if isinstance(arg, _Primitive):
             return arg
@@ -61,6 +64,10 @@ class Ptolemaic(_Hypostasis, metaclass=_Ousia):
         if isinstance(arg, dict):
             return Mapp(**arg)
         raise cls.BadParameter(arg)
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        return type(cls).parameterise(cls, *args, **kwargs)
 
     def _repr(self, /):
         return ', '.join(

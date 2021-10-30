@@ -35,7 +35,7 @@ class Param(_Ptolemaic, metaclass=ParamMeta):
     def _check_hint(cls, hint, /):
         return hint
 
-    def __init__(self, /, *,
+    def __init__(self, /,
             name='anon',
             hint=_Eidos,
             kind='PosKw',
@@ -104,8 +104,8 @@ class Signature(_Mapp, _collabc.Mapping):
         self.signature = _inspect.Signature(
             param.parameter for param in parameters
             )
-        self._obj = self.paramdict = {param.name: param for param in parameters}
-        super().__init__()
+        super().__init__(**{param.name: param for param in parameters})
+        self.paramdict = {param.name: param for param in parameters}
 
     def __call__(self, /, *args, **kwargs):
         bound = self.signature.bind(*args, **kwargs)

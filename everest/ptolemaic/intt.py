@@ -5,7 +5,9 @@
 
 import itertools as _itertools
 
-from . import _Sprite, _Param, _exceptions
+from .sprite import Sprite as _Sprite
+from .params import Param as _Param
+from . import exceptions as _exceptions
 
 
 def _nth(iterable, n):
@@ -27,15 +29,14 @@ class InttRange(_Sprite):
     _req_slots__ = ('_iterfn', '_lenfn', '_rangeobj')
 
     @classmethod
-    def parameterise(self, start, stop, step, /):
+    def parameterise(cls, start, stop, step, /):
         start = 0 if start is None else int(start)
         stop = int(stop)
         step = 1 if step is None else int(step)
         return super().parameterise(start, stop, step)
 
-    def __init__(self, /):
+    def __init__(self, start, stop, step, /):
         super().__init__()
-        start, stop, step = self.start, self.stop, self.step
         rangeobj = self._rangeobj = range(start, stop, step)
         self._iterfn = rangeobj.__iter__
         self._lenfn = rangeobj.__len__
@@ -75,12 +76,12 @@ class InttCount(_Sprite):
     _req_slots__ = ('_iterfn',)
 
     @classmethod
-    def parameterise(self, start, step, /):
+    def parameterise(cls, start, step, /):
         start = 0 if start is None else int(start)
         step = 0 if step is None else int(step)
         return super().parameterise(start, step)
 
-    def __init__(self, /):
+    def __init__(self, start, stop, /):
         super().__init__()
         self._iterfn = _itertools.count(self.start, self.step).__iter__
 
