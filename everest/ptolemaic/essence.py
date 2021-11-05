@@ -19,6 +19,7 @@ def ordered_set(itr):
 
 
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
+# class Essence(type, metaclass=_Pleroma):
 
     _ptolemaic_mergetuples__ = ()
     _ptolemaic_mergedicts__ = ()

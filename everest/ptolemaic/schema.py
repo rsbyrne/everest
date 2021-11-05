@@ -57,6 +57,10 @@ class Schema(_Eidos):
     def __signature__(cls, /):
         return cls.signature.signature.replace(return_annotation=cls)
 
+    def __new__(meta, name, bases, namespace, /):
+        namespace = meta._customise_namespace(namespace)
+        return super().__new__(meta, name, bases, namespace)
+
     def _ptolemaic_concrete_namespace__(cls, /):
         return {
             **super()._ptolemaic_concrete_namespace__(),
