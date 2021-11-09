@@ -32,18 +32,6 @@ class Eidos(_Inherence):
     def __contains__(cls, arg, /):
         return cls._ptolemaic_contains__(arg)
 
-    def _ptolemaic_isinstance__(cls, arg, /):
-        return issubclass(type(arg), cls)
-
-    def __instancecheck__(cls, arg, /):
-        return cls._ptolemaic_isinstance__(arg)
-
-    def _ptolemaic_issubclass__(cls, arg, /):
-        return super().__subclasscheck__(arg)
-
-    def __subclasscheck__(cls, arg, /):
-        return cls._ptolemaic_issubclass__(arg)
-
     def _ptolemaic_getitem__(cls, arg, /):
         if isinstance(arg, type):
             if issubclass(arg, cls):

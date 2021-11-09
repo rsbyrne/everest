@@ -20,7 +20,7 @@ class Ousia(_Essence):
         '_ptolemaic_mroclasses__',
         '_ptolemaic_concretebases__',
         )
-    _req_slots__ = ('_softcache', '_weakcache', '__weakref__', 'params')
+    _req_slots__ = ('_softcache', '_weakcache', '__weakref__')
     _ptolemaic_mroclasses__ = ()
     _ptolemaic_concretebases__ = ()
 

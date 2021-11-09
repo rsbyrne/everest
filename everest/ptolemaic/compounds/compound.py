@@ -4,6 +4,7 @@
 
 
 from collections import abc as _collabc
+import types as _types
 
 from everest import utilities as _utilities
 
@@ -12,6 +13,7 @@ from everest import utilities as _utilities
 # from .ousia import Ousia as _Ousia
 from everest.ptolemaic.shades.shade import Shade as _Shade
 from everest.ptolemaic.sprites.sprite import Sprite as _Sprite
+from everest.ptolemaic.sprites.resourcers import Resourcer as _Resourcer
 
 
 class Compound(_Sprite):
@@ -21,6 +23,8 @@ class Compound(_Sprite):
     class Registrar:
 
         def process_param(self, arg, /):
+            if _Resourcer.can_convert(arg):
+                return _Resourcer(arg)
             if isinstance(arg, tuple):
                 return Tuuple(*arg)
             if isinstance(arg, dict):
@@ -35,7 +39,7 @@ class Compound(_Sprite):
                 )
 
 
-class Proxy(_Shade):
+class DeferrerClass(_Shade):
 
     _ptolemaic_mergetuples__ = ('defermeths',)
     defermeths = ()
@@ -49,23 +53,20 @@ class Proxy(_Shade):
             _utilities.classtools.add_defer_meth(cls, meth, '_obj')
 
 
-class ProxyCollection(Proxy, _collabc.Sequence):
+class Collection(DeferrerClass, _collabc.Sequence):
 
     defermeths = ('__getitem__', '__len__', '__iter__')
 
 
-class Tuuple(ProxyCollection, Compound, _collabc.Sequence):
+class Tuuple(Collection, Compound, _collabc.Sequence):
 
     defermeths = ('__contains__', '__reversed__', 'index', 'count')
 
     def __init__(self, /, *args):
         self._obj = args
 
-    def _repr(self, /):
-        return ', '.join(map(repr, self._obj))
 
-
-class Mapp(ProxyCollection, Compound, _collabc.Mapping):
+class Mapp(Collection, Compound, _collabc.Mapping):
 
     defermeths = (
         '__contains__', 'keys', 'items',
@@ -79,12 +80,6 @@ class Mapp(ProxyCollection, Compound, _collabc.Mapping):
         if name in (obj := self._obj):
             return obj[name]
         return super().__getattr__(name)
-
-    def _repr(self, /):
-        return ', '.join(
-            '='.join((pair[0], repr(pair[1])))
-            for pair in self._obj.items()
-            )
 
 
 ###############################################################################

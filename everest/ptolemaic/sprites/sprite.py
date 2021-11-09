@@ -4,6 +4,7 @@
 
 
 import hashlib as _hashlib
+import itertools as _itertools
 
 from everest.ptolemaic.hypostases.hypostasis import Hypostasis as _Hypostasis
 from everest.ptolemaic.metas.inherence import Inherence as _Inherence
@@ -27,10 +28,11 @@ class Sprite(_Hypostasis, metaclass=_Inherence):
         return _hashlib.md5(content).hexdigest()
 
     def _repr(self, /):
-        return ', '.join(
-            '='.join((pair[0], repr(pair[1])))
-            for pair in self.params.arguments.items()
-            )
+        args, kwargs = self.params
+        return ', '.join(_itertools.chain(
+            map(repr, args),
+            map('='.join, zip(kwargs, map(repr, kwargs.values()))),
+            ))
 
 
 ###############################################################################

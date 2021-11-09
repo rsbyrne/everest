@@ -8,6 +8,7 @@ import itertools as _itertools
 
 from everest.ptolemaic.primitive import Primitive as _Primitive
 from everest.ptolemaic.metas.ousia import Ousia as _Ousia
+from everest.ptolemaic.shades import proxy as _proxy
 from everest.ptolemaic import exceptions as _exceptions
 
 
@@ -76,6 +77,7 @@ class Inherence(_Ousia):
         '_ptolemaic_knowntypes__',
         )
     _ptolemaic_knowntypes__ = ()
+    _req_slots__ = ('params',)
 
     BadParameters = BadParameters
     Registrar = Registrar
@@ -93,19 +95,23 @@ class Inherence(_Ousia):
     def parameterise(cls, register, /, *args, **kwargs):
         raise NotImplementedError
 
+    def instantiate(cls, /, *args, **kwargs):
+        obj = cls.create_object(params=(args, kwargs))
+        args, kwargs = _proxy.unproxy_argskwargs(args, kwargs)
+        obj.__init__(*args, **kwargs)
+        return obj
+
     @property
     def registrar(cls, /):
         return cls.Registrar(cls)
 
     def construct(cls, /, *args, **kwargs):
         cls.parameterise(registrar := cls.registrar, *args, **kwargs)
-        args, kwargs = registrar.args, registrar.kwargs
-        cls.BadParameters.check(cls, _itertools.chain(args, kwargs.values()))
-        params = cls.__signature__.bind(*args, **kwargs)
+        params = cls.__signature__.bind(*registrar.args, **registrar.kwargs)
         params.apply_defaults()
-        obj = cls.create_object(params=params)
-        obj.__init__(*params.args, **params.kwargs)
-        return obj
+        args, kwargs = params.args, params.kwargs
+        cls.BadParameters.check(cls, _itertools.chain(args, kwargs.values()))
+        return cls.instantiate(*args, **kwargs)
 
 
 ###############################################################################
