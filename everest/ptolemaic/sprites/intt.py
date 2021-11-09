@@ -6,7 +6,6 @@
 import itertools as _itertools
 
 from .sprite import Sprite as _Sprite
-from .params import Param as _Param
 from . import exceptions as _exceptions
 
 
@@ -22,18 +21,15 @@ defaultexc = _exceptions.PtolemaicException()
 
 class InttRange(_Sprite):
 
-    start: _Param[int]
-    stop: _Param[int]
-    step: _Param[int]
-
     _req_slots__ = ('_iterfn', '_lenfn', '_rangeobj')
 
     @classmethod
-    def parameterise(cls, start, stop, step, /):
-        start = 0 if start is None else int(start)
-        stop = int(stop)
-        step = 1 if step is None else int(step)
-        return super().parameterise(start, stop, step)
+    def parameterise(cls, register, start, stop, step, /):
+        register(
+            (0 if start is None else int(start)),
+            int(stop),
+            (1 if step is None else int(step)),
+            )
 
     def __init__(self, start, stop, step, /):
         super().__init__()
@@ -70,16 +66,14 @@ class InttRange(_Sprite):
 
 class InttCount(_Sprite):
 
-    start: _Param[int] = 0
-    step: _Param[int] = 1
-
     _req_slots__ = ('_iterfn',)
 
     @classmethod
-    def parameterise(cls, start, step, /):
-        start = 0 if start is None else int(start)
-        step = 0 if step is None else int(step)
-        return super().parameterise(start, step)
+    def parameterise(cls, register, start, step, /):
+        register(
+            (0 if start is None else int(start)),
+            (0 if step is None else int(step)),
+            )
 
     def __init__(self, start, stop, /):
         super().__init__()

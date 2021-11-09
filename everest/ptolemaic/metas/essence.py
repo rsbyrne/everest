@@ -9,9 +9,8 @@ import more_itertools as _mitertools
 import inspect as _inspect
 import operator as _operator
 
-from . import _utilities
-
-from .pleroma import Pleroma as _Pleroma
+from everest import utilities as _utilities
+from everest.ptolemaic.hypermetas.pleroma import Pleroma as _Pleroma
 
 
 def ordered_set(itr):
@@ -19,24 +18,24 @@ def ordered_set(itr):
 
 
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
-# class Essence(type, metaclass=_Pleroma):
+    '''
+    The metaclass of all Ptolemaic types;
+    pure instances of itself are 'pure kinds' that cannot be instantiated.
+    '''
+
+    __slots__ = ()
 
     _ptolemaic_mergetuples__ = ()
     _ptolemaic_mergedicts__ = ()
 
     @classmethod
-    def __meta_init__(meta, /):
+    def _pleroma_init__(meta, /):
         pass
 
-    @classmethod
-    def _customise_namespace(meta, namespace, /):
+    def __new__(meta, name, bases, namespace, /):
         namespace['metacls'] = meta
         if '__slots__' not in namespace:
             namespace['__slots__'] = ()
-        return namespace
-
-    def __new__(meta, name, bases, namespace, /):
-        namespace = meta._customise_namespace(namespace)
         return super().__new__(meta, name, bases, namespace)
 
     @staticmethod
@@ -66,17 +65,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         for name in getattr(cls, overname):
             cls._merge_names(name, **kwargs)
 
-    def __class_pre_init__(cls, /):
-        pass
-
     def __init__(cls, /, *args, **kwargs):
-        cls.__class_pre_init__()
         super().__init__(*args, **kwargs)
         if not hasattr(cls, '__annotations__'):
             cls.__annotations__ = dict()
-        cls.__class_init__()
-
-    def __class_init__(cls, /):
         cls._merge_names('_ptolemaic_mergetuples_')
         cls._merge_names('_ptolemaic_mergedicts__')
         cls._merge_names_all(

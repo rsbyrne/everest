@@ -16,13 +16,14 @@ class Primitive(_ABC):
     PRIMITIVETYPES = (
         int,
         float,
+        complex,
         str,
         bytes,
         bool,
         type(None),
         type(Ellipsis),
         type(NotImplemented),
-        type,
+#         type,
         )
 
     @classmethod

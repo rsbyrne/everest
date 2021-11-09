@@ -3,13 +3,12 @@
 ###############################################################################
 
 
-from . import _utilities
+from everest import utilities as _utilities
+from everest.ptolemaic.compounds import Compounds as _Compound
+from everest.ptolemaic.metas.schema import Schema as _Schema
 
-from .ptolemaic import Ptolemaic as _Ptolemaic
-from .schema import Schema as _Schema
 
-
-class System(_Ptolemaic, metaclass=_Schema):
+class System(_Compound, metaclass=_Schema):
 
     @classmethod
     def check_param(cls, arg, /):

@@ -58,8 +58,8 @@ class Schema(_Eidos):
         return cls.signature.signature.replace(return_annotation=cls)
 
     def __new__(meta, name, bases, namespace, /):
-        namespace = meta._customise_namespace(namespace)
-        return super().__new__(meta, name, bases, namespace)
+        cls = super().__new__(meta, name, bases, namespace)
+        return cls
 
     def _ptolemaic_concrete_namespace__(cls, /):
         return {
@@ -67,15 +67,14 @@ class Schema(_Eidos):
             **cls.signature,
             }
 
-    def __class_init__(cls, /):
-        super().__class_init__()
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         cls.premade = _weakref.WeakValueDictionary()
 
-    def parameterise(cls, /, *args, **kwargs):
-        return cls.signature(*args, **kwargs)
-
     def construct(cls, *args, **kwargs):
-        params = cls.parameterise(*args, **kwargs)
+        registrar = cls.Registrar()
+        cls.parameterise(registrar, *args, **kwargs)
+        params = cls.signature(*registrar.args, **registrar.kwargs)
         premade, paramid = cls.premade, params.hashcode
         if paramid in premade:
             return premade[paramid]

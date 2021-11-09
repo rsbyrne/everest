@@ -4,11 +4,11 @@
 
 
 import inspect as _inspect
-import collections as _collabc
 
-from .ptolemaic import Ptolemaic as _Ptolemaic, Mapp as _Mapp
-from .ousia import Ousia as _Ousia
-from .eidos import Eidos as _Eidos
+from everest.ptolemaic.compounds.compound import (
+    Compound as _Compound, Mapp as _Mapp
+    )
+from everest.ptolemaic.metas.ousia import Ousia as _Ousia
 
 
 KINDS = dict(zip(
@@ -37,7 +37,7 @@ class Param(_Ptolemaic, metaclass=ParamMeta):
 
     def __init__(self, /,
             name='anon',
-            hint=_Eidos,
+            hint=_Ousia,
             kind='PosKw',
             value=NotImplemented,
             ):
@@ -83,7 +83,7 @@ class Param(_Ptolemaic, metaclass=ParamMeta):
         return instance.params[self.name]
 
 
-class Signature(_Mapp, _collabc.Mapping):
+class Signature(_Mapp):
 
     _req_slots__ = ('parameters', 'signature', 'paramdict')
 

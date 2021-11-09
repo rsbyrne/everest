@@ -3,7 +3,17 @@
 ###############################################################################
 
 
-from ..schema import Schema as _Schema
+from everest.ptolemaic.metas.essence import Essence as _Essence
+
+
+class Shade(metaclass=_Essence):
+    '''
+    The base class of all Ptolemaic types.
+    '''
+
+    @classmethod
+    def __class_init__(cls, /):
+        pass
 
 
 ###############################################################################
