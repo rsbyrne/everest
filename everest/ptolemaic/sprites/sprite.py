@@ -28,7 +28,7 @@ class Sprite(_Hypostasis, metaclass=_Inherence):
         return _hashlib.md5(content).hexdigest()
 
     def _repr(self, /):
-        args, kwargs = self.params
+        args, kwargs = self.argskwargs
         return ', '.join(_itertools.chain(
             map(repr, args),
             map('='.join, zip(kwargs, map(repr, kwargs.values()))),

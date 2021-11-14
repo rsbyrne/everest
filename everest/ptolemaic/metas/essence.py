@@ -108,6 +108,18 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __subclasscheck__(cls, arg, /):
         return cls._ptolemaic_issubclass__(arg)
 
+    def _ptolemaic_contains__(cls, arg, /):
+        raise NotImplementedError
+
+    def __contains__(cls, arg, /):
+        return cls._ptolemaic_contains__(arg)
+
+    def _ptolemaic_getitem__(cls, arg, /):
+        raise NotImplementedError
+
+    def __getitem__(cls, arg, /):
+        return cls._ptolemaic_getitem__(arg)
+
 
 ###############################################################################
 ###############################################################################

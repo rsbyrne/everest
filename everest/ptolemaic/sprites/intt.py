@@ -5,8 +5,9 @@
 
 import itertools as _itertools
 
-from .sprite import Sprite as _Sprite
-from . import exceptions as _exceptions
+from everest.ptolemaic.shades.shade import Shade as _Shade 
+from everest.ptolemaic.sprites.sprite import Sprite as _Sprite
+from everest.ptolemaic import exceptions as _exceptions
 
 
 def _nth(iterable, n):
@@ -19,9 +20,55 @@ def _nth(iterable, n):
 defaultexc = _exceptions.PtolemaicException()
 
 
-class InttRange(_Sprite):
+class Intt(_Shade):
 
-    _req_slots__ = ('_iterfn', '_lenfn', '_rangeobj')
+    @classmethod
+    def construct(self, arg):
+        return int(arg)
+
+    @classmethod
+    def _ptolemaic_getitem__(cls, arg, /):
+        if isinstance(arg, int):
+            return arg
+        if arg is Ellipsis:
+            return cls
+        if isinstance(arg, slice):
+            if arg.stop is None:
+                if arg.start is None and arg.step is None:
+                    return cls
+                return InttCount(arg.start, arg.step)
+            return InttRange(arg.start, arg.stop, arg.step)
+        raise TypeError(arg)
+
+    @classmethod
+    def _ptolemaic_contains__(cls, arg, /):
+        return isinstance(arg, int)
+
+    @classmethod
+    def _ptolemaic_isinstance__(cls, arg, /):
+        return isinstance(arg, int)
+
+    @classmethod
+    def _ptolemaic_issubclass__(cls, arg, /):
+        return isinstance(arg, InttSpace)
+
+
+class InttSpace(_Shade):
+    '''The virtual metaclass of all Intt-containing classes.'''
+
+    @classmethod
+    def _ptolemaic_isinstance__(cls, arg, /):
+        if arg is Intt:
+            return True
+        return super()._ptolemaic_isinstance__(arg)
+
+
+class InttRange(_Sprite, InttSpace):
+
+    _req_slots__ = (
+        'start', 'stop', 'step',
+        '_iterfn', '_lenfn', '_rangeobj',
+        )
 
     @classmethod
     def parameterise(cls, register, start, stop, step, /):
@@ -33,6 +80,7 @@ class InttRange(_Sprite):
 
     def __init__(self, start, stop, step, /):
         super().__init__()
+        self.start, self.stop, self.step = start, stop, step
         rangeobj = self._rangeobj = range(start, stop, step)
         self._iterfn = rangeobj.__iter__
         self._lenfn = rangeobj.__len__
@@ -64,9 +112,12 @@ class InttRange(_Sprite):
         raise TypeError(arg)
 
 
-class InttCount(_Sprite):
+class InttCount(_Sprite, InttSpace):
 
-    _req_slots__ = ('_iterfn',)
+    _req_slots__ = (
+        'start', 'step',
+        '_iterfn',
+        )
 
     @classmethod
     def parameterise(cls, register, start, step, /):
@@ -75,9 +126,10 @@ class InttCount(_Sprite):
             (0 if step is None else int(step)),
             )
 
-    def __init__(self, start, stop, /):
+    def __init__(self, start, step, /):
         super().__init__()
-        self._iterfn = _itertools.count(self.start, self.step).__iter__
+        self.start, self.step = start, step
+        self._iterfn = _itertools.count(start, step).__iter__
 
     def __iter__(self, /):
         return self._iterfn()
@@ -116,31 +168,6 @@ class InttCount(_Sprite):
                 [arg.start::arg.step]
                 )
         raise TypeError(arg)
-
-
-class Intt(_Sprite):
-
-    @classmethod
-    def construct(self, arg):
-        return int(arg)
-
-    @classmethod
-    def _ptolemaic_getitem__(cls, arg, /):
-        if isinstance(arg, int):
-            return arg
-        if arg is Ellipsis:
-            return cls
-        if isinstance(arg, slice):
-            if arg.stop is None:
-                if arg.start is None and arg.step is None:
-                    return cls
-                return InttCount(arg.start, arg.step)
-            return InttRange(arg.start, arg.stop, arg.step)
-        raise TypeError(arg)
-
-    @classmethod
-    def _ptolemaic_contains__(cls, arg, /):
-        return isinstance(arg, int)
 
 
 ###############################################################################

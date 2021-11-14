@@ -5,10 +5,11 @@
 
 import inspect as _inspect
 
-from everest.ptolemaic.compounds.compound import (
-    Compound as _Compound, Mapp as _Mapp
-    )
-from everest.ptolemaic.metas.ousia import Ousia as _Ousia
+from everest.ptolemaic.compounds.compound import Compound as _Compound
+from everest.ptolemaic.compounds.collections import Mapp as _Mapp
+from everest.ptolemaic.metas.inherence import Inherence as _Inherence
+from everest.ptolemaic.metas.eidos import Eidos as _Eidos
+from everest.ptolemaic.shades.proxy import Proxy as _Proxy
 
 
 KINDS = dict(zip(
@@ -17,7 +18,7 @@ KINDS = dict(zip(
     ))
 
 
-class ParamMeta(_Ousia):
+class ParamMeta(_Inherence):
 
     for kind in KINDS:
         exec('\n'.join((
@@ -27,7 +28,7 @@ class ParamMeta(_Ousia):
             )))
 
 
-class Param(_Ptolemaic, metaclass=ParamMeta):
+class Param(_Compound, metaclass=ParamMeta):
 
     _req_slots__ = ('name', 'value', 'kind', 'hint', 'parameter', 'inps')
 
@@ -37,9 +38,9 @@ class Param(_Ptolemaic, metaclass=ParamMeta):
 
     def __init__(self, /,
             name='anon',
-            hint=_Ousia,
-            kind='PosKw',
+            hint=_Eidos,
             value=NotImplemented,
+            kind='PosKw',
             ):
         if not kind in KINDS:
             raise ValueError(kind)
@@ -83,7 +84,7 @@ class Param(_Ptolemaic, metaclass=ParamMeta):
         return instance.params[self.name]
 
 
-class Signature(_Mapp):
+class Sig(_Mapp):
 
     _req_slots__ = ('parameters', 'signature', 'paramdict')
 
@@ -118,9 +119,8 @@ class Params(_Mapp):
     _req_slots__ = ('args', 'kwargs', 'arguments')
 
     def __init__(self, args, kwargs, arguments, /):
-        super().__init__()
         self.args, self.kwargs, self.arguments = args, kwargs, arguments
-        self._obj = arguments
+        super().__init__()
 
 
 # class Registrar:

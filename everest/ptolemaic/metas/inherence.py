@@ -63,7 +63,9 @@ class Registrar:
 
     def __repr__(self, /):
         argtup = ', '.join(map(repr, self.args))
-        kwargtup = ', '.join(f"{key}: {repr(val)}" for key, val in self.kwargs.items())
+        kwargtup = ', '.join(
+            f"{key}: {repr(val)}" for key, val in self.kwargs.items()
+            )
         return f"{type(self).__name__}(*({argtup}), **{{{kwargtup}}})"
 
 
@@ -77,7 +79,7 @@ class Inherence(_Ousia):
         '_ptolemaic_knowntypes__',
         )
     _ptolemaic_knowntypes__ = ()
-    _req_slots__ = ('params',)
+    _req_slots__ = ('argskwargs',)
 
     BadParameters = BadParameters
     Registrar = Registrar
@@ -96,7 +98,7 @@ class Inherence(_Ousia):
         raise NotImplementedError
 
     def instantiate(cls, /, *args, **kwargs):
-        obj = cls.create_object(params=(args, kwargs))
+        obj = cls.create_object(argskwargs=(args, kwargs))
         args, kwargs = _proxy.unproxy_argskwargs(args, kwargs)
         obj.__init__(*args, **kwargs)
         return obj
@@ -107,9 +109,9 @@ class Inherence(_Ousia):
 
     def construct(cls, /, *args, **kwargs):
         cls.parameterise(registrar := cls.registrar, *args, **kwargs)
-        params = cls.__signature__.bind(*registrar.args, **registrar.kwargs)
-        params.apply_defaults()
-        args, kwargs = params.args, params.kwargs
+        bound = cls.__signature__.bind(*registrar.args, **registrar.kwargs)
+        bound.apply_defaults()
+        args, kwargs = bound.args, bound.kwargs
         cls.BadParameters.check(cls, _itertools.chain(args, kwargs.values()))
         return cls.instantiate(*args, **kwargs)
 

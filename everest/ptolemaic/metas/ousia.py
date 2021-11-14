@@ -4,6 +4,7 @@
 
 
 import weakref as _weakref
+import abc as _abc
 
 from everest.ptolemaic.metas.essence import Essence as _Essence
 
@@ -38,7 +39,7 @@ class Ousia(_Essence):
                     )
             if isinstance(basecls, basecls.ConcreteMetaBase):
                 raise TypeError("Cannot subclass a Concrete type.")
-            return super().__new__(
+            return _abc.ABCMeta.__new__(
                 meta,
                 f"{basecls.__name__}_Concrete",
                 (basecls, *basecls._ptolemaic_concretebases__),
@@ -53,7 +54,7 @@ class Ousia(_Essence):
             return cls.basecls.__signature__
 
         def __init__(cls, /, *args, **kwargs):
-            type.__init__(cls, *args, **kwargs)
+            _abc.ABCMeta.__init__(cls, *args, **kwargs)
 
         def __class_repr__(cls, /):
             return repr(cls.basecls)
