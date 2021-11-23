@@ -7,8 +7,8 @@ import inspect as _inspect
 import itertools as _itertools
 
 from everest.ptolemaic.primitive import Primitive as _Primitive
-from everest.ptolemaic.metas.ousia import Ousia as _Ousia
-from everest.ptolemaic.shades import proxy as _proxy
+from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic import proxy as _proxy
 from everest.ptolemaic import exceptions as _exceptions
 
 
@@ -84,36 +84,47 @@ class Inherence(_Ousia):
     BadParameters = BadParameters
     Registrar = Registrar
 
+    class BASETYP(_Ousia.BASETYP):
+
+        __slots__ = ()
+
+        @classmethod
+        def get_signature(cls, /):
+            return (
+                (sig := _inspect.signature(cls.__init__))
+                .replace(
+                    parameters=tuple(sig.parameters.values())[1:],
+                    return_annotation=cls,
+                    )
+                )
+
+        @classmethod
+        def parameterise(cls, register, /, *args, **kwargs):
+            raise NotImplementedError
+
+        @classmethod
+        def instantiate(cls, /, *args, **kwargs):
+            obj = cls.create_object(argskwargs=(args, kwargs))
+            args, kwargs = _proxy.unproxy_argskwargs(args, kwargs)
+            obj.__init__(*args, **kwargs)
+            return obj
+
+        @classmethod
+        def construct(cls, /, *args, **kwargs):
+            cls.parameterise(registrar := cls.registrar, *args, **kwargs)
+            bound = cls.__signature__.bind(*registrar.args, **registrar.kwargs)
+            bound.apply_defaults()
+            args, kwargs = bound.args, bound.kwargs
+            cls.BadParameters.check(cls, _itertools.chain(args, kwargs.values()))
+            return cls.instantiate(*args, **kwargs)
+
     @property
     def __signature__(cls, /):
-        return (
-            (sig := _inspect.signature(cls.__init__))
-            .replace(
-                parameters=tuple(sig.parameters.values())[1:],
-                return_annotation=cls,
-                )
-            )
-
-    def parameterise(cls, register, /, *args, **kwargs):
-        raise NotImplementedError
-
-    def instantiate(cls, /, *args, **kwargs):
-        obj = cls.create_object(argskwargs=(args, kwargs))
-        args, kwargs = _proxy.unproxy_argskwargs(args, kwargs)
-        obj.__init__(*args, **kwargs)
-        return obj
+        return cls.get_signature()
 
     @property
     def registrar(cls, /):
         return cls.Registrar(cls)
-
-    def construct(cls, /, *args, **kwargs):
-        cls.parameterise(registrar := cls.registrar, *args, **kwargs)
-        bound = cls.__signature__.bind(*registrar.args, **registrar.kwargs)
-        bound.apply_defaults()
-        args, kwargs = bound.args, bound.kwargs
-        cls.BadParameters.check(cls, _itertools.chain(args, kwargs.values()))
-        return cls.instantiate(*args, **kwargs)
 
 
 ###############################################################################

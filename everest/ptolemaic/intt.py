@@ -5,8 +5,9 @@
 
 import itertools as _itertools
 
-from everest.ptolemaic.shades.shade import Shade as _Shade 
-from everest.ptolemaic.sprites.sprite import Sprite as _Sprite
+from everest.ptolemaic.aspect import Aspect as _Aspect
+from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.proxy import Proxy as _Proxy
 from everest.ptolemaic import exceptions as _exceptions
 
 
@@ -20,16 +21,14 @@ def _nth(iterable, n):
 defaultexc = _exceptions.PtolemaicException()
 
 
-class Intt(_Shade):
+class Intt(_Proxy, _Sprite):
 
-    @classmethod
-    def construct(self, arg):
-        return int(arg)
+    _req_slots__ = ('val',)
 
     @classmethod
     def _ptolemaic_getitem__(cls, arg, /):
         if isinstance(arg, int):
-            return arg
+            return cls(arg)
         if arg is Ellipsis:
             return cls
         if isinstance(arg, slice):
@@ -50,10 +49,22 @@ class Intt(_Shade):
 
     @classmethod
     def _ptolemaic_issubclass__(cls, arg, /):
+        if arg is cls:
+            return True
         return isinstance(arg, InttSpace)
 
+    def __init__(self, val, /):
+        self.val = val
+        super().__init__()
 
-class InttSpace(_Shade):
+    def unproxy(self, /):
+        return self.val
+
+
+
+
+
+class InttSpace(_Proxy):
     '''The virtual metaclass of all Intt-containing classes.'''
 
     @classmethod
@@ -110,6 +121,9 @@ class InttRange(_Sprite, InttSpace):
             nrang = self._rangeobj[arg]
             return InttRange(nrang.start, nrang.stop, nrang.step)
         raise TypeError(arg)
+
+#     def __getitem__(self, arg, /):
+        
 
 
 class InttCount(_Sprite, InttSpace):

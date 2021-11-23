@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from everest.ptolemaic.metas.inherence import Inherence as _Inherence
+from everest.ptolemaic.inherence import Inherence as _Inherence
 
 
 class Eidos(_Inherence):
@@ -15,26 +15,33 @@ class Eidos(_Inherence):
     _ptolemaic_subclasses__ = tuple()
     _ptolemaic_fixedsubclasses__ = tuple()
 
+    class BASETYP(_Inherence.BASETYP):
+
+        __slots__ = ()
+
+        @classmethod
+        def subclass(cls, /, *bases, name=None, **namespace):
+            bases = (*bases, cls)
+            if name is None:
+                name = '_'.join(map(repr, bases))
+            return type(name, bases, namespace)
+
+        @classmethod
+        def _ptolemaic_contains__(cls, arg, /):
+            return issubclass(type(arg), cls)
+
+        @classmethod
+        def _ptolemaic_getitem__(cls, arg, /):
+            if isinstance(arg, type):
+                if issubclass(arg, cls):
+                    return arg
+                return cls.subclass(arg)
+            raise TypeError(arg, type(arg))
+
     class ConcreteMetaBase(_Inherence.ConcreteMetaBase):
 
         def subclass(cls, /, *args, **kwargs):
             return cls.basecls(*args, **kwargs)
-
-    def subclass(cls, /, *bases, name=None, **namespace):
-        bases = (*bases, cls)
-        if name is None:
-            name = '_'.join(map(repr, bases))
-        return type(name, bases, namespace)
-
-    def _ptolemaic_contains__(cls, arg, /):
-        return issubclass(type(arg), cls)
-
-    def _ptolemaic_getitem__(cls, arg, /):
-        if isinstance(arg, type):
-            if issubclass(arg, cls):
-                return arg
-            return cls.subclass(arg)
-        raise TypeError(arg, type(arg))
 
     def _add_subclass(cls, name: str, /):
         adjname = f'_subclassbase_{name}__'

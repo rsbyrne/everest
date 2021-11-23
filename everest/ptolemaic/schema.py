@@ -19,6 +19,24 @@ class Schema(_Eidos):
     The metaclass of all Schema classes.
     '''
 
+    class BASETYP(_Eidos.BASETYP):
+
+        __slots__ = ()
+
+        def get_signature(cls, /):
+            return _Signature(*cls._collect_params())
+
+        def construct(cls, *args, **kwargs):
+            registrar = cls.Registrar()
+            cls.parameterise(registrar, *args, **kwargs)
+            params = cls.signature(*registrar.args, **registrar.kwargs)
+            premade, paramid = cls.premade, params.hashcode
+            if paramid in premade:
+                return premade[paramid]
+            obj = premade[paramid] = cls.create_object(params=params)
+            obj.__init__()
+            return obj
+
     def _collect_params(cls, /):
         params = dict()
         for name, note in cls.__annotations__.items():
@@ -44,9 +62,6 @@ class Schema(_Eidos):
             for deq in params.values()
             )
 
-    def _get_signature(cls, /):
-        return _Signature(*cls._collect_params())
-
     @property
     def signature(cls, /):
         if not '_signature' in cls.__dict__:
@@ -57,9 +72,9 @@ class Schema(_Eidos):
     def __signature__(cls, /):
         return cls.signature.signature.replace(return_annotation=cls)
 
-    def __new__(meta, name, bases, namespace, /):
-        cls = super().__new__(meta, name, bases, namespace)
-        return cls
+#     def __new__(meta, name, bases, namespace, /):
+#         cls = super().__new__(meta, name, bases, namespace)
+#         return cls
 
     def _ptolemaic_concrete_namespace__(cls, /):
         return {
@@ -71,17 +86,62 @@ class Schema(_Eidos):
         super().__init__(*args, **kwargs)
         cls.premade = _weakref.WeakValueDictionary()
 
-    def construct(cls, *args, **kwargs):
-        registrar = cls.Registrar()
-        cls.parameterise(registrar, *args, **kwargs)
-        params = cls.signature(*registrar.args, **registrar.kwargs)
-        premade, paramid = cls.premade, params.hashcode
-        if paramid in premade:
-            return premade[paramid]
-        obj = premade[paramid] = cls.create_object(params=params)
-        obj.__init__()
-        return obj
-
 
 ###############################################################################
 ###############################################################################
+
+
+# from collections import abc as _collabc
+
+# from .system import System as _System
+
+# from .primitive import Primitive as _Primitive
+# from . import shades as _shades
+# # from .shade import Shade as _Shade
+
+
+# # class Var(_Ptolemaic):
+# #     ...
+
+
+# class Dat(_shades.Singleton):
+# # class Dat(_Shade):
+
+#     isdat = True
+
+#     superclass = None
+
+#     @classmethod
+#     def _cls_repr(cls, /):
+#         return f"{repr(cls.superclass)}.{super()._cls_repr()}"
+
+
+# class Schema(_System):
+
+#     _ptolemaic_fixedsubclasses__ = ('Mapp', 'Brace', 'Slyce')
+
+#     Mapp = _shades.DictLike
+#     Brace = _shades.TupleLike
+#     Slyce = _shades.SliceLike
+
+#     _ptolemaic_subclasses__ = ('Dat',)
+
+#     Dat = Dat
+
+#     isdat = False
+
+#     @classmethod
+#     def yield_checktypes(cls, /):
+#         yield from super().yield_checktypes()
+#         yield _collabc.Mapping, lambda x: cls.Mapp(x)
+#         yield _collabc.Sequence, lambda x: cls.Brace(x)
+#         yield slice, lambda x: cls.Slyce(x)
+
+#     @classmethod
+#     def instantiate(cls, params, /, *args, **kwargs):
+#         if all(
+#                 isinstance(param, (Dat, _Primitive, tuple, dict))
+#                 for param in params.values()
+#                 ):
+#             return cls.Dat.instantiate(params, *args, **kwargs)
+#         return super().instantiate(params, *args, **kwargs)

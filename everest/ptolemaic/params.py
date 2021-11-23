@@ -5,11 +5,11 @@
 
 import inspect as _inspect
 
-from everest.ptolemaic.compounds.compound import Compound as _Compound
-from everest.ptolemaic.compounds.collections import Mapp as _Mapp
-from everest.ptolemaic.metas.inherence import Inherence as _Inherence
-from everest.ptolemaic.metas.eidos import Eidos as _Eidos
-from everest.ptolemaic.shades.proxy import Proxy as _Proxy
+from everest.ptolemaic.compound import Compound as _Compound
+from everest.ptolemaic.collections import DictLike as _DictLike
+from everest.ptolemaic.inherence import Inherence as _Inherence
+from everest.ptolemaic.eidos import Eidos as _Eidos
+from everest.ptolemaic.proxy import Proxy as _Proxy
 
 
 KINDS = dict(zip(
@@ -84,7 +84,7 @@ class Param(_Compound, metaclass=ParamMeta):
         return instance.params[self.name]
 
 
-class Sig(_Mapp):
+class Sig(_DictLike, _Compound):
 
     _req_slots__ = ('parameters', 'signature', 'paramdict')
 
@@ -105,8 +105,8 @@ class Sig(_Mapp):
         self.signature = _inspect.Signature(
             param.parameter for param in parameters
             )
-        super().__init__(**{param.name: param for param in parameters})
-        self.paramdict = {param.name: param for param in parameters}
+        dct = self.paramdict = {param.name: param for param in parameters}
+        super().__init__(dct)
 
     def __call__(self, /, *args, **kwargs):
         bound = self.signature.bind(*args, **kwargs)
@@ -114,53 +114,13 @@ class Sig(_Mapp):
         return Params(bound.args, bound.kwargs, bound.arguments)
 
 
-class Params(_Mapp):
+class Params(_DictLike, _Compound):
 
     _req_slots__ = ('args', 'kwargs', 'arguments')
 
     def __init__(self, args, kwargs, arguments, /):
         self.args, self.kwargs, self.arguments = args, kwargs, arguments
-        super().__init__()
-
-
-# class Registrar:
-
-#     __slots__ = ('_args', '_kwargs', 'signature', 'bound')
-
-#     def __init__(self, signature, /):
-#         self.signature = signature
-#         self._args, self._kwargs = [], {}
-#         self.bound = signature.bind_partial()
-
-#     def __call__(self, *args, **kwargs):
-#         _args, _kwargs = self._args, self._kwargs
-#         self._args.extend(args)
-#         self._kwargs.update(kwargs)
-#         try:
-#             _ = self.signature.bind_partial(*_args, **_kwargs)
-#         except TypeError as exc:
-#             raise TypeError from exc
-
-#     @staticmethod
-#     def _process_int_key(arguments, key):
-#         if isinstance(key, int):
-#             key = tuple(arguments.keys()).index(key)
-#         return key
-
-#     def __getitem__(self, key, /):
-#         arguments = self.bound.arguments
-#         key = self._process_int_key(arguments, key)
-#         return arguments[key]
-
-#     def __setitem__(self, key, val, /):
-#         arguments = self.bound.arguments
-#         key = self._process_int_key(arguments, key)
-#         arguments[key] = val
-
-#     def __delitem__(self, key, /):
-#         arguments = self.bound.arguments
-#         key = self._process_int_key(arguments, key)
-#         del arguments[key]
+        super().__init__(arguments)
 
 
 ###############################################################################

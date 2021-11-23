@@ -6,12 +6,12 @@
 import hashlib as _hashlib
 import itertools as _itertools
 
-from everest.ptolemaic.hypostases.hypostasis import Hypostasis as _Hypostasis
-from everest.ptolemaic.metas.inherence import Inherence as _Inherence
+from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
+from everest.ptolemaic.inherence import Inherence as _Inherence
 from everest.ptolemaic.primitive import Primitive as _Primitive
 
 
-class Sprite(_Hypostasis, metaclass=_Inherence):
+class Sprite(_Ptolemaic, metaclass=_Inherence):
 
     _ptolemaic_mroclasses__ = ('BadParameter', 'Registrar')
     _ptolemaic_knowntypes__ = (_Primitive,)

@@ -4,8 +4,8 @@
 
 
 from everest import utilities as _utilities
-from everest.ptolemaic.compounds import Compounds as _Compound
-from everest.ptolemaic.metas.schema import Schema as _Schema
+from everest.ptolemaic.compound import Compound as _Compound
+from everest.ptolemaic.schema import Schema as _Schema
 
 
 class System(_Compound, metaclass=_Schema):

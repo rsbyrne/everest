@@ -5,19 +5,38 @@
 
 from collections import abc as _collabc
 
-from everest.ptolemaic.shades.deferrer import \
-    DeferrerClass as _DeferrerClass
-from everest.ptolemaic.compounds.compound import Compound as _Compound
+from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.resourcers import Resourcer as _Resourcer
+from everest.ptolemaic import collections as _collections
+from everest.ptolemaic.intt import Intt as _Intt
 
 
-class Collection(_DeferrerClass, _collabc.Sequence):
+class Compound(_Sprite):
 
-    defermeths = ('__getitem__', '__len__', '__iter__')
+    _ptolemaic_knowntypes__ = (_Sprite,)
+
+    CONVERSIONS = {
+        _Resourcer.can_convert: _Resourcer,
+        int.__instancecheck__: _Intt,
+        }
+
+    class Registrar:
+
+        def process_param(self, arg, /):
+            for key, val in Compound.CONVERSIONS.items():
+                if key(arg):
+                    return val(arg)
+            return arg
+
+        def __call__(self, /, *args, **kwargs):
+            proc = self.process_param
+            super().__call__(
+                *map(proc, args),
+                **dict(zip(kwargs, map(proc, kwargs.values()))),
+                )
 
 
-class Tuuple(Collection, _Compound, _collabc.Sequence):
-
-    defermeths = ('__contains__', '__reversed__', 'index', 'count')
+class Tuuple(_collections.TupleLike, Compound):
 
     @classmethod
     def parameterise(cls, register, arg0, /, *argn):
@@ -31,12 +50,7 @@ class Tuuple(Collection, _Compound, _collabc.Sequence):
         super().__init__(args)
 
 
-class Mapp(Collection, _Compound, _collabc.Mapping):
-
-    defermeths = (
-        '__contains__', 'keys', 'items',
-        'values', 'get', '__eq__', '__ne__',
-        )
+class Mapp(_collections.DictLike, Compound):
 
     @classmethod
     def parameterise(cls, register, /, *args, **kwargs):
@@ -55,14 +69,13 @@ class Mapp(Collection, _Compound, _collabc.Mapping):
     def __init__(self, keys, values, /):
         super().__init__(dict(zip(keys, values)))
 
-
     def __getattr__(self, name, /):
         if name in (obj := self._obj):
             return obj[name]
         return super().__getattr__(name)
 
 
-_Compound.conversions.update({
+Compound.CONVERSIONS.update({
     tuple.__instancecheck__: Tuuple,
     dict.__instancecheck__: Mapp,
     })

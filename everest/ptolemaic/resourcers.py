@@ -10,12 +10,12 @@ import types as _types
 import itertools as _itertools
 
 from everest.utilities.constructor import Constructor as _Constructor
-from everest.ptolemaic.shades.shade import Shade as _Shade
-from everest.ptolemaic.shades.proxy import Proxy as _Proxy
-from everest.ptolemaic.sprites.sprite import Sprite as _Sprite
+from everest.ptolemaic.aspect import Aspect as _Aspect
+from everest.ptolemaic.proxy import Proxy as _Proxy
+from everest.ptolemaic.sprite import Sprite as _Sprite
 
 
-class _ResourcerBase_(_Shade):
+class _ResourcerBase_(_Aspect):
 
     CONVERTTYPES = ()
 

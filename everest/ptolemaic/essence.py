@@ -10,7 +10,7 @@ import inspect as _inspect
 import operator as _operator
 
 from everest import utilities as _utilities
-from everest.ptolemaic.hypermetas.pleroma import Pleroma as _Pleroma
+from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 
 
 def ordered_set(itr):
@@ -23,19 +23,43 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     pure instances of itself are 'pure kinds' that cannot be instantiated.
     '''
 
-    __slots__ = ()
-
     _ptolemaic_mergetuples__ = ()
     _ptolemaic_mergedicts__ = ()
+
+    class BASETYP(_abc.ABC):
+
+        __slots__ = ()
+
+        @classmethod
+        def __class_init__(cls, /):
+            pass
+
+        @classmethod
+        def __class_repr__(cls, /):
+            return cls.__qualname__
+
+        @classmethod
+        def _ptolemaic_isinstance__(cls, arg, /):
+            return issubclass(type(arg), cls)
+
+        @classmethod
+        def _ptolemaic_issubclass__(cls, arg, /):
+            return _abc.ABCMeta.__subclasscheck__(cls, arg)
 
     @classmethod
     def _pleroma_init__(meta, /):
         pass
 
+    @classmethod
+    def process_bases(meta, bases):
+        if any(map((basetyp := meta.BASETYP).__subclasscheck__, bases)):
+            return bases
+        return (*bases, basetyp)
+
     def __new__(meta, name, bases, namespace, /):
+        bases = meta.process_bases(bases)
         namespace['metacls'] = meta
-        if '__slots__' not in namespace:
-            namespace['__slots__'] = ()
+        namespace['__slots__'] = ()
         return super().__new__(meta, name, bases, namespace)
 
     @staticmethod
@@ -91,13 +115,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.construct(*args, **kwargs)
 
     def __class_repr__(cls, /):
-        return cls.__qualname__
+        return super().__repr__()
 
     def __repr__(cls, /):
         return cls.__class_repr__()
 
     def _ptolemaic_isinstance__(cls, arg, /):
-        return issubclass(type(arg), cls)
+        return super().__instancecheck__(arg)
 
     def __instancecheck__(cls, arg, /):
         return cls._ptolemaic_isinstance__(arg)

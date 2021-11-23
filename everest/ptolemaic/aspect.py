@@ -3,10 +3,10 @@
 ###############################################################################
 
 
-from everest.ptolemaic.metas.essence import Essence as _Essence
+from everest.ptolemaic.essence import Essence as _Essence
 
 
-class Shade(metaclass=_Essence):
+class Aspect(metaclass=_Essence):
     '''
     The base class of all Ptolemaic types.
     '''

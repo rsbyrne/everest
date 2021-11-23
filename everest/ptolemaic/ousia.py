@@ -6,7 +6,7 @@
 import weakref as _weakref
 import abc as _abc
 
-from everest.ptolemaic.metas.essence import Essence as _Essence
+from everest.ptolemaic.essence import Essence as _Essence
 
 
 class Ousia(_Essence):
@@ -24,6 +24,25 @@ class Ousia(_Essence):
     _req_slots__ = ('_softcache', '_weakcache', '__weakref__')
     _ptolemaic_mroclasses__ = ()
     _ptolemaic_concretebases__ = ()
+
+    class BASETYP(_Essence.BASETYP):
+
+        __slots__ = ()
+
+        @classmethod
+        def create_object(cls, /, **kwargs):
+            obj = object.__new__(cls.Concrete)
+            obj._softcache = dict()
+            obj._weakcache = _weakref.WeakValueDictionary()
+            for key, val in kwargs.items():
+                setattr(obj, key, val)
+            return obj
+
+        @classmethod
+        def construct(cls, /):
+            obj = cls.create_object()
+            obj.__init__()
+            return obj
 
     class ConcreteMetaBase(type):
 
@@ -56,7 +75,7 @@ class Ousia(_Essence):
         def __init__(cls, /, *args, **kwargs):
             _abc.ABCMeta.__init__(cls, *args, **kwargs)
 
-        def __class_repr__(cls, /):
+        def __repr__(cls, /):
             return repr(cls.basecls)
 
     @classmethod
@@ -73,6 +92,7 @@ class Ousia(_Essence):
         return dict(
             basecls=cls,
             __slots__=cls._req_slots__,
+            __class_init__=lambda: None,
             )
 
     def _add_mroclass(cls, name: str, /):
@@ -99,19 +119,6 @@ class Ousia(_Essence):
         super().__init__(*args, **kwargs)
         cls._add_mroclasses()
         cls.Concrete = type(cls).ConcreteMeta(cls)
-
-    def create_object(cls, /, **kwargs):
-        obj = object.__new__(cls.Concrete)
-        obj._softcache = dict()
-        obj._weakcache = _weakref.WeakValueDictionary()
-        for key, val in kwargs.items():
-            setattr(obj, key, val)
-        return obj
-
-    def construct(cls, /):
-        obj = cls.create_object()
-        obj.__init__()
-        return obj
 
 
 ###############################################################################

@@ -5,10 +5,10 @@
 
 import abc as _abc
 
-from everest.ptolemaic.shades.shade import Shade as _Shade
+from everest.ptolemaic.aspect import Aspect as _Aspect
 
 
-class Proxy(_Shade):
+class Proxy(_Aspect):
 
     @_abc.abstractmethod
     def unproxy(self, /):
