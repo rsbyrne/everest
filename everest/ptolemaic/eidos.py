@@ -11,43 +11,36 @@ from everest.ptolemaic.chora import Chora as _Chora
 
 class Eidos(_Inherence):
 
-#     def retrieve(cls, retriever, /):
-#         return cls.class_retrieve(retriever)
+    def _class_defer_chora_methods(cls, /):
 
-#     def incise(cls, incisor, /):
-#         return cls.class_incise(incisor)
-
-#     def _class_defer_chora_methods(cls, /):
-#         clschora = cls.clschora
-#         for methname, meth in cls.chorameths.items():
-#             @classmethod
-#             @_functools.wraps(meth)
-#             def chora_wrap_meth(cls, *args, **kwargs
-#             wrapmeth = _functools.wraps(chorameth)(
-#                 _functools.partial(chorameth, caller=cls)
-#                 )
-#             setattr(cls, f"class_{attr}", meth)
-
-    def _get_clsgetitem(cls, /):
-
-        clschora = cls.clschora
-        prefixes = clschora.PREFIXES
-        defkws = clschora._get_defkws((f"cls.class_{st}" for st in prefixes))
-        passkws = clschora._get_defkws(prefixes)
+        chora = cls.clschora
+        prefixes = chora.PREFIXES
+        defkws = chora._get_defkws((f"cls.class_{st}" for st in prefixes))
+        passkws = chora._get_defkws(prefixes)
 
         exec('\n'.join((
             f"@classmethod",
-            f"def _ptolemaic_getitem__(cls, /, *args, chora=clschora, {defkws}):",
+            f"def _ptolemaic_getitem__("
+            f"        cls, /, *args, chora=chora, {defkws}"
+            f"        ):",
             f"    return chora.__getitem__(*args, {passkws})"
             )))
+        cls._ptolemaic_getitem__ = eval('_ptolemaic_getitem__')
 
-        return eval('_ptolemaic_getitem__')
+        for name in chora.chorameths:
+            new = f"class_{name}"
+            exec('\n'.join((
+                f"@classmethod",
+                f"@_functools.wraps(chora.{name})",
+                f"def {new}(cls, /, *args, meth=chora.{name}, {defkws}):",
+                f"    return meth(*args, {passkws})",
+                )))
+            setattr(cls, new, eval(new))
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         cls.clschora = cls._get_clschora()
-        cls._ptolemaic_getitem__ = cls._get_clsgetitem()
-#         cls._class_defer_chora_methods()
+        cls._class_defer_chora_methods()
 
     class BASETYP(_Inherence.BASETYP):
 
@@ -60,8 +53,6 @@ class Eidos(_Inherence):
         @classmethod
         def __contains__(cls, arg, /):
             return cls.clschora.__contains__(arg)
-
-    _ptolemaic_mroclasses__ = ('ChoraHandler')
 
 
 ###############################################################################

@@ -156,18 +156,18 @@ class Chora(_Ptolemaic):
 #             )
 
 
-class Sliceable(Chora):
+# class Sliceable(Chora):
 
-    def _incise_slice_(self, incisor: slice, /):
-        slcargs = (incisor.start, incisor.stop, incisor.step)
-        meth = self.slcmeths[tuple(map(type, slcargs))].raw
-        return meth(self, *slcargs)
+#     def _incise_slice_(self, incisor: slice, /):
+#         slcargs = (incisor.start, incisor.stop, incisor.step)
+#         meth = self.slcmeths[tuple(map(type, slcargs))].raw
+#         return meth(self, *slcargs)
 
-    def _incise_slice_trivial_(self,
-            start: type(None), stop: type(None), step: type(None), /
-            ):
-        '''Captures the special behaviour implied by `self[:]`.'''
-        return self
+#     def _trivial_slice_(self,
+#             start: type(None), stop: type(None), step: type(None), /
+#             ):
+#         '''Captures the special behaviour implied by `self[:]`.'''
+#         return self
 
 
 class ChoraDeferrer:

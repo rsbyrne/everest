@@ -48,13 +48,13 @@ class InttRange(_Sprite, _Sliceable):
     def __len__(self, /):
         return self._lenfn()
 
-    def _retrieve_contains_(self, retriever: int, /):
+    def _retrieve_contains_(self, retriever: int, /) -> int:
         return self._rangeobj[retriever]
 
     def __instancecheck__(self, val: int, /):
         return val in self._rangeobj
 
-    def _slice_nontrivial_(self,
+    def _incise_slice_nontrivial_(self,
             start: _OPINT, stop: _OPINT, step: _OPINT, /
             ):
         nrang = self._rangeobj[start:stop:step]
@@ -87,12 +87,12 @@ class InttCount(_Sprite, _Sliceable):
         start, step = self.start, self.step
         return val >= start and not (val - start) % step
 
-    def _retrieve_contains_(self, retriever: int, /):
+    def _retrieve_contains_(self, retriever: int, /) -> int:
         if retriever >= 0:
             return _nth(self, retriever)
         return super()._retrieve_contains_(retriever)
 
-    def _slice_open_(self,
+    def _incise_slice_open_(self,
             start: int, stop: type(None), step: _OPINT, /
             ):
         pstart, pstep = self.start, self.step
@@ -106,7 +106,7 @@ class InttCount(_Sprite, _Sliceable):
             pstep *= int(step)
         return InttCount(pstart, pstep)
 
-    def _slice_closed_(self,
+    def _incise_slice_closed_(self,
             start: _OPINT, stop: int, step: _OPINT, /
             ):
         return InttRange(self.start, stop, self.step)[start::step]
@@ -120,15 +120,15 @@ class InttCount(_Sprite, _Sliceable):
 
 class InttSpace(_Sliceable):
 
-    def _retrieve_contains_(self, retriever: int, /):
+    def _retrieve_contains_(self, retriever: int, /) -> int:
         return retriever
 
-    def _slice_open_(self,
+    def _incise_slice_open_(self,
             start: int, stop: type(None), step: _OPINT, /
             ):
         return InttCount(start, step)
 
-    def _slice_closed_(self,
+    def _incise_slice_closed_(self,
             start: _OPINT, stop: int, step: _OPINT, /
             ):
         return InttRange(start, stop, step)
@@ -141,8 +141,8 @@ class Intt(_Proxy, _Sprite):
     clschora = InttSpace()
 
     @classmethod
-    def _ptolemaic_getitem__(cls, arg, /):
-        return cls.clschora.__getitem__(arg)
+    def _ptolemaic_getitem__(cls, /, *args):
+        return cls.clschora.__getitem__(*args)
 
     @classmethod
     def _ptolemaic_contains__(cls, arg, /):
