@@ -3,12 +3,17 @@
 ###############################################################################
 
 
+import abc as _abc
 import collections as _collections
 from collections import abc as _collabc
 import itertools as _itertools
 import functools as _functools
+import types as _types
+import inspect as _inspect
 
-from everest.utilities import TypeMap as _TypeMap
+from everest.utilities import (
+    TypeMap as _TypeMap, MultiTypeMap as _MultiTypeMap
+    )
 from everest.utilities import caching as _caching
 from everest.ptolemaic.aspect import Aspect as _Aspect
 from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
@@ -21,144 +26,148 @@ def not_none(a, b):
 overprint = _functools.partial(_itertools.starmap, not_none)
 
 
-def passfn(obj, arg, /):
+def passfn(arg, /):
     return arg
-
-
-class DEFAULTCALLER:
-
-    @classmethod
-    def retrieve(cls, retriever, /):
-        return retriever
-
-    @classmethod
-    def incise(cls, incisor, /):
-        return incisor
 
 
 class Chora(_Ptolemaic):
     '''
     The Chora is Everest's abstract master representation
     of the concept of space.
-    Objects may be said to 'contain space'
-    if they have a Chora instance as an attribute
-    and defer their __getitem__ and __contains__ methods towards it.
     '''
 
-    def _retrieve_trivial_(self, incisor, /):
-        '''Returns the element if this chora contains it.'''
-        if self.__contains__(incisor):
-            return incisor
-        raise KeyError(f"Element {incisor} not in {self}.")
+    _ptolemaic_mergetuples__ = ('PREFIXES',)
 
-    def _retrieve_none_(self, incisor: type(None), /):
-        '''Returns what the user has asked for: nothing!'''
-        return None
+    PREFIXES = ('trivial', 'retrieve', 'incise')
 
-    def _incise_tuple_(self, incisor: tuple, /):
-        '''Captures the special behaviour implied by `self[a,b,c...]`'''
-        raise TypeError("Tuple slicing not supported.")
-
-    def _incise_trivial_(self, incisor: type(Ellipsis) = None, /):
+    def _trivial_(self, incisor: type(Ellipsis) = None, /):
         '''Captures the special behaviour implied by `self[...]`.'''
         return self
 
-    @staticmethod
-    def _generic_retrieve(meth, chora, incisor, caller, /):
-        return caller.retrieve(meth(chora, incisor))
+    def _retrieve_none_(self, retriever: type(None), /):
+        '''Returns what the user has asked for: nothing!'''
+        return None
 
-    @staticmethod
-    def _generic_incise(meth, chora, incisor, caller, /):
-        return caller.incise(meth(chora, incisor))
+    def _retrieve_contains_(self, retriever: object, /) -> type(None):
+        '''Returns the element if this chora contains it.'''
+        raise KeyError(f"Element {retriever} not in {repr(self)}.")
 
     @classmethod
-    def _wrap_methods(cls, /):
+    def _get_chora_rawmeths(cls, /):
+        prefixes = cls.PREFIXES
+        out = dict()
         for attr in dir(cls):
-            for prefix in ('_incise_', '_retrieve_'):
-                if attr.startswith(prefix):
-                    newmeth = _functools.partial(
-                        getattr(cls, f"_generic_{prefix.strip('_')}"),
-                        getattr(cls, attr),
-                        )
-                    setattr(cls, attr.strip('_'), newmeth)
+            for prefix in prefixes:
+                if attr.startswith(f"_{prefix}_"):
+                    out[attr] = getattr(cls, attr)
                     break
+        return out
 
     @classmethod
-    def _incision_methods(cls, /):
-        '''Returns acceptable incisor types and their associated getmeths.'''
-        return
-        yield
-
-    @classmethod
-    def _priority_incision_methods(cls, /):
-        '''Returns like `.incision_methods` but takes priority.'''
-        yield tuple, cls.incise_tuple
-        yield type(Ellipsis), cls.incise_trivial
-
-    @classmethod
-    def _retrieval_methods(cls, /):
-        '''Returns acceptable retriever types and their associated getmeths.'''
-        yield object, cls.retrieve_trivial
-
-    @classmethod
-    def _priority_retrieval_methods(cls, /):
-        '''Returns like `.retrieval_methods` but takes priority.'''
-        yield type(None), cls.retrieve_none
-
-    @classmethod
-    def _get_incision_meths(cls, /) -> _TypeMap:
-        return _TypeMap(_itertools.chain(
-            cls._priority_incision_methods(),
-            cls._incision_methods()
+    def _get_defkws(cls, tovals=None, /):
+        if tovals is None:
+            tovals = _itertools.repeat('passfn')
+        return ', '.join(map(
+            '='.join,
+            zip(cls.PREFIXES, tovals)
             ))
 
     @classmethod
-    def _get_retrieval_meths(cls, /) -> _TypeMap:
-        return _TypeMap(_itertools.chain(
-            cls._priority_retrieval_methods(),
-            cls._retrieval_methods()
-            ))
+    def _wrap_chora_meth(cls, name, meth, /):
+
+        prefix = name.split('_')[0]
+        defkws = cls._get_defkws()
+        params = tuple(_inspect.signature(meth).parameters.values())[1:]
+        argstrn = ', '.join(
+            param.name for param in params if param.kind.value == 0
+            )
+
+        exec('\n'.join((
+            f"@_functools.wraps(meth)",
+            f"def {name}(self, /, {argstrn}, meth=meth, {defkws}):",
+            f"    return {prefix}(meth(self, {argstrn}))",
+            )))
+
+        wrapper = eval(name)
+        wrapper.raw = meth
+
+        return wrapper
 
     @classmethod
-    def _get_getmeths(cls, /) -> callable:
-        retmeths = cls.retmeths = cls._get_retrieval_meths()
-        incmeths = cls.incmeths = cls._get_incision_meths()
-        getmeths = cls.getmeths = _collections.ChainMap(retmeths, incmeths)
-        return getmeths.__getitem__
+    def _get_chora_meths(cls, /):
+        return {
+            (name := methname.strip('_')):
+                cls._wrap_chora_meth(name, meth)
+            for methname, meth in cls.chorarawmeths.items()
+            }
+
+    @classmethod
+    def _yield_getmeths(cls, /):
+        for meth in cls.chorameths.values():
+            hint = tuple(
+                val for key, val in meth.__annotations__.items()
+                if key != 'return'
+                )
+            yield hint, meth
+
+    @classmethod
+    def _get_getmeths(cls, /):
+        return _MultiTypeMap(cls._yield_getmeths())
 
     @classmethod
     def _get_getitem(cls, /):
-
-        def __getitem__(
-                chora, incisor, /, *,
-                caller=DEFAULTCALLER, getmeths=cls._get_getmeths(),
-                ):
-            try:
-                meth = getmeths(type(incisor))
-            except Exception as exc:
-                raise TypeError from exc
-            return meth(chora, incisor, caller)
-
-        return __getitem__
+        defkws = cls._get_defkws()
+        passkws = cls._get_defkws(cls.PREFIXES)
+        exec('\n'.join((
+            f"def __getitem__(self, /, *args, {defkws}):",
+            f"    return self.getmeths[tuple(map(type, args))](",
+            f"        self, *args, {passkws}",
+            f"        )",
+            )))
+        return eval('__getitem__')
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls._wrap_methods()
+        cls.chorarawmeths = cls._get_chora_rawmeths()
+        chorameths = cls.chorameths = cls._get_chora_meths()
+        for name, meth in chorameths.items():
+            setattr(cls, name, meth)
+        cls.getmeths = cls._get_getmeths()
+        cls.primetype = cls._retrieve_contains_.__annotations__['return']
         cls.__getitem__ = cls._get_getitem()
 
     def __getitem__(self, arg, /):
         '''Placeholder for dynamically generated __getitem__.'''
-        raise NotImplementedError
+        raise TypeError
 
     def __contains__(self, arg, /):
-        return False
+        if isinstance(arg, self.primetype):
+            try:
+                val = self._retrieve_contains_(arg)
+                return True
+            except KeyError:
+                return False
 
-    def new_self(self, *args, cls=None, **kwargs):
-        return (type(self) if cls is None else cls)(
-            *overprint(_itertools.zip_longest(self.args, args)),
-            **(self.kwargs | kwargs),
-            )
+#     def new_self(self, *args, cls=None, **kwargs):
+#         return (type(self) if cls is None else cls)(
+#             *overprint(_itertools.zip_longest(self.args, args)),
+#             **(self.kwargs | kwargs),
+#             )
+
+
+class Sliceable(Chora):
+
+    def _incise_slice_(self, incisor: slice, /):
+        slcargs = (incisor.start, incisor.stop, incisor.step)
+        meth = self.slcmeths[tuple(map(type, slcargs))].raw
+        return meth(self, *slcargs)
+
+    def _incise_slice_trivial_(self,
+            start: type(None), stop: type(None), step: type(None), /
+            ):
+        '''Captures the special behaviour implied by `self[:]`.'''
+        return self
 
 
 class ChoraDeferrer:
@@ -184,12 +193,6 @@ class Incisable(_Aspect):
 
     Chora = Chora
 
-    def retrieve(self, retriever, /):
-        raise NotImplementedError
-
-    def incise(self, incisor, /):
-        raise NotImplementedError
-
     @classmethod
     def _defer_chora_methods(cls, /):
         for attr in dir(cls.Chora):
@@ -211,7 +214,7 @@ class Incisable(_Aspect):
         self.chora = self._make_chora_()
 
     def __getitem__(self, arg, /):
-        return self.chora.__getitem__(arg, caller=self)
+        return self.chora.__getitem__(arg, caller=self.__getattr__)
 
     def __contains__(self, arg, /):
         return self.chora.__contains__(arg)

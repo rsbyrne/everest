@@ -4,6 +4,7 @@
 
 
 import abc as _abc
+import functools as _functools
 import itertools as _itertools
 import more_itertools as _mitertools
 import inspect as _inspect
@@ -26,6 +27,32 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     _ptolemaic_mergetuples__ = ()
     _ptolemaic_mergedicts__ = ()
 
+    @classmethod
+    def _pleroma_init__(meta, /):
+        pass
+
+    @classmethod
+    def __prepare__(meta, name, bases, /):
+        return dict()
+
+    def __call__(cls, /, *args, **kwargs):
+        return cls.construct(*args, **kwargs)
+
+    def __repr__(cls, /):
+        return cls.__class_repr__()
+
+    def __instancecheck__(cls, arg, /):
+        return cls._ptolemaic_isinstance__(arg)
+
+    def __subclasscheck__(cls, arg, /):
+        return cls._ptolemaic_issubclass__(arg)
+
+    def __contains__(cls, arg, /):
+        return cls._ptolemaic_contains__(arg)
+
+    def __getitem__(cls, arg, /):
+        return cls._ptolemaic_getitem__(arg)
+
     class BASETYP(_abc.ABC):
 
         __slots__ = ()
@@ -46,13 +73,23 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         def _ptolemaic_issubclass__(cls, arg, /):
             return _abc.ABCMeta.__subclasscheck__(cls, arg)
 
-    @classmethod
-    def _pleroma_init__(meta, /):
-        pass
+        @classmethod
+        def _ptolemaic_contains__(cls, arg, /):
+            raise NotImplementedError
+
+        @classmethod
+        def _ptolemaic_getitem__(cls, arg, /):
+            raise NotImplementedError
+
+        @classmethod
+        def construct(cls, /, *args, **kwargs):
+            raise NotImplementedError
 
     @classmethod
     def process_bases(meta, bases):
-        if any(map((basetyp := meta.BASETYP).__subclasscheck__, bases)):
+        basetyp = meta.BASETYP
+        check = _functools.partial(_abc.ABCMeta.__subclasscheck__, basetyp)
+        if tuple(filter(check, bases)):
             return bases
         return (*bases, basetyp)
 
@@ -103,46 +140,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             mergetyp=_utilities.FrozenMap,
             itermeth='items',
             )
-
-    @classmethod
-    def __prepare__(meta, name, bases, /):
-        return dict()
-
-    def construct(cls, /, *args, **kwargs):
-        raise NotImplementedError
-
-    def __call__(cls, /, *args, **kwargs):
-        return cls.construct(*args, **kwargs)
-
-    def __class_repr__(cls, /):
-        return super().__repr__()
-
-    def __repr__(cls, /):
-        return cls.__class_repr__()
-
-    def _ptolemaic_isinstance__(cls, arg, /):
-        return super().__instancecheck__(arg)
-
-    def __instancecheck__(cls, arg, /):
-        return cls._ptolemaic_isinstance__(arg)
-
-    def _ptolemaic_issubclass__(cls, arg, /):
-        return super().__subclasscheck__(arg)
-
-    def __subclasscheck__(cls, arg, /):
-        return cls._ptolemaic_issubclass__(arg)
-
-    def _ptolemaic_contains__(cls, arg, /):
-        raise NotImplementedError
-
-    def __contains__(cls, arg, /):
-        return cls._ptolemaic_contains__(arg)
-
-    def _ptolemaic_getitem__(cls, arg, /):
-        raise NotImplementedError
-
-    def __getitem__(cls, arg, /):
-        return cls._ptolemaic_getitem__(arg)
 
 
 ###############################################################################

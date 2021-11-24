@@ -5,10 +5,9 @@
 
 import itertools as _itertools
 
-from everest.ptolemaic.aspect import Aspect as _Aspect
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.proxy import Proxy as _Proxy
-from everest.ptolemaic import exceptions as _exceptions
+from everest.ptolemaic.chora import Sliceable as _Sliceable
 
 
 def _nth(iterable, n):
@@ -18,63 +17,10 @@ def _nth(iterable, n):
         raise IndexError(n)
 
 
-defaultexc = _exceptions.PtolemaicException()
+_OPINT = (type(None), int)
 
 
-class Intt(_Proxy, _Sprite):
-
-    _req_slots__ = ('val',)
-
-    @classmethod
-    def _ptolemaic_getitem__(cls, arg, /):
-        if isinstance(arg, int):
-            return cls(arg)
-        if arg is Ellipsis:
-            return cls
-        if isinstance(arg, slice):
-            if arg.stop is None:
-                if arg.start is None and arg.step is None:
-                    return cls
-                return InttCount(arg.start, arg.step)
-            return InttRange(arg.start, arg.stop, arg.step)
-        raise TypeError(arg)
-
-    @classmethod
-    def _ptolemaic_contains__(cls, arg, /):
-        return isinstance(arg, int)
-
-    @classmethod
-    def _ptolemaic_isinstance__(cls, arg, /):
-        return isinstance(arg, int)
-
-    @classmethod
-    def _ptolemaic_issubclass__(cls, arg, /):
-        if arg is cls:
-            return True
-        return isinstance(arg, InttSpace)
-
-    def __init__(self, val, /):
-        self.val = val
-        super().__init__()
-
-    def unproxy(self, /):
-        return self.val
-
-
-
-
-
-class InttSpace(_Proxy):
-    '''The virtual metaclass of all Intt-containing classes.'''
-
-    @classmethod
-    def _ptolemaic_isinstance__(cls, arg, /):
-        if arg is Intt:
-            return True
-        return super()._ptolemaic_isinstance__(arg)
-
-
-class InttRange(_Sprite, InttSpace):
+class InttRange(_Sprite, _Sliceable):
 
     _req_slots__ = (
         'start', 'stop', 'step',
@@ -102,31 +48,23 @@ class InttRange(_Sprite, InttSpace):
     def __len__(self, /):
         return self._lenfn()
 
-    def __contains__(self, arg, /):
-        if isinstance(arg, int):
-            return arg in self._rangeobj
-        return False
+    def _retrieve_contains_(self, retriever: int, /):
+        return self._rangeobj[retriever]
+
+    def __instancecheck__(self, val: int, /):
+        return val in self._rangeobj
+
+    def _slice_nontrivial_(self,
+            start: _OPINT, stop: _OPINT, step: _OPINT, /
+            ):
+        nrang = self._rangeobj[start:stop:step]
+        return InttRange(nrang.start, nrang.stop, nrang.step)
 
     def __str__(self, /):
         return ':'.join(map(str, (self.params.values())))
 
-    def __getitem__(self, arg, /):
-        if isinstance(arg, int):
-            return self._rangeobj[arg]
-        if arg is Ellipsis:
-            return cls
-        if isinstance(arg, slice):
-            if arg.start is None and arg.stop is None and arg.step is None:
-                return self
-            nrang = self._rangeobj[arg]
-            return InttRange(nrang.start, nrang.stop, nrang.step)
-        raise TypeError(arg)
 
-#     def __getitem__(self, arg, /):
-        
-
-
-class InttCount(_Sprite, InttSpace):
+class InttCount(_Sprite, _Sliceable):
 
     _req_slots__ = (
         'start', 'step',
@@ -137,7 +75,7 @@ class InttCount(_Sprite, InttSpace):
     def parameterise(cls, register, start, step, /):
         register(
             (0 if start is None else int(start)),
-            (0 if step is None else int(step)),
+            (1 if step is None else int(step)),
             )
 
     def __init__(self, start, step, /):
@@ -145,43 +83,77 @@ class InttCount(_Sprite, InttSpace):
         self.start, self.step = start, step
         self._iterfn = _itertools.count(start, step).__iter__
 
+    def __instancecheck__(self, val: int, /):
+        start, step = self.start, self.step
+        return val >= start and not (val - start) % step
+
+    def _retrieve_contains_(self, retriever: int, /):
+        if retriever >= 0:
+            return _nth(self, retriever)
+        return super()._retrieve_contains_(retriever)
+
+    def _slice_open_(self,
+            start: int, stop: type(None), step: _OPINT, /
+            ):
+        pstart, pstep = self.start, self.step
+        if start is not None:
+            if start < 0:
+                raise ValueError(start)
+            pstart += int(start)
+        if step is not None:
+            if step < 0:
+                raise ValueError(step)
+            pstep *= int(step)
+        return InttCount(pstart, pstep)
+
+    def _slice_closed_(self,
+            start: _OPINT, stop: int, step: _OPINT, /
+            ):
+        return InttRange(self.start, stop, self.step)[start::step]
+
     def __iter__(self, /):
         return self._iterfn()
-
-    def __contains__(self, arg, /):
-        if isinstance(arg, int):
-            start, step = self.start, self.step
-            return arg >= start and not (arg - start) % step
-        return False
 
     def __str__(self, /):
         return f"{self.start}::{self.step}"
 
-    def __getitem__(self, arg, /):
-        if isinstance(arg, int):
-            return _nth(self, arg)
-        if arg is Ellipsis:
-            return cls
-        if isinstance(arg, slice):
-            if arg.stop is None:
-                if arg.start is None and arg.step is None:
-                    return self
-                start, nstart = self.start, arg.start
-                if nstart is not None:
-                    if nstart < 0:
-                        raise ValueError(nstart)
-                    start += int(nstart)
-                step, nstep = self.step, arg.step
-                if nstep is not None:
-                    if nstep < 0:
-                        raise ValueError(nstep)
-                    step *= int(nstep)
-                return InttCount(start, step)
-            return (
-                InttRange(self.start, arg.stop, self.step)
-                [arg.start::arg.step]
-                )
-        raise TypeError(arg)
+
+class InttSpace(_Sliceable):
+
+    def _retrieve_contains_(self, retriever: int, /):
+        return retriever
+
+    def _slice_open_(self,
+            start: int, stop: type(None), step: _OPINT, /
+            ):
+        return InttCount(start, step)
+
+    def _slice_closed_(self,
+            start: _OPINT, stop: int, step: _OPINT, /
+            ):
+        return InttRange(start, stop, step)
+
+
+class Intt(_Proxy, _Sprite):
+
+    _req_slots__ = ('val',)
+
+    clschora = InttSpace()
+
+    @classmethod
+    def _ptolemaic_getitem__(cls, arg, /):
+        return cls.clschora.__getitem__(arg)
+
+    @classmethod
+    def _ptolemaic_contains__(cls, arg, /):
+        return cls.clschora.__contains__(arg)
+
+    def __init__(self, val, /):
+        self.val = val
+        super().__init__()
+
+    def unproxy(self, /):
+        return self.val
 
 
 ###############################################################################

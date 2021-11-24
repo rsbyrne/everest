@@ -374,6 +374,13 @@ def slyce(arg, *args):
     return Slyce(arg, *args)
 
 
+class NotNone(_ABC):
+
+    @classmethod
+    def __subclasshook__(cls, ACls):
+        return not issubclass(ACls, type(None))
+
+
 # def inject_extra_init(cls, func):
 #     cls.__init__ = 
 #     old_init = cls.__init__
