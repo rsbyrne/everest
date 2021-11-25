@@ -8,6 +8,7 @@ import itertools as _itertools
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.proxy import Proxy as _Proxy
 from everest.ptolemaic.chora import Sliceable as _Sliceable
+from everest.ptolemaic.eidos import Eidos as _Eidos
 
 
 def _nth(iterable, n):
@@ -48,9 +49,6 @@ class InttRange(_Sprite, _Sliceable):
     def __len__(self, /):
         return self._lenfn()
 
-    def _retrieve_contains_(self, retriever: int, /) -> int:
-        return self._rangeobj[retriever]
-
     def __instancecheck__(self, val: int, /):
         return val in self._rangeobj
 
@@ -59,6 +57,9 @@ class InttRange(_Sprite, _Sliceable):
             ):
         nrang = self._rangeobj[start:stop:step]
         return InttRange(nrang.start, nrang.stop, nrang.step)
+
+    def _retrieve_contains_(self, incisor: int, /) -> int:
+        return self._rangeobj[incisor]
 
     def __str__(self, /):
         return ':'.join(map(str, (self.params.values())))
@@ -87,11 +88,6 @@ class InttCount(_Sprite, _Sliceable):
         start, step = self.start, self.step
         return val >= start and not (val - start) % step
 
-    def _retrieve_contains_(self, retriever: int, /) -> int:
-        if retriever >= 0:
-            return _nth(self, retriever)
-        return super()._retrieve_contains_(retriever)
-
     def _incise_slice_open_(self,
             start: int, stop: type(None), step: _OPINT, /
             ):
@@ -111,6 +107,11 @@ class InttCount(_Sprite, _Sliceable):
             ):
         return InttRange(self.start, stop, self.step)[start::step]
 
+    def _retrieve_contains_(self, incisor: int, /) -> int:
+        if incisor >= 0:
+            return _nth(self, incisor)
+        return super()._retrieve_contains_(incisor)
+
     def __iter__(self, /):
         return self._iterfn()
 
@@ -120,8 +121,8 @@ class InttCount(_Sprite, _Sliceable):
 
 class InttSpace(_Sliceable):
 
-    def _retrieve_contains_(self, retriever: int, /) -> int:
-        return retriever
+    def _retrieve_contains_(self, incisor: int, /) -> int:
+        return incisor
 
     def _incise_slice_open_(self,
             start: int, stop: type(None), step: _OPINT, /
@@ -134,19 +135,25 @@ class InttSpace(_Sliceable):
         return InttRange(start, stop, step)
 
 
-class Intt(_Proxy, _Sprite):
+class Intt(_Proxy, _Sprite, metaclass=_Eidos):
 
     _req_slots__ = ('val',)
 
-    clschora = InttSpace()
+    @classmethod
+    def _get_clschora(cls, /) -> _Sliceable:
+        return InttSpace()
 
     @classmethod
-    def _ptolemaic_getitem__(cls, /, *args):
-        return cls.clschora.__getitem__(*args)
+    def class_trivial(cls, _, /):
+        return cls
 
     @classmethod
-    def _ptolemaic_contains__(cls, arg, /):
-        return cls.clschora.__contains__(arg)
+    def class_incise(cls, incisor, /):
+        return incisor
+
+    @classmethod
+    def class_retrieve(cls, incisor, /):
+        return cls(incisor)
 
     def __init__(self, val, /):
         self.val = val

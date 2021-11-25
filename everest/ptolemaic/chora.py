@@ -30,6 +30,13 @@ def passfn(arg, /):
     return arg
 
 
+class Null:
+
+    @classmethod
+    def __subclasscheck__(cls, arg, /):
+        return False
+
+
 class Chora(_Ptolemaic):
     '''
     The Chora is Everest's abstract master representation
@@ -38,26 +45,32 @@ class Chora(_Ptolemaic):
 
     _ptolemaic_mergetuples__ = ('PREFIXES',)
 
-    PREFIXES = ('trivial', 'retrieve', 'incise')
+    PREFIXES = ('trivial', 'incise', 'retrieve')
 
-    def _trivial_(self, incisor: type(Ellipsis) = None, /):
+    def getitem_tuple(self, incisor: tuple, /, **passfuncs):
+        '''Captures the special behaviour implied by `self[a,b]`'''
+        length = len(incisor)
+        if length == 0:
+            return self.trivial(**passfuncs)
+        arg0, *argn = incisor
+        out = self.__getitem__(arg0, **passfuncs)
+        if argn:
+            raise NotImplementedError
+        return out
+
+    def _trivial_ellipsis_(self, incisor: type(Ellipsis) = Ellipsis, /):
         '''Captures the special behaviour implied by `self[...]`.'''
         return self
 
-    def _retrieve_none_(self, retriever: type(None), /):
-        '''Returns what the user has asked for: nothing!'''
-        return None
-
-    def _retrieve_contains_(self, retriever: object, /) -> type(None):
+    def _retrieve_contains_(self, incisor: Null, /) -> type(None):
         '''Returns the element if this chora contains it.'''
         raise KeyError(f"Element {retriever} not in {repr(self)}.")
 
     @classmethod
     def _get_chora_rawmeths(cls, /):
-        prefixes = cls.PREFIXES
         out = dict()
         for attr in dir(cls):
-            for prefix in prefixes:
+            for prefix in cls.PREFIXES:
                 if attr.startswith(f"_{prefix}_"):
                     out[attr] = getattr(cls, attr)
                     break
@@ -94,45 +107,50 @@ class Chora(_Ptolemaic):
         return wrapper
 
     @classmethod
-    def _get_chora_meths(cls, /):
+    def _get_chora_wrappedmeths(cls, /):
+        chorarawmeths = cls._get_chora_rawmeths()
         return {
             (name := methname.strip('_')):
                 cls._wrap_chora_meth(name, meth)
-            for methname, meth in cls.chorarawmeths.items()
+            for methname, meth in chorarawmeths.items()
             }
+
+    @classmethod
+    def _get_chora_meths(cls, /):
+        out = dict()
+        for prefix in ('getitem', *cls.PREFIXES):
+            for name in dir(cls):
+                if name.startswith(prefix + '_'):
+                    out[name] = getattr(cls, name)
+        return out
 
     @classmethod
     def _yield_getmeths(cls, /):
         for meth in cls.chorameths.values():
-            hint = tuple(
-                val for key, val in meth.__annotations__.items()
-                if key != 'return'
-                )
-            yield hint, meth
+            if 'incisor' in meth.__annotations__:
+                yield meth.__annotations__['incisor'], meth
 
     @classmethod
     def _get_getmeths(cls, /):
-        return _MultiTypeMap(cls._yield_getmeths())
+        return _TypeMap(cls._yield_getmeths())
 
     @classmethod
     def _get_getitem(cls, /):
         defkws = cls._get_defkws()
         passkws = cls._get_defkws(cls.PREFIXES)
         exec('\n'.join((
-            f"def __getitem__(self, /, *args, {defkws}):",
-            f"    return self.getmeths[tuple(map(type, args))](",
-            f"        self, *args, {passkws}",
-            f"        )",
+            f"def __getitem__(self, arg, /, {defkws}):",
+            f"    return self.getmeths[type(arg)](self, arg, {passkws})",
             )))
         return eval('__getitem__')
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.chorarawmeths = cls._get_chora_rawmeths()
-        chorameths = cls.chorameths = cls._get_chora_meths()
+        chorameths = cls._get_chora_wrappedmeths()
         for name, meth in chorameths.items():
             setattr(cls, name, meth)
+        cls.chorameths = cls._get_chora_meths()
         cls.getmeths = cls._get_getmeths()
         cls.primetype = cls._retrieve_contains_.__annotations__['return']
         cls.__getitem__ = cls._get_getitem()
@@ -156,18 +174,37 @@ class Chora(_Ptolemaic):
 #             )
 
 
-# class Sliceable(Chora):
+class Sliceable(Chora):
 
-#     def _incise_slice_(self, incisor: slice, /):
-#         slcargs = (incisor.start, incisor.stop, incisor.step)
-#         meth = self.slcmeths[tuple(map(type, slcargs))].raw
-#         return meth(self, *slcargs)
+    @classmethod
+    def _yield_slcmeths(cls, /):
+        parnames = ('start', 'stop', 'step')
+        for methname, meth in cls.chorameths.items():
+            if methname.split('_')[1] == 'slice':
+                anno = meth.__annotations__
+                if all(map(anno.__contains__, parnames)):
+                    hint = tuple(map(anno.__getitem__, parnames))
+                    yield hint, meth
 
-#     def _trivial_slice_(self,
-#             start: type(None), stop: type(None), step: type(None), /
-#             ):
-#         '''Captures the special behaviour implied by `self[:]`.'''
-#         return self
+    @classmethod
+    def _get_slcmeths(cls, /):
+        return _MultiTypeMap(cls._yield_slcmeths())
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.slcmeths = cls._get_slcmeths()
+
+    def getitem_slicelike(self, incisor: slice, /, **passfuncs):
+        slcargs = (incisor.start, incisor.stop, incisor.step)
+        meth = self.slcmeths[tuple(map(type, slcargs))]
+        return meth(self, *slcargs, **passfuncs)
+
+    def _trivial_slice_(self,
+            start: type(None), stop: type(None), step: type(None), /
+            ):
+        '''Captures the special behaviour implied by `self[:]`.'''
+        return self
 
 
 class ChoraDeferrer:

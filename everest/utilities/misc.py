@@ -285,13 +285,11 @@ class BoolMap(FrozenMap):
     def process_key(cls, key):
         if not isinstance(key, tuple):
             key = (key,)
-        return process_criteria(*key)
+        return Criterion(*key)
 
     def __getitem__(self, req):
-        if not isinstance(req, tuple):
-            req = (req,)
         for dkey, dval in self.items():
-            if dkey(*req):
+            if dkey(req):
                 return dval
         return self._getitem_deferred(req)
 
@@ -305,6 +303,17 @@ class BoolMap(FrozenMap):
             return True
         except KeyError:
             return False
+
+
+class MultiBoolMap(BoolMap):
+
+    def __getitem__(self, req):
+        if not isinstance(req, tuple):
+            req = (req,)
+        for dkey, dval in self.items():
+            if dkey(*req):
+                return dval
+        return self._getitem_deferred(req)
 
 
 class TypeMap(BoolMap):
@@ -324,15 +333,29 @@ class TypeMap(BoolMap):
         return super().__getitem__(req)
 
 
-class MultiTypeMap(TypeMap):
+class Null:
+    '''
+    A class that clearly inherits from nothing
+    and is inherited by nothing.
+    '''
+
+    @classmethod
+    def __subclasshook__(cls, arg, /):
+        ...
+
+
+class MultiTypeMap(TypeMap, MultiBoolMap):
 
     @classmethod
     def process_key(cls, key):
-        if isinstance(key, tuple):
-            def keyfunc(*args, keys=key):
-                return all(map(issubclass, args, keys))
-            return keyfunc
-        return super().process_key(key)
+        if not isinstance(key, tuple):
+            key = (key,)
+        def keyfunc(*args, keys=key):
+            return all(_itertools.starmap(
+                issubclass,
+                _itertools.zip_longest(args, keys, fillvalue=Null)
+                ))
+        return keyfunc
 
 
 class SliceLike(_ABC):

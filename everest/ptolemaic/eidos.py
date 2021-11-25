@@ -21,9 +21,9 @@ class Eidos(_Inherence):
         exec('\n'.join((
             f"@classmethod",
             f"def _ptolemaic_getitem__("
-            f"        cls, /, *args, chora=chora, {defkws}"
+            f"        cls, arg, /, chora=chora, {defkws}"
             f"        ):",
-            f"    return chora.__getitem__(*args, {passkws})"
+            f"    return chora.__getitem__(arg, {passkws})"
             )))
         cls._ptolemaic_getitem__ = eval('_ptolemaic_getitem__')
 
