@@ -13,27 +13,24 @@ class Eidos(_Inherence):
 
     def _class_defer_chora_methods(cls, /):
 
-        chora = cls.clschora
-        prefixes = chora.PREFIXES
-        defkws = chora._get_defkws((f"cls.class_{st}" for st in prefixes))
-        passkws = chora._get_defkws(prefixes)
+        chcls = type(cls.clschora)
+        prefixes = chcls.PREFIXES
+        defkws = chcls._get_defkws((f"cls.class_{st}" for st in prefixes))
 
         exec('\n'.join((
             f"@classmethod",
-            f"def _ptolemaic_getitem__("
-            f"        cls, arg, /, chora=chora, {defkws}"
-            f"        ):",
-            f"    return chora.__getitem__(arg, {passkws})"
+            f"def _ptolemaic_getitem__(cls, arg, /):"
+            f"    return cls.clschora.__getitem__(arg, {defkws})"
             )))
         cls._ptolemaic_getitem__ = eval('_ptolemaic_getitem__')
 
-        for name in chora.chorameths:
+        for name in chcls.chorameths:
             new = f"class_{name}"
             exec('\n'.join((
                 f"@classmethod",
-                f"@_functools.wraps(chora.{name})",
-                f"def {new}(cls, /, *args, meth=chora.{name}, {defkws}):",
-                f"    return meth(*args, {passkws})",
+                f"@_functools.wraps(chcls.{name})",
+                f"def {new}(cls, /, *args):",
+                f"    return cls.clschora.{name}(*args, {defkws})",
                 )))
             setattr(cls, new, eval(new))
 

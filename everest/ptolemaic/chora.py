@@ -30,10 +30,17 @@ def passfn(arg, /):
     return arg
 
 
-class Null:
+class NotNone(_abc.ABC):
 
     @classmethod
-    def __subclasscheck__(cls, arg, /):
+    def __subclasshook__(cls, other, /):
+        return not issubclass(other, type(None))
+
+
+class Null(_abc.ABC):
+
+    @classmethod
+    def __subclasshook__(cls, other, /):
         return False
 
 
@@ -86,7 +93,7 @@ class Chora(_Ptolemaic):
             ))
 
     @classmethod
-    def _wrap_chora_meth(cls, name, meth, /):
+    def _wrap_chora_meth(cls, methname, name, meth, /):
 
         prefix = name.split('_')[0]
         defkws = cls._get_defkws()
@@ -97,8 +104,8 @@ class Chora(_Ptolemaic):
 
         exec('\n'.join((
             f"@_functools.wraps(meth)",
-            f"def {name}(self, /, {argstrn}, meth=meth, {defkws}):",
-            f"    return {prefix}(meth(self, {argstrn}))",
+            f"def {name}(self, {argstrn}, /, *, {defkws}):",
+            f"    return {prefix}(self.{methname}({argstrn}))",
             )))
 
         wrapper = eval(name)
@@ -111,7 +118,7 @@ class Chora(_Ptolemaic):
         chorarawmeths = cls._get_chora_rawmeths()
         return {
             (name := methname.strip('_')):
-                cls._wrap_chora_meth(name, meth)
+                cls._wrap_chora_meth(methname, name, meth)
             for methname, meth in chorarawmeths.items()
             }
 
@@ -207,18 +214,6 @@ class Sliceable(Chora):
         return self
 
 
-class ChoraDeferrer:
-
-    __slots__ = ('methname',)
-
-    def __set_name__(self, owner, methname, /):
-        self.methname = methname
-
-    def __get__(self, obj, objtype=None, /):
-        meth = getattr(obj.chora, self.methname)
-        return _functools.partial(meth, caller=obj)
-
-
 class Incisable(_Aspect):
     '''
     Incisable objects are said to 'contain space'
@@ -230,71 +225,45 @@ class Incisable(_Aspect):
 
     Chora = Chora
 
+    def _make_chora(self, /):
+        return self.Chora()
+
     @classmethod
     def _defer_chora_methods(cls, /):
-        for attr in dir(cls.Chora):
-            for prefix in ('incise_', 'retrieve_'):
-                if attr.startswith(prefix):
-                    setattr(cls, attr, ChoraDeferrer())
-                    break
+
+        chcls = cls.Chora
+        defkws = chcls._get_defkws((f"self.{st}" for st in chcls.PREFIXES))
+
+        exec('\n'.join((
+            f"def __getitem__(self, arg, /):",
+            f"    return self.chora.__getitem__(arg, {defkws})",
+            )))
+        cls.__getitem__ = eval('__getitem__')
+
+        for name in chcls.chorameths:
+            exec('\n'.join((
+                f"@_functools.wraps(chcls.{name})",
+                f"def {name}(self, /, *args):",
+                f"    return self.chora.{name}(*args, {defkws})",
+                )))
+            setattr(cls, name, eval(name))
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         cls._defer_chora_methods()
 
-    def _make_chora_(self, /):
-        return self.Chora()
-
     def __init__(self, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.chora = self._make_chora_()
+        self.chora = self._make_chora()
 
     def __getitem__(self, arg, /):
-        return self.chora.__getitem__(arg, caller=self.__getattr__)
+        '''Placeholder for dynamically generated __getitem__.'''
+        raise TypeError
 
     def __contains__(self, arg, /):
         return self.chora.__contains__(arg)
 
 
 ###############################################################################
-
-
-# from everest.ptolemaic.compound import Compound
-# from everest.ptolemaic.sprite import Sprite
-
-
-# class MyChora(Sprite, Chora):
-
-#     _req_slots__ = ('length',)
-
-#     def __init__(self, length: int = 0, /):
-#         self.length = int(length)
-#         super().__init__()
-
-#     def __contains__(self, arg, /):
-#         if isinstance(arg, int):
-#             return 0 <= arg <= self.length
-
-
-# class MyIncisable(Incisable, Compound):
-
-#     _req_slots__ = ('content',)
-
-#     Chora = MyChora
-
-#     def retrieve(self, retriever, /):
-#         return self.content[retriever]
-
-#     def incise(self, incisor, /):
-#         return self.content[incisor]
-
-#     def __init__(self, content, /):
-#         self.content = content
-#         super().__init__()
-
-#     def _make_chora_(self, /):
-#         return self.Chora(len(self.content))
-
-
 ###############################################################################

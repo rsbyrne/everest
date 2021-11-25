@@ -59,7 +59,7 @@ class InttRange(_Sprite, _Sliceable):
         return InttRange(nrang.start, nrang.stop, nrang.step)
 
     def _retrieve_contains_(self, incisor: int, /) -> int:
-        return self._rangeobj[incisor]
+        return Intt(self._rangeobj[incisor])
 
     def __str__(self, /):
         return ':'.join(map(str, (self.params.values())))
@@ -109,7 +109,7 @@ class InttCount(_Sprite, _Sliceable):
 
     def _retrieve_contains_(self, incisor: int, /) -> int:
         if incisor >= 0:
-            return _nth(self, incisor)
+            return Intt(_nth(self, incisor))
         return super()._retrieve_contains_(incisor)
 
     def __iter__(self, /):
