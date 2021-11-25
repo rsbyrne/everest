@@ -225,8 +225,8 @@ class Incisable(_Aspect):
 
     Chora = Chora
 
-    def _make_chora(self, /):
-        return self.Chora()
+    def _chora_passthrough(self, arg, /):
+        return arg
 
     @classmethod
     def _defer_chora_methods(cls, /):
@@ -248,14 +248,21 @@ class Incisable(_Aspect):
                 )))
             setattr(cls, name, eval(name))
 
+        for prefix in chcls.PREFIXES:
+            if not hasattr(cls, prefix):
+                setattr(cls, prefix, cls._chora_passthrough)
+
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         cls._defer_chora_methods()
 
+    def _get_chora(self, /):
+        return self.Chora()
+
     def __init__(self, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.chora = self._make_chora()
+        self.chora = self._get_chora()
 
     def __getitem__(self, arg, /):
         '''Placeholder for dynamically generated __getitem__.'''
@@ -263,6 +270,9 @@ class Incisable(_Aspect):
 
     def __contains__(self, arg, /):
         return self.chora.__contains__(arg)
+
+    def trivial(self, _, /):
+        return self
 
 
 ###############################################################################

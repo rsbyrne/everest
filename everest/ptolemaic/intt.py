@@ -122,7 +122,7 @@ class InttCount(_Sprite, _Sliceable):
 class InttSpace(_Sliceable):
 
     def _retrieve_contains_(self, incisor: int, /) -> int:
-        return incisor
+        return Intt(incisor)
 
     def _incise_slice_open_(self,
             start: int, stop: type(None), step: _OPINT, /
@@ -142,18 +142,6 @@ class Intt(_Proxy, _Sprite, metaclass=_Eidos):
     @classmethod
     def _get_clschora(cls, /) -> _Sliceable:
         return InttSpace()
-
-    @classmethod
-    def class_trivial(cls, _, /):
-        return cls
-
-    @classmethod
-    def class_incise(cls, incisor, /):
-        return incisor
-
-    @classmethod
-    def class_retrieve(cls, incisor, /):
-        return cls(incisor)
 
     def __init__(self, val, /):
         self.val = val

@@ -11,6 +11,9 @@ from everest.ptolemaic.chora import Chora as _Chora
 
 class Eidos(_Inherence):
 
+    def _class_chora_passthrough(cls, arg, /):
+        return arg
+
     def _class_defer_chora_methods(cls, /):
 
         chcls = type(cls.clschora)
@@ -33,6 +36,14 @@ class Eidos(_Inherence):
                 f"    return cls.clschora.{name}(*args, {defkws})",
                 )))
             setattr(cls, new, eval(new))
+
+        for prefix in prefixes:
+            methname = f"class_{prefix}"
+            if not hasattr(cls, methname):
+                setattr(cls, methname, cls._class_chora_passthrough)
+
+    def class_trivial(cls, _, /):
+        return cls
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
