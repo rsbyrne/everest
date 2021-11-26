@@ -9,8 +9,10 @@ from functools import partial as _partial, reduce as _reduce
 import types as _types
 import itertools as _itertools
 
-from everest.utilities.constructor import Constructor as _Constructor
-from everest.ptolemaic.aspect import Aspect as _Aspect
+from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.aspect import (
+    Aspect as _Aspect, Functional as _Functional
+    )
 from everest.ptolemaic.proxy import Proxy as _Proxy
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
@@ -27,7 +29,25 @@ class _ResourcerBase_(_Aspect):
         return False
 
 
-class _ResourcerProper_(_Proxy, _ResourcerBase_, _Sprite, _Constructor):
+class _ResourcerProper_(_Proxy, _ResourcerBase_, _Sprite):
+
+    _req_slots__ = ('makefn', '_call_')
+
+    def __init__(self, makefn, /):
+        self.makefn = makefn
+        self.reset()
+
+    def reset(self, ref=None, /):
+        self._call_ = self._original_call__
+
+    def _original_call__(self, /):
+        out = self.makefn()
+        self._call_ = _ref(out, self.reset)
+        return out
+
+    @property
+    def __call__(self, /):
+        return self._call_
 
     def unproxy(self, /):
         return self()
@@ -41,7 +61,7 @@ class Module(_ResourcerProper_):
     def parameterise(self, register, arg, /):
         if isinstance(arg, _types.module):
             arg = arg.__name__
-        super().parameterise(register, arg)
+        register(arg)
 
     def __init__(self, path, /):
         super().__init__(
@@ -63,7 +83,7 @@ class Content(_ResourcerProper_):
     def parameterise(self, register, arg0, arg1=None, /):
         if arg1 is None:
             arg0, arg1 = arg0.__qualname__, _getmodule(arg0).__name__
-        super().parameterise(register, arg0, arg1)
+        register(arg0, arg1)
 
     def __init__(self, name, path, /):
         super().__init__(
@@ -71,9 +91,23 @@ class Content(_ResourcerProper_):
             )
 
 
-class Resourcer(_ResourcerBase_):
+class PtolContent(_ResourcerBase_, _Functional):
 
-    CONVERTERS = (Module, Content)
+    CONVERTTYPES = (
+        _Essence,
+        )
+
+    @classmethod
+    def method(cls, arg, /):
+        out = arg.classproxy
+        if isinstance(out, type):
+            return Content(out)
+        return out
+
+
+class Resourcer(_Functional, _ResourcerBase_):
+
+    CONVERTERS = (Module, PtolContent, Content)
     CONVERTTYPES = tuple(_itertools.chain.from_iterable(
         typ.CONVERTTYPES for typ in CONVERTERS
         ))
@@ -82,15 +116,11 @@ class Resourcer(_ResourcerBase_):
         exec(f"{typ.__name__} = CONVERTERS[{i}]")
 
     @classmethod
-    def construct(cls, arg, /):
-        for typ in (Module, Content):
+    def method(cls, arg, /):
+        for typ in cls.CONVERTERS:
             if typ.can_convert(arg):
                 return typ(arg)
         raise TypeError(type(arg))
-
-    @classmethod
-    def _ptolemaic_issubclass__(cls, arg, /):
-        return issubclass(arg, _ResourcerBase_)
 
 # class Demiurge(/
 

@@ -24,19 +24,24 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     pure instances of itself are 'pure kinds' that cannot be instantiated.
     '''
 
-    _ptolemaic_mergetuples__ = ()
-    _ptolemaic_mergedicts__ = ()
-
     @classmethod
     def _pleroma_init__(meta, /):
         pass
 
     @classmethod
-    def __prepare__(meta, name, bases, /):
+    def __prepare__(meta, name, bases, /, *args, **kwargs):
         return dict()
 
-    def __call__(cls, /, *args, **kwargs):
-        return cls.construct(*args, **kwargs)
+    @property
+    def __call__(cls):
+        raise NotImplementedError
+
+    def get_classproxy(cls, /):
+        return cls
+
+    @property
+    def classproxy(cls, /):
+        return cls.get_classproxy()
 
     def __repr__(cls, /):
         return cls.__class_repr__()
@@ -44,8 +49,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __instancecheck__(cls, arg, /):
         return cls._ptolemaic_isinstance__(arg)
 
-    def __subclasscheck__(cls, arg, /):
-        return cls._ptolemaic_issubclass__(arg)
+#     def __subclasscheck__(cls, arg, /):
+#         return cls._ptolemaic_issubclass__(arg)
 
     def __contains__(cls, arg, /):
         return cls._ptolemaic_contains__(arg)
@@ -56,6 +61,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     class BASETYP(_abc.ABC):
 
         __slots__ = ()
+
+        _ptolemaic_mergetuples__ = ()
+        _ptolemaic_mergedicts__ = ()
 
         @classmethod
         def __class_init__(cls, /):
@@ -69,9 +77,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         def _ptolemaic_isinstance__(cls, arg, /):
             return issubclass(type(arg), cls)
 
-        @classmethod
-        def _ptolemaic_issubclass__(cls, arg, /):
-            return _abc.ABCMeta.__subclasscheck__(cls, arg)
+#         @classmethod
+#         def _ptolemaic_issubclass__(cls, arg, /):
+#             return _abc.ABCMeta.__subclasscheck__(cls, arg)
 
         @classmethod
         def _ptolemaic_contains__(cls, arg, /):
@@ -81,23 +89,17 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         def _ptolemaic_getitem__(cls, arg, /):
             raise NotImplementedError
 
-        @classmethod
-        def construct(cls, /, *args, **kwargs):
-            raise NotImplementedError
-
     @classmethod
     def process_bases(meta, bases):
-        basetyp = meta.BASETYP
-        check = _functools.partial(_abc.ABCMeta.__subclasscheck__, basetyp)
-        if tuple(filter(check, bases)):
+        if tuple(filter((basetyp := meta.BASETYP).__subclasscheck__, bases)):
             return bases
         return (*bases, basetyp)
 
-    def __new__(meta, name, bases, namespace, /):
+    def __new__(meta, name, bases, namespace, /, *args, **kwargs):
         bases = meta.process_bases(bases)
         namespace['metacls'] = meta
         namespace['__slots__'] = ()
-        return super().__new__(meta, name, bases, namespace)
+        return super().__new__(meta, name, bases, namespace, *args, **kwargs)
 
     @staticmethod
     def _gather_names(bases, name, methcall, /):
@@ -108,13 +110,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def _merge_names(cls, name, /, *, mergetyp=tuple, itermeth='__iter__'):
         methcall = _operator.methodcaller(itermeth)
-        meta = type(cls)
         merged = []
-        merged.extend(cls._gather_names(
-            (meta, *meta.__bases__),
-            name,
-            methcall,
-            ))
         merged.extend(cls._gather_names(cls.__bases__, name, methcall))
         if name in cls.__dict__:
             merged.extend(ordered_set(methcall(getattr(cls, name))))

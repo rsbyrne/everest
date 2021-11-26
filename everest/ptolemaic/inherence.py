@@ -8,31 +8,56 @@ import itertools as _itertools
 
 from everest.ptolemaic.primitive import Primitive as _Primitive
 from everest.ptolemaic.ousia import Ousia as _Ousia
-from everest.ptolemaic import proxy as _proxy
+from everest.ptolemaic.abstract import ProxyAbstract as _ProxyAbstract
 from everest.ptolemaic import exceptions as _exceptions
 
 
-class BadParameters(_exceptions.ParameterisationException):
+class Registrar(_exceptions.ParameterisationException):
 
-    __slots__ = ('bads',)
+    __slots__ = ('known', 'args', 'kwargs', 'bads')
 
-    @classmethod
-    def check(cls, acls, args, /):
-        exc = cls(acls, args)
-        if exc:
-            raise exc
+    def __init__(self, owner, /):
+        super().__init__(owner)
+        self.known = owner._ptolemaic_knowntypes__
+        self.args, self.kwargs = [], {}
 
-    def __init__(self, raisedby, args, /):
-        if not isinstance(raisedby, Inherence):
-            raise TypeError(raisedby)
-        super().__init__(raisedby)
-        self.bads = tuple(_itertools.filterfalse(self.check_arg, args))
+    def process_param(self, param, /):
+        return param
 
-    def check_arg(self, arg, /):
-        for typ in self.raisedby._ptolemaic_knowntypes__:
-            if isinstance(arg, typ):
-                return True
-        return False
+    def recognised(self, param):
+        return isinstance(param, self.known)
+
+    def process_params(self, params):
+        return (
+            param if self.recognised(param) else self.process_param(param)
+            for param in params
+            )
+
+    def register_args(self, args, /):
+        self.args.extend(self.process_params(args))
+
+    def register_kwargs(self, kwargs, /):
+        self.kwargs.update(zip(kwargs, self.process_params(kwargs.values())))
+
+    def __call__(self, /, *args, **kwargs):
+        if args:
+            self.register_args(args)
+        if kwargs:
+            self.register_kwargs(kwargs)
+
+    def check(self, /):
+        vals = _itertools.chain(self.args, self.kwargs.values())
+        bads = tuple(_itertools.filterfalse(self.recognised, vals))
+        if bads:
+            self.bads = bads
+            raise self
+
+    def __repr__(self, /):
+        argtup = ', '.join(map(repr, self.args))
+        kwargtup = ', '.join(
+            f"{key}: {repr(val)}" for key, val in self.kwargs.items()
+            )
+        return f"{type(self).__name__}(*({argtup}), **{{{kwargtup}}})"
 
     def message(self, /):
         yield from super().message()
@@ -44,30 +69,6 @@ class BadParameters(_exceptions.ParameterisationException):
         yield 'that are instances of one or more of the following:'
         yield from map(repr, self.raisedby._ptolemaic_knowntypes__)
 
-    def __bool__(self, /):
-        return bool(self.bads)
-
-
-class Registrar:
-
-    __slots__ = ('owner', 'args', 'kwargs')
-
-    def __init__(self, owner, /, *args, **kwargs):
-        self.owner = owner
-        self.args, self.kwargs = [], {}
-        self(*args, **kwargs)
-
-    def __call__(self, /, *args, **kwargs):
-        self.args.extend(args)
-        self.kwargs.update(kwargs)
-
-    def __repr__(self, /):
-        argtup = ', '.join(map(repr, self.args))
-        kwargtup = ', '.join(
-            f"{key}: {repr(val)}" for key, val in self.kwargs.items()
-            )
-        return f"{type(self).__name__}(*({argtup}), **{{{kwargtup}}})"
-
 
 class Inherence(_Ousia):
     '''
@@ -75,18 +76,20 @@ class Inherence(_Ousia):
     that can be instantiated with arguments.
     '''
 
-    _ptolemaic_mergetuples__ = (
-        '_ptolemaic_knowntypes__',
-        )
-    _ptolemaic_knowntypes__ = ()
-    _req_slots__ = ('argskwargs',)
-
-    BadParameters = BadParameters
-    Registrar = Registrar
-
+    def reconstruct(cls, inputs, /):
+        args, kwargs = inputs
+        return cls(*args, **kwargs)
+  
     class BASETYP(_Ousia.BASETYP):
 
         __slots__ = ()
+
+        _ptolemaic_mergetuples__ = ('_ptolemaic_knowntypes__',)
+        _ptolemaic_knowntypes__ = ()
+        _ptolemaic_mroclasses__ = ('Registrar',)
+        _req_slots__ = ('_argskwargs',)
+
+        Registrar = Registrar
 
         @classmethod
         def get_signature(cls, /):
@@ -100,23 +103,29 @@ class Inherence(_Ousia):
 
         @classmethod
         def parameterise(cls, register, /, *args, **kwargs):
-            raise NotImplementedError
+            register(*args, **kwargs)
 
-        @classmethod
-        def instantiate(cls, /, *args, **kwargs):
-            obj = cls.create_object(argskwargs=(args, kwargs))
-            args, kwargs = _proxy.unproxy_argskwargs(args, kwargs)
-            obj.__init__(*args, **kwargs)
-            return obj
+        def initialise(self, /, *args, **kwargs):
+            self._argskwargs = (args, kwargs)
+            args, kwargs = _ProxyAbstract.unproxy_argskwargs(args, kwargs)
+            super().initialise(*args, **kwargs)
 
         @classmethod
         def construct(cls, /, *args, **kwargs):
             cls.parameterise(registrar := cls.registrar, *args, **kwargs)
+            registrar.check()
             bound = cls.__signature__.bind(*registrar.args, **registrar.kwargs)
             bound.apply_defaults()
             args, kwargs = bound.args, bound.kwargs
-            cls.BadParameters.check(cls, _itertools.chain(args, kwargs.values()))
-            return cls.instantiate(*args, **kwargs)
+            return super().construct(*args, **kwargs)
+
+        @property
+        def argskwargs(self, /):
+            return self._argskwargs
+
+        def get_unreduce_args(self, /):
+            yield from super().get_unreduce_args()
+            yield self.argskwargs
 
     @property
     def __signature__(cls, /):

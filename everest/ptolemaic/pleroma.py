@@ -38,8 +38,8 @@ class Pleroma(type):
         pass
 
     def _pleroma_construct(meta, /, *args, **kwargs):
-        cls = super().__call__(*args, **kwargs)
-        cls.__class_init__()
+        cls = super().__call__(*args)
+        cls.__class_init__(**kwargs)
         return cls
 
     def __call__(meta, /, *args, **kwargs):

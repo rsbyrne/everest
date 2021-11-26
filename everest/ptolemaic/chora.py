@@ -71,7 +71,7 @@ class Chora(_Ptolemaic):
 
     def _retrieve_contains_(self, incisor: Null, /) -> type(None):
         '''Returns the element if this chora contains it.'''
-        raise KeyError(f"Element {retriever} not in {repr(self)}.")
+        raise KeyError(f"Element {incisor} not in {repr(self)}.")
 
     @classmethod
     def _get_chora_rawmeths(cls, /):
@@ -84,12 +84,23 @@ class Chora(_Ptolemaic):
         return out
 
     @classmethod
+    def _pass_through(cls, arg, /):
+        return arg
+
+    @classmethod
+    def _add_overmethods(cls, /):
+        for prefix in cls.PREFIXES:
+            if not hasattr(cls, prefix):
+                setattr(cls, prefix, cls._pass_through)
+
+    @classmethod
     def _get_defkws(cls, tovals=None, /):
+        prefixes = cls.PREFIXES
         if tovals is None:
-            tovals = _itertools.repeat('passfn')
+            tovals = (f"cls.{prefix}" for prefix in prefixes)
         return ', '.join(map(
             '='.join,
-            zip(cls.PREFIXES, tovals)
+            zip(prefixes, tovals)
             ))
 
     @classmethod
@@ -154,6 +165,7 @@ class Chora(_Ptolemaic):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
+        cls._add_overmethods()
         chorameths = cls._get_chora_wrappedmeths()
         for name, meth in chorameths.items():
             setattr(cls, name, meth)
@@ -225,7 +237,8 @@ class Incisable(_Aspect):
 
     Chora = Chora
 
-    def _chora_passthrough(self, arg, /):
+    @classmethod
+    def _chora_passthrough(cls, arg, /):
         return arg
 
     @classmethod
@@ -233,6 +246,10 @@ class Incisable(_Aspect):
 
         chcls = cls.Chora
         defkws = chcls._get_defkws((f"self.{st}" for st in chcls.PREFIXES))
+
+        for prefix in chcls.PREFIXES:
+            if not hasattr(cls, prefix):
+                setattr(cls, prefix, cls._chora_passthrough)
 
         exec('\n'.join((
             f"def __getitem__(self, arg, /):",
@@ -248,17 +265,17 @@ class Incisable(_Aspect):
                 )))
             setattr(cls, name, eval(name))
 
-        for prefix in chcls.PREFIXES:
-            if not hasattr(cls, prefix):
-                setattr(cls, prefix, cls._chora_passthrough)
-
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         cls._defer_chora_methods()
 
+    def _get_chora_params(self, /, *args, **kwargs):
+        return args, kwargs
+
     def _get_chora(self, /):
-        return self.Chora()
+        args, kwargs = self._get_chora_params()
+        return self.Chora(*args, **kwargs)
 
     def __init__(self, /, *args, **kwargs):
         super().__init__(*args, **kwargs)

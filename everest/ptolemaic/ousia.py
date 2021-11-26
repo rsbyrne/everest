@@ -3,10 +3,16 @@
 ###############################################################################
 
 
+import functools as _functools
 import weakref as _weakref
 import abc as _abc
 
 from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.abstract import ProxyAbstract as _ProxyAbstract
+
+
+def master_unreduce(loadcls, *args):
+    return _ProxyAbstract.unproxy_arg(loadcls).reconstruct(*args)
 
 
 class Ousia(_Essence):
@@ -16,35 +22,47 @@ class Ousia(_Essence):
     but cannot accept arguments.
     '''
 
-    _ptolemaic_mergetuples__ = (
-        '_req_slots__',
-        '_ptolemaic_mroclasses__',
-        '_ptolemaic_concretebases__',
-        )
-    _req_slots__ = ('_softcache', '_weakcache', '__weakref__')
-    _ptolemaic_mroclasses__ = ()
-    _ptolemaic_concretebases__ = ()
+    @property
+    def __call__(cls):
+        return cls.construct
+
+    def reconstruct(cls, /):
+        return cls()
 
     class BASETYP(_Essence.BASETYP):
 
         __slots__ = ()
 
-        @classmethod
-        def create_object(cls, /, **kwargs):
-            obj = object.__new__(cls.Concrete)
-            obj._softcache = dict()
-            obj._weakcache = _weakref.WeakValueDictionary()
-            for key, val in kwargs.items():
-                setattr(obj, key, val)
-            return obj
+        _ptolemaic_mergetuples__ = (
+            '_req_slots__',
+            '_ptolemaic_mroclasses__',
+            '_ptolemaic_concretebases__',
+            )
+        _req_slots__ = ('_softcache', '_weakcache', '__weakref__')
+        _ptolemaic_mroclasses__ = ()
+        _ptolemaic_concretebases__ = ()
+
+        def initialise(self, /, *args, **kwargs):
+            self._softcache = dict()
+            self._weakcache = _weakref.WeakValueDictionary()
+            self.__init__(*args, **kwargs)
 
         @classmethod
-        def construct(cls, /):
+        def construct(cls, /, *args, **kwargs):
             obj = cls.create_object()
-            obj.__init__()
+            obj.initialise(*args, **kwargs)
             return obj
+
+        def get_unreduce_args(self, /):
+            yield type(self).classproxy
+
+        def __reduce__(self, /):
+            return master_unreduce, tuple(self.get_unreduce_args())
 
     class ConcreteMetaBase(type):
+
+        def get_classproxy(cls, /):
+            return cls.basecls.get_classproxy()
 
         @property
         def isconcrete(cls, /):
@@ -88,10 +106,13 @@ class Ousia(_Essence):
                 dict(metabasecls=meta),
                 )
 
+    def _ptolemaic_concrete_slots__(cls, /):
+        return cls._req_slots__
+
     def _ptolemaic_concrete_namespace__(cls, /):
         return dict(
             basecls=cls,
-            __slots__=cls._req_slots__,
+            __slots__=cls._ptolemaic_concrete_slots__(),
             __class_init__=lambda: None,
             )
 
@@ -102,8 +123,9 @@ class Ousia(_Essence):
             setattr(cls, adjname, cls.__dict__[name])
         inhclasses = []
         for mcls in cls.__mro__:
-            if adjname in mcls.__dict__:
-                inhcls = mcls.__dict__[adjname]
+            searchname = adjname if isinstance(mcls, Ousia) else name
+            if searchname in mcls.__dict__:
+                inhcls = mcls.__dict__[searchname]
                 if not inhcls in inhclasses:
                     inhclasses.append(inhcls)
         inhclasses = tuple(inhclasses)
@@ -119,6 +141,7 @@ class Ousia(_Essence):
         super().__init__(*args, **kwargs)
         cls._add_mroclasses()
         cls.Concrete = type(cls).ConcreteMeta(cls)
+        cls.create_object = _functools.partial(cls.__new__, cls.Concrete)
 
 
 ###############################################################################

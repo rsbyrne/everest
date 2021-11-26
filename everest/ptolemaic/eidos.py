@@ -20,6 +20,11 @@ class Eidos(_Inherence):
         prefixes = chcls.PREFIXES
         defkws = chcls._get_defkws((f"cls.class_{st}" for st in prefixes))
 
+        for prefix in prefixes:
+            methname = f"class_{prefix}"
+            if not hasattr(cls, methname):
+                setattr(cls, methname, cls._class_chora_passthrough)
+
         exec('\n'.join((
             f"@classmethod",
             f"def _ptolemaic_getitem__(cls, arg, /):"
@@ -36,11 +41,6 @@ class Eidos(_Inherence):
                 f"    return cls.clschora.{name}(*args, {defkws})",
                 )))
             setattr(cls, new, eval(new))
-
-        for prefix in prefixes:
-            methname = f"class_{prefix}"
-            if not hasattr(cls, methname):
-                setattr(cls, methname, cls._class_chora_passthrough)
 
     def class_trivial(cls, _, /):
         return cls

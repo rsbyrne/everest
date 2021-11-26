@@ -5,6 +5,7 @@
 
 import itertools as _itertools
 
+from everest.ptolemaic.aspect import Aspect as _A
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.proxy import Proxy as _Proxy
 from everest.ptolemaic.chora import Sliceable as _Sliceable
@@ -25,29 +26,42 @@ class InttRange(_Sprite, _Sliceable):
 
     _req_slots__ = (
         'start', 'stop', 'step',
-        '_iterfn', '_lenfn', '_rangeobj',
+        '_iterfn', '_lenfn', '_rangeobj', '_tupobj',
         )
 
     @classmethod
-    def parameterise(cls, register, start, stop, step, /):
+    def parameterise(cls, register,
+            arg0, /, arg1=NotImplemented, arg2=NotImplemented
+            ):
+        if arg2 is NotImplemented:
+            if arg1 is NotImplemented:
+                start, stop, step = None, arg0, None
+            else:
+                start, stop, step = arg1, arg2, None
+        else:
+            start, stop, step = arg0, arg1, arg2
         register(
             (0 if start is None else int(start)),
             int(stop),
             (1 if step is None else int(step)),
             )
 
-    def __init__(self, start, stop, step, /):
+    def __init__(self, start, stop, step=1, /):
         super().__init__()
         self.start, self.stop, self.step = start, stop, step
         rangeobj = self._rangeobj = range(start, stop, step)
-        self._iterfn = rangeobj.__iter__
-        self._lenfn = rangeobj.__len__
+        tupobj = self._tupobj = tuple(rangeobj)
+        self._iterfn = tupobj.__iter__
+        self._lenfn = tupobj.__len__
 
     def __iter__(self, /):
         return self._iterfn()
 
     def __len__(self, /):
         return self._lenfn()
+
+    def __reversed__(self, /):
+        return self[::-1]
 
     def __instancecheck__(self, val: int, /):
         return val in self._rangeobj
@@ -59,7 +73,7 @@ class InttRange(_Sprite, _Sliceable):
         return InttRange(nrang.start, nrang.stop, nrang.step)
 
     def _retrieve_contains_(self, incisor: int, /) -> int:
-        return Intt(self._rangeobj[incisor])
+        return self._tupobj[incisor]
 
     def __str__(self, /):
         return ':'.join(map(str, (self.params.values())))
@@ -73,7 +87,13 @@ class InttCount(_Sprite, _Sliceable):
         )
 
     @classmethod
-    def parameterise(cls, register, start, step, /):
+    def parameterise(cls, register,
+            arg0=NotImplemented, arg1=NotImplemented, /
+            ):
+        if arg1 is NotImplemented:
+            start, stop = None, arg0
+        else:
+            start, stop = arg0, arg1
         register(
             (0 if start is None else int(start)),
             (1 if step is None else int(step)),
@@ -109,7 +129,7 @@ class InttCount(_Sprite, _Sliceable):
 
     def _retrieve_contains_(self, incisor: int, /) -> int:
         if incisor >= 0:
-            return Intt(_nth(self, incisor))
+            return _nth(self, incisor)
         return super()._retrieve_contains_(incisor)
 
     def __iter__(self, /):
@@ -135,20 +155,19 @@ class InttSpace(_Sliceable):
         return InttRange(start, stop, step)
 
 
-class Intt(_Proxy, _Sprite, metaclass=_Eidos):
-
-    _req_slots__ = ('val',)
+class Intt(metaclass=_Eidos):
 
     @classmethod
     def _get_clschora(cls, /) -> _Sliceable:
         return InttSpace()
 
-    def __init__(self, val, /):
-        self.val = val
-        super().__init__()
+    @classmethod
+    def _ptolemaic_isinstance__(self, val, /):
+        return isinstance(val, int)
 
-    def unproxy(self, /):
-        return self.val
+    @classmethod
+    def construct(cls, arg, /):
+        return int(arg)
 
 
 ###############################################################################
