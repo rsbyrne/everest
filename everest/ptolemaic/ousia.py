@@ -26,14 +26,12 @@ class Ousia(_Essence):
     All instances of `Ousia` types are instances of `Ptolemaic` by definition.
     '''
 
-    @property
-    def __call__(cls):
-        return cls.construct
+    ### Defining the parent class of all Ousia instance instances:
 
     class ConcreteMetaBase(type):
-
-        def get_classproxy(cls, /):
-            return cls.basecls.get_classproxy()
+        '''
+        The metaclass of all concrete subclasses of Ousia instances.
+        '''
 
         @property
         def isconcrete(cls, /):
@@ -64,6 +62,9 @@ class Ousia(_Essence):
         def __init__(cls, /, *args, **kwargs):
             _abc.ABCMeta.__init__(cls, *args, **kwargs)
 
+        def get_classproxy(cls, /):
+            return cls.basecls.get_classproxy()
+
         def __repr__(cls, /):
             return repr(cls.basecls)
 
@@ -92,11 +93,12 @@ class Ousia(_Essence):
         cls.Concrete = type(cls).ConcreteMeta(cls)
         cls.create_object = _functools.partial(cls.__new__, cls.Concrete)
 
-    def reconstruct(cls, inputs, /):
-        args, kwargs = inputs
-        return cls(*args, **kwargs)
+    ### Defining the basetype whence all instances of this metaclass inherit:
 
     class BASETYP(_Essence.BASETYP, _Ptolemaic):
+        '''
+        The basetype of all Ousia instances.
+        '''
 
         __slots__ = ()
 
@@ -109,13 +111,30 @@ class Ousia(_Essence):
             '_softcache', '_weakcache', '__weakref__', '_argskwargs'
             )
         _ptolemaic_knowntypes__ = ()
-        _ptolemaic_mroclasses__ = ('Registrar', 'ConcreteBase')
+        _ptolemaic_mroclasses__ = ('ConcreteBase', 'Registrar')
+
+        class ConcreteBase(_abc.ABC):
+            '''The base class for this class's `Concrete` subclass.'''
+
+        ### Implementing bespoke class instantiation protocol:
 
         @classmethod
-        def _ptolemaic_isinstance__(cls, arg, /):
-            return issubclass(type(arg), cls)
+        def get_signature(cls, /):
+            return (
+                (sig := _inspect.signature(cls.__init__))
+                .replace(
+                    parameters=tuple(sig.parameters.values())[1:],
+                    return_annotation=cls,
+                    )
+                )
+
+        ### Defining the Registrar, which handles parameterisation:
 
         class Registrar(_exceptions.ParameterisationException):
+            '''
+            Handles parameterisation and type checking
+            on behalf of its outer class.
+            '''
 
             __slots__ = ('known', 'args', 'kwargs', 'bads')
 
@@ -123,6 +142,8 @@ class Ousia(_Essence):
                 super().__init__(owner)
                 self.known = owner._ptolemaic_knowntypes__
                 self.args, self.kwargs = [], {}
+
+            ### Basic functionality to check and process parameters:
 
             def process_param(self, param, /):
                 return param
@@ -151,20 +172,14 @@ class Ousia(_Essence):
                 if kwargs:
                     self.register_kwargs(kwargs)
 
+            ### Defining how the Registrar performs its final type checks:
+
             def check(self, /):
                 vals = _itertools.chain(self.args, self.kwargs.values())
                 bads = tuple(_itertools.filterfalse(self.recognised, vals))
                 if bads:
                     self.bads = bads
                     raise self
-
-            def __repr__(self, /):
-                argtup = ', '.join(map(repr, self.args))
-                kwargtup = ', '.join(
-                    f"{key}: {repr(val)}"
-                    for key, val in self.kwargs.items()
-                    )
-                return f"{type(self).__name__}(*({argtup}), **{{{kwargtup}}})"
 
             def message(self, /):
                 yield from super().message()
@@ -176,18 +191,17 @@ class Ousia(_Essence):
                 yield 'that are instances of one or more of the following:'
                 yield from map(repr, self.raisedby._ptolemaic_knowntypes__)
 
-            class ConcreteBase(_abc.ABC):
-                '''The base class for this class's `Concrete` subclass.'''
+            ### Basic object legibility:
 
-        @classmethod
-        def get_signature(cls, /):
-            return (
-                (sig := _inspect.signature(cls.__init__))
-                .replace(
-                    parameters=tuple(sig.parameters.values())[1:],
-                    return_annotation=cls,
+            def __repr__(self, /):
+                argtup = ', '.join(map(repr, self.args))
+                kwargtup = ', '.join(
+                    f"{key}: {repr(val)}"
+                    for key, val in self.kwargs.items()
                     )
-                )
+                return f"{type(self).__name__}(*({argtup}), **{{{kwargtup}}})"
+
+        ### What actually happens when the class is called:
 
         @classmethod
         def parameterise(cls, register, /, *args, **kwargs):
@@ -211,6 +225,8 @@ class Ousia(_Essence):
             obj.initialise(*args, **kwargs)
             return obj
 
+        ### Methods relating to class legibility and serialisation:
+
         @property
         def argskwargs(self, /):
             return self._argskwargs
@@ -219,8 +235,14 @@ class Ousia(_Essence):
             yield from super().get_unreduce_args()
             yield self.argskwargs
 
+        @classmethod
+        def _ptolemaic_isinstance__(cls, arg, /):
+            return issubclass(type(arg), cls)
+
         def __reduce__(self, /):
             return master_unreduce, tuple(self.get_unreduce_args())
+
+    ### Setting some class properties that wrap baseclass methods:
 
     @property
     def __signature__(cls, /):
@@ -229,6 +251,18 @@ class Ousia(_Essence):
     @property
     def registrar(cls, /):
         return cls.Registrar(cls)
+
+    ### What happens when the class is called:
+
+    @property
+    def __call__(cls):
+        return cls.construct
+
+    ### Methods relating to Unidex and class legibility:
+
+    def reconstruct(cls, inputs, /):
+        args, kwargs = inputs
+        return cls(*args, **kwargs)
 
 
 ###############################################################################

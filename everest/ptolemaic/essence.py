@@ -24,26 +24,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     pure instances of itself are 'pure kinds' that cannot be instantiated.
     '''
 
+    ### Methods relating to the metaclass itself:
+
     @classmethod
     def _pleroma_init__(meta, /):
         pass
-
-    @property
-    def __call__(cls):
-        '''Pure instances of the `Essence` metaclass cannot be instantiated.'''
-        raise NotImplementedError
-
-    ### Implementing the Unidex Protocol for classes:
-
-    def get_classproxy(cls, /):
-        return cls
-
-    @property
-    def classproxy(cls, /):
-        return cls.get_classproxy()
-
-    def __repr__(cls, /):
-        return cls.__class_repr__()
 
     ### Methods relating to the Incision Protocol for classes:
 
@@ -106,10 +91,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         def __class_init__(cls, /):
             pass
 
-        @classmethod
-        def __class_repr__(cls, /):
-            return cls.__qualname__
-
         ### Customisable methods relating to the Incision Protocol:
 
         @classmethod
@@ -136,6 +117,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         @classmethod
         def __contains__(cls, arg, /):
             return cls.clschora.__contains__(arg)
+
+        ### Legibility methods:
+
+        @classmethod
+        def __class_repr__(cls, /):
+            return cls.__qualname__
 
     ### Creating the object that is the class itself:
 
@@ -225,6 +212,25 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             pass
         else:
             cls._class_defer_chora_methods()
+
+    ### What happens when the class is called:
+
+    @property
+    def __call__(cls):
+        '''Pure instances of the `Essence` metaclass cannot be instantiated.'''
+        raise NotImplementedError
+
+    ### Implementing the Unidex Protocol for classes:
+
+    def get_classproxy(cls, /):
+        return cls
+
+    @property
+    def classproxy(cls, /):
+        return cls.get_classproxy()
+
+    def __repr__(cls, /):
+        return cls.__class_repr__()
 
 
 ###############################################################################
