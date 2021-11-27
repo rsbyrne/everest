@@ -28,13 +28,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def _pleroma_init__(meta, /):
         pass
 
-    @classmethod
-    def __prepare__(meta, name, bases, /, *args, **kwargs):
-        return dict()
-
     @property
     def __call__(cls):
+        '''Pure instances of the `Essence` metaclass cannot be instantiated.'''
         raise NotImplementedError
+
+    ### Implementing the Unidex Protocol for classes:
 
     def get_classproxy(cls, /):
         return cls
@@ -45,6 +44,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __repr__(cls, /):
         return cls.__class_repr__()
+
+    ### Methods relating to the Incision Protocol for classes:
 
     def __instancecheck__(cls, arg, /):
         return cls._ptolemaic_isinstance__(arg)
@@ -58,12 +59,48 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __getitem__(cls, arg, /):
         return cls._ptolemaic_getitem__(arg)
 
+    def _class_chora_passthrough(cls, arg, /):
+        return arg
+
+    def _class_defer_chora_methods(cls, /):
+
+        chcls = type(cls.clschora)
+        prefixes = chcls.PREFIXES
+        defkws = chcls._get_defkws((f"cls.class_{st}" for st in prefixes))
+
+        for prefix in prefixes:
+            methname = f"class_{prefix}"
+            if not hasattr(cls, methname):
+                setattr(cls, methname, cls._class_chora_passthrough)
+
+        exec('\n'.join((
+            f"@classmethod",
+            f"def _ptolemaic_getitem__(cls, arg, /):"
+            f"    return cls.clschora.__getitem__(arg, {defkws})"
+            )))
+        cls._ptolemaic_getitem__ = eval('_ptolemaic_getitem__')
+
+        for name in chcls.chorameths:
+            new = f"class_{name}"
+            exec('\n'.join((
+                f"@classmethod",
+                f"@_functools.wraps(chcls.{name})",
+                f"def {new}(cls, /, *args):",
+                f"    return cls.clschora.{name}(*args, {defkws})",
+                )))
+            setattr(cls, new, eval(new))
+
+    ### Defining the mandatory basetype for instances of this metaclass:
+
     class BASETYP(_abc.ABC):
 
         __slots__ = ()
 
-        _ptolemaic_mergetuples__ = ()
+        _ptolemaic_mergetuples__ = (
+            '_ptolemaic_mroclasses__',
+            )
         _ptolemaic_mergedicts__ = ()
+        _ptolemaic_mroclasses__ = ()
 
         @classmethod
         def __class_init__(cls, /):
@@ -73,9 +110,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         def __class_repr__(cls, /):
             return cls.__qualname__
 
+        ### Customisable methods relating to the Incision Protocol:
+
         @classmethod
         def _ptolemaic_isinstance__(cls, arg, /):
-            return issubclass(type(arg), cls)
+            '''Returns `False` as `Essence` types cannot be instantiated.'''
+            return False
 
 #         @classmethod
 #         def _ptolemaic_issubclass__(cls, arg, /):
@@ -89,8 +129,23 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         def _ptolemaic_getitem__(cls, arg, /):
             raise NotImplementedError
 
+        @classmethod
+        def _get_clschora(cls, /) -> 'Chora':
+            raise NotImplementedError
+
+        @classmethod
+        def __contains__(cls, arg, /):
+            return cls.clschora.__contains__(arg)
+
+    ### Creating the object that is the class itself:
+
+    @classmethod
+    def __prepare__(meta, name, bases, /, *args, **kwargs):
+        return dict()
+
     @classmethod
     def process_bases(meta, bases):
+        '''Inserts the metaclass's mandatory basetype if necessary.'''
         if tuple(filter((basetyp := meta.BASETYP).__subclasscheck__, bases)):
             return bases
         return (*bases, basetyp)
@@ -100,6 +155,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         namespace['metacls'] = meta
         namespace['__slots__'] = ()
         return super().__new__(meta, name, bases, namespace, *args, **kwargs)
+
+    ### Implementing mergetuples and mergedicts:
 
     @staticmethod
     def _gather_names(bases, name, methcall, /):
@@ -122,6 +179,31 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         for name in getattr(cls, overname):
             cls._merge_names(name, **kwargs)
 
+    ### Implementing mroclasses:
+
+    def _add_mroclass(cls, name: str, /):
+        adjname = f'_mroclassbase_{name}__'
+        fusename = f'_mroclassfused_{name}__'
+        if name in cls.__dict__:
+            setattr(cls, adjname, cls.__dict__[name])
+        inhclasses = []
+        for mcls in cls.__mro__:
+            searchname = adjname if isinstance(mcls, Essence) else name
+            if searchname in mcls.__dict__:
+                inhcls = mcls.__dict__[searchname]
+                if not inhcls in inhclasses:
+                    inhclasses.append(inhcls)
+        inhclasses = tuple(inhclasses)
+        mroclass = type(name, inhclasses, {})
+        setattr(cls, fusename, mroclass)
+        setattr(cls, name, mroclass)
+
+    def _add_mroclasses(cls, /):
+        for name in cls._ptolemaic_mroclasses__:
+            cls._add_mroclass(name)
+
+    ### Initialising the class:
+
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not hasattr(cls, '__annotations__'):
@@ -136,6 +218,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             mergetyp=_utilities.FrozenMap,
             itermeth='items',
             )
+        cls._add_mroclasses()
+        try:
+            cls.clschora = cls._get_clschora()
+        except NotImplementedError:
+            pass
+        else:
+            cls._class_defer_chora_methods()
 
 
 ###############################################################################

@@ -16,7 +16,7 @@ from everest.utilities import (
     )
 from everest.utilities import caching as _caching
 from everest.ptolemaic.aspect import Aspect as _Aspect
-from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
+from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
 def not_none(a, b):
@@ -44,7 +44,7 @@ class Null(_abc.ABC):
         return False
 
 
-class Chora(_Ptolemaic):
+class Chora(metaclass=_Ousia):
     '''
     The Chora is Everest's abstract master representation
     of the concept of space.

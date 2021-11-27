@@ -10,15 +10,15 @@ import inspect as _inspect
 from collections import abc as _collabc
 
 from everest.utilities.classtools import add_defer_meths as _add_defer_meths
+from everest.utilities import caching as _caching, word as _word
 
+from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.aspect import Aspect as _Aspect
-from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
-from everest.ptolemaic.inherence import Inherence as _Inherence
 from everest.ptolemaic.primitive import Primitive as _Primitive
 from everest.ptolemaic.chora import Sliceable as _Sliceable
 
 
-class Sprite(_Ptolemaic, metaclass=_Inherence):
+class Sprite(metaclass=_Ousia):
 
     _ptolemaic_knowntypes__ = (_Primitive,)
 
@@ -32,6 +32,26 @@ class Sprite(_Ptolemaic, metaclass=_Inherence):
             map(repr, args),
             map('='.join, zip(kwargs, map(repr, kwargs.values()))),
             ))
+
+    @_caching.soft_cache()
+    def __repr__(self, /):
+        content = f"({rep})" if (rep := self._repr()) else ''
+        return f"<{repr(type(self))}{content}>"
+
+    @property
+    @_caching.soft_cache()
+    def hashcode(self):
+        return self._get_hashcode()
+
+    @property
+    @_caching.soft_cache()
+    def hashint(self):
+        return int(self.hashcode, 16)
+
+    @property
+    @_caching.soft_cache()
+    def hashID(self):
+        return _word.get_random_english(seed=self.hashint, n=2)
 
 
 class ByteWrap(_Aspect):
