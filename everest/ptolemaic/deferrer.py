@@ -4,10 +4,10 @@
 
 
 from everest import utilities as _utilities
-from everest.ptolemaic.aspect import Aspect as _Aspect
+from everest.ptolemaic.essence import Essence as _Essence
 
 
-class DeferrerClass(_Aspect):
+class DeferrerClass(metaclass=_Essence):
 
     _ptolemaic_mergetuples__ = ('_DEFERMETHS',)
     _DEFERMETHS = ()

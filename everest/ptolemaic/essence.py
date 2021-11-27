@@ -77,52 +77,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Defining the mandatory basetype for instances of this metaclass:
 
-    class BASETYP(_abc.ABC):
-
-        __slots__ = ()
-
-        _ptolemaic_mergetuples__ = (
-            '_ptolemaic_mroclasses__',
-            )
-        _ptolemaic_mergedicts__ = ()
-        _ptolemaic_mroclasses__ = ()
-
-        @classmethod
-        def __class_init__(cls, /):
-            pass
-
-        ### Customisable methods relating to the Incision Protocol:
-
-        @classmethod
-        def _ptolemaic_isinstance__(cls, arg, /):
-            '''Returns `False` as `Essence` types cannot be instantiated.'''
-            return False
-
-#         @classmethod
-#         def _ptolemaic_issubclass__(cls, arg, /):
-#             return _abc.ABCMeta.__subclasscheck__(cls, arg)
-
-        @classmethod
-        def _ptolemaic_contains__(cls, arg, /):
-            raise NotImplementedError
-
-        @classmethod
-        def _ptolemaic_getitem__(cls, arg, /):
-            raise NotImplementedError
-
-        @classmethod
-        def _get_clschora(cls, /) -> 'Chora':
-            raise NotImplementedError
-
-        @classmethod
-        def __contains__(cls, arg, /):
-            return cls.clschora.__contains__(arg)
-
-        ### Legibility methods:
-
-        @classmethod
-        def __class_repr__(cls, /):
-            return cls.__qualname__
+    @classmethod
+    def _get_basetyp(meta, /):
+        try:
+            return Shade
+        except NameError:
+            return type(meta)._get_basetyp(meta)
 
     ### Creating the object that is the class itself:
 
@@ -133,7 +93,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def process_bases(meta, bases):
         '''Inserts the metaclass's mandatory basetype if necessary.'''
-        if tuple(filter((basetyp := meta.BASETYP).__subclasscheck__, bases)):
+        if tuple(filter((basetyp := meta.BaseTyp).__subclasscheck__, bases)):
             return bases
         return (*bases, basetyp)
 
@@ -215,12 +175,14 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### What happens when the class is called:
 
-    @property
-    def __call__(cls):
-        '''Pure instances of the `Essence` metaclass cannot be instantiated.'''
+    def construct(cls, /):
         raise NotImplementedError
 
-    ### Implementing the Unidex Protocol for classes:
+    @property
+    def __call__(cls, /):
+        return cls.construct
+
+    ### Legibility and serialisation for classes:
 
     def get_classproxy(cls, /):
         return cls
@@ -231,6 +193,58 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __repr__(cls, /):
         return cls.__class_repr__()
+
+    @property
+    def _ptolemaic_class__(cls, /):
+        return cls
+
+
+class Shade(metaclass=Essence):
+
+    __slots__ = ()
+
+    _ptolemaic_mergetuples__ = (
+        '_ptolemaic_mroclasses__',
+        )
+    _ptolemaic_mergedicts__ = ()
+    _ptolemaic_mroclasses__ = ()
+
+    @classmethod
+    def __class_init__(cls, /):
+        pass
+
+    ### Customisable methods relating to the Incision Protocol:
+
+    @classmethod
+    def _ptolemaic_isinstance__(cls, arg, /):
+        '''Returns `False` as `Essence` types cannot be instantiated.'''
+        return False
+
+#         @classmethod
+#         def _ptolemaic_issubclass__(cls, arg, /):
+#             return _abc.ABCMeta.__subclasscheck__(cls, arg)
+
+    @classmethod
+    def _ptolemaic_contains__(cls, arg, /):
+        raise NotImplementedError
+
+    @classmethod
+    def _ptolemaic_getitem__(cls, arg, /):
+        raise NotImplementedError
+
+    @classmethod
+    def _get_clschora(cls, /) -> 'Chora':
+        raise NotImplementedError
+
+    @classmethod
+    def __contains__(cls, arg, /):
+        return cls.clschora.__contains__(arg)
+
+    ### Legibility methods:
+
+    @classmethod
+    def __class_repr__(cls, /):
+        return cls._ptolemaic_class__.__qualname__
 
 
 ###############################################################################

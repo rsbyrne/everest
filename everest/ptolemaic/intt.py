@@ -5,11 +5,10 @@
 
 import itertools as _itertools
 
-from everest.ptolemaic.aspect import Aspect as _A
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.proxy import Proxy as _Proxy
 from everest.ptolemaic.chora import Sliceable as _Sliceable
-from everest.ptolemaic.eidos import Eidos as _Eidos
 
 
 def _nth(iterable, n):
@@ -22,7 +21,7 @@ def _nth(iterable, n):
 _OPINT = (type(None), int)
 
 
-class InttRange(_Sprite, _Sliceable):
+class InttRange(_Sliceable):
 
     _req_slots__ = (
         'start', 'stop', 'step',
@@ -79,7 +78,7 @@ class InttRange(_Sprite, _Sliceable):
         return ':'.join(map(str, (self.params.values())))
 
 
-class InttCount(_Sprite, _Sliceable):
+class InttCount(_Sliceable):
 
     _req_slots__ = (
         'start', 'step',
@@ -155,7 +154,7 @@ class InttSpace(_Sliceable):
         return InttRange(start, stop, step)
 
 
-class Intt(metaclass=_Eidos):
+class Intt(metaclass=_Essence):
 
     @classmethod
     def _get_clschora(cls, /) -> _Sliceable:

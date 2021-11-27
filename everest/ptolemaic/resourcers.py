@@ -10,14 +10,11 @@ import types as _types
 import itertools as _itertools
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.aspect import (
-    Aspect as _Aspect, Functional as _Functional
-    )
 from everest.ptolemaic.proxy import Proxy as _Proxy
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
-class _ResourcerBase_(_Aspect):
+class _ResourcerBase_(metaclass=_Essence):
 
     CONVERTTYPES = ()
 
@@ -29,7 +26,7 @@ class _ResourcerBase_(_Aspect):
         return False
 
 
-class _ResourcerProper_(_Proxy, _ResourcerBase_, _Sprite):
+class _ResourcerProper_(_Proxy, _ResourcerBase_, metaclass=_Ousia):
 
     _req_slots__ = ('makefn', '_call_')
 
@@ -91,21 +88,21 @@ class Content(_ResourcerProper_):
             )
 
 
-class PtolContent(_ResourcerBase_, _Functional):
+class PtolContent(_ResourcerBase_):
 
     CONVERTTYPES = (
         _Essence,
         )
 
     @classmethod
-    def method(cls, arg, /):
+    def construct(cls, arg, /):
         out = arg.classproxy
         if isinstance(out, type):
             return Content(out)
         return out
 
 
-class Resourcer(_Functional, _ResourcerBase_):
+class Resourcer(_ResourcerBase_):
 
     CONVERTERS = (Module, PtolContent, Content)
     CONVERTTYPES = tuple(_itertools.chain.from_iterable(
@@ -116,7 +113,7 @@ class Resourcer(_Functional, _ResourcerBase_):
         exec(f"{typ.__name__} = CONVERTERS[{i}]")
 
     @classmethod
-    def method(cls, arg, /):
+    def construct(cls, arg, /):
         for typ in cls.CONVERTERS:
             if typ.can_convert(arg):
                 return typ(arg)

@@ -45,6 +45,13 @@ class Pleroma(type):
     def __call__(meta, /, *args, **kwargs):
         return meta._pleroma_construct(*args, **kwargs)
 
+    def _get_basetyp(meta, /):
+        return object
+
+    @property
+    def BaseTyp(meta, /):
+        return meta._get_basetyp()
+
 
 ###############################################################################
 ###############################################################################\

@@ -15,7 +15,7 @@ from everest.utilities import (
     TypeMap as _TypeMap, MultiTypeMap as _MultiTypeMap
     )
 from everest.utilities import caching as _caching
-from everest.ptolemaic.aspect import Aspect as _Aspect
+from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
@@ -226,7 +226,7 @@ class Sliceable(Chora):
         return self
 
 
-class Incisable(_Aspect):
+class Incisable(metaclass=_Essence):
     '''
     Incisable objects are said to 'contain space'
     because they own a Chora instance

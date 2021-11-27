@@ -5,11 +5,8 @@
 
 import inspect as _inspect
 
-from everest.ptolemaic.compound import Compound as _Compound
-from everest.ptolemaic.collections import DictLike as _DictLike
-from everest.ptolemaic.inherence import Inherence as _Inherence
+# from everest.ptolemaic.collections import DictLike as _DictLike
 from everest.ptolemaic.eidos import Eidos as _Eidos
-from everest.ptolemaic.proxy import Proxy as _Proxy
 
 
 KINDS = dict(zip(
@@ -18,7 +15,7 @@ KINDS = dict(zip(
     ))
 
 
-class ParamMeta(_Inherence):
+class ParamMeta(_Eidos):
 
     for kind in KINDS:
         exec('\n'.join((
@@ -28,7 +25,7 @@ class ParamMeta(_Inherence):
             )))
 
 
-class Param(_Compound, metaclass=ParamMeta):
+class Param(metaclass=ParamMeta):
 
     _req_slots__ = ('name', 'value', 'kind', 'hint', 'parameter', 'inps')
 
@@ -84,7 +81,7 @@ class Param(_Compound, metaclass=ParamMeta):
         return instance.params[self.name]
 
 
-class Sig(_DictLike, _Compound):
+class Sig(_DictLike, metaclass=Eidos):
 
     _req_slots__ = ('parameters', 'signature', 'paramdict')
 
@@ -114,7 +111,7 @@ class Sig(_DictLike, _Compound):
         return Params(bound.args, bound.kwargs, bound.arguments)
 
 
-class Params(_DictLike, _Compound):
+class Params(_DictLike, metaclass=Eidos):
 
     _req_slots__ = ('args', 'kwargs', 'arguments')
 
