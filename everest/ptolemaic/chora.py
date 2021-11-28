@@ -163,6 +163,11 @@ class Chora(metaclass=_Ousia):
         return eval('__getitem__')
 
     @classmethod
+    def _set_getitem(cls, /):
+        meth = cls._get_getitem()
+        setattr(cls, '__getitem__', meth)
+
+    @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         cls._add_overmethods()
@@ -172,7 +177,7 @@ class Chora(metaclass=_Ousia):
         cls.chorameths = cls._get_chora_meths()
         cls.getmeths = cls._get_getmeths()
         cls.primetype = cls._retrieve_contains_.__annotations__['return']
-        cls.__getitem__ = cls._get_getitem()
+        cls._set_getitem()
 
     def __getitem__(self, arg, /):
         '''Placeholder for dynamically generated __getitem__.'''

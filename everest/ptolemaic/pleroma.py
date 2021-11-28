@@ -3,6 +3,8 @@
 ###############################################################################
 
 
+import pickle as _pickle
+
 from everest.ptolemaic.primitive import Primitive as _Primitive
 
 
@@ -51,6 +53,20 @@ class Pleroma(type):
     @property
     def BaseTyp(meta, /):
         return meta._get_basetyp()
+
+#     def reduce(meta=None, arg=None, /, *, method=_pickle.dumps):
+#         '''Serialises the metaclass.'''
+#         if meta is None:
+#             return None
+#         return method((meta, type(meta).reduce(arg)))
+
+#     @classmethod
+#     def revive(pleroma, arg=None, /, *, method=_pickle.loads):
+#         '''Unserialises a previously serialised metaclass.'''
+#         arg, sub = _pickle.loads(arg)
+#         if not sub is None:
+#             arg = arg.revive(sub, method=method)
+#         return arg
 
 
 ###############################################################################

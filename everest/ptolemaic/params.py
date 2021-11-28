@@ -6,7 +6,8 @@
 import inspect as _inspect
 
 # from everest.ptolemaic.collections import DictLike as _DictLike
-from everest.ptolemaic.eidos import Eidos as _Eidos
+from everest.ptolemaic.essence import Shade as _Shade
+from everest.ptolemaic.inherence import Inherence as _Inherence
 
 
 KINDS = dict(zip(
@@ -15,7 +16,7 @@ KINDS = dict(zip(
     ))
 
 
-class ParamMeta(_Eidos):
+class ParamMeta(_Inherence):
 
     for kind in KINDS:
         exec('\n'.join((
@@ -35,7 +36,7 @@ class Param(metaclass=ParamMeta):
 
     def __init__(self, /,
             name='anon',
-            hint=_Eidos,
+            hint=_Shade,
             value=NotImplemented,
             kind='PosKw',
             ):
@@ -81,7 +82,7 @@ class Param(metaclass=ParamMeta):
         return instance.params[self.name]
 
 
-class Sig(_DictLike, metaclass=Eidos):
+class Sig(_DictLike, metaclass=_Inherence):
 
     _req_slots__ = ('parameters', 'signature', 'paramdict')
 
@@ -111,7 +112,7 @@ class Sig(_DictLike, metaclass=Eidos):
         return Params(bound.args, bound.kwargs, bound.arguments)
 
 
-class Params(_DictLike, metaclass=Eidos):
+class Params(_DictLike, metaclass=_Inherence):
 
     _req_slots__ = ('args', 'kwargs', 'arguments')
 

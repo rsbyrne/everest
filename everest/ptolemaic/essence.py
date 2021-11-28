@@ -3,22 +3,28 @@
 ###############################################################################
 
 
-import abc as _abc
 import functools as _functools
 import itertools as _itertools
 import more_itertools as _mitertools
 import inspect as _inspect
 import operator as _operator
+import pickle as _pickle
+# import typing as _typing
+from collections import abc as _collabc
 
 from everest import utilities as _utilities
-from everest.ptolemaic.pleroma import Pleroma as _Pleroma
+from everest.ptolemaic.protoessence import ProtoEssence as _ProtoEssence
 
 
 def ordered_set(itr):
     return tuple(_mitertools.unique_everseen(itr))
 
 
-class Essence(_abc.ABCMeta, metaclass=_Pleroma):
+def pass_fn(arg, /):
+    return arg
+
+
+class Essence(_ProtoEssence):
     '''
     The metaclass of all Ptolemaic types;
     pure instances of itself are 'pure kinds' that cannot be instantiated.
@@ -34,9 +40,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __instancecheck__(cls, arg, /):
         return cls._ptolemaic_isinstance__(arg)
-
-#     def __subclasscheck__(cls, arg, /):
-#         return cls._ptolemaic_issubclass__(arg)
 
     def __contains__(cls, arg, /):
         return cls._ptolemaic_contains__(arg)
@@ -182,14 +185,25 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __call__(cls, /):
         return cls.construct
 
-    ### Legibility and serialisation for classes:
+    ### Methods relating to serialising and unserialising classes:
 
-    def get_classproxy(cls, /):
-        return cls
+    @classmethod
+    def get_relics(meta, /):
+        yield meta
 
-    @property
-    def classproxy(cls, /):
-        return cls.get_classproxy()
+    @classmethod
+    def reduce(meta, /, *, method=_pickle.loads):
+        return method((
+            type(meta),
+            *meta.get_relics()
+            ))
+
+    @classmethod
+    def revive(meta, arg, /, *, method=_pickle.loads):
+        hypermeta, *args = method(arg)
+        return hypermeta.revive(*args)
+
+    ### Defining aliases and representations for classes:
 
     def __repr__(cls, /):
         return cls.__class_repr__()
@@ -239,6 +253,19 @@ class Shade(metaclass=Essence):
     @classmethod
     def __contains__(cls, arg, /):
         return cls.clschora.__contains__(arg)
+
+    ### Supporting serialisation:
+
+    @classmethod
+    def get_relics(cls, /):
+        yield cls
+
+    @classmethod
+    def reduce(cls, /, *, method=_pickle.loads):
+        return method((
+            type(cls).reduce(method=pass_fn),
+            *cls.get_relics()
+            ))
 
     ### Legibility methods:
 

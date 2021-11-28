@@ -6,7 +6,7 @@
 from everest.ptolemaic.ousia import Ousia as _Ousia, Sprite as _Sprite
 
 
-class Eidos(_Ousia):
+class Inherence(_Ousia):
 
     ### Defining the mandatory basetype for instances of this metaclass:
 

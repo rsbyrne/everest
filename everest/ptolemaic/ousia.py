@@ -8,6 +8,7 @@ import weakref as _weakref
 import abc as _abc
 import inspect as _inspect
 import itertools as _itertools
+import pickle as _pickle
 
 from everest.utilities import caching as _caching, word as _word
 
@@ -17,8 +18,8 @@ from everest.ptolemaic.abstract import ProxyAbstract as _ProxyAbstract
 from everest.ptolemaic import exceptions as _exceptions
 
 
-def master_unreduce(loadcls, /, **kwargs):
-    return _ProxyAbstract.unproxy_arg(loadcls).reconstruct(**kwargs)
+def pass_fn(arg, /):
+    return arg
 
 
 class Ousia(_Essence):
@@ -63,17 +64,11 @@ class Ousia(_Essence):
         def __init__(cls, /, *args, **kwargs):
             _abc.ABCMeta.__init__(cls, *args, **kwargs)
 
-        ### Legibility and serialisation for classes:
-
-        def get_classproxy(cls, /):
-            return cls.basecls.get_classproxy()
+        ### Class representations and aliases:
 
         @property
         def _ptolemaic_class__(cls, /):
             return cls.basecls
-
-#         def __repr__(cls, /):
-#             return repr(cls.basecls)
 
     ### Implementing the class concretion mechanism:
 
@@ -120,12 +115,6 @@ class Ousia(_Essence):
     @property
     def registrar(cls, /):
         return cls.Registrar(cls)
-
-    ### Methods relating to Unidex and class legibility:
-
-    def reconstruct(cls, inputs, /):
-        args, kwargs = inputs
-        return cls(*args, **kwargs)
 
 
 class Registrar(_exceptions.ParameterisationException):
@@ -200,6 +189,28 @@ class Registrar(_exceptions.ParameterisationException):
         return f"{self.basecls.__name__}(*({argtup}), **{{{kwargtup}}})"
 
 
+# def master_unreduce(loadcls, /, **kwargs):
+#     return _ProxyAbstract.unproxy_arg(loadcls).reconstruct(**kwargs)
+
+
+def yield_args_kwargs(dct):
+    '''
+    Takes a `dict` representing a set of function args and kwargs
+    where the args are represented as numerical kwargs
+    and returns the args and kwargs separately.
+    '''
+    grpby = itertools.groupby(dct, str.isnumeric)
+    _, argkeys = next(grpby)
+    yield tuple(map(dct.__getitem__, argkeys))
+    _, kwargkeys = next(grpby)
+    kwargkeys = tuple(kwargkeys)
+    yield dict(zip(kwargkeys, map(dct.__getitem__, kwargkeys)))
+
+
+def master_unreduce(obj, /, *args):
+    return obj.revive(*args)
+
+
 class Sprite(metaclass=Ousia):
     '''
     The basetype of all Ousia instances.
@@ -216,9 +227,6 @@ class Sprite(metaclass=Ousia):
         )
     _ptolemaic_knowntypes__ = (_Primitive,)
     _ptolemaic_mroclasses__ = ('ConcreteBase', 'Registrar')
-
-    class ConcreteBase(_abc.ABC):
-        '''The base class for this class's `Concrete` subclass.'''
 
     ### Implementing bespoke class instantiation protocol:
 
@@ -245,7 +253,7 @@ class Sprite(metaclass=Ousia):
     def initialise(self, /, *args, **kwargs):
         self._softcache = dict()
         self._weakcache = _weakref.WeakValueDictionary()
-        self._argskwargs = (args, kwargs)
+        self._inputs = dict(zip(map(str, range(len(args))), args)) | kwargs
         args, kwargs = _ProxyAbstract.unproxy_argskwargs(args, kwargs)
         self.__init__(*args, **kwargs)
 
@@ -260,22 +268,48 @@ class Sprite(metaclass=Ousia):
         obj.initialise(*args, **kwargs)
         return obj
 
-    ### Methods relating to class legibility and serialisation:
-
     @property
-    def argskwargs(self, /):
-        return self._argskwargs
+    def inputs(self, /):
+        return self._inputs
 
-    def get_unreduce_args(self, /):
-        yield from super().get_unreduce_args()
-        yield self.argskwargs
+    ### Implementing chora-like behaviour:
 
     @classmethod
     def _ptolemaic_isinstance__(cls, arg, /):
         return issubclass(type(arg), cls)
 
-    def __reduce__(self, /):
-        return master_unreduce, tuple(self.get_unreduce_args())
+    ### Defining special behaviours for the concrete subclass:
+
+    class ConcreteBase(_abc.ABC):
+        '''The base class for this class's `Concrete` subclass.'''
+
+        ### Implementing serialisation of instances:
+
+        def get_relics(self, /):
+            yield self.inputs
+
+        def reduce(self, /, *, method=_pickle.dumps):
+            '''Serialises the object (for storage on disk, for example).'''
+            return method((
+                self._ptolemaic_class__.reduce(method=pass_fn),
+                *self.get_relics(),
+                ))
+
+        def __reduce__(self, /):
+            return master_unreduce, self.reduce(method=pass_fn)
+
+    ### Supporting serialisation:
+
+    @classmethod
+    def revive(cls, arg, /, *, method=_pickle.loads):
+        '''
+        Unserialise a previously serialised instance of this class.
+        '''
+        inputs = method(arg)
+        args, kwargs = yield_args_kwargs(inputs)
+        return cls(*args, **kwargs)
+
+    ### Defining ways that class instances can be represented:
 
     def _repr(self, /):
         args, kwargs = self.argskwargs
