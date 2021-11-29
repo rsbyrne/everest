@@ -11,6 +11,7 @@ from importlib import import_module as _import_module
 from inspect import getmodule as _getmodule
 import types as _types
 import re as _re
+import hashlib as _hashlib
 
 from everest.utilities import FrozenMap as _FrozenMap, TypeMap as _TypeMap
 from everest.primitive import Primitive as _Primitive
