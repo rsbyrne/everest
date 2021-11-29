@@ -3,8 +3,7 @@
 ###############################################################################
 
 
-from .. import exceptions as _exceptions
-from .. import utilities as _utilities
+from everest import primitive
 
 # from .primitive import *
 # from .pleroma import *

@@ -15,6 +15,7 @@ from everest.utilities import (
     TypeMap as _TypeMap, MultiTypeMap as _MultiTypeMap
     )
 from everest.utilities import caching as _caching
+
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.ousia import Ousia as _Ousia
 

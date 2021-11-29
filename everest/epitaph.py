@@ -3,6 +3,8 @@
 ###############################################################################
 
 
+import abc as _abc
+import itertools as _itertools
 from collections import deque as _deque
 import functools as _functools
 from importlib import import_module as _import_module
@@ -11,188 +13,194 @@ import types as _types
 import re as _re
 
 from everest.utilities import FrozenMap as _FrozenMap, TypeMap as _TypeMap
+from everest.primitive import Primitive as _Primitive
 
 
-class _Epitaph_:
+class Taphonomic(_abc.ABC):
+
+    def __init__(self, /):
+        raise TypeError("Abstract class: should not be instantiated.")
 
     @classmethod
-    def __class_init__(cls, /):
-        pass
-
-    @classmethod
-    def __init_subclass__(cls, /, **kwargs):
-        super().__init_subclass__()
-        cls.__class_init__()
+    def __subclasshook__(cls, C):
+        if cls is Taphonomic:
+            if any("epitaph" in B.__dict__ for B in C.__mro__):
+                return True
+        return NotImplemented
 
 
-class Epitaph(_Epitaph_):
+class Taphonomy:
     '''
     Defines and manages the Ptolemaic system's serialisation protocol.
     '''
 
-    PRETAG = '<{0}:'
-    POSTTAG = '>'
-    PREPATTERN = _re.compile(PRETAG.format(r'\w*') + '$', flags=_re.A)
-    POSTPATTERN = _re.compile(POSTTAG + '$', flags=_re.A)
-    FULLPATTERN = _re.compile(
-        PRETAG.format(r'\w*') + '.*' + POSTTAG,
-        flags=_re.A,
-        )
+    __slots__ = ('pretag', 'posttag', 'dirtag', 'encoders', 'decoders')
 
-    @classmethod
-    def enfence(cls, arg: str, /, directive=''):
+    def __init__(self, pretag='<', posttag='>', dirtag=':', /):
+        self.pretag, self.posttag, self.dirtag = pretag, posttag, dirtag
+        self.encoders = _TypeMap(self.yield_encoders())
+        self.decoders = _FrozenMap(self.yield_decoders())
+        super().__init__()
+
+    def enfence(self, arg: str, /, directive=''):
         '''Wraps a string in a fence, optionally with a contained directive.'''
-        return f"{cls.PRETAG.format(directive)}{arg}{cls.POSTTAG}"
+        return f"{self.pretag}{directive}{self.dirtag}{arg}{self.posttag}"
 
-    @classmethod
-    def defence(cls, arg: str, /):
+    def defence(self, arg: str, /):
         '''Removes the outermost fences from a string.'''
         return arg[1:(ind:=arg.index(':'))], arg[ind+1:-1]
 
-    @classmethod
-    def _encode_t(cls, arg: tuple, /) -> str:
-        return ''.join(map(cls.encode, arg))
-
-    @classmethod
-    def _decode_t(cls, /, *args) -> tuple:
-        return args
-
-    @classmethod
-    def _encode_d(cls, arg: dict, /) -> str:
-        return ''.join(map(cls.encode, arg.items()))
-
-    @classmethod
-    def _decode_d(cls, /, *pairs) -> dict:
-        print(pairs)
-        return dict(pairs)
-
-    @classmethod
-    def _encode_m(cls, arg: _types.ModuleType, /) -> str:
-        '''Serialises module objects.'''
-        return arg.__name__
-
-    @classmethod
-    def _decode_m(cls, arg: str, /):
-        '''Deserialises module objects.'''
-        return _import_module(arg)
-
     _CONTENTTYPES = (
         type,
+        _types.ModuleType,
         _types.FunctionType,
         _types.MethodType,
         _types.BuiltinFunctionType,
         _types.BuiltinMethodType,
         )
 
-    @classmethod
-    def _encode_c(cls, arg: _CONTENTTYPES, /) -> str:
+    def encode_content(self, arg: _CONTENTTYPES, /):
         '''
         Serialises 'content':
         objects that can be reached by qualname paths from a module.
         '''
+        if isinstance(arg, _types.ModuleType):
+            return f"'{arg.__name__}',"
+        if arg.__module__ == 'builtins':
+            return self.enfence(arg.__name__)
         arg0, arg1 = arg.__qualname__, _getmodule(arg).__name__
-        return f"{arg0};{arg1}"
+        return self.enfence(f"'{arg0}','{arg1}'", directive='c')
 
-    @classmethod
-    def _decode_c(cls, arg, /):
+    def decode_content(self:'c', arg, /):
         '''
         Deserialises 'content':
         objects that can be reached by qualname paths from a module.
         '''
-        name, path = arg.split(';')
+        name, path = arg
         return _functools.reduce(
             getattr,
             name.split('.'),
             _import_module(path)
             )
 
-    @classmethod
-    def _encode_(cls, arg: object, /) -> str:
-        return repr(arg)
+    def decode_call(self:'m',
+            caller: callable, args: tuple, kwargs: dict, /,
+            ) -> object:
+        return caller(*args, **kwargs)
 
-    @classmethod
-    def _decode_(cls, arg, /) -> object:
-        return eval(arg)
-
-    @classmethod
-    def yield_encoders(cls, /):
-        prefix = '_encode_'
-        for attr in dir(cls):
+    def yield_encoders(self, /):
+        prefix = 'encode_'
+        for attr in dir(self):
             if attr.startswith(prefix):
-                if attr == prefix:
-                    continue
-                meth = getattr(cls, attr)
-                yield meth.__annotations__['arg'], meth
-        yield object, cls._encode_
+                meth = getattr(self, attr)
+                hint = meth.__annotations__['arg']
+                yield hint, meth
 
-    @classmethod
-    def yield_decoders(cls, /):
-        prefix = '_decode_'
-        for attr in dir(cls):
+    def yield_decoders(self, /):
+        prefix = 'decode_'
+        yield '', lambda x: x
+        for attr in dir(self):
             if attr.startswith(prefix):
-                if attr == prefix:
-                    continue
-                meth = getattr(cls, attr)
-                yield attr.removeprefix(prefix), meth
-        yield '', cls._decode_
+                meth = getattr(self, attr)
+                yield meth.__annotations__['self'], meth
 
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.encoders = _TypeMap(cls.yield_encoders())
-        cls.decoders = _FrozenMap(cls.yield_decoders())
+    def encode(self, arg, /):
+        typ = type(arg)
+        if issubclass(typ, Taphonomic):
+            return typ.epitaph().__str__()
+        if issubclass(typ, Epitaph):
+            return arg.__str__()
+        if issubclass(typ, _Primitive):
+            return repr(arg)
+        if typ is tuple:
+            return '(' + ','.join(map(self.encode, arg)) + ')'
+        if typ is dict:
+            return '{' + ','.join(map(
+                ':'.join,
+                zip(map(self.encode, arg), map(self.encode, arg.values()))
+                )) + '}'
+        if hasattr(arg, '__module__'):
+            if arg.__module__ == 'builtins':
+                return arg.__name__
+        meth = self.encoders[typ]
+        return meth(arg)
 
-    @classmethod
-    def encode(cls, arg, /):
-        meth = cls.encoders[type(arg)]
-        methcode = meth.__name__.removeprefix('_encode_')
-        arg = meth(arg)
-        return cls.enfence(arg, directive=methcode)
-
-    @classmethod
-    def unpack_fences(cls, arg: str, /):
+    def unpack_fences(self, arg: str, /):
         '''Unpack nested fences as an iterable of level-content pairs.'''
-        start, stop = cls.PRETAG[0], cls.POSTTAG[-1]
+        pretag, posttag = self.pretag, self.posttag
+        start = pretag
         stack = _deque()
         for i, c in enumerate(arg):
-            if c == '<':
+            if c == pretag:
                 stack.append(i)
-            elif c == '>' and stack:
+            elif c == posttag and stack:
                 start = stack.pop()
-                yield (len(stack), arg[start + 1: i])
+                yield (len(stack), arg[start: i+1])
 
-    @classmethod
-    def unpack_pairs(cls, levelpairs, level=0, /):
+    def replace_substrns(self, content, subs, /):
+        for ashash, strn in subs:
+            content = content.replace(strn, ashash)
+        return content
+
+    def hash_codestr(self, arg: str, /):
+        return '_' + _hashlib.md5(arg.encode()).hexdigest()
+
+    def recursive_decode(self, dct: dict, levelpairs, level=0, /):
         starti = 0
         results = _deque()
         for stopi, (lev, strn) in enumerate(levelpairs):
             if lev == level:
-                directive, content = strn[:(ind:=strn.index(':'))], strn[ind+1:]
-                args = cls.unpack_pairs(levelpairs[starti:stopi], level+1)
-                results.append((directive, args if args else content))
+                ashash = self.hash_codestr(strn)
+                if ashash not in dct:
+                    directive, content = (
+                        strn[1:(ind:=strn.index(self.dirtag))],
+                        strn[ind+1:-1],
+                        )
+                    subs = self.recursive_decode(
+                        dct,
+                        levelpairs[starti:stopi],
+                        level+1,
+                        )
+                    content = self.replace_substrns(content, subs)
+                    meth = self.decoders[directive]
+                    dct[ashash] = meth(eval(content, {}, dct))
+                yield ashash, strn
                 starti = stopi
-        return tuple(results)
 
-    @classmethod
-    def decode_pair(cls, pair: tuple, /):
-        directive, content = pair
-        decoder = cls.decoders[directive]
-        if isinstance(content, tuple):
-            return decoder(*map(cls.decode_pair, content))
-        return decoder(content)
+    def decode(self, content: str, /):
+        levelpairs = tuple(self.unpack_fences(content))
+        subs = tuple(self.recursive_decode(dct:={}, levelpairs))
+        content = self.replace_substrns(content, subs)
+        return eval(content, {}, dct)
 
-    @classmethod
-    def decode(cls, arg: str, /):
-        toppair = cls.unpack_pairs(tuple(cls.unpack_fences(arg)))[0]
-        return cls.decode_pair(toppair)
+    def __call__(self, obj, /):
+        return Epitaph(obj, taphonomy=self)
 
 
+TAPHONOMY = Taphonomy()
 
-#     @classmethod
-#     def decode_import
 
-#     @classmethod
-#     def decode
+class Epitaph:
+
+    __slots__ = ('taphonomy', '_epi')
+
+    def __init__(self, obj, /, *, taphonomy: Taphonomy = TAPHONOMY):
+        self.taphonomy = taphonomy
+        self._epi = taphonomy.encode(obj)
+
+    def __str__(self, /):
+        return self._epi
+
+    def __repr__(self, /):
+        return f"{self.__class__.__qualname__}({self})"
+
+    def decode(self, /):
+        return self.taphonomy.decode(self.__str__())
+
+
+def entomb(obj, /, *, taphonomy=TAPHONOMY):
+    return taphonomy(obj)
+
 
 ###############################################################################
 ###############################################################################

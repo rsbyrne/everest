@@ -10,10 +10,10 @@ import inspect as _inspect
 from collections import abc as _collabc
 
 from everest.utilities.classtools import add_defer_meths as _add_defer_meths
+from everest.primitive import Primitive as _Primitive
 
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.aspect import Aspect as _Aspect
-from everest.ptolemaic.primitive import Primitive as _Primitive
 from everest.ptolemaic.chora import Sliceable as _Sliceable
 
 

@@ -3,6 +3,7 @@
 ###############################################################################
 
 
+import abc as _abc
 import functools as _functools
 import itertools as _itertools
 import more_itertools as _mitertools
@@ -13,7 +14,8 @@ import pickle as _pickle
 from collections import abc as _collabc
 
 from everest import utilities as _utilities
-from everest.ptolemaic.protoessence import ProtoEssence as _ProtoEssence
+
+from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 
 
 def ordered_set(itr):
@@ -24,7 +26,7 @@ def pass_fn(arg, /):
     return arg
 
 
-class Essence(_ProtoEssence):
+class Essence(_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
     pure instances of itself are 'pure kinds' that cannot be instantiated.

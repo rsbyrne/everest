@@ -11,8 +11,8 @@ import itertools as _itertools
 import pickle as _pickle
 
 from everest.utilities import caching as _caching, word as _word
+from everest.primitive import Primitive as _Primitive
 
-from everest.ptolemaic.primitive import Primitive as _Primitive
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.abstract import ProxyAbstract as _ProxyAbstract
 from everest.ptolemaic import exceptions as _exceptions

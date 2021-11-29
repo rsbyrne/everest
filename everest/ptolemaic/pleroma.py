@@ -5,7 +5,7 @@
 
 import pickle as _pickle
 
-from everest.ptolemaic.primitive import Primitive as _Primitive
+from everest.primitive import Primitive as _Primitive
 
 
 class Pleroma(type):
