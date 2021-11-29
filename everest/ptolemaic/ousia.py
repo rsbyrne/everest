@@ -10,7 +10,7 @@ import inspect as _inspect
 import itertools as _itertools
 import pickle as _pickle
 
-from everest.utilities import caching as _caching, word as _word
+from everest.utilities import caching as _caching
 from everest.primitive import Primitive as _Primitive
 
 from everest.ptolemaic.essence import Essence as _Essence
@@ -50,7 +50,7 @@ class Ousia(_Essence):
             return _abc.ABCMeta.__new__(
                 meta,
                 f"Concrete{basecls.__name__}",
-                (basecls, basecls.ConcreteBase),
+                (basecls.ConcreteBase, basecls),
                 basecls._ptolemaic_concrete_namespace__(),
                 )
 
@@ -69,6 +69,10 @@ class Ousia(_Essence):
         @property
         def _ptolemaic_class__(cls, /):
             return cls.basecls
+
+        @property
+        def epitaph(cls, /):
+            return cls._ptolemaic_class__.epitaph
 
     ### Implementing the class concretion mechanism:
 
@@ -223,10 +227,11 @@ class Sprite(metaclass=Ousia):
         '_ptolemaic_knowntypes__',
         )
     _req_slots__ = (
-        '_softcache', '_weakcache', '__weakref__', '_argskwargs'
+        '_softcache', '_weakcache', '_argskwargs', '_inputs',
+        '__weakref__',
         )
     _ptolemaic_knowntypes__ = (_Primitive,)
-    _ptolemaic_mroclasses__ = ('ConcreteBase', 'Registrar')
+    _ptolemaic_mroclasses__ = ('Registrar',)
 
     ### Implementing bespoke class instantiation protocol:
 
@@ -253,7 +258,7 @@ class Sprite(metaclass=Ousia):
     def initialise(self, /, *args, **kwargs):
         self._softcache = dict()
         self._weakcache = _weakref.WeakValueDictionary()
-        self._inputs = dict(zip(map(str, range(len(args))), args)) | kwargs
+        self._inputs = (args, kwargs)
         args, kwargs = _ProxyAbstract.unproxy_argskwargs(args, kwargs)
         self.__init__(*args, **kwargs)
 
@@ -283,36 +288,50 @@ class Sprite(metaclass=Ousia):
     class ConcreteBase(_abc.ABC):
         '''The base class for this class's `Concrete` subclass.'''
 
+        __slots__ = ()
+
         ### Implementing serialisation of instances:
 
-        def get_relics(self, /):
-            yield self.inputs
+        def get_epitaph(self, /):
+            return self.taphonomy.call_encode(
+                self._ptolemaic_class__, *self.inputs
+                )
 
-        def reduce(self, /, *, method=_pickle.dumps):
-            '''Serialises the object (for storage on disk, for example).'''
-            return method((
-                self._ptolemaic_class__.reduce(method=pass_fn),
-                *self.get_relics(),
-                ))
+        @property
+        @_caching.soft_cache()
+        def epitaph(self, /):
+            return self.taphonomy(self.get_epitaph())
 
-        def __reduce__(self, /):
-            return master_unreduce, self.reduce(method=pass_fn)
+        ### Defining some aliases:
 
-    ### Supporting serialisation:
+        @property
+        def _ptolemaic_class__(self, /):
+            return self.basecls
 
-    @classmethod
-    def revive(cls, arg, /, *, method=_pickle.loads):
-        '''
-        Unserialise a previously serialised instance of this class.
-        '''
-        inputs = method(arg)
-        args, kwargs = yield_args_kwargs(inputs)
-        return cls(*args, **kwargs)
+        @property
+        def metacls(self, /):
+            return self._ptolemaic_class__.metacls
+
+        @property
+        def taphonomy(self, /):
+            return self.metacls.taphonomy
+
+        @property
+        def hashcode(self, /):
+            return self.epitaph.hashcode
+
+        @property
+        def hashint(self, /):
+            return self.epitaph.hashint
+
+        @property
+        def hashID(self, /):
+            return self.epitaph.hashID
 
     ### Defining ways that class instances can be represented:
 
     def _repr(self, /):
-        args, kwargs = self.argskwargs
+        args, kwargs = self.inputs
         return ', '.join(_itertools.chain(
             map(repr, args),
             map('='.join, zip(kwargs, map(repr, kwargs.values()))),
@@ -321,26 +340,7 @@ class Sprite(metaclass=Ousia):
     @_caching.soft_cache()
     def __repr__(self, /):
         content = f"({rep})" if (rep := self._repr()) else ''
-        return f"<{repr(type(self))}{content}>"
-
-    def _get_hashcode(self):
-        content = self.__repr__().encode()
-        return _hashlib.md5(content).hexdigest()
-
-    @property
-    @_caching.soft_cache()
-    def hashcode(self):
-        return self._get_hashcode()
-
-    @property
-    @_caching.soft_cache()
-    def hashint(self):
-        return int(self.hashcode, 16)
-
-    @property
-    @_caching.soft_cache()
-    def hashID(self):
-        return _word.get_random_english(seed=self.hashint, n=2)
+        return f"<{repr(type(self)._ptolemaic_class__)}{content}>"
 
 
 ###############################################################################

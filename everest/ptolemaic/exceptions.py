@@ -6,7 +6,7 @@ of all exceptions thrown within the Ptolemaic system.
 ###############################################################################
 
 
-from . import _exceptions
+from everest import exceptions as _exceptions
 
 
 class PtolemaicException(_exceptions.EverestException):

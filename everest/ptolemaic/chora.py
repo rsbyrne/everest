@@ -77,7 +77,7 @@ class Chora(metaclass=_Ousia):
     @classmethod
     def _get_chora_rawmeths(cls, /):
         out = dict()
-        for attr in dir(cls):
+        for attr in cls.__dict__:
             for prefix in cls.PREFIXES:
                 if attr.startswith(f"_{prefix}_"):
                     out[attr] = getattr(cls, attr)
@@ -138,7 +138,7 @@ class Chora(metaclass=_Ousia):
     def _get_chora_meths(cls, /):
         out = dict()
         for prefix in ('getitem', *cls.PREFIXES):
-            for name in dir(cls):
+            for name in cls.__dict__:
                 if name.startswith(prefix + '_'):
                     out[name] = getattr(cls, name)
         return out

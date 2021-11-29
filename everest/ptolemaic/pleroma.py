@@ -5,6 +5,7 @@
 
 import pickle as _pickle
 
+from everest import epitaph as _epitaph
 from everest.primitive import Primitive as _Primitive
 
 
@@ -47,12 +48,16 @@ class Pleroma(type):
     def __call__(meta, /, *args, **kwargs):
         return meta._pleroma_construct(*args, **kwargs)
 
-    def _get_basetyp(meta, /):
+    def get_basetyp(meta, /):
         return object
 
     @property
     def BaseTyp(meta, /):
-        return meta._get_basetyp()
+        return meta.get_basetyp()
+
+    @property
+    def taphonomy(meta, /):
+        return _epitaph.TAPHONOMY
 
 #     def reduce(meta=None, arg=None, /, *, method=_pickle.dumps):
 #         '''Serialises the metaclass.'''

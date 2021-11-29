@@ -3,6 +3,7 @@
 ###############################################################################
 
 
+import weakref as _weakref
 import os as _os
 import pickle as _pickle
 import functools as _functools
@@ -12,7 +13,7 @@ from collections import abc as _collabc
 from .makehash import quick_hash as _quick_hash
 
 
-def soft_cache(storage='_softcache'):
+def soft_cache(storage='_softcache', storetyp=dict):
 
     if not isinstance(storage, (str, _collabc.Collection)):
         raise TypeError("Storage must be str or Collection type.")
@@ -52,16 +53,23 @@ def soft_cache(storage='_softcache'):
 
         if attrstorage:
 
-            def wrapper(arg0, *args, func=wrapper, storage=storage, **kwargs):
+            def wrapper(
+                    arg0, *args,
+                    func=wrapper, storage=storage, storetyp=storetyp, **kwargs,
+                    ):
                 try:
                     storage = getattr(arg0, storage)
                 except AttributeError:
-                    setattr(arg0, storage, storage := dict())
+                    setattr(arg0, storage, storage := storetyp())
                 return func(arg0, *args, storage=storage, **kwargs)
 
         return _functools.wraps(func)(wrapper)
 
     return decorator
+
+
+def weak_cache(storage='_weakcache'):
+    return soft_cache(storage, _weakref.WeakValueDictionary)
 
 
 def hard_cache(cachedir, /, *subcaches):

@@ -4,8 +4,9 @@
 
 
 import abc as _abc
+import weakref as _weakref
 import itertools as _itertools
-from collections import deque as _deque
+from collections import deque as _deque, abc as _collabc
 import functools as _functools
 from importlib import import_module as _import_module
 from inspect import getmodule as _getmodule
@@ -13,8 +14,53 @@ import types as _types
 import re as _re
 import hashlib as _hashlib
 
+from everest.utilities import caching as _caching, word as _word
 from everest.utilities import FrozenMap as _FrozenMap, TypeMap as _TypeMap
 from everest.primitive import Primitive as _Primitive
+
+
+class Epitaph:
+
+    __slots__ = (
+        'taphonomy', 'encoded', '_softcache',
+#         '_weakcache',
+        )
+
+    def __init__(self, taphonomy, encoded, /):
+        self.taphonomy = taphonomy
+        self.encoded = encoded
+
+#     @_caching.weak_cache()
+    def decode(self, /) -> object:
+        return self.taphonomy.decode(self.encoded)
+
+    @property
+    def obj(self, /):
+        return self.decode()
+
+    def get_hashcode(self):
+        return _hashlib.md5(self.encoded.encode()).hexdigest()
+
+    @property
+    @_caching.soft_cache()
+    def hashcode(self):
+        return self.get_hashcode()
+
+    @property
+    @_caching.soft_cache()
+    def hashint(self):
+        return int(self.hashcode, 16)
+
+    @property
+    @_caching.soft_cache()
+    def hashID(self):
+        return _word.get_random_english(seed=self.hashint, n=2)
+
+    def __str__(self, /):
+        return self.encoded
+
+    def __repr__(self, /):
+        return f"<{self.__class__.__qualname__}({self.hashID})>"
 
 
 class Taphonomic(_abc.ABC):
@@ -51,6 +97,18 @@ class Taphonomy:
         '''Removes the outermost fences from a string.'''
         return arg[1:(ind:=arg.index(':'))], arg[ind+1:-1]
 
+    def encode_str(self, arg: str) -> str:
+        return arg
+
+    def encode_epitaph(self, arg: Epitaph) -> str:
+        return str(arg)
+
+    def encode_taphonomic(self, arg: Taphonomic) -> str:
+        return self.encode_epitaph(arg.epitaph)
+
+    def encode_primitive(self, arg: _Primitive) -> str:
+        return repr(arg)
+
     _CONTENTTYPES = (
         type,
         _types.ModuleType,
@@ -84,14 +142,23 @@ class Taphonomy:
             _import_module(path)
             )
 
-    def decode_call(self:'m',
-            caller: callable, args: tuple, kwargs: dict, /,
-            ) -> object:
+    def call_encode(self,
+            caller: _collabc.Callable,
+            args: _collabc.Sequence = (),
+            kwargs: _collabc.Mapping = _FrozenMap(),
+            /) -> object:
+        return self.enfence(
+            self.encode((caller, args, kwargs)),
+            directive='f',
+            )
+
+    def decode_call(self:'f', arg: tuple):
+        caller, args, kwargs = arg
         return caller(*args, **kwargs)
 
     def yield_encoders(self, /):
         prefix = 'encode_'
-        for attr in dir(self):
+        for attr in self.__class__.__dict__:
             if attr.startswith(prefix):
                 meth = getattr(self, attr)
                 hint = meth.__annotations__['arg']
@@ -100,19 +167,13 @@ class Taphonomy:
     def yield_decoders(self, /):
         prefix = 'decode_'
         yield '', lambda x: x
-        for attr in dir(self):
+        for attr in self.__class__.__dict__:
             if attr.startswith(prefix):
                 meth = getattr(self, attr)
                 yield meth.__annotations__['self'], meth
 
     def encode(self, arg, /):
         typ = type(arg)
-        if issubclass(typ, Taphonomic):
-            return typ.epitaph().__str__()
-        if issubclass(typ, Epitaph):
-            return arg.__str__()
-        if issubclass(typ, _Primitive):
-            return repr(arg)
         if typ is tuple:
             return '(' + ','.join(map(self.encode, arg)) + ')'
         if typ is dict:
@@ -175,28 +236,10 @@ class Taphonomy:
         return eval(content, {}, dct)
 
     def __call__(self, obj, /):
-        return Epitaph(obj, taphonomy=self)
+        return Epitaph(self, self.encode(obj))
 
 
 TAPHONOMY = Taphonomy()
-
-
-class Epitaph:
-
-    __slots__ = ('taphonomy', '_epi')
-
-    def __init__(self, obj, /, *, taphonomy: Taphonomy = TAPHONOMY):
-        self.taphonomy = taphonomy
-        self._epi = taphonomy.encode(obj)
-
-    def __str__(self, /):
-        return self._epi
-
-    def __repr__(self, /):
-        return f"{self.__class__.__qualname__}({self})"
-
-    def decode(self, /):
-        return self.taphonomy.decode(self.__str__())
 
 
 def entomb(obj, /, *, taphonomy=TAPHONOMY):

@@ -14,6 +14,7 @@ import pickle as _pickle
 from collections import abc as _collabc
 
 from everest import utilities as _utilities
+from everest.utilities import caching as _caching
 
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 
@@ -26,7 +27,7 @@ def pass_fn(arg, /):
     return arg
 
 
-class Essence(_Pleroma):
+class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
     pure instances of itself are 'pure kinds' that cannot be instantiated.
@@ -83,11 +84,11 @@ class Essence(_Pleroma):
     ### Defining the mandatory basetype for instances of this metaclass:
 
     @classmethod
-    def _get_basetyp(meta, /):
+    def get_basetyp(meta, /):
         try:
             return Shade
         except NameError:
-            return type(meta)._get_basetyp(meta)
+            return type(meta).get_basetyp(meta)
 
     ### Creating the object that is the class itself:
 
@@ -98,13 +99,13 @@ class Essence(_Pleroma):
     @classmethod
     def process_bases(meta, bases):
         '''Inserts the metaclass's mandatory basetype if necessary.'''
-        if tuple(filter((basetyp := meta.BaseTyp).__subclasscheck__, bases)):
+        basetyp = meta.BaseTyp
+        if tuple(filter(basetyp.__subclasscheck__, bases)):
             return bases
         return (*bases, basetyp)
 
     def __new__(meta, name, bases, namespace, /, *args, **kwargs):
         bases = meta.process_bases(bases)
-        namespace['metacls'] = meta
         namespace['__slots__'] = ()
         return super().__new__(meta, name, bases, namespace, *args, **kwargs)
 
@@ -189,21 +190,10 @@ class Essence(_Pleroma):
 
     ### Methods relating to serialising and unserialising classes:
 
-    @classmethod
-    def get_relics(meta, /):
-        yield meta
-
-    @classmethod
-    def reduce(meta, /, *, method=_pickle.loads):
-        return method((
-            type(meta),
-            *meta.get_relics()
-            ))
-
-    @classmethod
-    def revive(meta, arg, /, *, method=_pickle.loads):
-        hypermeta, *args = method(arg)
-        return hypermeta.revive(*args)
+    @property
+    @_caching.soft_cache()
+    def epitaph(cls, /):
+        return type(cls).taphonomy(cls.get_epitaph())
 
     ### Defining aliases and representations for classes:
 
@@ -213,6 +203,26 @@ class Essence(_Pleroma):
     @property
     def _ptolemaic_class__(cls, /):
         return cls
+
+    @property
+    def metacls(cls, /):
+        return type(cls._ptolemaic_class__)
+
+    @property
+    def taphonomy(cls, /):
+        return cls.metacls.taphonomy
+
+    @property
+    def hashcode(cls, /):
+        return cls.epitaph.hashcode
+
+    @property
+    def hashint(cls, /):
+        return cls.epitaph.hashint
+
+    @property
+    def hashID(cls, /):
+        return cls.epitaph.hashID
 
 
 class Shade(metaclass=Essence):
@@ -259,21 +269,14 @@ class Shade(metaclass=Essence):
     ### Supporting serialisation:
 
     @classmethod
-    def get_relics(cls, /):
-        yield cls
-
-    @classmethod
-    def reduce(cls, /, *, method=_pickle.loads):
-        return method((
-            type(cls).reduce(method=pass_fn),
-            *cls.get_relics()
-            ))
+    def get_epitaph(cls, /):
+        return type(cls).taphonomy.encode_content(cls)
 
     ### Legibility methods:
 
     @classmethod
     def __class_repr__(cls, /):
-        return cls._ptolemaic_class__.__qualname__
+        return cls.__qualname__
 
 
 ###############################################################################
