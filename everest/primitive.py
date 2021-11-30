@@ -43,25 +43,22 @@ class Primitive(metaclass=PrimitiveMeta):
                 return True
         return NotImplemented
 
-#     @classmethod
-#     def __class_instancecheck__(cls, arg, /):
-#         if cls is not Primitive:
-#             return NotImplemented
-#         if isinstance(arg, cls.TYPS):
-#             return True
-# #         elif isinstance(arg, type):
-# #             if int.__module__ == 'builtins':
-# #                 return True
-#         if isinstance(arg, tuple):
-#             return all(map(cls.__instancecheck__, arg))
-#         if isinstance(arg, dict):
-#             return all(map(
-#                 cls.__instancecheck__,
-#                 (tuple(arg), tuple(arg.values())),
-#                 ))
-#         if hasattr(arg, '__module__'):
-#             return arg.__module__ == 'builtins'
-#         return False
+    @classmethod
+    def __class_instancecheck__(cls, arg, /):
+        if cls is not Primitive:
+            return NotImplemented
+        if isinstance(arg, cls.TYPS):
+            return True
+        if isinstance(arg, tuple):
+            return all(map(cls.__instancecheck__, arg))
+        if isinstance(arg, dict):
+            return all(map(
+                cls.__instancecheck__,
+                (tuple(arg), tuple(arg.values())),
+                ))
+        if hasattr(arg, '__module__'):
+            return arg.__module__ == 'builtins'
+        return False
 
 
 ###############################################################################

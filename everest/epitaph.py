@@ -39,7 +39,7 @@ class Epitaph:
         return self.decode()
 
     def get_hashcode(self):
-        return _hashlib.md5(self.encoded.encode()).hexdigest()
+        return self.taphonomy.get_hashcode(self.encoded)
 
     @property
     @_caching.soft_cache()
@@ -81,24 +81,26 @@ class Taphonomy:
     Defines and manages the Ptolemaic system's serialisation protocol.
     '''
 
-    __slots__ = ('pretag', 'posttag', 'dirtag', 'encoders', 'decoders')
+    __slots__ = (
+        'encoders', 'decoders',
+        'codestore', 'objstore',
+        'epitapher',
+        )
 
-    def __init__(self, pretag='<', posttag='>', dirtag=':', /):
-        self.pretag, self.posttag, self.dirtag = pretag, posttag, dirtag
+    def __init__(self, epitapher=Epitaph, /):
+        self.epitapher = Epitaph
         self.encoders = _TypeMap(self.yield_encoders())
         self.decoders = _FrozenMap(self.yield_decoders())
+        self.codestore = {}
+        self.objstore = _weakref.WeakValueDictionary()
         super().__init__()
 
     def enfence(self, arg: str, /, directive=''):
         '''Wraps a string in a fence, optionally with a contained directive.'''
-        return f"{self.pretag}{directive}{self.dirtag}{arg}{self.posttag}"
-
-    def defence(self, arg: str, /):
-        '''Removes the outermost fences from a string.'''
-        return arg[1:(ind:=arg.index(':'))], arg[ind+1:-1]
+        return f"{directive}({arg})"
 
     def encode_str(self, arg: str) -> str:
-        return arg
+        return repr(arg)
 
     def encode_epitaph(self, arg: Epitaph) -> str:
         return str(arg)
@@ -128,33 +130,40 @@ class Taphonomy:
         if arg.__module__ == 'builtins':
             return self.enfence(arg.__name__)
         arg0, arg1 = arg.__qualname__, _getmodule(arg).__name__
-        return self.enfence(f"'{arg0}','{arg1}'", directive='c')
+        return self.enfence(f"'{arg0}','{arg1}'", 'c')
 
-    def decode_content(self:'c', arg, /):
+    def decode_content(self:'c', name: str, path: str, /):
         '''
         Deserialises 'content':
         objects that can be reached by qualname paths from a module.
         '''
-        name, path = arg
         return _functools.reduce(
             getattr,
             name.split('.'),
             _import_module(path)
             )
 
-    def call_encode(self,
+    def get_hashcode(self, arg: str, /):
+        return _hashlib.md5(arg.encode()).hexdigest()
+
+    def decode_hashcode(self:'h', arg: str, /):
+        if arg in (objstore := self.objstore):
+            return objstore[arg]
+        out = self.decode(self.codestore[arg])
+        if hasattr(out, '__weakref__'):
+            objstore[arg] = out
+        return out
+
+    def custom_encode_call(self,
             caller: _collabc.Callable,
             args: _collabc.Sequence = (),
             kwargs: _collabc.Mapping = _FrozenMap(),
             /) -> object:
-        return self.enfence(
-            self.encode((caller, args, kwargs)),
-            directive='f',
-            )
-
-    def decode_call(self:'f', arg: tuple):
-        caller, args, kwargs = arg
-        return caller(*args, **kwargs)
+        func = self.encode
+        return func(caller) + '(' + ','.join(_itertools.chain(
+            map(func, args),
+            map('='.join, zip(kwargs, map(func, kwargs.values()))),
+            )) + ')'
 
     def yield_encoders(self, /):
         prefix = 'encode_'
@@ -172,7 +181,7 @@ class Taphonomy:
                 meth = getattr(self, attr)
                 yield meth.__annotations__['self'], meth
 
-    def encode(self, arg, /):
+    def _encode(self, arg, /):
         typ = type(arg)
         if typ is tuple:
             return '(' + ','.join(map(self.encode, arg)) + ')'
@@ -187,56 +196,23 @@ class Taphonomy:
         meth = self.encoders[typ]
         return meth(arg)
 
-    def unpack_fences(self, arg: str, /):
-        '''Unpack nested fences as an iterable of level-content pairs.'''
-        pretag, posttag = self.pretag, self.posttag
-        start = pretag
-        stack = _deque()
-        for i, c in enumerate(arg):
-            if c == pretag:
-                stack.append(i)
-            elif c == posttag and stack:
-                start = stack.pop()
-                yield (len(stack), arg[start: i+1])
+    def encode(self, arg, /):
+        if hasattr(arg, 'encode'):
+            return arg.encode()
+        out = self._encode(arg)
+        if len(out) > 32:
+            ashash = self.get_hashcode(out)
+            self.codestore[ashash] = out
+            if hasattr(arg, '__weakref__'):
+                self.objstore[ashash] = arg
+            return self.enfence(repr(ashash), 'h')
+        return out
 
-    def replace_substrns(self, content, subs, /):
-        for ashash, strn in subs:
-            content = content.replace(strn, ashash)
-        return content
-
-    def hash_codestr(self, arg: str, /):
-        return '_' + _hashlib.md5(arg.encode()).hexdigest()
-
-    def recursive_decode(self, dct: dict, levelpairs, level=0, /):
-        starti = 0
-        results = _deque()
-        for stopi, (lev, strn) in enumerate(levelpairs):
-            if lev == level:
-                ashash = self.hash_codestr(strn)
-                if ashash not in dct:
-                    directive, content = (
-                        strn[1:(ind:=strn.index(self.dirtag))],
-                        strn[ind+1:-1],
-                        )
-                    subs = self.recursive_decode(
-                        dct,
-                        levelpairs[starti:stopi],
-                        level+1,
-                        )
-                    content = self.replace_substrns(content, subs)
-                    meth = self.decoders[directive]
-                    dct[ashash] = meth(eval(content, {}, dct))
-                yield ashash, strn
-                starti = stopi
-
-    def decode(self, content: str, /):
-        levelpairs = tuple(self.unpack_fences(content))
-        subs = tuple(self.recursive_decode(dct:={}, levelpairs))
-        content = self.replace_substrns(content, subs)
-        return eval(content, {}, dct)
+    def decode(self, arg, /):
+        return eval(arg, {}, self.decoders)
 
     def __call__(self, obj, /):
-        return Epitaph(self, self.encode(obj))
+        return self.epitapher(self, self.encode(obj))
 
 
 TAPHONOMY = Taphonomy()
@@ -248,3 +224,49 @@ def entomb(obj, /, *, taphonomy=TAPHONOMY):
 
 ###############################################################################
 ###############################################################################
+
+
+#     def unpack_fences(self, arg: str, /):
+#         '''Unpack nested fences as an iterable of level-content pairs.'''
+#         pretag, posttag = self.pretag, self.posttag
+#         start = pretag
+#         stack = _deque()
+#         for i, c in enumerate(arg):
+#             if c == pretag:
+#                 stack.append(i)
+#             elif c == posttag and stack:
+#                 start = stack.pop()
+#                 yield (len(stack), arg[start: i+1])
+
+#     def replace_substrns(self, content, subs, /):
+#         for ashash, strn in subs:
+#             content = content.replace(strn, ashash)
+#         return content
+
+#     def recursive_decode(self, dct: dict, levelpairs, level=0, /):
+#         starti = 0
+#         results = _deque()
+#         for stopi, (lev, strn) in enumerate(levelpairs):
+#             if lev == level:
+#                 ashash = self.hash_codestr(strn)
+#                 if ashash not in dct:
+#                     directive, content = (
+#                         strn[1:(ind:=strn.index(self.dirtag))],
+#                         strn[ind+1:-1],
+#                         )
+#                     subs = self.recursive_decode(
+#                         dct,
+#                         levelpairs[starti:stopi],
+#                         level+1,
+#                         )
+#                     content = self.replace_substrns(content, subs)
+#                     meth = self.decoders[directive]
+#                     dct[ashash] = meth(eval(content, {}, dct))
+#                 yield ashash, strn
+#                 starti = stopi
+
+#     def decode(self, content: str, /):
+#         levelpairs = tuple(self.unpack_fences(content))
+#         subs = tuple(self.recursive_decode(dct:={}, levelpairs))
+#         content = self.replace_substrns(content, subs)
+#         return eval(content, {}, dct)

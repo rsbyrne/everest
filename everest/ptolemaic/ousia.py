@@ -292,15 +292,15 @@ class Sprite(metaclass=Ousia):
 
         ### Implementing serialisation of instances:
 
-        def get_epitaph(self, /):
-            return self.taphonomy.call_encode(
+        def encode(self, /):
+            return self.taphonomy.custom_encode_call(
                 self._ptolemaic_class__, *self.inputs
                 )
 
         @property
         @_caching.soft_cache()
         def epitaph(self, /):
-            return self.taphonomy(self.get_epitaph())
+            return self.taphonomy(self)
 
         ### Defining some aliases:
 

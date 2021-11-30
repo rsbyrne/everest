@@ -333,17 +333,6 @@ class TypeMap(BoolMap):
         return super().__getitem__(req)
 
 
-class Null:
-    '''
-    A class that clearly inherits from nothing
-    and is inherited by nothing.
-    '''
-
-    @classmethod
-    def __subclasshook__(cls, arg, /):
-        ...
-
-
 class MultiTypeMap(TypeMap, MultiBoolMap):
 
     @classmethod
@@ -358,43 +347,16 @@ class MultiTypeMap(TypeMap, MultiBoolMap):
         return keyfunc
 
 
-class SliceLike(_ABC):
-    ...
-_ = SliceLike.register(slice)
 
-class Slyce:
+class Null:
+    '''
+    A class that clearly inherits from nothing
+    and is inherited by nothing.
+    '''
 
-    __slots__ = (
-        'start', 'stop', 'step',
-        'slc', 'args', 'hasargs',
-        'trueargs',
-        )
-
-    def __init__(self, start = None, stop = None, step = None, /):
-        args = self.args = self.start, self.stop, self.step = \
-            start, stop, step
-        hasargs = self.hasargs = tuple(x is not None for x in args)
-        self.trueargs = tuple(_itertools.compress(args, hasargs))
-        self.slc = slice(start, stop, step)
-
-    def __iter__(self):
-        return iter(self.args)
-
-    def __len__(self):
-        return 3
-
-    def __getitem__(self, arg):
-        return self.args[arg]
-
-    def __repr__(self):
-        return f"Slyce({self.start}, {self.stop}, {self.step})"
-
-_ = SliceLike.register(Slyce)
-
-def slyce(arg, *args):
-    if isinstance(arg, slice) and not args:
-        return Slyce(arg.start, arg.stop, arg.step)
-    return Slyce(arg, *args)
+    @classmethod
+    def __subclasshook__(cls, arg, /):
+        ...
 
 
 class NotNone(_ABC):
