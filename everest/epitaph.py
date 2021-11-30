@@ -5,111 +5,85 @@
 
 import abc as _abc
 import weakref as _weakref
-import itertools as _itertools
-from collections import deque as _deque, abc as _collabc
-import functools as _functools
+import hashlib as _hashlib
+import pickle as _pickle
+import types as _types
 from importlib import import_module as _import_module
 from inspect import getmodule as _getmodule
-import types as _types
-import re as _re
-import hashlib as _hashlib
+import itertools as _itertools
+import functools as _functools
+from collections import abc as _collabc
 
 from everest.utilities import caching as _caching, word as _word
 from everest.utilities import FrozenMap as _FrozenMap, TypeMap as _TypeMap
 from everest.primitive import Primitive as _Primitive
 
 
+_Callable = _collabc.Callable
+
+
 class Epitaph:
 
-    __slots__ = (
-        'taphonomy', 'encoded', '_softcache',
-#         '_weakcache',
-        )
+    __slots__ = ('taphonomy', 'code', 'dependencies', '_str', '__weakref__')
 
-    def __init__(self, taphonomy, encoded, /):
+    def __init__(self, taphonomy, code, dependencies=frozenset(), /):
         self.taphonomy = taphonomy
-        self.encoded = encoded
-
-#     @_caching.weak_cache()
-    def decode(self, /) -> object:
-        return self.taphonomy.decode(self.encoded)
-
-    @property
-    def obj(self, /):
-        return self.decode()
-
-    def get_hashcode(self):
-        return self.taphonomy.get_hashcode(self.encoded)
-
-    @property
-    @_caching.soft_cache()
-    def hashcode(self):
-        return self.get_hashcode()
-
-    @property
-    @_caching.soft_cache()
-    def hashint(self):
-        return int(self.hashcode, 16)
-
-    @property
-    @_caching.soft_cache()
-    def hashID(self):
-        return _word.get_random_english(seed=self.hashint, n=2)
+        self.code = code
+        self.dependencies = frozenset(dependencies)
+        _str = self._str = '_' + _hashlib.md5(code.encode()).hexdigest()
+        taphonomy[_str] = self
+        super().__init__()
 
     def __str__(self, /):
-        return self.encoded
+        return self._str
 
     def __repr__(self, /):
-        return f"<{self.__class__.__qualname__}({self.hashID})>"
+        return f"<{self.__class__.__qualname__}({self})>"
+
+    def decode(self, /):
+        return eval(self.code, {}, self.taphonomy)
 
 
-class Taphonomic(_abc.ABC):
-
-    def __init__(self, /):
-        raise TypeError("Abstract class: should not be instantiated.")
+class Encodable(_abc.ABC):
 
     @classmethod
-    def __subclasshook__(cls, C):
-        if cls is Taphonomic:
-            if any("epitaph" in B.__dict__ for B in C.__mro__):
+    def __subclasshook__(cls, C, /):
+        if cls is Encodable:
+            if hasattr(C, 'encode'):
                 return True
         return NotImplemented
 
 
-class Taphonomy:
-    '''
-    Defines and manages the Ptolemaic system's serialisation protocol.
-    '''
+class Taphonomy(_weakref.WeakValueDictionary):
+   
+    __slots__ = ('encoders', 'decoders')
 
-    __slots__ = (
-        'encoders', 'decoders',
-        'codestore', 'objstore',
-        'epitapher',
-        )
-
-    def __init__(self, epitapher=Epitaph, /):
-        self.epitapher = Epitaph
+    def __init__(self, /):
         self.encoders = _TypeMap(self.yield_encoders())
         self.decoders = _FrozenMap(self.yield_decoders())
-        self.codestore = {}
-        self.objstore = _weakref.WeakValueDictionary()
         super().__init__()
 
     def enfence(self, arg: str, /, directive=''):
         '''Wraps a string in a fence, optionally with a contained directive.'''
         return f"{directive}({arg})"
 
-    def encode_str(self, arg: str) -> str:
+    def encode_encodable(self, arg: Encodable, /, *, subencode: _Callable):
+        return arg.encode()
+
+    def encode_tuple(self, arg: tuple, /, *, subencode: _Callable):
+        return ','.join(map(subencode, arg))
+
+    def encode_dict(self, arg: dict, /, *, subencode: _Callable):
+        return '{' + ','.join(map(
+            ':'.join,
+            zip(map(subencode, arg), map(subencode, arg.values()))
+            )) + '}'
+
+    def encode_str(self, arg: str, /, *, subencode: _Callable):
         return repr(arg)
 
-    def encode_epitaph(self, arg: Epitaph) -> str:
+    def encode_primitive(self, arg: _Primitive, /, *, subencode: _Callable):
         return str(arg)
-
-    def encode_taphonomic(self, arg: Taphonomic) -> str:
-        return self.encode_epitaph(arg.epitaph)
-
-    def encode_primitive(self, arg: _Primitive) -> str:
-        return repr(arg)
 
     _CONTENTTYPES = (
         type,
@@ -120,7 +94,9 @@ class Taphonomy:
         _types.BuiltinMethodType,
         )
 
-    def encode_content(self, arg: _CONTENTTYPES, /):
+    def encode_content(self,
+            arg: _CONTENTTYPES, /, *, subencode: _Callable
+            ):
         '''
         Serialises 'content':
         objects that can be reached by qualname paths from a module.
@@ -129,8 +105,28 @@ class Taphonomy:
             return f"'{arg.__name__}',"
         if arg.__module__ == 'builtins':
             return self.enfence(arg.__name__)
-        arg0, arg1 = arg.__qualname__, _getmodule(arg).__name__
-        return self.enfence(f"'{arg0}','{arg1}'", 'c')
+        modname = _getmodule(arg).__name__
+        if modname == 'builtins':
+            return arg.__name__
+        return self.enfence(f"'{arg.__qualname__}','{modname}'", 'c')
+
+    def _encode_pickle(self,
+            arg: object, /, *, subencode: _Callable
+            ) -> str:
+        return self.enfence(_pickle.dumps(arg), 'p')
+
+    @property
+    def _encode_fallback(self, /):
+        return self._encode_pickle
+
+    def yield_encoders(self, /):
+        prefix = 'encode_'
+        for attr in self.__class__.__dict__:
+            if attr.startswith(prefix):
+                meth = getattr(self, attr)
+                hint = meth.__annotations__['arg']
+                yield hint, meth
+        yield object, self._encode_fallback
 
     def decode_content(self:'c', name: str, path: str, /):
         '''
@@ -143,35 +139,8 @@ class Taphonomy:
             _import_module(path)
             )
 
-    def get_hashcode(self, arg: str, /):
-        return _hashlib.md5(arg.encode()).hexdigest()
-
-    def decode_hashcode(self:'h', arg: str, /):
-        if arg in (objstore := self.objstore):
-            return objstore[arg]
-        out = self.decode(self.codestore[arg])
-        if hasattr(out, '__weakref__'):
-            objstore[arg] = out
-        return out
-
-    def custom_encode_call(self,
-            caller: _collabc.Callable,
-            args: _collabc.Sequence = (),
-            kwargs: _collabc.Mapping = _FrozenMap(),
-            /) -> object:
-        func = self.encode
-        return func(caller) + '(' + ','.join(_itertools.chain(
-            map(func, args),
-            map('='.join, zip(kwargs, map(func, kwargs.values()))),
-            )) + ')'
-
-    def yield_encoders(self, /):
-        prefix = 'encode_'
-        for attr in self.__class__.__dict__:
-            if attr.startswith(prefix):
-                meth = getattr(self, attr)
-                hint = meth.__annotations__['arg']
-                yield hint, meth
+    def decode_pickle(self:'p', arg: bytes, /) -> object:
+        return _pickle.loads(arg)
 
     def yield_decoders(self, /):
         prefix = 'decode_'
@@ -181,38 +150,40 @@ class Taphonomy:
                 meth = getattr(self, attr)
                 yield meth.__annotations__['self'], meth
 
-    def _encode(self, arg, /):
-        typ = type(arg)
-        if typ is tuple:
-            return '(' + ','.join(map(self.encode, arg)) + ')'
-        if typ is dict:
-            return '{' + ','.join(map(
-                ':'.join,
-                zip(map(self.encode, arg), map(self.encode, arg.values()))
-                )) + '}'
+    def encode(self, arg, /, *, subencode: _Callable) -> str:
         if hasattr(arg, '__module__'):
             if arg.__module__ == 'builtins':
                 return arg.__name__
-        meth = self.encoders[typ]
-        return meth(arg)
+        return self.encoders[type(arg)](arg, subencode=subencode)
 
-    def encode(self, arg, /):
-        if hasattr(arg, 'encode'):
-            return arg.encode()
-        out = self._encode(arg)
-        if len(out) > 32:
-            ashash = self.get_hashcode(out)
-            self.codestore[ashash] = out
-            if hasattr(arg, '__weakref__'):
-                self.objstore[ashash] = arg
-            return self.enfence(repr(ashash), 'h')
-        return out
+    def sub_encode(self, deps: set, arg, /):
+        out = self(arg)
+        deps.add(out)
+        return str(out)
 
-    def decode(self, arg, /):
-        return eval(arg, {}, self.decoders)
+    def __call__(self, arg, /, meth=None) -> Epitaph:
+        deps = set()
+        subencode = _functools.partial(self.sub_encode, deps)
+        if meth is None:
+            meth = self.encode
+        elif isinstance(meth, str):
+            meth = getattr(self, meth)
+        return Epitaph(self, meth(arg, subencode=subencode), deps)
 
-    def __call__(self, obj, /):
-        return self.epitapher(self, self.encode(obj))
+    def __getitem__(self, key, /):
+        if key in (decoders := self.decoders):
+            return decoders[key]
+        return super().__getitem__(key).decode()
+
+    def option_encode_call(self,
+            arg: tuple[_Callable, _collabc.Sequence, _collabc.Mapping],
+            /, *, subencode: _Callable
+            ) -> str:
+        caller, args, kwargs = arg
+        return subencode(caller) + '(' + ','.join(_itertools.chain(
+            map(subencode, args),
+            map('='.join, zip(kwargs, map(subencode, kwargs.values()))),
+            )) + ')'
 
 
 TAPHONOMY = Taphonomy()

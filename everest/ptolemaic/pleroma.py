@@ -59,9 +59,9 @@ class Pleroma(type):
     def taphonomy(meta, /):
         return _epitaph.TAPHONOMY
 
-    @property
-    def epitaph(meta, /):
-        return meta.taphonomy(meta)
+#     @property
+#     def epitaph(meta, /):
+#         return meta.taphonomy(meta)
 
 #     def reduce(meta=None, arg=None, /, *, method=_pickle.dumps):
 #         '''Serialises the metaclass.'''
