@@ -79,6 +79,7 @@ class Ousia(_Essence):
     @classmethod
     def _pleroma_init__(meta, /):
         super()._pleroma_init__()
+        meta.premade = _weakref.WeakValueDictionary()
         if not issubclass(meta, meta.ConcreteMetaBase):
             meta.ConcreteMeta = type(
                 f"{meta.__name__}_ConcreteMeta",
@@ -227,8 +228,7 @@ class Sprite(metaclass=Ousia):
         '_ptolemaic_knowntypes__',
         )
     _req_slots__ = (
-        '_softcache', '_weakcache', '_argskwargs', '_inputs',
-        '__weakref__',
+        '_softcache', '_weakcache', '_epitaph', '_inputs', '__weakref__'
         )
     _ptolemaic_knowntypes__ = (_Primitive,)
     _ptolemaic_mroclasses__ = ('Registrar',)
@@ -256,9 +256,6 @@ class Sprite(metaclass=Ousia):
         register(*args, **kwargs)
 
     def initialise(self, /, *args, **kwargs):
-        self._softcache = dict()
-        self._weakcache = _weakref.WeakValueDictionary()
-        self._inputs = (args, kwargs)
         args, kwargs = _ProxyAbstract.unproxy_argskwargs(args, kwargs)
         self.__init__(*args, **kwargs)
 
@@ -269,7 +266,16 @@ class Sprite(metaclass=Ousia):
         bound = cls.__signature__.bind(*registrar.args, **registrar.kwargs)
         bound.apply_defaults()
         args, kwargs = bound.args, bound.kwargs
+        epitaph = cls.get_instance_epitaph(args, kwargs)
+        hashcode, premade = str(epitaph), cls.premade
+        if hashcode in premade:
+            return premade[hashcode]
         obj = cls.create_object()
+        premade[hashcode] = obj
+        obj._epitaph = epitaph
+        obj._inputs = (args, kwargs)
+        obj._softcache = dict()
+        obj._weakcache = _weakref.WeakValueDictionary()
         obj.initialise(*args, **kwargs)
         return obj
 
@@ -292,15 +298,16 @@ class Sprite(metaclass=Ousia):
 
         ### Implementing serialisation of instances:
 
-#         def encode(self, /):
-#             return self.taphonomy.custom_encode_call(
-#                 self._ptolemaic_class__, *self.inputs
-#                 )
+        def get_epitaph(self, arg=None, /):
+            return self.taphonomy.get_epitaph(
+                (self._ptolemaic_class__, *self.inputs),
+                'variant_call',
+                )
 
-#         @property
-#         @_caching.soft_cache()
-#         def epitaph(self, /):
-#             return self.taphonomy(self)
+        @property
+        @_caching.soft_cache()
+        def epitaph(self, /):
+            return self._epitaph
 
         ### Defining some aliases:
 
@@ -328,13 +335,22 @@ class Sprite(metaclass=Ousia):
         def hashID(self, /):
             return self.epitaph.hashID
 
+    ### Epitaph support:
+
+    @classmethod
+    def get_instance_epitaph(cls, args, kwargs, /):
+        return cls.taphonomy.get_epitaph(
+            (cls._ptolemaic_class__, args, kwargs),
+            'variant_call',
+            )
+
     ### Defining ways that class instances can be represented:
 
     def _repr(self, /):
         args, kwargs = self.inputs
         return ', '.join(_itertools.chain(
             map(repr, args),
-            map('='.join, zip(kwargs, map(repr, kwargs.values()))),
+            map('='.join, zip(map(repr, kwargs), map(repr, kwargs.values()))),
             ))
 
     @_caching.soft_cache()

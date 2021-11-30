@@ -22,16 +22,26 @@ from everest.primitive import Primitive as _Primitive
 _Callable = _collabc.Callable
 
 
-class Epitaph:
+class EpitaphMeta(_abc.ABCMeta):
 
-    __slots__ = ('taphonomy', 'code', 'dependencies', '_str', '__weakref__')
+    def __call__(cls, taphonomy, code, deps=frozenset(), /):
+        hashcode = '_' + _hashlib.md5(code.encode()).hexdigest()
+        if hashcode in taphonomy:
+            return taphonomy.__getitem__(hashcode, decode=False)
+        obj = super().__call__(taphonomy, code, deps, _str=hashcode)
+        taphonomy[hashcode] = obj
+        return obj
 
-    def __init__(self, taphonomy, code, dependencies=frozenset(), /):
+
+class Epitaph(metaclass=EpitaphMeta):
+
+    __slots__ = ('taphonomy', 'content', 'dependencies', '_str', '__weakref__')
+
+    def __init__(self, taphonomy, content, deps, /, *, _str):
         self.taphonomy = taphonomy
-        self.code = code
-        self.dependencies = frozenset(dependencies)
-        _str = self._str = '_' + _hashlib.md5(code.encode()).hexdigest()
-        taphonomy[_str] = self
+        self.content = content
+        self.dependencies = frozenset(deps)
+        self._str = _str
         super().__init__()
 
     def __str__(self, /):
@@ -41,37 +51,42 @@ class Epitaph:
         return f"<{self.__class__.__qualname__}({self})>"
 
     def decode(self, /):
-        return eval(self.code, {}, self.taphonomy)
+        return eval(self.content, {}, self.taphonomy)
 
 
-class Encodable(_abc.ABC):
+class Taphonomic(_abc.ABC):
 
     @classmethod
     def __subclasshook__(cls, C, /):
-        if cls is Encodable:
-            if hasattr(C, 'encode'):
+        if cls is Taphonomic:
+            if hasattr(C, 'epitaph'):
                 return True
         return NotImplemented
 
 
 class Taphonomy(_weakref.WeakValueDictionary):
    
-    __slots__ = ('encoders', 'decoders')
+    __slots__ = (
+        'encoders', 'decoders', 'variants', '_primitivemeths',
+        'namespace',
+        )
 
-    def __init__(self, /):
+    def __init__(self, /, **namespace):
         self.encoders = _TypeMap(self.yield_encoders())
         self.decoders = _FrozenMap(self.yield_decoders())
+        self.variants = _FrozenMap(self.yield_variants())
+        self._primitivemeths = {
+            self.encode_primitive, self.encode_tuple, self.encode_dict
+            }
+        self.namespace = _FrozenMap(namespace)
         super().__init__()
 
     def enfence(self, arg: str, /, directive=''):
         '''Wraps a string in a fence, optionally with a contained directive.'''
         return f"{directive}({arg})"
 
-    def encode_encodable(self, arg: Encodable, /, *, subencode: _Callable):
-        return arg.encode()
-
     def encode_tuple(self, arg: tuple, /, *, subencode: _Callable):
-        return ','.join(map(subencode, arg))
+        return '(' + ','.join(map(subencode, arg)) + ')'
 
     def encode_dict(self, arg: dict, /, *, subencode: _Callable):
         return '{' + ','.join(map(
@@ -79,10 +94,9 @@ class Taphonomy(_weakref.WeakValueDictionary):
             zip(map(subencode, arg), map(subencode, arg.values()))
             )) + '}'
 
-    def encode_str(self, arg: str, /, *, subencode: _Callable):
-        return repr(arg)
-
-    def encode_primitive(self, arg: _Primitive, /, *, subencode: _Callable):
+    def encode_primitive(self, arg: _Primitive, /, *, subencode=None):
+        if isinstance(arg, str):
+            return repr(arg)
         return str(arg)
 
     _CONTENTTYPES = (
@@ -144,38 +158,12 @@ class Taphonomy(_weakref.WeakValueDictionary):
 
     def yield_decoders(self, /):
         prefix = 'decode_'
-        yield '', lambda x: x
         for attr in self.__class__.__dict__:
             if attr.startswith(prefix):
                 meth = getattr(self, attr)
                 yield meth.__annotations__['self'], meth
 
-    def encode(self, arg, /, *, subencode: _Callable) -> str:
-        if hasattr(arg, '__module__'):
-            if arg.__module__ == 'builtins':
-                return arg.__name__
-        return self.encoders[type(arg)](arg, subencode=subencode)
-
-    def sub_encode(self, deps: set, arg, /):
-        out = self(arg)
-        deps.add(out)
-        return str(out)
-
-    def __call__(self, arg, /, meth=None) -> Epitaph:
-        deps = set()
-        subencode = _functools.partial(self.sub_encode, deps)
-        if meth is None:
-            meth = self.encode
-        elif isinstance(meth, str):
-            meth = getattr(self, meth)
-        return Epitaph(self, meth(arg, subencode=subencode), deps)
-
-    def __getitem__(self, key, /):
-        if key in (decoders := self.decoders):
-            return decoders[key]
-        return super().__getitem__(key).decode()
-
-    def option_encode_call(self,
+    def variant_call(self,
             arg: tuple[_Callable, _collabc.Sequence, _collabc.Mapping],
             /, *, subencode: _Callable
             ) -> str:
@@ -185,11 +173,57 @@ class Taphonomy(_weakref.WeakValueDictionary):
             map('='.join, zip(kwargs, map(subencode, kwargs.values()))),
             )) + ')'
 
+    def yield_variants(self, /):
+        prefix = 'variant_'
+        for attr in self.__class__.__dict__:
+            if attr.startswith(prefix):
+                yield attr.removeprefix(prefix), getattr(self, attr)
+
+    def encode(self, deps: set, arg: object, /, meth=None) -> str:
+        subencode = _functools.partial(self.sub_encode, deps)
+        if meth is None:
+            meth = self.encoders[type(arg)]
+        else:
+            meth = getattr(self, meth)
+        return meth(arg, subencode=subencode)
+
+    def sub_encode(self, deps: set, arg: object, /):
+        if isinstance(arg, Taphonomic):
+            epitaph = arg.epitaph
+        else:
+            meth = self.encoders[type(arg)]
+            if meth in self._primitivemeths:
+                subencode = _functools.partial(self.sub_encode, deps)
+                return meth(arg, subencode=subencode)
+            subencode = _functools.partial(self.sub_encode, subdeps:=set())
+            encoded = meth(arg, subencode=subencode)
+            epitaph = Epitaph(self, encoded, subdeps)
+        deps.add(epitaph)
+        return str(epitaph)
+
+    def get_epitaph(self, arg, /, meth=None) -> Epitaph:
+        return Epitaph(self, self.encode(deps:=set(), arg, meth), deps)
+
+    def __call__(self, arg, /, meth=None) -> Epitaph:
+        if isinstance(arg, Taphonomic):
+            return arg.epitaph
+        return self.get_epitaph(self, arg, meth)
+
+    def __getitem__(self, key, /, *, decode=True):
+        if key in (decoders := self.decoders):
+            return decoders[key]
+        if key in (ns := self.namespace):
+            return ns[key]
+        obj = super().__getitem__(key)
+        if decode:
+            return obj.decode()
+        return obj
+
 
 TAPHONOMY = Taphonomy()
 
 
-def entomb(obj, /, *, taphonomy=TAPHONOMY):
+def get_epitaph(obj, /, *, taphonomy=TAPHONOMY):
     return taphonomy(obj)
 
 

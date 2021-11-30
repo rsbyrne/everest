@@ -219,14 +219,14 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Methods relating to serialising and unserialising classes:
 
-#     @classmethod
-#     def encode(meta, /):
-#         return meta.taphonomy.encode_content(meta)
+    @classmethod
+    def get_epitaph(meta, /):
+        return meta.taphonomy.get_epitaph(meta)
 
-#     @property
-#     @_caching.soft_cache()
-#     def epitaph(cls, /):
-#         return cls.taphonomy(cls)
+    @property
+    @_caching.soft_cache()
+    def epitaph(cls, /):
+        return cls.get_epitaph()
 
 
 class Shade(metaclass=Essence):
@@ -272,9 +272,9 @@ class Shade(metaclass=Essence):
 
     ### Supporting serialisation:
 
-#     @classmethod
-#     def encode(cls, /):
-#         return cls.taphonomy.encode_content(cls._ptolemaic_class__)
+    @classmethod
+    def get_epitaph(cls, /):
+        return cls.taphonomy.get_epitaph(cls._ptolemaic_class__)
 
     ### Legibility methods:
 
