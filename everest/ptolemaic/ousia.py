@@ -102,15 +102,6 @@ class Ousia(_Essence):
         cls.Concrete = type(cls).ConcreteMeta(cls)
         cls.create_object = _functools.partial(cls.__new__, cls.Concrete)
 
-    ### Defining the mandatory basetype for instances of this metaclass:
-
-    @classmethod
-    def _get_basetyp(meta, /):
-        try:
-            return Sprite
-        except NameError:
-            return super()._get_basetyp()
-
     ### Setting some class properties that wrap baseclass methods:
 
     @property
@@ -128,50 +119,28 @@ class Registrar(_exceptions.ParameterisationException):
     on behalf of its outer class.
     '''
 
-    __slots__ = ('known', 'args', 'kwargs', 'bads')
+    __slots__ = ('args', 'kwargs', 'bads')
 
     def __init__(self, owner, /):
         super().__init__(owner)
-        self.known = owner._ptolemaic_knowntypes__
-        self.args, self.kwargs = [], {}
+        self.args, self.kwargs, self.bads = [], {}, []
 
     ### Basic functionality to check and process parameters:
 
     def process_param(self, param, /):
         return param
 
-    def recognised(self, param):
-        return isinstance(param, self.known)
-
-    def process_params(self, params):
-        return (
-            param if self.recognised(param)
-            else self.process_param(param)
-            for param in params
-            )
-
-    def register_args(self, args, /):
-        self.args.extend(self.process_params(args))
-
-    def register_kwargs(self, kwargs, /):
-        self.kwargs.update(
-            zip(kwargs, self.process_params(kwargs.values()))
-            )
-
     def __call__(self, /, *args, **kwargs):
-        if args:
-            self.register_args(args)
-        if kwargs:
-            self.register_kwargs(kwargs)
+        self.args.extend(map(self.process_param, args))
+        self.kwargs.update(zip(
+            kwargs,
+            map(self.process_param, kwargs.values())
+            ))
 
     ### Defining how the Registrar performs its final type checks:
 
     def check(self, /):
-        vals = _itertools.chain(self.args, self.kwargs.values())
-        bads = tuple(_itertools.filterfalse(self.recognised, vals))
-        if bads:
-            self.bads = bads
-            raise self
+        passmetaclass=_abc.ABCMeta
 
     def message(self, /):
         yield from super().message()
@@ -216,22 +185,18 @@ def master_unreduce(obj, /, *args):
     return obj.revive(*args)
 
 
-class Sprite(metaclass=Ousia):
+class OusiaBase(metaclass=Ousia):
     '''
     The basetype of all Ousia instances.
     '''
 
     __slots__ = ()
 
-    _ptolemaic_mergetuples__ = (
-        '_req_slots__',
-        '_ptolemaic_knowntypes__',
-        )
+    _ptolemaic_mergetuples__ = ('_req_slots__',)
     _req_slots__ = (
         '_softcache', '_weakcache', '_epitaph', '_inputs', '__weakref__'
         )
-    _ptolemaic_knowntypes__ = (_Primitive,)
-    _ptolemaic_mroclasses__ = ('Registrar',)
+    _ptolemaic_mroclasses__ = ('Registrar', 'ConcreteBase')
 
     ### Implementing bespoke class instantiation protocol:
 
@@ -291,7 +256,7 @@ class Sprite(metaclass=Ousia):
 
     ### Defining special behaviours for the concrete subclass:
 
-    class ConcreteBase(_abc.ABC):
+    class ConcreteBase(metaclass=_abc.ABCMeta):
         '''The base class for this class's `Concrete` subclass.'''
 
         __slots__ = ()

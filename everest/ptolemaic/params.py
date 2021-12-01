@@ -7,6 +7,7 @@ import inspect as _inspect
 
 # from everest.ptolemaic.collections import DictLike as _DictLike
 from everest.ptolemaic.essence import Shade as _Shade
+from everest.ptolemaic.ousia import Sprite 
 from everest.ptolemaic.inherence import Inherence as _Inherence
 
 

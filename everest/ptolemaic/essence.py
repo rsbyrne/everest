@@ -81,15 +81,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 )))
             setattr(cls, new, eval(new))
 
-    ### Defining the mandatory basetype for instances of this metaclass:
-
-    @classmethod
-    def get_basetyp(meta, /):
-        try:
-            return Shade
-        except NameError:
-            return type(meta).get_basetyp(meta)
-
     ### Creating the object that is the class itself:
 
     @classmethod
@@ -143,11 +134,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         for mcls in cls.__mro__:
             searchname = adjname if isinstance(mcls, Essence) else name
             if searchname in mcls.__dict__:
-                inhcls = mcls.__dict__[searchname]
-                if not inhcls in inhclasses:
+                if not (inhcls := mcls.__dict__[searchname]) in inhclasses:
                     inhclasses.append(inhcls)
         inhclasses = tuple(inhclasses)
-        mroclass = type(name, inhclasses, {})
+        if len(inhclasses) == 1:
+            mroclass = inhclasses[0]
+        else:
+            mroclass = type(name, inhclasses, {'__slots__':()})
         setattr(cls, fusename, mroclass)
         setattr(cls, name, mroclass)
 
@@ -229,13 +222,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.get_epitaph()
 
 
-class Shade(metaclass=Essence):
+class EssenceBase(metaclass=Essence):
 
     __slots__ = ()
 
-    _ptolemaic_mergetuples__ = (
-        '_ptolemaic_mroclasses__',
-        )
+    _ptolemaic_mergetuples__ = ('_ptolemaic_mroclasses__',)
     _ptolemaic_mergedicts__ = ()
     _ptolemaic_mroclasses__ = ()
 

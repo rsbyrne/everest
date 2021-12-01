@@ -4,6 +4,7 @@
 
 
 import pickle as _pickle
+from inspect import getmodule as _getmodule
 
 from everest import epitaph as _epitaph
 from everest.primitive import Primitive as _Primitive
@@ -14,7 +15,7 @@ class Pleroma(type):
     def _pleroma_contains__(meta, arg, /):
         if isinstance(arg, meta):
             return True
-        return arg in _Primitive.PRIMITIVETYPES
+        return arg in _Primitive.TYPS
 
     def __contains__(meta, arg, /):
         return meta._pleroma_contains__(arg)
@@ -48,8 +49,24 @@ class Pleroma(type):
     def __call__(meta, /, *args, **kwargs):
         return meta._pleroma_construct(*args, **kwargs)
 
+    @property
+    def pleromabases(meta, /):
+        return tuple(
+            base for base in meta.__mro__ if isinstance(base, Pleroma)
+            )
+
     def get_basetyp(meta, /):
-        return object
+        try:
+            return eval(
+                f"{meta.__name__}Base",
+                {},
+                _getmodule(meta).__dict__,
+                )
+        except NameError:
+            bases = meta.pleromabases[1:]
+            if bases:
+                return Pleroma.get_basetyp(bases[0])
+            return object
 
     @property
     def BaseTyp(meta, /):
@@ -79,4 +96,4 @@ class Pleroma(type):
 
 
 ###############################################################################
-###############################################################################\
+###############################################################################

@@ -10,32 +10,14 @@ import operator as _operator
 import weakref as _weakref
 import itertools as _itertools
 
-from .eidos import Eidos as _Eidos
+from everest.ptolemaic.ousia import Ousia as _Ousia
 from .params import Param as _Param, Signature as _Signature
 
 
-class Schema(_Eidos):
+class Schema(_Ousia):
     '''
     The metaclass of all Schema classes.
     '''
-
-    class BASETYP(_Eidos.BASETYP):
-
-        __slots__ = ()
-
-        def get_signature(cls, /):
-            return _Signature(*cls._collect_params())
-
-        def construct(cls, *args, **kwargs):
-            registrar = cls.Registrar()
-            cls.parameterise(registrar, *args, **kwargs)
-            params = cls.signature(*registrar.args, **registrar.kwargs)
-            premade, paramid = cls.premade, params.hashcode
-            if paramid in premade:
-                return premade[paramid]
-            obj = premade[paramid] = cls.create_object(params=params)
-            obj.__init__()
-            return obj
 
     def _collect_params(cls, /):
         params = dict()
@@ -85,6 +67,25 @@ class Schema(_Eidos):
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         cls.premade = _weakref.WeakValueDictionary()
+
+
+class SchemaBase(metaclass=Schema):
+
+    __slots__ = ()
+
+    def get_signature(cls, /):
+        return _Signature(*cls._collect_params())
+
+    def construct(cls, *args, **kwargs):
+        registrar = cls.Registrar()
+        cls.parameterise(registrar, *args, **kwargs)
+        params = cls.signature(*registrar.args, **registrar.kwargs)
+        premade, paramid = cls.premade, params.hashcode
+        if paramid in premade:
+            return premade[paramid]
+        obj = premade[paramid] = cls.create_object(params=params)
+        obj.__init__()
+        return obj
 
 
 ###############################################################################

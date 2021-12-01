@@ -12,6 +12,7 @@ from importlib import import_module as _import_module
 from inspect import getmodule as _getmodule
 import itertools as _itertools
 import functools as _functools
+import collections as _collections
 from collections import abc as _collabc
 
 from everest.utilities import caching as _caching, word as _word
@@ -27,20 +28,44 @@ class EpitaphMeta(_abc.ABCMeta):
     def __call__(cls, taphonomy, code, deps=frozenset(), /):
         hashcode = '_' + _hashlib.md5(code.encode()).hexdigest()
         if hashcode in taphonomy:
-            return taphonomy.__getitem__(hashcode, decode=False)
+            return taphonomy[hashcode]
+        deps = tuple(sorted(deps))
         obj = super().__call__(taphonomy, code, deps, _str=hashcode)
         taphonomy[hashcode] = obj
         return obj
 
 
+class EvalSpace(_collections.UserDict):
+
+    def __init__(self, deps, dct, /):
+        self.deps = deps
+        super().__init__(dct)
+
+    def __getitem__(self, key, /):
+        if key in self:
+            return super().__getitem__(key)
+        return self.deps[key].decode()
+
+
 class Epitaph(metaclass=EpitaphMeta):
 
-    __slots__ = ('taphonomy', 'content', 'dependencies', '_str', '__weakref__')
+    __slots__ = (
+        'taphonomy', 'content', 'deps', '_str', '__weakref__'
+        )
+
+    @staticmethod
+    def alt_depcode(dep):
+        return '_' + str(dep)
 
     def __init__(self, taphonomy, content, deps, /, *, _str):
         self.taphonomy = taphonomy
+        deps = self.deps = dict(zip(
+            (f"_{ind}" for ind in range(len(deps))),
+            deps,
+            ))
+        for key, val in deps.items():
+            content = content.replace(str(val), key)
         self.content = content
-        self.dependencies = frozenset(deps)
         self._str = _str
         super().__init__()
 
@@ -51,7 +76,17 @@ class Epitaph(metaclass=EpitaphMeta):
         return f"<{self.__class__.__qualname__}({self})>"
 
     def decode(self, /):
-        return eval(self.content, {}, self.taphonomy)
+        return eval(
+            self.content,
+            {}, 
+            EvalSpace(self.deps, self.taphonomy.evalspace),
+            )
+
+    def __lt__(self, other, /):
+        return str(self) < other
+
+    def __gt__(self, other, /):
+        return str(self) < other
 
 
 class Taphonomic(_abc.ABC):
@@ -67,18 +102,19 @@ class Taphonomic(_abc.ABC):
 class Taphonomy(_weakref.WeakValueDictionary):
    
     __slots__ = (
-        'encoders', 'decoders', 'variants', '_primitivemeths',
-        'namespace',
+        'encoders', 'variants', '_primitivemeths', 'evalspace',
         )
 
     def __init__(self, /, **namespace):
         self.encoders = _TypeMap(self.yield_encoders())
-        self.decoders = _FrozenMap(self.yield_decoders())
+        decoders = _FrozenMap(self.yield_decoders())
         self.variants = _FrozenMap(self.yield_variants())
         self._primitivemeths = {
             self.encode_primitive, self.encode_tuple, self.encode_dict
             }
-        self.namespace = _FrozenMap(namespace)
+        self.evalspace = dict(_itertools.chain(
+            self.yield_decoders(), namespace.items()
+            ))
         super().__init__()
 
     def enfence(self, arg: str, /, directive=''):
@@ -207,17 +243,14 @@ class Taphonomy(_weakref.WeakValueDictionary):
     def __call__(self, arg, /, meth=None) -> Epitaph:
         if isinstance(arg, Taphonomic):
             return arg.epitaph
-        return self.get_epitaph(self, arg, meth)
+        return self.get_epitaph(arg, meth)
 
-    def __getitem__(self, key, /, *, decode=True):
-        if key in (decoders := self.decoders):
-            return decoders[key]
-        if key in (ns := self.namespace):
-            return ns[key]
-        obj = super().__getitem__(key)
-        if decode:
-            return obj.decode()
-        return obj
+    def decode(self, /):
+        return eval(
+            self.content,
+            {}, 
+            EvalSpace(self, self.taphonomy.evalspace),
+            )
 
 
 TAPHONOMY = Taphonomy()
@@ -229,49 +262,3 @@ def get_epitaph(obj, /, *, taphonomy=TAPHONOMY):
 
 ###############################################################################
 ###############################################################################
-
-
-#     def unpack_fences(self, arg: str, /):
-#         '''Unpack nested fences as an iterable of level-content pairs.'''
-#         pretag, posttag = self.pretag, self.posttag
-#         start = pretag
-#         stack = _deque()
-#         for i, c in enumerate(arg):
-#             if c == pretag:
-#                 stack.append(i)
-#             elif c == posttag and stack:
-#                 start = stack.pop()
-#                 yield (len(stack), arg[start: i+1])
-
-#     def replace_substrns(self, content, subs, /):
-#         for ashash, strn in subs:
-#             content = content.replace(strn, ashash)
-#         return content
-
-#     def recursive_decode(self, dct: dict, levelpairs, level=0, /):
-#         starti = 0
-#         results = _deque()
-#         for stopi, (lev, strn) in enumerate(levelpairs):
-#             if lev == level:
-#                 ashash = self.hash_codestr(strn)
-#                 if ashash not in dct:
-#                     directive, content = (
-#                         strn[1:(ind:=strn.index(self.dirtag))],
-#                         strn[ind+1:-1],
-#                         )
-#                     subs = self.recursive_decode(
-#                         dct,
-#                         levelpairs[starti:stopi],
-#                         level+1,
-#                         )
-#                     content = self.replace_substrns(content, subs)
-#                     meth = self.decoders[directive]
-#                     dct[ashash] = meth(eval(content, {}, dct))
-#                 yield ashash, strn
-#                 starti = stopi
-
-#     def decode(self, content: str, /):
-#         levelpairs = tuple(self.unpack_fences(content))
-#         subs = tuple(self.recursive_decode(dct:={}, levelpairs))
-#         content = self.replace_substrns(content, subs)
-#         return eval(content, {}, dct)
