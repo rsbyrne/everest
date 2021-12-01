@@ -13,10 +13,11 @@ parentPath = _os.path.abspath(_os.path.dirname(__file__))
 namesDir = _os.path.join(parentPath, '_namesources')
 pathFn = lambda n: _os.path.join(namesDir, n)
 
-with open(pathFn('cities.txt'), mode = 'r') as file:
-    CITIES = file.read().split('\n')
 with open(pathFn('english_words.txt'), mode = 'r') as file:
     ENGLISH = file.read().split('\n')
+
+with open(pathFn('cities.txt'), mode = 'r') as file:
+    CITIES = file.read().split('\n')
 with open(pathFn('names.txt'), mode = 'r') as file:
     NAMES = file.read().split('\n')
 PROPER = sorted(set([*CITIES, *NAMES]))

@@ -8,6 +8,7 @@ import weakref as _weakref
 import hashlib as _hashlib
 import pickle as _pickle
 import types as _types
+# import typing as _typing
 from importlib import import_module as _import_module
 from inspect import getmodule as _getmodule
 import itertools as _itertools
@@ -23,18 +24,6 @@ from everest.primitive import Primitive as _Primitive
 _Callable = _collabc.Callable
 
 
-class EpitaphMeta(_abc.ABCMeta):
-
-    def __call__(cls, taphonomy, code, deps=frozenset(), /):
-        hashcode = '_' + _hashlib.md5(code.encode()).hexdigest()
-        if hashcode in taphonomy:
-            return taphonomy[hashcode]
-        deps = tuple(sorted(deps))
-        obj = super().__call__(taphonomy, code, deps, _str=hashcode)
-        taphonomy[hashcode] = obj
-        return obj
-
-
 class EvalSpace(_collections.UserDict):
 
     def __init__(self, deps, dct, /):
@@ -47,46 +36,45 @@ class EvalSpace(_collections.UserDict):
         return self.deps[key].decode()
 
 
-class Epitaph(metaclass=EpitaphMeta):
+class Epitaph:
 
     __slots__ = (
-        'taphonomy', 'content', 'deps', '_str', '__weakref__'
+        'depdict', 'hexcode', 'content', 'taph', 'deps', 'args',
+        '__weakref__',
         )
 
-    @staticmethod
-    def alt_depcode(dep):
-        return '_' + str(dep)
-
-    def __init__(self, taphonomy, content, deps, /, *, _str):
-        self.taphonomy = taphonomy
-        deps = self.deps = dict(zip(
+    def __init__(self, content, deps, hexcode, _process_content=False, /):
+        depdict = self.depdict = dict(zip(
             (f"_{ind}" for ind in range(len(deps))),
             deps,
             ))
-        for key, val in deps.items():
-            content = content.replace(str(val), key)
+        if _process_content:
+            for key, val in depdict.items():
+                content = content.replace(str(val), key)
+        self.hexcode = hexcode
         self.content = content
-        self._str = _str
-        super().__init__()
+        self.taph = deps[0]
+        self.deps = deps
+        self.args = (self.content, self.deps, self.hexcode)
 
     def __str__(self, /):
-        return self._str
+        return self.hexcode
 
     def __repr__(self, /):
-        return f"<{self.__class__.__qualname__}({self})>"
+        return f"<{self.__class__.__qualname__}({self.hexcode})>"
 
     def decode(self, /):
-        return eval(
-            self.content,
-            {}, 
-            EvalSpace(self.deps, self.taphonomy.evalspace),
-            )
+        evalspace = EvalSpace(self.depdict, self.taph.evalspace)
+        return eval(self.content, {}, evalspace)
 
     def __lt__(self, other, /):
-        return str(self) < other
+        return self.hexcode < other
 
     def __gt__(self, other, /):
-        return str(self) < other
+        return self.hexcode > other
+
+    def __reduce__(self, /):
+        return self.taph, self.args
 
 
 class Taphonomic(_abc.ABC):
@@ -102,19 +90,26 @@ class Taphonomic(_abc.ABC):
 class Taphonomy(_weakref.WeakValueDictionary):
    
     __slots__ = (
-        'encoders', 'variants', '_primitivemeths', 'evalspace',
+        'encoders', 'decoders', 'variants',
+        '_primitivemeths', 'evalspace', '_softcache', 'namespace',
         )
 
-    def __init__(self, /, **namespace):
+    def __init__(self, namespace=None, /, **kwargs):
+        if namespace is None:
+            namespace = kwargs
+        else:
+            if kwargs:
+                raise ValueError(
+                    "Cannot pass namespace as both arg and kwargs."
+                    )
+        namespace = self.namespace = _FrozenMap(namespace)
         self.encoders = _TypeMap(self.yield_encoders())
-        decoders = _FrozenMap(self.yield_decoders())
+        decoders = self.decoders = _FrozenMap(self.yield_decoders())
         self.variants = _FrozenMap(self.yield_variants())
         self._primitivemeths = {
             self.encode_primitive, self.encode_tuple, self.encode_dict
             }
-        self.evalspace = dict(_itertools.chain(
-            self.yield_decoders(), namespace.items()
-            ))
+        self.evalspace = _collections.ChainMap(decoders, namespace)
         super().__init__()
 
     def enfence(self, arg: str, /, directive=''):
@@ -233,31 +228,56 @@ class Taphonomy(_weakref.WeakValueDictionary):
                 return meth(arg, subencode=subencode)
             subencode = _functools.partial(self.sub_encode, subdeps:=set())
             encoded = meth(arg, subencode=subencode)
-            epitaph = Epitaph(self, encoded, subdeps)
+            epitaph = self(encoded, subdeps)
         deps.add(epitaph)
         return str(epitaph)
 
+    def _repr(self, /):
+        kwargs = self.namespace
+        substr = ','.join(map(
+            '='.join,
+            zip(map(repr, kwargs), map(repr, kwargs.values()))
+            ))
+        return f"{self.__class__.__qualname__}({substr})"
+
+    @_caching.soft_cache()
+    def __repr__(self, /):
+        return self._repr()
+
+    def get_hexcode(self, content: str, /) -> str:
+        return _hashlib.sha3_256(
+            (repr(self) + content).encode()
+            ).hexdigest()
+
     def get_epitaph(self, arg, /, meth=None) -> Epitaph:
-        return Epitaph(self, self.encode(deps:=set(), arg, meth), deps)
+        content = self.encode(deps:=set(), arg, meth)
+        return self(content, deps)
 
-    def __call__(self, arg, /, meth=None) -> Epitaph:
-        if isinstance(arg, Taphonomic):
-            return arg.epitaph
-        return self.get_epitaph(arg, meth)
+    def __call__(self,
+            content, deps=None, hexcode=None, /, *,
+            meth=None,
+            ) -> Epitaph:
+        if deps is None:
+            return self.get_epitaph(content, meth=meth)
+        if hexnone := hexcode is None:
+            hexcode = self.get_hexcode(content)
+        if hexcode in self:
+            return self[hexcode]
+        if hexnone:
+            deps = (self, *sorted(deps))
+        epitaph = Epitaph(content, deps, hexcode, hexnone)
+        self[hexcode] = epitaph
+        return epitaph
 
-    def decode(self, /):
-        return eval(
-            self.content,
-            {}, 
-            EvalSpace(self, self.taphonomy.evalspace),
-            )
+    def __reduce__(self, /):
+        return self.__class__, (self.namespace.content,)
 
 
 TAPHONOMY = Taphonomy()
 
 
-def get_epitaph(obj, /, *, taphonomy=TAPHONOMY):
-    return taphonomy(obj)
+# def revive(hexcode, content, dependencies):
+#     taph, dependencies = 
 
 
 ###############################################################################
