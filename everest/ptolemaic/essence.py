@@ -214,7 +214,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def get_epitaph(meta, /):
-        return meta.taphonomy.get_epitaph(meta)
+        return meta.taphonomy.auto_epitaph(meta)
 
     @property
     @_caching.soft_cache()
@@ -265,7 +265,7 @@ class EssenceBase(metaclass=Essence):
 
     @classmethod
     def get_epitaph(cls, /):
-        return cls.taphonomy.get_epitaph(cls._ptolemaic_class__)
+        return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
 
     ### Legibility methods:
 

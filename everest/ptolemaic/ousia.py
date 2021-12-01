@@ -263,12 +263,6 @@ class OusiaBase(metaclass=Ousia):
 
         ### Implementing serialisation of instances:
 
-        def get_epitaph(self, arg=None, /):
-            return self.taphonomy.get_epitaph(
-                (self._ptolemaic_class__, *self.inputs),
-                'variant_call',
-                )
-
         @property
         @_caching.soft_cache()
         def epitaph(self, /):
@@ -304,9 +298,9 @@ class OusiaBase(metaclass=Ousia):
 
     @classmethod
     def get_instance_epitaph(cls, args, kwargs, /):
-        return cls.taphonomy.get_epitaph(
-            (cls._ptolemaic_class__, args, kwargs),
-            'variant_call',
+        taph = cls.taphonomy
+        return taph.custom_epitaph(
+            *taph.posformat_callsig(cls, args, kwargs)
             )
 
     ### Defining ways that class instances can be represented:

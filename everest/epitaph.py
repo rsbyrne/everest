@@ -44,13 +44,13 @@ class Epitaph:
         )
 
     def __init__(self, content, deps, hexcode, _process_content=False, /):
-        depdict = self.depdict = dict(zip(
-            (f"_{ind}" for ind in range(len(deps))),
-            deps,
-            ))
+        depdict = self.depdict = {
+            f"_{ind}":dep for ind, dep in enumerate(deps)
+            }
         if _process_content:
-            for key, val in depdict.items():
-                content = content.replace(str(val), key)
+            content = content.format(
+                **{str(val):key for key, val in depdict.items()}
+                )
         self.hexcode = hexcode
         self.content = content
         self.taph = deps[0]
@@ -90,7 +90,7 @@ class Taphonomic(_abc.ABC):
 class Taphonomy(_weakref.WeakValueDictionary):
    
     __slots__ = (
-        'encoders', 'decoders', 'variants',
+        'encoders', 'decoders',
         '_primitivemeths', 'evalspace', '_softcache', 'namespace',
         )
 
@@ -105,7 +105,6 @@ class Taphonomy(_weakref.WeakValueDictionary):
         namespace = self.namespace = _FrozenMap(namespace)
         self.encoders = _TypeMap(self.yield_encoders())
         decoders = self.decoders = _FrozenMap(self.yield_decoders())
-        self.variants = _FrozenMap(self.yield_variants())
         self._primitivemeths = {
             self.encode_primitive, self.encode_tuple, self.encode_dict
             }
@@ -113,7 +112,7 @@ class Taphonomy(_weakref.WeakValueDictionary):
         super().__init__()
 
     def enfence(self, arg: str, /, directive=''):
-        '''Wraps a string in a fence, optionally with a contained directive.'''
+        '''Wraps a string in a fence, optionally with a 'directive'.'''
         return f"{directive}({arg})"
 
     def encode_tuple(self, arg: tuple, /, *, subencode: _Callable):
@@ -194,43 +193,23 @@ class Taphonomy(_weakref.WeakValueDictionary):
                 meth = getattr(self, attr)
                 yield meth.__annotations__['self'], meth
 
-    def variant_call(self,
-            arg: tuple[_Callable, _collabc.Sequence, _collabc.Mapping],
-            /, *, subencode: _Callable
-            ) -> str:
-        caller, args, kwargs = arg
-        return subencode(caller) + '(' + ','.join(_itertools.chain(
-            map(subencode, args),
-            map('='.join, zip(kwargs, map(subencode, kwargs.values()))),
-            )) + ')'
+    def sub_part(self, deps, /):
+        return _functools.partial(self.sub_encode, deps=deps)
 
-    def yield_variants(self, /):
-        prefix = 'variant_'
-        for attr in self.__class__.__dict__:
-            if attr.startswith(prefix):
-                yield attr.removeprefix(prefix), getattr(self, attr)
-
-    def encode(self, deps: set, arg: object, /, meth=None) -> str:
-        subencode = _functools.partial(self.sub_encode, deps)
-        if meth is None:
-            meth = self.encoders[type(arg)]
-        else:
-            meth = getattr(self, meth)
-        return meth(arg, subencode=subencode)
-
-    def sub_encode(self, deps: set, arg: object, /):
+    def sub_encode(self, arg: object, /, deps: set):
         if isinstance(arg, Taphonomic):
             epitaph = arg.epitaph
         else:
             meth = self.encoders[type(arg)]
             if meth in self._primitivemeths:
-                subencode = _functools.partial(self.sub_encode, deps)
-                return meth(arg, subencode=subencode)
-            subencode = _functools.partial(self.sub_encode, subdeps:=set())
-            encoded = meth(arg, subencode=subencode)
+                return meth(arg, subencode=self.sub_part(deps))
+            encoded = meth(arg, subencode=self.sub_part(subdeps:=set()))
             epitaph = self(encoded, subdeps)
         deps.add(epitaph)
-        return str(epitaph)
+        return f"{{{epitaph}}}"
+
+    def encode(self, arg: object, /, deps: set) -> str:
+        return self.encoders[type(arg)](arg, subencode=self.sub_part(deps))
 
     def _repr(self, /):
         kwargs = self.namespace
@@ -249,17 +228,46 @@ class Taphonomy(_weakref.WeakValueDictionary):
             (repr(self) + content).encode()
             ).hexdigest()
 
-    def get_epitaph(self, arg, /, meth=None) -> Epitaph:
-        content = self.encode(deps:=set(), arg, meth)
-        return self(content, deps)
+    def auto_epitaph(self, arg, /) -> Epitaph:
+        return self(self.encode(arg, deps:=set()), deps)
 
-    def __call__(self,
-            content, deps=None, hexcode=None, /, *,
-            meth=None,
-            ) -> Epitaph:
+    @classmethod
+    def posformat_argskwargs(cls, args, kwargs, /, *, n=0):
+        count = _itertools.count(n)
+        wrap = lambda it: (f"{{{next(count)}}}" for _ in it)
+        strn = ','.join(_itertools.chain(
+            wrap(args),
+            map('='.join, zip(kwargs, wrap(kwargs))),
+            ))
+        deps = (*args, *kwargs.values())
+        return strn, deps
+
+    @classmethod
+    def posformat_callsig(cls, caller, /, args, kwargs, *, n=0):
+        strn, deps = cls.posformat_argskwargs(args, kwargs, n=n+1)
+        return f"{{{n}}}({strn})", (caller, *deps)
+
+    def custom_encode(self,
+            strn, /, args=(), kwargs=_FrozenMap(), *, deps: set
+            ):
+        sub = self.sub_part(deps)
+        return strn.format(
+            *map(sub, args),
+            **dict(zip(kwargs, map(sub, kwargs.values()))),
+            )
+
+    def custom_epitaph(self, strn, /, args=(), kwargs=_FrozenMap()):
+        return self(
+            self.custom_encode(strn, args, kwargs, deps=(deps:=set())),
+            deps,
+            )
+
+    def __call__(self, content, deps=None, hexcode=None, /) -> Epitaph:
         if deps is None:
-            return self.get_epitaph(content, meth=meth)
-        if hexnone := hexcode is None:
+            if isinstance(content, Taphonomic):
+                return content.epitaph
+            return self.auto_epitaph(content)
+        if hexnone := (hexcode is None):
             hexcode = self.get_hexcode(content)
         if hexcode in self:
             return self[hexcode]
