@@ -5,10 +5,11 @@
 
 import inspect as _inspect
 
-# from everest.ptolemaic.collections import DictLike as _DictLike
-from everest.ptolemaic.essence import Shade as _Shade
-from everest.ptolemaic.ousia import Sprite 
-from everest.ptolemaic.inherence import Inherence as _Inherence
+from everest.utilities import FrozenMap as _FrozenMap
+from everest.utilities.classtools import add_defer_meths as _add_defer_meths
+
+from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
 KINDS = dict(zip(
@@ -17,7 +18,7 @@ KINDS = dict(zip(
     ))
 
 
-class ParamMeta(_Inherence):
+class ParamMeta(_Ousia):
 
     for kind in KINDS:
         exec('\n'.join((
@@ -25,6 +26,15 @@ class ParamMeta(_Inherence):
             f'def {kind}(cls, /):'
             f"    return cls(kind='{kind}')"
             )))
+
+    def __getitem__(cls, arg, /):
+        return cls.construct()[arg]
+
+
+class Generic:
+
+    def __class_getitem__(cls, arg, /):
+        return arg
 
 
 class Param(metaclass=ParamMeta):
@@ -37,7 +47,7 @@ class Param(metaclass=ParamMeta):
 
     def __init__(self, /,
             name='anon',
-            hint=_Shade,
+            hint=Generic,
             value=NotImplemented,
             kind='PosKw',
             ):
@@ -64,10 +74,6 @@ class Param(metaclass=ParamMeta):
     def __call__(self, **kwargs):
         return type(self).construct(**(self.inps | kwargs))
 
-    @classmethod
-    def __class_getitem__(cls, arg, /):
-        return cls.construct()[arg]
-
     def __getitem__(self, arg, /):
         if isinstance(arg, Param):
             return self(**{**arg.inps, 'hint': self.hint[arg.hint]})
@@ -83,7 +89,14 @@ class Param(metaclass=ParamMeta):
         return instance.params[self.name]
 
 
-class Sig(_DictLike, metaclass=_Inherence):
+_DICTMETHS = (
+    '__getitem__', '__len__', '__iter__' '__contains__', 'keys',
+    'items', 'values', 'get', '__eq__', '__ne__',
+    )
+
+
+@_add_defer_meths('paramdict', _DICTMETHS)
+class Sig(metaclass=_Ousia):
 
     _req_slots__ = ('parameters', 'signature', 'paramdict')
 
@@ -104,22 +117,23 @@ class Sig(_DictLike, metaclass=_Inherence):
         self.signature = _inspect.Signature(
             param.parameter for param in parameters
             )
-        dct = self.paramdict = {param.name: param for param in parameters}
-        super().__init__(dct)
+        self.paramdict = _FrozenMap((param.name, param) for param in parameters)
+        super().__init__()
 
     def __call__(self, /, *args, **kwargs):
         bound = self.signature.bind(*args, **kwargs)
         bound.apply_defaults()
-        return Params(bound.args, bound.kwargs, bound.arguments)
+        return Params(**bound.arguments)
 
 
-class Params(_DictLike, metaclass=_Inherence):
+@_add_defer_meths('arguments', _DICTMETHS)
+class Params(metaclass=_Ousia):
 
-    _req_slots__ = ('args', 'kwargs', 'arguments')
+    _req_slots__ = ('arguments',)
 
-    def __init__(self, args, kwargs, arguments, /):
-        self.args, self.kwargs, self.arguments = args, kwargs, arguments
-        super().__init__(arguments)
+    def __init__(self, /, **arguments):
+        self.arguments = arguments
+        super().__init__()
 
 
 ###############################################################################

@@ -6,6 +6,7 @@
 import pickle as _pickle
 from inspect import getmodule as _getmodule
 
+from everest.utilities import caching as _caching, switch as _switch
 from everest import epitaph as _epitaph
 from everest.primitive import Primitive as _Primitive
 
@@ -35,16 +36,40 @@ class Pleroma(type):
         pass
 
     def __init__(meta, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        meta._pleroma_init__()
+        with meta.metamutable:
+            meta._meta_softcache = {}
+            super().__init__(*args, **kwargs)
+            meta._pleroma_init__()
 
-    def __class_init__(meta, /):
-        pass
+    @property
+    def metafreezeattr(meta, /):
+        try:
+            return meta.__dict__['_metafreezeattr']
+        except KeyError:
+            super().__setattr__(
+                '_metafreezeattr', switch := _switch.Switch(True)
+                )
+            return switch
 
-    def _pleroma_construct(meta, /, *args, **kwargs):
-        cls = super().__call__(*args)
-        cls.__class_init__(**kwargs)
-        return cls
+    @property
+    def metamutable(meta, /):
+        return meta.metafreezeattr.as_(False)
+
+    @metafreezeattr.setter
+    def metafreezeattr(meta, val, /):
+        meta._metafreezeattr.toggle(val)
+
+    def __setattr__(meta, key, val, /):
+        if meta.metafreezeattr:
+            raise AttributeError(
+                f"Setting attributes on an object of type {type(meta)} "
+                "is forbidden at this time; "
+                f"toggle switch `.metafreezeattr` to override."
+                )
+        super().__setattr__(key, val)
+
+    def _pleroma_construct(meta, /):
+        raise NotImplementedError
 
     def __call__(meta, /, *args, **kwargs):
         return meta._pleroma_construct(*args, **kwargs)
@@ -56,12 +81,9 @@ class Pleroma(type):
             )
 
     def get_basetyp(meta, /):
+        module = _getmodule(meta)
         try:
-            return eval(
-                f"{meta.__name__}Base",
-                {},
-                _getmodule(meta).__dict__,
-                )
+            return eval(f"{meta.__name__}Base", {}, module.__dict__)
         except NameError:
             bases = meta.pleromabases[1:]
             if bases:
@@ -76,9 +98,13 @@ class Pleroma(type):
     def taphonomy(meta, /):
         return _epitaph.TAPHONOMY
 
+    def get_meta_epitaph(meta, /):
+        return meta.taphonomy.auto_epitaph(meta)
+
     @property
+    @_caching.soft_cache('_meta_softcache')
     def epitaph(meta, /):
-        return meta.get_epitaph()
+        return meta.get_meta_epitaph()
 
 #     def reduce(meta=None, arg=None, /, *, method=_pickle.dumps):
 #         '''Serialises the metaclass.'''

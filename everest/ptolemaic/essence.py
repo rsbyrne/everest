@@ -14,7 +14,13 @@ import pickle as _pickle
 from collections import abc as _collabc
 
 from everest import utilities as _utilities
-from everest.utilities import caching as _caching
+from everest.utilities import (
+    caching as _caching,
+    FrozenMap as _FrozenMap,
+    switch as _switch,
+    classtools as _classtools
+    )
+from everest import chora as _chora
 
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 
@@ -39,23 +45,34 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def _pleroma_init__(meta, /):
         pass
 
+    @classmethod
+    def _pleroma_construct(meta, /, *args, **kwargs):
+        '''Call the metaclass to create a new class.'''
+        return super(type(meta), meta).__call__(*args, **kwargs)
+
     ### Methods relating to the Incision Protocol for classes:
 
     def __instancecheck__(cls, arg, /):
         return cls._ptolemaic_isinstance__(arg)
 
     def __contains__(cls, arg, /):
-        return cls._ptolemaic_contains__(arg)
+        return arg in cls.clschora
 
     def __getitem__(cls, arg, /):
-        return cls._ptolemaic_getitem__(arg)
+        return cls._chora_getitem__(arg)
 
-    def _class_chora_passthrough(cls, arg, /):
-        return arg
+    def class_retrieve(cls, arg, /):
+        raise NotImplementedError("Retrieval not supported on this class.")
+
+    def class_incise(cls, arg, /):
+        raise NotImplementedError("Incision not supported on this class.")
+
+    def class_trivial(cls, arg, /):
+        return cls
 
     def _class_defer_chora_methods(cls, /):
 
-        chcls = type(cls.clschora)
+        chcls = cls.ClassChora
         prefixes = chcls.PREFIXES
         defkws = chcls._get_defkws((f"cls.class_{st}" for st in prefixes))
 
@@ -66,10 +83,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
         exec('\n'.join((
             f"@classmethod",
-            f"def _ptolemaic_getitem__(cls, arg, /):"
-            f"    return cls.clschora.__getitem__(arg, {defkws})"
+            f"def _chora_getitem__(cls, arg, /):"
+            f"    return cls.classchora.__getitem__(arg, {defkws})"
             )))
-        cls._ptolemaic_getitem__ = eval('_ptolemaic_getitem__')
+        cls._chora_getitem__ = eval('_chora_getitem__')
 
         for name in chcls.chorameths:
             new = f"class_{name}"
@@ -77,7 +94,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 f"@classmethod",
                 f"@_functools.wraps(chcls.{name})",
                 f"def {new}(cls, /, *args):",
-                f"    return cls.clschora.{name}(*args, {defkws})",
+                f"    return cls.classchora.{name}(*args, {defkws})",
                 )))
             setattr(cls, new, eval(new))
 
@@ -148,29 +165,66 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         for name in cls._ptolemaic_mroclasses__:
             cls._add_mroclass(name)
 
+    ### Implementing the 'freezeattr' behaviour:
+
+    @property
+    def classfreezeattr(cls, /):
+        try:
+            return cls.__dict__['_classfreezeattr']
+        except KeyError:
+            super().__setattr__(
+                '_classfreezeattr', switch := _switch.Switch(False)
+                )
+            return switch
+
+    @classfreezeattr.setter
+    def classfreezeattr(cls, val, /):
+        cls._classfreezeattr.toggle(val)
+
+    @property
+    def classmutable(cls, /):
+        return cls.classfreezeattr.as_(False)
+
+    def __setattr__(cls, key, val, /):
+        if cls.classfreezeattr:
+            raise AttributeError(
+                f"Setting attributes on an object of type {type(cls)} "
+                "is forbidden at this time; "
+                f"toggle switch `.classfreezeattr` to override."
+                )
+        super().__setattr__(key, val)
+
     ### Initialising the class:
 
     def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not hasattr(cls, '__annotations__'):
-            cls.__annotations__ = dict()
-        cls._merge_names('_ptolemaic_mergetuples_')
-        cls._merge_names('_ptolemaic_mergedicts__')
-        cls._merge_names_all(
-            '_ptolemaic_mergetuples__'
-            )
-        cls._merge_names_all(
-            '_ptolemaic_mergedicts__',
-            mergetyp=_utilities.FrozenMap,
-            itermeth='items',
-            )
-        cls._add_mroclasses()
-        try:
-            cls.clschora = cls._get_clschora()
-        except NotImplementedError:
-            pass
-        else:
-            cls._class_defer_chora_methods()
+        with cls.classmutable:
+            super().__init__(*args, **kwargs)
+            cls._class_softcache = {}
+            clsdct = cls.__dict__
+            if (annokey := '__annotations__') in clsdct:
+                anno = clsdct[annokey]
+            else:
+                setattr(cls, annokey, anno := {})
+            if (extkey := '_extra_annotations__') in clsdct:
+                anno.update(clsdct[extkey])
+            setattr(cls, annokey, _FrozenMap(anno))
+            cls._merge_names('_ptolemaic_mergetuples_')
+            cls._merge_names('_ptolemaic_mergedicts__')
+            cls._merge_names_all(
+                '_ptolemaic_mergetuples__'
+                )
+            cls._merge_names_all(
+                '_ptolemaic_mergedicts__',
+                mergetyp=_utilities.FrozenMap,
+                itermeth='items',
+                )
+            cls._add_mroclasses()
+            try:
+                cls.classchora = cls._get_classchora()
+            except NotImplementedError:
+                pass
+            else:
+                cls._class_defer_chora_methods()
 
     ### What happens when the class is called:
 
@@ -212,17 +266,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Methods relating to serialising and unserialising classes:
 
-    @classmethod
-    def get_epitaph(meta, /):
-        return meta.taphonomy.auto_epitaph(meta)
-
     @property
-    @_caching.soft_cache()
+    @_caching.soft_cache('_class_softcache')
     def epitaph(cls, /):
-        return cls.get_epitaph()
+        return cls.get_class_epitaph()
 
 
-class EssenceBase(metaclass=Essence):
+class EssenceBase(_classtools.ClassInit, metaclass=Essence):
 
     __slots__ = ()
 
@@ -230,9 +280,12 @@ class EssenceBase(metaclass=Essence):
     _ptolemaic_mergedicts__ = ()
     _ptolemaic_mroclasses__ = ()
 
+    ClassChora = _chora.Sliceable
+
     @classmethod
-    def __class_init__(cls, /):
-        pass
+    def __init_subclass__(cls, /, **kwargs):
+        with cls.classmutable:
+            super().__init_subclass__(**kwargs)
 
     ### Customisable methods relating to the Incision Protocol:
 
@@ -246,26 +299,14 @@ class EssenceBase(metaclass=Essence):
 #             return _abc.ABCMeta.__subclasscheck__(cls, arg)
 
     @classmethod
-    def _ptolemaic_contains__(cls, arg, /):
-        raise NotImplementedError
+    def _get_classchora(cls, /) -> 'Chora':
+        return cls.ClassChora()
+
+    ### Serialisation methods:
 
     @classmethod
-    def _ptolemaic_getitem__(cls, arg, /):
-        raise NotImplementedError
-
-    @classmethod
-    def _get_clschora(cls, /) -> 'Chora':
-        raise NotImplementedError
-
-    @classmethod
-    def __contains__(cls, arg, /):
-        return cls.clschora.__contains__(arg)
-
-    ### Supporting serialisation:
-
-    @classmethod
-    def get_epitaph(cls, /):
-        return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
+    def get_class_epitaph(cls, /):
+        return cls.taphonomy.auto_epitaph(cls)
 
     ### Legibility methods:
 

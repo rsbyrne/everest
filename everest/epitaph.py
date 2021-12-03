@@ -129,9 +129,11 @@ class Taphonomy(_weakref.WeakValueDictionary):
             return repr(arg)
         return str(arg)
 
+    def encode_module(self, arg: _types.ModuleType, /, *, subencode=None):
+        return self.enfence(self.encode_primitive(arg.__name__), 'm')
+
     _CONTENTTYPES = (
         type,
-        _types.ModuleType,
         _types.FunctionType,
         _types.MethodType,
         _types.BuiltinFunctionType,
@@ -145,14 +147,10 @@ class Taphonomy(_weakref.WeakValueDictionary):
         Serialises 'content':
         objects that can be reached by qualname paths from a module.
         '''
-        if isinstance(arg, _types.ModuleType):
-            return f"'{arg.__name__}',"
-        if arg.__module__ == 'builtins':
-            return self.enfence(arg.__name__)
-        modname = _getmodule(arg).__name__
-        if modname == 'builtins':
+        mod = _getmodule(arg)
+        if mod.__name__ == 'builtins':
             return arg.__name__
-        return self.enfence(f"'{arg.__qualname__}','{modname}'", 'c')
+        return f"{self.encode_module(mod)}.{arg.__qualname__}"
 
     def _encode_pickle(self,
             arg: object, /, *, subencode: _Callable
@@ -172,16 +170,8 @@ class Taphonomy(_weakref.WeakValueDictionary):
                 yield hint, meth
         yield object, self._encode_fallback
 
-    def decode_content(self:'c', name: str, path: str, /):
-        '''
-        Deserialises 'content':
-        objects that can be reached by qualname paths from a module.
-        '''
-        return _functools.reduce(
-            getattr,
-            name.split('.'),
-            _import_module(path)
-            )
+    def decode_module(self:'m', name: str, /):
+        return _import_module(name)
 
     def decode_pickle(self:'p', arg: bytes, /) -> object:
         return _pickle.loads(arg)
@@ -232,20 +222,15 @@ class Taphonomy(_weakref.WeakValueDictionary):
         return self(self.encode(arg, deps:=set()), deps)
 
     @classmethod
-    def posformat_argskwargs(cls, args, kwargs, /, *, n=0):
-        count = _itertools.count(n)
+    def posformat_callsig(cls, caller, /, *args, n=0, **kwargs):
+        count = _itertools.count(n+1)
         wrap = lambda it: (f"{{{next(count)}}}" for _ in it)
         strn = ','.join(_itertools.chain(
             wrap(args),
             map('='.join, zip(kwargs, wrap(kwargs))),
             ))
-        deps = (*args, *kwargs.values())
-        return strn, deps
-
-    @classmethod
-    def posformat_callsig(cls, caller, /, args, kwargs, *, n=0):
-        strn, deps = cls.posformat_argskwargs(args, kwargs, n=n+1)
-        return f"{{{n}}}({strn})", (caller, *deps)
+        deps = (caller, *args, *kwargs.values())
+        return f"{{{n}}}({strn})", deps
 
     def custom_encode(self,
             strn, /, args=(), kwargs=_FrozenMap(), *, deps: set
@@ -284,8 +269,11 @@ class Taphonomy(_weakref.WeakValueDictionary):
 TAPHONOMY = Taphonomy()
 
 
-# def revive(hexcode, content, dependencies):
-#     taph, dependencies = 
+def entomb(obj, /):
+    return TAPHONOMY(obj)
+
+def revive(content, deps, hexcode):
+    return TAPHONOMY(content, deps, hexcode)
 
 
 ###############################################################################

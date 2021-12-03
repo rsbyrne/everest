@@ -10,16 +10,11 @@ import inspect as _inspect
 import itertools as _itertools
 import pickle as _pickle
 
-from everest.utilities import caching as _caching
+from everest.utilities import caching as _caching, switch as _switch
 from everest.primitive import Primitive as _Primitive
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.abstract import ProxyAbstract as _ProxyAbstract
 from everest.ptolemaic import exceptions as _exceptions
-
-
-def pass_fn(arg, /):
-    return arg
 
 
 class Ousia(_Essence):
@@ -53,6 +48,9 @@ class Ousia(_Essence):
                 (basecls.ConcreteBase, basecls),
                 basecls._ptolemaic_concrete_namespace__(),
                 )
+
+#         def __setattr__(cls, key, val, /):
+#             return cls._ptolemaic_class__.__setattr__(key, val)
 
         def construct(cls, /, *args, **kwargs):
             return cls.basecls.construct(*args, **kwargs)
@@ -99,12 +97,15 @@ class Ousia(_Essence):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        cls._cls_softcache = {}
+        cls._cls_weakcache = _weakref.WeakValueDictionary()
         cls.Concrete = type(cls).ConcreteMeta(cls)
         cls.create_object = _functools.partial(cls.__new__, cls.Concrete)
 
     ### Setting some class properties that wrap baseclass methods:
 
     @property
+    @_caching.soft_cache('_cls_softcache')
     def __signature__(cls, /):
         return cls.get_signature()
 
@@ -163,10 +164,6 @@ class Registrar(_exceptions.ParameterisationException):
         return f"{self.basecls.__name__}(*({argtup}), **{{{kwargtup}}})"
 
 
-# def master_unreduce(loadcls, /, **kwargs):
-#     return _ProxyAbstract.unproxy_arg(loadcls).reconstruct(**kwargs)
-
-
 def yield_args_kwargs(dct):
     '''
     Takes a `dict` representing a set of function args and kwargs
@@ -194,7 +191,8 @@ class OusiaBase(metaclass=Ousia):
 
     _ptolemaic_mergetuples__ = ('_req_slots__',)
     _req_slots__ = (
-        '_softcache', '_weakcache', '_epitaph', '_inputs', '__weakref__'
+        '_softcache', '_weakcache', '_epitaph',
+        '_repr', '__weakref__', '_freezeattr',
         )
     _ptolemaic_mroclasses__ = ('Registrar', 'ConcreteBase')
 
@@ -221,8 +219,27 @@ class OusiaBase(metaclass=Ousia):
         register(*args, **kwargs)
 
     def initialise(self, /, *args, **kwargs):
-        args, kwargs = _ProxyAbstract.unproxy_argskwargs(args, kwargs)
+        self._repr = ', '.join(_itertools.chain(
+            map(repr, args),
+            map('='.join, zip(map(str, kwargs), map(repr, kwargs.values()))),
+            ))
         self.__init__(*args, **kwargs)
+        self.freezeattr = True
+
+    @classmethod
+    def instantiate(cls, /, *args, **kwargs):
+        epitaph = cls.get_instance_epitaph(*args, **kwargs)
+        hexcode, premade = str(epitaph), cls.premade
+        if hexcode in premade:
+            return premade[hexcode]
+        obj = cls.create_object()
+        premade[hexcode] = obj
+        with obj.mutable:
+            obj._epitaph = epitaph
+            obj._softcache = {}
+            obj._weakcache = _weakref.WeakValueDictionary()
+            obj.initialise(*args, **kwargs)
+        return obj
 
     @classmethod
     def construct(cls, /, *args, **kwargs):
@@ -231,22 +248,7 @@ class OusiaBase(metaclass=Ousia):
         bound = cls.__signature__.bind(*registrar.args, **registrar.kwargs)
         bound.apply_defaults()
         args, kwargs = bound.args, bound.kwargs
-        epitaph = cls.get_instance_epitaph(args, kwargs)
-        hashcode, premade = str(epitaph), cls.premade
-        if hashcode in premade:
-            return premade[hashcode]
-        obj = cls.create_object()
-        premade[hashcode] = obj
-        obj._epitaph = epitaph
-        obj._inputs = (args, kwargs)
-        obj._softcache = dict()
-        obj._weakcache = _weakref.WeakValueDictionary()
-        obj.initialise(*args, **kwargs)
-        return obj
-
-    @property
-    def inputs(self, /):
-        return self._inputs
+        return cls.instantiate(*bound.args, **bound.kwargs)
 
     ### Implementing chora-like behaviour:
 
@@ -261,10 +263,39 @@ class OusiaBase(metaclass=Ousia):
 
         __slots__ = ()
 
+        ### Implementing 'freezeattr' behaviour:
+
+        @property
+        def freezeattr(self, /):
+            try:
+                return self._freezeattr
+            except AttributeError:
+                super().__setattr__(
+                    '_freezeattr', switch := _switch.Switch(False)
+                    )
+                return switch
+
+        @freezeattr.setter
+        def freezeattr(self, val, /):
+            self._freezeattr.toggle(val)
+
+        @property
+        def mutable(self, /):
+            return self.freezeattr.as_(False)
+
+        def __setattr__(self, key, val, /):
+            if self.freezeattr:
+                typ = self._ptolemaic_class__
+                raise AttributeError(
+                    f"Setting attributes on an object of type {typ} "
+                    "is forbidden at this time; "
+                    f"toggle switch `.freezeattr` to override."
+                    )
+            super().__setattr__(key, val)
+
         ### Implementing serialisation of instances:
 
         @property
-        @_caching.soft_cache()
         def epitaph(self, /):
             return self._epitaph
 
@@ -283,8 +314,8 @@ class OusiaBase(metaclass=Ousia):
             return self.metacls.taphonomy
 
         @property
-        def hashcode(self, /):
-            return self.epitaph.hashcode
+        def hexcode(self, /):
+            return self.epitaph.hexcode
 
         @property
         def hashint(self, /):
@@ -297,25 +328,19 @@ class OusiaBase(metaclass=Ousia):
     ### Epitaph support:
 
     @classmethod
-    def get_instance_epitaph(cls, args, kwargs, /):
+    def get_instance_epitaph(cls, /, *args, **kwargs):
+        cls = cls._ptolemaic_class__
         taph = cls.taphonomy
         return taph.custom_epitaph(
-            *taph.posformat_callsig(cls, args, kwargs)
+            *taph.posformat_callsig(cls, *args, **kwargs)
             )
 
     ### Defining ways that class instances can be represented:
 
-    def _repr(self, /):
-        args, kwargs = self.inputs
-        return ', '.join(_itertools.chain(
-            map(repr, args),
-            map('='.join, zip(map(repr, kwargs), map(repr, kwargs.values()))),
-            ))
-
     @_caching.soft_cache()
     def __repr__(self, /):
-        content = f"({rep})" if (rep := self._repr()) else ''
-        return f"<{repr(type(self)._ptolemaic_class__)}{content}>"
+        content = f"({rep})" if (rep := self._repr) else ''
+        return f"<{repr(self._ptolemaic_class__)}{content}>"
 
 
 ###############################################################################
