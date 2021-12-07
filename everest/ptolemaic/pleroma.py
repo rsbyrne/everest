@@ -124,6 +124,8 @@ class Pleromatic(_classtools.FreezableMeta, metaclass=Pleroma):
     def process_bases(meta, bases):
         '''Inserts the metaclass's mandatory basetype if necessary.'''
         basetyp = meta.BaseTyp
+        if not isinstance(bases, tuple):
+            raise TypeError("Bad bases passed into class construct.")
         if tuple(filter(basetyp.__subclasscheck__, bases)):
             return bases
         return (*bases, basetyp)
@@ -136,7 +138,9 @@ class Pleromatic(_classtools.FreezableMeta, metaclass=Pleroma):
             ):
         if namespace is None:
             namespace = {}
-        addspace = dict(__slots__=())
+        addspace = dict()
+        if (key := '__slots__') not in namespace:
+            addspace[key] = ()
         if name is None:
             name = ''.join(base.__name__ for base in bases)
             if not name:
@@ -150,8 +154,14 @@ class Pleromatic(_classtools.FreezableMeta, metaclass=Pleroma):
         out.clsfreezeattr = True
         return out
 
+    def _ptolemaic_issubclass__(cls, arg, /):
+        return _abc.ABCMeta.__subclasscheck__(cls, arg)
+
+    def __subclasscheck__(cls, arg, /):
+        return cls._ptolemaic_issubclass__(arg)
+
     def _ptolemaic_isinstance__(cls, arg, /):
-        return super().__instancecheck__(arg)
+        return _abc.ABCMeta.__instancecheck__(cls, arg)
 
     def __instancecheck__(cls, arg, /):
         return cls._ptolemaic_isinstance__(arg)

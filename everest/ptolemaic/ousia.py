@@ -14,9 +14,9 @@ from everest import classtools as _classtools
 from everest.utilities import caching as _caching, switch as _switch
 from everest.primitive import Primitive as _Primitive
 
-from everest.ptolemaic.pleroma import Pleromatic as _Pleromatic
 from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 from everest.ptolemaic.tekton import Tekton as _Tekton
+from everest.ptolemaic.corporeal import Corporeal as _Corporeal
 
 
 class Ousia(_Tekton):
@@ -27,45 +27,7 @@ class Ousia(_Tekton):
 
     ### Defining the parent class of all Ousia instance instances:
 
-    class ConcreteMetaBase(_Pleromatic):
-        '''
-        The metaclass of all concrete subclasses of Ousia instances.
-        '''
-
-        @property
-        def isconcrete(cls, /):
-            return True
-
-        @classmethod
-        def _pleroma_construct(meta, basecls, /):
-            if not isinstance(basecls, type):
-                raise TypeError(
-                    "ConcreteMeta only accepts one argument:"
-                    " the class to be concreted."
-                    )
-            if isinstance(basecls, basecls.ConcreteMetaBase):
-                raise TypeError("Cannot subclass a Concrete type.")
-            out = _abc.ABCMeta.__call__(
-                meta,
-                f"Concrete{basecls.__name__}",
-                (basecls.ConcreteBase, basecls),
-                basecls._ptolemaic_concrete_namespace__(),
-                )
-            out.clsfreezeattr = True
-            return out
-
-        @property
-        def __signature__(cls, /):
-            return cls._ptolemaic_class__.__signature__
-
-        def __init__(cls, /, *args, **kwargs):
-            _abc.ABCMeta.__init__(cls, *args, **kwargs)
-
-        ### Class representations and aliases:
-
-        @property
-        def _ptolemaic_class__(cls, /):
-            return cls._basecls
+    class ConcreteMetaBase(_Corporeal):
 
         @property
         def epitaph(cls, /):
@@ -96,8 +58,6 @@ class Ousia(_Tekton):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls._cls_softcache = {}
-        cls._cls_weakcache = _weakref.WeakValueDictionary()
         cls.Concrete = cls.ConcreteMeta(cls)
         cls.create_object = _functools.partial(cls.__new__, cls.Concrete)
 
@@ -106,8 +66,6 @@ class OusiaBase(metaclass=Ousia):
     '''
     The basetype of all Ousia instances.
     '''
-
-    __slots__ = ()
 
     _ptolemaic_mergetuples__ = ('_req_slots__',)
     _req_slots__ = (
@@ -149,10 +107,8 @@ class OusiaBase(metaclass=Ousia):
 
     ### Defining special behaviours for the concrete subclass:
 
-    class ConcreteBase(_Ptolemaic):
+    class ConcreteBase(metaclass=_Corporeal):
         '''The base class for this class's `Concrete` subclass.'''
-
-        __slots__ = ()
 
         ### Implementing serialisation of instances:
 
@@ -184,6 +140,9 @@ class OusiaBase(metaclass=Ousia):
             return self.epitaph.hashID
 
         ### Defining ways that class instances can be represented:
+
+        def __hash__(self, /):
+            return self.hashint
 
         @classmethod
         def __class_repr__(cls, /):

@@ -145,7 +145,10 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         return str(arg)
 
     def encode_tuple(self, arg: tuple, /, *, subencode: _Callable):
-        return f"({','.join(map(subencode, arg))})"
+        content = ','.join(map(subencode, arg))
+        if content:
+            content += ','
+        return f"({content})"
 
     def encode_dict(self, arg: dict, /, *, subencode: _Callable):
         pairs = zip(map(subencode, arg), map(subencode, arg.values()))

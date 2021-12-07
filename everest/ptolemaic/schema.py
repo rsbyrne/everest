@@ -174,7 +174,7 @@ class Schema(_Ousia):
             }
 
     @property
-    @_caching.soft_cache('_class_softcache')
+    @_caching.soft_cache('_cls_softcache')
     def sig(cls, /):
         return Sig(**cls._collect_params())
 
@@ -186,8 +186,6 @@ class Schema(_Ousia):
 
 
 class SchemaBase(metaclass=Schema):
-
-    __slots__ = ()
 
     @classmethod
     def get_signature(cls, /):

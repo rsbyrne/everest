@@ -79,7 +79,8 @@ class Essence(_pleroma.Pleromatic):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls._class_softcache = {}
+        cls._cls_softcache = {}
+        cls._cls_weakcache = _weakref.WeakValueDictionary()
         clsdct = cls.__dict__
         if (annokey := '__annotations__') in clsdct:
             anno = clsdct[annokey]
@@ -153,23 +154,18 @@ class Essence(_pleroma.Pleromatic):
         raise NotImplementedError
 
     @property
-    @_caching.soft_cache('_class_softcache')
+    @_caching.soft_cache('_cls_softcache')
     def epitaph(cls, /):
+        if '_epitaph' in cls.__dict__:
+            return cls._epitaph
         return cls.get_class_epitaph()
 
 
-class EssenceBase(_Ptolemaic, metaclass=Essence):
-
-    __slots__ = ()
+class EssenceBase(metaclass=Essence):
 
     _ptolemaic_mergetuples__ = ('_ptolemaic_mroclasses__',)
     _ptolemaic_mergedicts__ = ()
     _ptolemaic_mroclasses__ = ()
-
-    @classmethod
-    def _ptolemaic_isinstance__(cls, arg, /):
-        '''Returns `False` as `Essence` types cannot be instantiated.'''
-        return False
 
     @classmethod
     def get_class_epitaph(cls, /):

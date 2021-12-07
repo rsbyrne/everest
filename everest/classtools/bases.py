@@ -44,6 +44,9 @@ class Freezable(_abc.ABC):
     def mutable(self, /):
         return self.freezeattr.as_(False)
 
+    def _alt_setattr__(self, key, val, /):
+        super().__setattr__(key, val)
+
     def __setattr__(self, key, val, /):
         if self.freezeattr:
             raise AttributeError(

@@ -12,8 +12,7 @@ class Ptolemaic(
         _classtools.ClassInit, _classtools.Freezable,
         metaclass=_pleroma.Pleromatic,
         ):
-
-    __slots__ = ()
+    ...
 
 
 ###############################################################################

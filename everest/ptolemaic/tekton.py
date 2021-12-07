@@ -154,7 +154,7 @@ class TektonChora(_chora.Sliceable):
 class Tekton(_Bythos):
 
     @property
-    @_caching.soft_cache('_class_softcache')
+    @_caching.soft_cache('_cls_softcache')
     def __signature__(cls, /):
         return cls.get_signature()
 
@@ -165,14 +165,12 @@ class Tekton(_Bythos):
         return _inspect.signature(cls.call)
 
     @property
-    @_caching.soft_cache('_class_softcache')
+    @_caching.soft_cache('_cls_softcache')
     def premade(cls, /):
         return _weakref.WeakValueDictionary()
 
 
 class TektonBase(metaclass=Tekton):
-
-    __slots__ = ()
 
     Registrar = Registrar
     ClassChora = TektonChora

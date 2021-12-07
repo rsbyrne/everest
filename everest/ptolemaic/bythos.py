@@ -61,8 +61,6 @@ class Bythos(_Essence):
 
 class BythosBase(metaclass=Bythos):
 
-    __slots__ = ()
-
     ClassChora = _chora.Sliceable
 
     @classmethod
