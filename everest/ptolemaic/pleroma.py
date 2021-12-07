@@ -3,37 +3,38 @@
 ###############################################################################
 
 
+import abc as _abc
 import pickle as _pickle
 from inspect import getmodule as _getmodule
 
 from everest.utilities import caching as _caching, switch as _switch
 from everest import epitaph as _epitaph
 from everest.primitive import Primitive as _Primitive
+from everest import classtools as _classtools
 
 
 class Pleroma(type):
 
-    def _pleroma_contains__(meta, arg, /):
-        if isinstance(arg, meta):
-            return True
-        return arg in _Primitive.TYPS
+    def _pleroma_contains__(meta, _, /):
+        raise NotImplementedError
 
     def __contains__(meta, arg, /):
         return meta._pleroma_contains__(arg)
 
     def _pleroma_getitem__(meta, arg, /):
-        if isinstance(arg, type):
-            if issubclass(arg, meta):
-                return arg
-        if arg in meta:
-            return arg
-        raise KeyError(arg)
+        raise NotImplementedError
 
     def __getitem__(meta, arg, /):
         return meta._pleroma_getitem__(arg)
 
+    def _pleroma_setitem__(meta, key, val, /):
+        raise NotImplementedError
+
+    def __setitem__(meta, key, val, /):
+        return meta._pleroma_setitem__(key, val)
+
     def _pleroma_init__(meta, /):
-        pass
+        raise NotImplementedError
 
     def __init__(meta, /, *args, **kwargs):
         with meta.metamutable:
@@ -106,19 +107,66 @@ class Pleroma(type):
     def epitaph(meta, /):
         return meta.get_meta_epitaph()
 
-#     def reduce(meta=None, arg=None, /, *, method=_pickle.dumps):
-#         '''Serialises the metaclass.'''
-#         if meta is None:
-#             return None
-#         return method((meta, type(meta).reduce(arg)))
 
-#     @classmethod
-#     def revive(pleroma, arg=None, /, *, method=_pickle.loads):
-#         '''Unserialises a previously serialised metaclass.'''
-#         arg, sub = _pickle.loads(arg)
-#         if not sub is None:
-#             arg = arg.revive(sub, method=method)
-#         return arg
+class Pleromatic(_classtools.FreezableMeta, metaclass=Pleroma):
+
+    ### Creating the object that is the class itself:
+
+    @classmethod
+    def __prepare__(meta, name, bases, /, *args, **kwargs):
+        return dict()
+
+    @classmethod
+    def _pleroma_init__(meta, /):
+        pass
+
+    @classmethod
+    def process_bases(meta, bases):
+        '''Inserts the metaclass's mandatory basetype if necessary.'''
+        basetyp = meta.BaseTyp
+        if tuple(filter(basetyp.__subclasscheck__, bases)):
+            return bases
+        return (*bases, basetyp)
+
+    @classmethod
+    def _pleroma_construct(meta,
+            name: str = None,
+            bases: tuple = (),
+            namespace: dict = None,
+            ):
+        if namespace is None:
+            namespace = {}
+        addspace = dict(__slots__=())
+        if name is None:
+            name = ''.join(base.__name__ for base in bases)
+            if not name:
+                raise ValueError(
+                    "Must provide at least one "
+                    "of either a class name or a tuple of bases."
+                    )
+        namespace = namespace | addspace
+        bases = meta.process_bases(bases)
+        out = _abc.ABCMeta.__call__(meta, name, bases, namespace)
+        out.clsfreezeattr = True
+        return out
+
+    def _ptolemaic_isinstance__(cls, arg, /):
+        return super().__instancecheck__(arg)
+
+    def __instancecheck__(cls, arg, /):
+        return cls._ptolemaic_isinstance__(arg)
+
+    def _ptolemaic_getitem__(cls, arg, /):
+        raise NotImplementedError
+
+    def __getitem__(cls, arg, /):
+        return cls._ptolemaic_getitem__(arg)
+
+    def _ptolemaic_contains__(cls, arg, /):
+        raise NotImplementedError
+
+    def __contains__(cls, arg, /):
+        return cls._ptolemaic_contains__(arg)
 
 
 ###############################################################################

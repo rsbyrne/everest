@@ -6,18 +6,20 @@
 import functools as _functools
 import weakref as _weakref
 import abc as _abc
-import inspect as _inspect
 import itertools as _itertools
 import pickle as _pickle
+import inspect as _inspect
 
+from everest import classtools as _classtools
 from everest.utilities import caching as _caching, switch as _switch
 from everest.primitive import Primitive as _Primitive
 
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic import exceptions as _exceptions
+from everest.ptolemaic.pleroma import Pleromatic as _Pleromatic
+from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
+from everest.ptolemaic.tekton import Tekton as _Tekton
 
 
-class Ousia(_Essence):
+class Ousia(_Tekton):
     '''
     The metaclass of all ptolemaic types that can be instantiated.
     All instances of `Ousia` types are instances of `Ptolemaic` by definition.
@@ -25,7 +27,7 @@ class Ousia(_Essence):
 
     ### Defining the parent class of all Ousia instance instances:
 
-    class ConcreteMetaBase(type):
+    class ConcreteMetaBase(_Pleromatic):
         '''
         The metaclass of all concrete subclasses of Ousia instances.
         '''
@@ -34,7 +36,8 @@ class Ousia(_Essence):
         def isconcrete(cls, /):
             return True
 
-        def __new__(meta, basecls, /):
+        @classmethod
+        def _pleroma_construct(meta, basecls, /):
             if not isinstance(basecls, type):
                 raise TypeError(
                     "ConcreteMeta only accepts one argument:"
@@ -42,22 +45,18 @@ class Ousia(_Essence):
                     )
             if isinstance(basecls, basecls.ConcreteMetaBase):
                 raise TypeError("Cannot subclass a Concrete type.")
-            return _abc.ABCMeta.__new__(
+            out = _abc.ABCMeta.__call__(
                 meta,
                 f"Concrete{basecls.__name__}",
                 (basecls.ConcreteBase, basecls),
                 basecls._ptolemaic_concrete_namespace__(),
                 )
-
-#         def __setattr__(cls, key, val, /):
-#             return cls._ptolemaic_class__.__setattr__(key, val)
-
-        def construct(cls, /, *args, **kwargs):
-            return cls.basecls.construct(*args, **kwargs)
+            out.clsfreezeattr = True
+            return out
 
         @property
         def __signature__(cls, /):
-            return cls.basecls.__signature__
+            return cls._ptolemaic_class__.__signature__
 
         def __init__(cls, /, *args, **kwargs):
             _abc.ABCMeta.__init__(cls, *args, **kwargs)
@@ -66,7 +65,7 @@ class Ousia(_Essence):
 
         @property
         def _ptolemaic_class__(cls, /):
-            return cls.basecls
+            return cls._basecls
 
         @property
         def epitaph(cls, /):
@@ -90,7 +89,7 @@ class Ousia(_Essence):
 
     def _ptolemaic_concrete_namespace__(cls, /):
         return dict(
-            basecls=cls,
+            _basecls=cls,
             __slots__=cls._ptolemaic_concrete_slots__(),
             __class_init__=lambda: None,
             )
@@ -99,87 +98,8 @@ class Ousia(_Essence):
         super().__init__(*args, **kwargs)
         cls._cls_softcache = {}
         cls._cls_weakcache = _weakref.WeakValueDictionary()
-        cls.Concrete = type(cls).ConcreteMeta(cls)
+        cls.Concrete = cls.ConcreteMeta(cls)
         cls.create_object = _functools.partial(cls.__new__, cls.Concrete)
-
-    ### Setting some class properties that wrap baseclass methods:
-
-    @property
-    @_caching.soft_cache('_cls_softcache')
-    def __signature__(cls, /):
-        return cls.get_signature()
-
-    @property
-    def registrar(cls, /):
-        return cls.Registrar(cls)
-
-
-class Registrar(_exceptions.ParameterisationException):
-    '''
-    Handles parameterisation and type checking
-    on behalf of its outer class.
-    '''
-
-    __slots__ = ('args', 'kwargs', 'bads')
-
-    def __init__(self, owner, /):
-        super().__init__(owner)
-        self.args, self.kwargs, self.bads = [], {}, []
-
-    ### Basic functionality to check and process parameters:
-
-    def process_param(self, param, /):
-        return param
-
-    def __call__(self, /, *args, **kwargs):
-        self.args.extend(map(self.process_param, args))
-        self.kwargs.update(zip(
-            kwargs,
-            map(self.process_param, kwargs.values())
-            ))
-
-    ### Defining how the Registrar performs its final type checks:
-
-    def check(self, /):
-        passmetaclass=_abc.ABCMeta
-
-    def message(self, /):
-        yield from super().message()
-        yield "when one or more objects of unrecognised type"
-        yield "were passed as parameters:"
-        for param in self.bads:
-            yield f"{repr(param)}, {repr(type(param))}"
-        yield 'Note that the class only accepts parameters'
-        yield 'that are instances of one or more of the following:'
-        yield from map(repr, self.raisedby._ptolemaic_knowntypes__)
-
-    ### Basic object legibility:
-
-    def __repr__(self, /):
-        argtup = ', '.join(map(repr, self.args))
-        kwargtup = ', '.join(
-            f"{key}: {repr(val)}"
-            for key, val in self.kwargs.items()
-            )
-        return f"{self.basecls.__name__}(*({argtup}), **{{{kwargtup}}})"
-
-
-def yield_args_kwargs(dct):
-    '''
-    Takes a `dict` representing a set of function args and kwargs
-    where the args are represented as numerical kwargs
-    and returns the args and kwargs separately.
-    '''
-    grpby = itertools.groupby(dct, str.isnumeric)
-    _, argkeys = next(grpby)
-    yield tuple(map(dct.__getitem__, argkeys))
-    _, kwargkeys = next(grpby)
-    kwargkeys = tuple(kwargkeys)
-    yield dict(zip(kwargkeys, map(dct.__getitem__, kwargkeys)))
-
-
-def master_unreduce(obj, /, *args):
-    return obj.revive(*args)
 
 
 class OusiaBase(metaclass=Ousia):
@@ -191,12 +111,11 @@ class OusiaBase(metaclass=Ousia):
 
     _ptolemaic_mergetuples__ = ('_req_slots__',)
     _req_slots__ = (
-        '_softcache', '_weakcache', '_epitaph',
-        '_repr', '__weakref__', '_freezeattr',
+        '_softcache', '_weakcache', 'params', '__weakref__', '_freezeattr',
         )
-    _ptolemaic_mroclasses__ = ('Registrar', 'ConcreteBase')
+    _ptolemaic_mroclasses__ = ('ConcreteBase',)
 
-    ### Implementing bespoke class instantiation protocol:
+    ### What actually happens when the class is called:
 
     @classmethod
     def get_signature(cls, /):
@@ -208,102 +127,41 @@ class OusiaBase(metaclass=Ousia):
                 )
             )
 
-    ### Defining the Registrar, which handles parameterisation:
-
-    Registrar = Registrar
-
-    ### What actually happens when the class is called:
+    def initialise(self, /):
+        params = self.params
+        self.__init__(*params.args, **params.kwargs)
 
     @classmethod
-    def parameterise(cls, register, /, *args, **kwargs):
-        register(*args, **kwargs)
-
-    def initialise(self, /, *args, **kwargs):
-        self._repr = ', '.join(_itertools.chain(
-            map(repr, args),
-            map('='.join, zip(map(str, kwargs), map(repr, kwargs.values()))),
-            ))
-        self.__init__(*args, **kwargs)
-        self.freezeattr = True
-
-    @classmethod
-    def instantiate(cls, /, *args, **kwargs):
-        epitaph = cls.get_instance_epitaph(*args, **kwargs)
-        hexcode, premade = str(epitaph), cls.premade
-        if hexcode in premade:
-            return premade[hexcode]
+    def construct(cls, callsig, /):
         obj = cls.create_object()
-        premade[hexcode] = obj
-        with obj.mutable:
-            obj._epitaph = epitaph
-            obj._softcache = {}
-            obj._weakcache = _weakref.WeakValueDictionary()
-            obj.initialise(*args, **kwargs)
+        obj.params = callsig
+        obj._softcache = {}
+        obj._weakcache = _weakref.WeakValueDictionary()
+        obj.initialise()
+        obj.freezeattr = True
         return obj
 
-    @classmethod
-    def construct(cls, /, *args, **kwargs):
-        cls.parameterise(registrar := cls.registrar, *args, **kwargs)
-        registrar.check()
-        bound = cls.__signature__.bind(*registrar.args, **registrar.kwargs)
-        bound.apply_defaults()
-        args, kwargs = bound.args, bound.kwargs
-        return cls.instantiate(*bound.args, **bound.kwargs)
-
-    ### Implementing chora-like behaviour:
+    ### Epitaph support:
 
     @classmethod
-    def _ptolemaic_isinstance__(cls, arg, /):
-        return issubclass(type(arg), cls)
+    def get_instance_epitaph(cls, callsig, /):
+        return cls.taphonomy.custom_epitaph("$a[$b]", dict(a=cls, b=callsig))
 
     ### Defining special behaviours for the concrete subclass:
 
-    class ConcreteBase(metaclass=_abc.ABCMeta):
+    class ConcreteBase(_Ptolemaic):
         '''The base class for this class's `Concrete` subclass.'''
 
         __slots__ = ()
 
-        ### Implementing 'freezeattr' behaviour:
-
-        @property
-        def freezeattr(self, /):
-            try:
-                return self._freezeattr
-            except AttributeError:
-                super().__setattr__(
-                    '_freezeattr', switch := _switch.Switch(False)
-                    )
-                return switch
-
-        @freezeattr.setter
-        def freezeattr(self, val, /):
-            self._freezeattr.toggle(val)
-
-        @property
-        def mutable(self, /):
-            return self.freezeattr.as_(False)
-
-        def __setattr__(self, key, val, /):
-            if self.freezeattr:
-                typ = self._ptolemaic_class__
-                raise AttributeError(
-                    f"Setting attributes on an object of type {typ} "
-                    "is forbidden at this time; "
-                    f"toggle switch `.freezeattr` to override."
-                    )
-            super().__setattr__(key, val)
-
         ### Implementing serialisation of instances:
 
         @property
+        @_caching.soft_cache()
         def epitaph(self, /):
-            return self._epitaph
+            return self.get_instance_epitaph(self.params)
 
         ### Defining some aliases:
-
-        @property
-        def _ptolemaic_class__(self, /):
-            return self.basecls
 
         @property
         def metacls(self, /):
@@ -325,22 +183,30 @@ class OusiaBase(metaclass=Ousia):
         def hashID(self, /):
             return self.epitaph.hashID
 
-    ### Epitaph support:
+        ### Defining ways that class instances can be represented:
 
-    @classmethod
-    def get_instance_epitaph(cls, /, *args, **kwargs):
-        cls = cls._ptolemaic_class__
-        taph = cls.taphonomy
-        return taph.custom_epitaph(
-            *taph.posformat_callsig(cls, *args, **kwargs)
-            )
+        @classmethod
+        def __class_repr__(cls, /):
+            return cls.__class__.__qualname__
 
-    ### Defining ways that class instances can be represented:
+        @classmethod
+        def __class_str__(cls, /):
+            return cls._ptolemaic_class__.__class_str__()
 
-    @_caching.soft_cache()
-    def __repr__(self, /):
-        content = f"({rep})" if (rep := self._repr) else ''
-        return f"<{repr(self._ptolemaic_class__)}{content}>"
+        def _repr(self, /):
+            args, kwargs = (params := self.params).args, params.kwargs
+            return ', '.join(_itertools.chain(
+                map(repr, args),
+                map(
+                    '='.join,
+                    zip(map(str, kwargs), map(repr, kwargs.values()))
+                    ),
+                ))
+
+        @_caching.soft_cache()
+        def __repr__(self, /):
+            content = f"({rep})" if (rep := self._repr()) else ''
+            return f"<{self.__class__}{content}>"
 
 
 ###############################################################################

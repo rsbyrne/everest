@@ -15,9 +15,11 @@ import itertools as _itertools
 import functools as _functools
 import collections as _collections
 from collections import abc as _collabc
+from string import Template as _Template
 
 from everest.utilities import caching as _caching, word as _word
 from everest.utilities import FrozenMap as _FrozenMap, TypeMap as _TypeMap
+from everest import classtools as _classtools
 from everest.primitive import Primitive as _Primitive
 
 
@@ -36,11 +38,11 @@ class EvalSpace(_collections.UserDict):
         return self.deps[key].decode()
 
 
-class Epitaph:
+class Epitaph(_classtools.Freezable):
 
     __slots__ = (
         'depdict', 'hexcode', 'content', 'taph', 'deps', 'args',
-        '__weakref__',
+        '__weakref__', '_freezeattr', '_softcache',
         )
 
     def __init__(self, content, deps, hexcode, _process_content=False, /):
@@ -48,14 +50,21 @@ class Epitaph:
             f"_{ind}":dep for ind, dep in enumerate(deps)
             }
         if _process_content:
-            content = content.format(
-                **{str(val):key for key, val in depdict.items()}
+            content = _Template(content).substitute(
+                **{f"_{val}": key for key, val in depdict.items()}
                 )
         self.hexcode = hexcode
         self.content = content
         self.taph = deps[0]
         self.deps = deps
         self.args = (self.content, self.deps, self.hexcode)
+        self._softcache = dict()
+        self.freezeattr = True
+
+    @property
+    @_caching.soft_cache()
+    def degenerate(self, /):
+        return len() >= len(self.content)
 
     def __str__(self, /):
         return self.hexcode
@@ -76,6 +85,16 @@ class Epitaph:
     def __reduce__(self, /):
         return self.taph, self.args
 
+    @property
+    @_caching.soft_cache()
+    def hashint(self, /):
+        return int(self.hexcode, 16)
+
+    @property
+    @_caching.soft_cache()
+    def hashID(self, /):
+        return _word.get_random_proper(2, seed=self.hexcode)
+
 
 class Taphonomic(_abc.ABC):
 
@@ -87,11 +106,12 @@ class Taphonomic(_abc.ABC):
         return NotImplemented
 
 
-class Taphonomy(_weakref.WeakValueDictionary):
+class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
    
     __slots__ = (
         'encoders', 'decoders',
         '_primitivemeths', 'evalspace', '_softcache', 'namespace',
+        '_freezeattr',
         )
 
     def __init__(self, namespace=None, /, **kwargs):
@@ -106,31 +126,38 @@ class Taphonomy(_weakref.WeakValueDictionary):
         self.encoders = _TypeMap(self.yield_encoders())
         decoders = self.decoders = _FrozenMap(self.yield_decoders())
         self._primitivemeths = {
-            self.encode_primitive, self.encode_tuple, self.encode_dict
+            self.encode_string, self.encode_primitive,
+            self.encode_tuple, self.encode_dict,
             }
         self.evalspace = _collections.ChainMap(decoders, namespace)
         super().__init__()
+        self._softcache = dict()
+        self.freezeattr = True
 
     def enfence(self, arg: str, /, directive=''):
         '''Wraps a string in a fence, optionally with a 'directive'.'''
         return f"{directive}({arg})"
 
-    def encode_tuple(self, arg: tuple, /, *, subencode: _Callable):
-        return '(' + ','.join(map(subencode, arg)) + ')'
-
-    def encode_dict(self, arg: dict, /, *, subencode: _Callable):
-        return '{' + ','.join(map(
-            ':'.join,
-            zip(map(subencode, arg), map(subencode, arg.values()))
-            )) + '}'
+    def encode_string(self, arg: str, /, *, subencode=None):
+        return repr(arg)
 
     def encode_primitive(self, arg: _Primitive, /, *, subencode=None):
-        if isinstance(arg, str):
-            return repr(arg)
         return str(arg)
 
+    def encode_tuple(self, arg: tuple, /, *, subencode: _Callable):
+        return f"({','.join(map(subencode, arg))})"
+
+    def encode_dict(self, arg: dict, /, *, subencode: _Callable):
+        pairs = zip(map(subencode, arg), map(subencode, arg.values()))
+        return "{" + ','.join(map(':'.join, pairs)) + "}"
+
+#         return self.enfence(','.join(_itertools.starmap(
+#             "({0},{1})".format,
+#             zip(map(subencode, arg), map(subencode, arg.values()))
+#             )), 'd')
+
     def encode_module(self, arg: _types.ModuleType, /, *, subencode=None):
-        return self.enfence(self.encode_primitive(arg.__name__), 'm')
+        return self.enfence(repr(arg.__name__), 'm')
 
     _CONTENTTYPES = (
         type,
@@ -170,7 +197,10 @@ class Taphonomy(_weakref.WeakValueDictionary):
                 yield hint, meth
         yield object, self._encode_fallback
 
-    def decode_module(self:'m', name: str, /):
+#     def decode_dict(self:'d', /, *items) -> dict:
+#         return dict(items)
+
+    def decode_module(self:'m', name: str, /) -> _types.ModuleType:
         return _import_module(name)
 
     def decode_pickle(self:'p', arg: bytes, /) -> object:
@@ -191,12 +221,16 @@ class Taphonomy(_weakref.WeakValueDictionary):
             epitaph = arg.epitaph
         else:
             meth = self.encoders[type(arg)]
-            if meth in self._primitivemeths:
-                return meth(arg, subencode=self.sub_part(deps))
             encoded = meth(arg, subencode=self.sub_part(subdeps:=set()))
-            epitaph = self(encoded, subdeps)
+            if subdeps:
+                if len(encoded) <= 32:
+                    deps.update(subdeps)
+                    return encoded
+                epitaph = self(encoded, subdeps)
+            else:
+                return encoded
         deps.add(epitaph)
-        return f"{{{epitaph}}}"
+        return f"$_{epitaph}"
 
     def encode(self, arg: object, /, deps: set) -> str:
         return self.encoders[type(arg)](arg, subencode=self.sub_part(deps))
@@ -224,28 +258,27 @@ class Taphonomy(_weakref.WeakValueDictionary):
     @classmethod
     def posformat_callsig(cls, caller, /, *args, n=0, **kwargs):
         count = _itertools.count(n+1)
-        wrap = lambda it: (f"{{{next(count)}}}" for _ in it)
+        wrap = lambda it: (f"$_{next(count)}" for _ in it)
         strn = ','.join(_itertools.chain(
             wrap(args),
             map('='.join, zip(kwargs, wrap(kwargs))),
             ))
         deps = (caller, *args, *kwargs.values())
-        return f"{{{n}}}({strn})", deps
+        keys = (f"_{n}" for n in range(len(deps)))
+        return f"$_{n}({strn})", dict(zip(keys, deps))
 
-    def custom_encode(self,
-            strn, /, args=(), kwargs=_FrozenMap(), *, deps: set
-            ):
+    def custom_encode(self, strn: str, /, substitutions: dict, *, deps: set):
         sub = self.sub_part(deps)
-        return strn.format(
-            *map(sub, args),
-            **dict(zip(kwargs, map(sub, kwargs.values()))),
-            )
+        substitutions = dict(zip(
+            substitutions,
+            map(sub, substitutions.values())
+            ))
+        return _Template(strn).substitute(substitutions), deps
 
-    def custom_epitaph(self, strn, /, args=(), kwargs=_FrozenMap()):
-        return self(
-            self.custom_encode(strn, args, kwargs, deps=(deps:=set())),
-            deps,
-            )
+    def custom_epitaph(self, strn, /, substitutions=_FrozenMap()):
+        deps = set()
+        encoded, deps = self.custom_encode(strn, substitutions, deps=deps)
+        return self(encoded, deps)
 
     def __call__(self, content, deps=None, hexcode=None, /) -> Epitaph:
         if deps is None:

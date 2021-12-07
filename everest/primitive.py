@@ -56,8 +56,8 @@ class Primitive(metaclass=PrimitiveMeta):
 #                 cls.__instancecheck__,
 #                 (tuple(arg), tuple(arg.values())),
 #                 ))
-# #         if hasattr(arg, '__module__'):
-# #             return arg.__module__ == 'builtins'
+#         if hasattr(arg, '__module__'):
+#             return arg.__module__ == 'builtins'
 #         return False
 
 

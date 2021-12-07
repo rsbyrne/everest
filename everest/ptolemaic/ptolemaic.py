@@ -2,16 +2,19 @@
 ''''''
 ###############################################################################
 
-from . import misc
-from . import seqmerge
-# from . import cascade
-from . import simpli
-from . import reseed
-from . import makehash
-from . import word
-from . import caching
 
-from .misc import *
+from everest import classtools as _classtools
+
+from everest.ptolemaic import pleroma as _pleroma
+
+
+class Ptolemaic(
+        _classtools.ClassInit, _classtools.Freezable,
+        metaclass=_pleroma.Pleromatic,
+        ):
+
+    __slots__ = ()
+
 
 ###############################################################################
 ###############################################################################

@@ -10,39 +10,13 @@ from functools import wraps as _wraps
 import itertools as _itertools
 
 
-def add_defer_meth(
-        obj, methname: str, defertoname: str, /, defermethname=None
-        ):
-    if defermethname is None:
-        defermethname = methname
-    exec('\n'.join((
-        f"@property",
-        f"def {methname}(self, /):"
-        f"    return self.{defertoname}.{defermethname}"
-        )))
-    setattr(obj, methname, eval(methname))
-
-
-def add_defer_meths(deferto, args=None, kwargs=None, /):
-
-    def decorator(obj):
-        if args is not None:
-            for methname in args:
-                add_defer_meth(obj, methname, deferto)
-        if kwargs is not None:
-            for methname, defermethname in kwargs.items():
-                add_defer_meth(obj, methname, deferto, defermethname)
-        return obj
-
-    return decorator
-
-
 @_dataclass
 class ForceMethod:  # pylint: disable=R0903
     func: _FunctionType
 
 
 class WrapMethod:  # pylint: disable=R0903
+
     __slots__ = ('func', 'kind')
 
     def __init__(self, func: _FunctionType, /):
@@ -208,20 +182,6 @@ class AdderClass(_ABC):
         cls.adderclasses.add(cls)
         _ = cls.register(ACls)
         return ACls
-
-
-class ClassInit:
-
-    __slots__ = ()
-
-    @classmethod
-    def __init_subclass__(cls, /, **kwargs):
-        super().__init_subclass__(**kwargs)
-        cls.__class_init__()
-
-    @classmethod
-    def __class_init__(cls, /):
-        pass
 
 
 ###############################################################################

@@ -15,7 +15,7 @@ from everest.utilities import (
     TypeMap as _TypeMap, MultiTypeMap as _MultiTypeMap
     )
 from everest.utilities import caching as _caching
-from everest.utilities import caching as _caching, classtools as _classtools
+from everest import classtools as _classtools
 
 
 def not_none(a, b):
@@ -43,7 +43,7 @@ class Null(_abc.ABC):
         return False
 
 
-class Chora(_classtools.ClassInit):
+class Chora(_classtools.ClassInit, metaclass=_classtools.FreezableMeta):
     '''
     The Chora is Everest's abstract master representation
     of the concept of space.
@@ -173,14 +173,15 @@ class Chora(_classtools.ClassInit):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls._add_overmethods()
-        chorameths = cls._get_chora_wrappedmeths()
-        for name, meth in chorameths.items():
-            setattr(cls, name, meth)
-        cls.chorameths = cls._get_chora_meths()
-        cls.getmeths = cls._get_getmeths()
-        cls.primetype = cls._retrieve_contains_.__annotations__['return']
-        cls._set_getitem()
+        with cls.clsmutable:
+            cls._add_overmethods()
+            chorameths = cls._get_chora_wrappedmeths()
+            for name, meth in chorameths.items():
+                setattr(cls, name, meth)
+            cls.chorameths = cls._get_chora_meths()
+            cls.getmeths = cls._get_getmeths()
+            cls.primetype = cls._retrieve_contains_.__annotations__['return']
+            cls._set_getitem()
 
     def __getitem__(self, arg, /):
         '''Placeholder for dynamically generated __getitem__.'''
