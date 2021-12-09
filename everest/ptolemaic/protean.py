@@ -55,7 +55,7 @@ class Protean(Essence):
         return cls.construct(*args, **kwargs)
 
 
-class ProteanBase(_Ptolemaic, metaclass=Protean):
+class ProteanBase(metaclass=Protean):
 
     _ptolemaic_mergetuples__ = ('_req_slots__', '_var_slots__')
     _req_slots__ = (

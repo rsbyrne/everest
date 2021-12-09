@@ -79,16 +79,6 @@ class Essence(_pleroma.Pleromatic):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls._cls_softcache = {}
-        cls._cls_weakcache = _weakref.WeakValueDictionary()
-        clsdct = cls.__dict__
-        if (annokey := '__annotations__') in clsdct:
-            anno = clsdct[annokey]
-        else:
-            setattr(cls, annokey, anno := {})
-        if (extkey := '_extra_annotations__') in clsdct:
-            anno.update(clsdct[extkey])
-        setattr(cls, annokey, _FrozenMap(anno))
         cls._merge_names('_ptolemaic_mergetuples_')
         cls._merge_names('_ptolemaic_mergedicts__')
         cls._merge_names_all(
@@ -106,78 +96,12 @@ class Essence(_pleroma.Pleromatic):
     def __class_call__(cls, /, *_, **__):
         raise NotImplementedError
 
-    @property
-    def __call__(cls, /):
-        return cls._ptolemaic_class__.__class_call__
-
-    ### Defining aliases and representations for classes:
-
-    def __class_repr__(cls, /):
-        raise NotImplementedError
-
-    def __class_str__(cls, /):
-        raise NotImplementedError
-
-    def __repr__(cls, /):
-        return cls.__class_repr__()
-
-    def __str__(cls, /):
-        return cls.__class_str__()
-
-    @property
-    def _ptolemaic_class__(cls, /):
-        return cls
-
-    @property
-    def metacls(cls, /):
-        return type(cls._ptolemaic_class__)
-
-    @property
-    def taphonomy(cls, /):
-        return cls.metacls.taphonomy
-
-    @property
-    def hexcode(cls, /):
-        return cls.epitaph.hexcode
-
-    @property
-    def hashint(cls, /):
-        return cls.epitaph.hashint
-
-    @property
-    def hashID(cls, /):
-        return cls.epitaph.hashID
-
-    ### Methods relating to serialising and unserialising classes:
-
-    def get_class_epitaph(cls, /):
-        raise NotImplementedError
-
-    @property
-    @_caching.soft_cache('_cls_softcache')
-    def epitaph(cls, /):
-        if '_epitaph' in cls.__dict__:
-            return cls._epitaph
-        return cls.get_class_epitaph()
-
 
 class EssenceBase(metaclass=Essence):
 
     _ptolemaic_mergetuples__ = ('_ptolemaic_mroclasses__',)
     _ptolemaic_mergedicts__ = ()
     _ptolemaic_mroclasses__ = ()
-
-    @classmethod
-    def get_class_epitaph(cls, /):
-        return cls.taphonomy.auto_epitaph(cls)
-
-    @classmethod
-    def __class_repr__(cls, /):
-        return cls.__qualname__
-
-    @classmethod
-    def __class_str__(cls, /):
-        return cls.__name__
 
 
 ###############################################################################

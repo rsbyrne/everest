@@ -10,8 +10,8 @@ import inspect as _inspect
 import weakref as _weakref
 
 from everest.utilities import caching as _caching, FrozenMap as _FrozenMap
-from everest.classtools import add_defer_meths as _add_defer_meths
 
+from everest.ptolemaic import utilities as _utilities
 from everest.ptolemaic.tekton import CallSig as _CallSig
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
@@ -78,8 +78,11 @@ class Param(metaclass=ParamMeta):
 
     @property
     def default(self, /):
-        value = self.value
-        return _inspect.Parameter.empty if value is NotImplemented else value
+        return (
+            _inspect.Parameter.empty
+            if (value := self.value) is NotImplemented
+            else value
+            )
 
     def __call__(self, **kwargs):
         return self.__class__(**dict(
@@ -121,6 +124,7 @@ class Param(metaclass=ParamMeta):
         return instance.params[self.ownernames[owner]]
 
 
+@_utilities.add_defer_meths('paramdict', like=dict)
 class Sig(metaclass=_Ousia):
 
     _req_slots__ = ('paramdict', 'signature')
@@ -139,9 +143,6 @@ class Sig(metaclass=_Ousia):
     def __call__(self, /, *args, **kwargs):
         return _CallSig.signature_call(self.signature, args, kwargs)
 
-with Sig.clsmutable:
-    _add_defer_meths('paramdict', like=dict)(Sig)
-
 
 class Schema(_Ousia):
     '''
@@ -153,7 +154,11 @@ class Schema(_Ousia):
         clsdict = cls.__dict__
         for name, note in cls.__annotations__.items():
             deq = params.setdefault(name, _collections.deque())
-            value = clsdict[name] if (non := name in clsdict) else NotImplemented
+            value = (
+                clsdict[name]
+                if (non := name in clsdict)
+                else NotImplemented
+                )
             if note is Param:
                 param = note(value=value)
             elif isinstance(note, Param):
@@ -178,11 +183,11 @@ class Schema(_Ousia):
     def sig(cls, /):
         return Sig(**cls._collect_params())
 
-    def _ptolemaic_concrete_namespace__(cls, /):
-        return {
-            **super()._ptolemaic_concrete_namespace__(),
-            **{name: ParamProp(name) for name in cls.sig},
-            }
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls.Concrete.__dict__.update(
+            {name: ParamProp(name) for name in cls.sig}
+            )
 
 
 class SchemaBase(metaclass=Schema):
