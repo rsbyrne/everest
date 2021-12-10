@@ -10,9 +10,8 @@ import functools as _functools
 from collections import abc as _collabc
 
 from everest.utilities import caching as _caching, FrozenMap as _FrozenMap
-from everest import epitaph as _epitaph
-from everest import chora as _chora
 
+from everest.ptolemaic import chora as _chora
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 from everest.ptolemaic import exceptions as _exceptions
@@ -46,24 +45,8 @@ class CallSig(_Ptolemaic):
                 )
             )
 
-    @property
-    def hexcode(self, /):
-        return self.epitaph.hexcode
-
-    @property
-    def hashint(self, /):
-        return self.epitaph.hashint
-
-    @property
-    def hashID(self, /):
-        return self.epitaph.hashID
-
     def _repr(self, /):
         return ', '.join(map('='.join, zip(self, map(repr, self.values()))))
-
-    @_caching.soft_cache()
-    def __repr__(self, /):
-        return f"<{self.__class__.__qualname__}({self._repr()})>"
 
 
 class BadParameters(_exceptions.ParameterisationException):

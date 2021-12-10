@@ -38,8 +38,8 @@ class Ousia(_Tekton):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls.Concrete = cls.ConcreteMeta(cls)
-        cls.create_object = _functools.partial(cls.__new__, cls.Concrete)
+        Concrete = cls.Concrete = cls.ConcreteMeta(cls)
+        cls.create_object = _functools.partial(Concrete.__new__, Concrete)
 
 
 class OusiaBase(metaclass=Ousia):

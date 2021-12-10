@@ -5,8 +5,7 @@
 
 import functools as _functools
 
-from everest import chora as _chora
-
+from everest.ptolemaic import chora as _chora
 from everest.ptolemaic.essence import Essence as _Essence
 
 

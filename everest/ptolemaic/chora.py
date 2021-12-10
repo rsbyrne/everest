@@ -14,10 +14,10 @@ import inspect as _inspect
 from everest.utilities import (
     TypeMap as _TypeMap, MultiTypeMap as _MultiTypeMap
     )
-from everest.utilities import caching as _caching, classtools as _classtools
+from everest.utilities import caching as _caching
 
+from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
 def not_none(a, b):
@@ -45,15 +45,21 @@ class Null(_abc.ABC):
         return False
 
 
-class Chora(metaclass=_Ousia):
+class Chora(_Ptolemaic):
     '''
     The Chora is Everest's abstract master representation
     of the concept of space.
     '''
 
-    _ptolemaic_mergetuples__ = ('PREFIXES',)
+    __slots__ = ()
 
     PREFIXES = ('trivial', 'incise', 'retrieve')
+
+    def get_epitaph(self, /):
+        return self.taphonomy.custom_epitaph(
+            '$a()',
+            dict(a=self._ptolemaic_class__),
+            )
 
     def getitem_tuple(self, incisor: tuple, /, **passfuncs):
         '''Captures the special behaviour implied by `self[a,b]`'''
@@ -159,7 +165,11 @@ class Chora(metaclass=_Ousia):
         passkws = cls._get_defkws(cls.PREFIXES)
         exec('\n'.join((
             f"def __getitem__(self, arg, /, {defkws}):",
-            f"    return self.getmeths[type(arg)](self, arg, {passkws})",
+            f"    try:",
+            f"        meth = self.getmeths[type(arg)]",
+            f"    except KeyError as exc:",
+            f"        raise TypeError('Query type unrecognised.') from exc",
+            f"    return meth(self, arg, {passkws})",
             )))
         return eval('__getitem__')
 
@@ -171,14 +181,15 @@ class Chora(metaclass=_Ousia):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls._add_overmethods()
-        chorameths = cls._get_chora_wrappedmeths()
-        for name, meth in chorameths.items():
-            setattr(cls, name, meth)
-        cls.chorameths = cls._get_chora_meths()
-        cls.getmeths = cls._get_getmeths()
-        cls.primetype = cls._retrieve_contains_.__annotations__['return']
-        cls._set_getitem()
+        with cls.clsmutable:
+            cls._add_overmethods()
+            chorameths = cls._get_chora_wrappedmeths()
+            for name, meth in chorameths.items():
+                setattr(cls, name, meth)
+            cls.chorameths = cls._get_chora_meths()
+            cls.getmeths = cls._get_getmeths()
+            cls.primetype = cls._retrieve_contains_.__annotations__['return']
+            cls._set_getitem()
 
     def __getitem__(self, arg, /):
         '''Placeholder for dynamically generated __getitem__.'''
@@ -200,6 +211,8 @@ class Chora(metaclass=_Ousia):
 
 
 class Sliceable(Chora):
+
+    __slots__ = ()
 
     @classmethod
     def _yield_slcmeths(cls, /):
@@ -232,14 +245,14 @@ class Sliceable(Chora):
         return self
 
 
-class Incisable(metaclass=_Essence):
+class Incisable(_Essence):
     '''
     Incisable objects are said to 'contain space'
     because they own a Chora instance
     and point their __getitem__ and __contains__ methods to it.
     '''
 
-    _req_slots__ = ('chora',)
+    __slots__ = ()
 
     Chora = Chora
 

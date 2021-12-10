@@ -12,6 +12,8 @@ import weakref as _weakref
 from everest.utilities import caching as _caching, FrozenMap as _FrozenMap
 
 from everest.ptolemaic import utilities as _utilities
+from everest.ptolemaic.pleroma import Pleromatic as _Pleromatic
+from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 from everest.ptolemaic.tekton import CallSig as _CallSig
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
@@ -39,7 +41,7 @@ class ParamProp:
         return instance.params[self.name]
 
 
-class ParamMeta(_Ousia):
+class ParamMeta(_Pleromatic):
 
     for kind in KINDS:
         exec('\n'.join((
@@ -49,9 +51,9 @@ class ParamMeta(_Ousia):
             )))
 
 
-class Param(metaclass=ParamMeta):
+class Param(_Ptolemaic, metaclass=ParamMeta):
 
-    _req_slots__ = ('hint', 'value', 'kind')
+    __slots__ = ('hint', 'value', 'kind')
 
     @classmethod
     def _check_hint(cls, hint, /):
@@ -71,6 +73,17 @@ class Param(metaclass=ParamMeta):
                 raise TypeError
         self.value = value
         super().__init__()
+
+    def get_epitaph(self, /):
+        return self.taphonomy.custom_epitaph(
+            "$a($b,$c,$d)",
+            dict(
+                a=self._ptolemaic_class__,
+                b=self.hint,
+                c=self.value,
+                d=self.kind
+                )
+            )
 
     @property
     def truekind(self, /):
@@ -115,13 +128,6 @@ class Param(metaclass=ParamMeta):
             if self.value is not NotImplemented:
                 return True
         return self.truekind > arg.truekind
-
-    def __set_name__(self, owner, name):
-        self.ownernames[owner._ptolemaic_class__] = name
-
-    def __get__(self, instance, owner):
-        owner = owner._ptolemaic_class__
-        return instance.params[self.ownernames[owner]]
 
 
 @_utilities.add_defer_meths('paramdict', like=dict)

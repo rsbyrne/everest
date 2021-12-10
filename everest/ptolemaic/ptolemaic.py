@@ -12,10 +12,10 @@ from everest.utilities import (
     switch as _switch,
     )
 
-from everest.ptolemaic.pleroma import Pleromatic as _Pleromatic
+from everest.ptolemaic.essence import Essence as _Essence
 
 
-class Ptolemaic(metaclass=_Pleromatic):
+class Ptolemaic(metaclass=_Essence):
 
     __slots__ = ('_softcache', '_weakcache', '__weakref__', '_freezeattr')
 
