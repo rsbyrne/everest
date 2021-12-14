@@ -8,7 +8,7 @@ import functools as _functools
 import inspect as _inspect
 import collections as _collections
 
-from everest import abstract as _abstract
+from everest.abstract import *
 from everest.utilities import (
     TypeMap as _TypeMap, MultiTypeMap as _MultiTypeMap
     )
@@ -17,21 +17,21 @@ from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 
 
-class Element(_Ptolemaic):
+# class Element(_Ptolemaic):
 
-    __slots__ = ('chora', 'index',)
+#     __slots__ = ('chora', 'index',)
 
-    def __init__(self, chora, index, /):
-        self.chora, self.index = chora, index
+#     def __init__(self, chora, index, /):
+#         self.chora, self.index = chora, index
 
-    def _repr(self, /):
-        return f"{self.chora}[{self.index}]"
+#     def _repr(self, /):
+#         return f"{self.chora}[{self.index}]"
 
-    def get_epitaph(self, /):
-        return self.taphonomy.custom_epitaph(
-            '$a[$b]',
-            dict(a=self.chora, b=self.index),
-            )
+#     def get_epitaph(self, /):
+#         return self.taphonomy.custom_epitaph(
+#             '$a[$b]',
+#             dict(a=self.chora, b=self.index),
+#             )
 
 
 class Incision(_Ptolemaic):
@@ -82,7 +82,10 @@ class ChoraBase(metaclass=_Essence):
         return chora
 
     def retrieve(self, index, /):
-        return Element(self, index)
+        return index
+
+#     def retrieve(self, index, /):
+#         return Element(self, index)
 
     def __getitem__(self, arg, /):
         return self.getitem(self, arg)
@@ -134,7 +137,36 @@ class ChoraBase(metaclass=_Essence):
         return other
 
 
-class Basic(ChoraBase):
+class Composition(ChoraBase, _Ptolemaic):
+
+    __slots__ = ('fchora', 'gchora')
+
+    def __init__(self, fchora: ChoraBase, gchora: ChoraBase, /):
+        self.fchora, self.gchora = fchora, gchora
+        super().__init__()
+
+#     @staticmethod
+#     def _sub_default_getmeth(chora, self, incisor, /):
+#         return self[incisor][chora]
+
+    def getitem(self, caller, incisor: object, /):
+        fchora, gchora = self.fchora, self.gchora
+        sub = gchora[incisor]
+        if sub is gchora:
+            return caller
+        return fchora.getitem(caller, sub)
+
+    def get_epitaph(self, /):
+        return self.taphonomy.custom_epitaph(
+            '$a[$b]',
+            dict(a=self.fchora, b=self.gchora),
+            )
+
+    def _repr(self, /):
+        return f"{self.fchora}[{self.gchora}]"
+
+
+class Chora(ChoraBase):
 
     _ptolemaic_mergetuples = ('PREFIX',)
 
@@ -151,14 +183,14 @@ class Basic(ChoraBase):
             raise NotImplementedError
         return out
 
-    def getitem_element(self, caller, incisor: Element, /):
-        return self.getitem(caller, incisor.index)
+#     def getitem_element(self, caller, incisor: Element, /):
+#         return self.getitem(caller, incisor.index)
 
-    def trivial_none(self, caller, incisor: type(None), /):
+    def trivial_none(self, caller, incisor: NoneType, /):
         '''Captures the special behaviour implied by `self[None]`.'''
         return caller
 
-    def trivial_ellipsis(self, caller, incisor: type(Ellipsis), /):
+    def trivial_ellipsis(self, caller, incisor: EllipsisType, /):
         '''Captures the special behaviour implied by `self[...]`.'''
         return caller
 
@@ -180,9 +212,10 @@ class Basic(ChoraBase):
 
     @classmethod
     def _yield_getmeths(cls, /):
-        for meth in cls.chorameths.values():
-            if 'incisor' in meth.__annotations__:
-                yield meth.__annotations__['incisor'], meth
+        return (
+            (next(iter(meth.__annotations__.values())), meth)
+            for meth in cls.chorameths.values()
+            )
 
     @classmethod
     def _get_getmeths(cls, /):
@@ -216,36 +249,7 @@ class Basic(ChoraBase):
         cls.getitem = cls._get_getitem()
 
 
-class Composition(ChoraBase, _Ptolemaic):
-
-    __slots__ = ('fchora', 'gchora')
-
-    def __init__(self, fchora: ChoraBase, gchora: ChoraBase, /):
-        self.fchora, self.gchora = fchora, gchora
-        super().__init__()
-
-#     @staticmethod
-#     def _sub_default_getmeth(chora, self, incisor, /):
-#         return self[incisor][chora]
-
-    def getitem(self, caller, incisor: object, /):
-        fchora, gchora = self.fchora, self.gchora
-        sub = gchora[incisor]
-        if sub is gchora:
-            return caller
-        return fchora.getitem(caller, sub)
-
-    def get_epitaph(self, /):
-        return self.taphonomy.custom_epitaph(
-            '$a[$b]',
-            dict(a=self.fchora, b=self.gchora),
-            )
-
-    def _repr(self, /):
-        return f"{self.fchora}[{self.gchora}]"
-
-
-class Sliceable(Basic):
+class Sliceable(Chora):
 
     def getitem_slice(self, caller, incisor: slice, /):
         slcargs = (incisor.start, incisor.stop, incisor.step)
@@ -253,7 +257,7 @@ class Sliceable(Basic):
         return meth(self, caller, *slcargs)
 
     def slice_trivial_none(self, caller,
-            start: type(None), stop: type(None), step: type(None), /
+            start: NoneType, stop: NoneType, step: NoneType, /
             ):
         '''Captures the special behaviour implied by `self[:]`.'''
         return caller
@@ -272,9 +276,8 @@ class Sliceable(Basic):
 
     @classmethod
     def _yield_slcgetmeths(cls, /):
-        parnames = ('start', 'stop', 'step')
         for methname, meth in cls.slcmeths.items():
-            hint = tuple(map(meth.__annotations__.__getitem__, parnames))
+            hint = tuple(meth.__annotations__.values())[:3]
             yield hint, meth
 
     @classmethod
@@ -288,16 +291,131 @@ class Sliceable(Basic):
         cls.slcgetmeths = cls._get_slcgetmeths()
 
 
-class Chora(Sliceable, _Ptolemaic):
+# class Chora(Sliceable, _Ptolemaic):
 
-    def retrieve_default(self, caller, incisor: object, /):
-        return caller.retrieve(incisor)
+#     def retrieve_default(self, caller, incisor: object, /):
+#         return caller.retrieve(incisor)
 
-    def get_epitaph(self, /):
-        return self.taphonomy.custom_epitaph(
-            '$A()',
-            dict(A=type(self)._ptolemaic_class__),
+#     def get_epitaph(self, /):
+#         return self.taphonomy.custom_epitaph(
+#             '$A()',
+#             dict(A=type(self)._ptolemaic_class__),
+#             )
+
+
+# class Bounds(_DataPtolemaic):
+
+#     FIELDS = ('lbnd', 'ubnd')
+
+
+# class Sampler(_DataPtolemaic):
+
+#     FIELDS = ('sampler',)
+
+
+class Traversable(Sliceable):
+
+#     def getitem_slice(self, caller, incisor: slice, /):
+#         lbnd, ubnd, sampler = (incisor.start, incisor.stop, incisor.step)
+#         bounds, sampler = Bounds(lbnd, ubnd), Sampler(sampler)
+#         return caller[bounds][sampler]
+
+#     def getitem_bounds(self, caller, incisor: Bounds, /):
+#         lbnd, ubnd = incisor.lbnd, incisor.ubnd
+#         meth = self.bndgetmeths[type(lbnd), type(ubnd)]
+#         return meth(self, caller, lbnd, ubnd)
+
+#     def getitem_sampler(self, caller, incisor: Sampler, /):
+#         sampler = incisor.sampler
+#         meth = self.samplegetmeths[type(sampler)]
+#         return meth(self, caller, sampler)
+
+    def slice_incise_bound(self, caller,
+            lbnd: object, ubnd: object, _: NoneType, /
+            ):
+        meth = self.bndgetmeths[type(lbnd), type(ubnd)]
+        return meth(self, caller, lbnd, ubnd)
+
+    def slice_incise_sample(self, caller,
+            _: NoneType, __: NoneType, sampler: NotNone, /
+            ):
+        meth = self.samplegetmeths[type(sampler)]
+        return meth(self, caller, sampler)
+
+    def slice_incise_boundsample(self, caller,
+            lbnd: object, ubnd: object, sampler: NotNone, /
+            ):
+        '''Equivalent to `caller[lbnd:ubnd][::sampler]`.'''
+        return (
+            self.slice_incise_bound(self, lbnd, ubnd, None)
+            .slice_incise_sample(caller, None, None, sampler)
             )
+            
+
+    def bound_trivial_none(self, caller, lbnd: NoneType, ubnd: NoneType):
+        '''Captures the special behaviour implied by `self[:]`.'''
+        return caller
+
+    def sample_trivial_none(self, caller, sampler: NoneType):
+        '''Captures the special behaviour implied by `self[::None]`.'''
+        return caller
+
+    def sample_trivial_ellipsis(self, caller, sampler: NoneType):
+        '''Captures the special behaviour implied by `self[::...]`.'''
+        return caller
+
+    @classmethod
+    def _yield_bndmeths(cls, /):
+        for name in cls.attributes:
+            for prefix in map('bound_'.__add__, cls.PREFIXES):
+                if name.startswith(prefix + '_'):
+                    yield name, getattr(cls, name)
+                    break
+
+    @classmethod
+    def _get_bndmeths(cls, /):
+        return dict(cls._yield_bndmeths())
+
+    @classmethod
+    def _yield_bndgetmeths(cls, /):
+        for meth in cls.bndmeths.values():
+            hint = tuple(meth.__annotations__.values())[:3]
+            yield hint, meth
+
+    @classmethod
+    def _get_bndgetmeths(cls, /):
+        return _MultiTypeMap(cls._yield_bndgetmeths())
+
+    @classmethod
+    def _yield_samplemeths(cls, /):
+        for name in cls.attributes:
+            for prefix in map('sample_'.__add__, cls.PREFIXES):
+                if name.startswith(prefix + '_'):
+                    yield name, getattr(cls, name)
+                    break
+
+    @classmethod
+    def _get_samplemeths(cls, /):
+        return dict(cls._yield_samplemeths())
+
+    @classmethod
+    def _yield_samplegetmeths(cls, /):
+        return (
+            (next(iter(meth.__annotations__.values())), meth)
+            for meth in cls.samplemeths.values()
+            )
+
+    @classmethod
+    def _get_samplegetmeths(cls, /):
+        return _TypeMap(cls._yield_samplegetmeths())
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.bndmeths = cls._get_bndmeths()
+        cls.bndgetmeths = cls._get_bndgetmeths()
+        cls.samplemeths = cls._get_samplemeths()
+        cls.samplegetmeths = cls._get_samplegetmeths()
 
 
 ###############################################################################

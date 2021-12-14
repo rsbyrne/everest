@@ -120,5 +120,42 @@ class Ptolemaic(metaclass=_Essence):
         return hash(self) < hash(other)
 
 
+class DataPtolemaic(Ptolemaic):
+
+    _ptolemaic_mergetuples__ = ('FIELDS',)
+
+    FIELDS = ()
+
+    __slots__ = ('args',)
+
+    def __init__(self, /, *args):
+        self.args = args
+        super().__init__()
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        for i, field in enumerate(cls.FIELDS):
+            exec('\n'.join((
+                f"@property",
+                f"def {field}(self, /):",
+                f"    return self.args[{i}]",
+                )))
+            setattr(cls, field, eval(field))
+
+    def _repr(self, /):
+        return ', '.join(map(repr, self.args))
+
+    def get_epitaph(self, /):
+        inames = {
+            '_' + str(i) : getattr(self, field)
+            for i, field in enumerate(self.FIELDS)
+            }
+        return self.taphonomy.custom_epitaph(
+            f"$A({','.join(map('$'.__add__, inames))})",
+            dict(A=type(self)._ptolemaic_class__, **inames),
+            )
+
+
 ###############################################################################
 ###############################################################################

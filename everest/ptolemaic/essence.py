@@ -191,6 +191,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __class_init__(cls, /):
         pass
 
+    ### Aliases:
+
+    @property
+    def _ptolemaic_class__(cls, /):
+        return cls
+
     ### What happens when the class is called:
 
     def __class_call__(cls, /, *_, **__):
@@ -198,13 +204,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def __call__(cls, /):
-        return cls.__class_call__
-
-    ### Aliases:
-
-    @property
-    def _ptolemaic_class__(cls, /):
-        return cls
+        return cls._ptolemaic_class__.__class_call__
 
     ### Methods relating to class inheritance and getitem behaviour:
 
