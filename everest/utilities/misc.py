@@ -213,7 +213,7 @@ Criterion.IsSubclass = IsSubclass
 
 class FrozenMap(_collabc.Mapping):
 
-    def __init__(self, *args, defertos=(), **kwargs):
+    def __init__(self, /, *args, defertos=(), **kwargs):
         content = dict(*args, **kwargs)
         self.content = dict(zip(
             map(self.process_key, content),
@@ -222,39 +222,43 @@ class FrozenMap(_collabc.Mapping):
         self.defertos = tuple(defertos)
 
     @classmethod
-    def process_key(cls, key):
+    def process_key(cls, key, /):
         return key
 
     @classmethod
-    def process_req(cls, req):
+    def process_req(cls, req, /):
         return req
 
-    def __getitem__(self, name):
+    def __getitem__(self, name, /):
         try:
             return self.content.__getitem__(self.process_req(name))
         except KeyError:
             return self._getitem_deferred(name)
 
-    def __len__(self):
+    @property
+    def get(self, /):
+        return self.content.get
+
+    def __len__(self, /):
         return len(self.content) + sum(map(len, self.defertos))
 
-    def __iter__(self):
+    def __iter__(self, /):
         return _itertools.chain(
             self.content,
             _itertools.chain(*self.defertos)
             )
 
-    def merge(self):
+    def merge(self, /):
         return _functools.reduce(
             _operator.__or__,
             (self.content, *self.defertos)
             )
 
     @property
-    def __or__(self):
+    def __or__(self, /):
         return self.merge().__or__
 
-    def _getitem_deferred(self, key):
+    def _getitem_deferred(self, key, /):
         for deferto in self.defertos:
             try:
                 return deferto[key]
@@ -262,13 +266,13 @@ class FrozenMap(_collabc.Mapping):
                 continue
         raise KeyError(key)
 
-    def __repr__(self):
+    def __repr__(self, /):
         return (
             f"{type(self).__name__}(len=={len(self)})"
             + repr(self.content)
             )
 
-    def __hash__(self):
+    def __hash__(self, /):
         try:
             return self._hashint
         except AttributeError:
@@ -282,22 +286,28 @@ class FrozenMap(_collabc.Mapping):
 class BoolMap(FrozenMap):
 
     @classmethod
-    def process_key(cls, key):
+    def process_key(cls, key, /):
         if not isinstance(key, tuple):
             key = (key,)
         return Criterion(*key)
 
-    def __getitem__(self, req):
+    def __getitem__(self, req, /):
         for dkey, dval in self.items():
             if dkey(req):
                 return dval
         return self._getitem_deferred(req)
 
+    def get(self, req, default=None, /):
+        for dkey, dval in self.items():
+            if dkey(req):
+                return dval
+        return default
+
     @property
-    def items(self):
+    def items(self, /):
         return self.content.items
 
-    def __contains__(self, req):
+    def __contains__(self, req, /):
         try:
             _ = self[req]
             return True
@@ -330,7 +340,7 @@ class TypeMap(BoolMap):
 
     @_functools.lru_cache
     def __contains__(self, key):
-        return super().__getitem__(req)
+        return super().__contains__(key)
 
 
 class MultiTypeMap(TypeMap, MultiBoolMap):

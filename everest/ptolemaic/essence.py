@@ -284,6 +284,20 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __hash__(cls, /):
         return cls.clshashint
 
+    ### Handy methods:
+
+    @property
+    def attributes(cls, /):
+        seen = set()
+        for ACls in reversed(cls.__mro__):
+            for name in ACls.__dict__:
+                if name.startswith('__'):
+                    continue
+                if name in seen:
+                    continue
+                yield name
+                seen.add(name)
+
 
 class EssenceBase(metaclass=Essence):
 
