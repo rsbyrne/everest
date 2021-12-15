@@ -12,22 +12,26 @@ from everest import exceptions as _exceptions
 class PtolemaicException(_exceptions.EverestException):
     '''The base class of all exceptions thrown by the Ptolemaic system.'''
 
-    __slots__ = ('raisedby',)
+    __slots__ = ('ptolemaic',)
 
-    def __init__(self, raisedby=None, /):
-        self.raisedby = raisedby
+    def __init__(self, ptolemaic=None, /):
+        self.ptolemaic = ptolemaic
 
     def message(self, /):
         yield from super().message()
-        raisedby = self.raisedby
-        if raisedby is None:
+        ptolemaic = self.ptolemaic
+        if ptolemaic is None:
             yield 'within the Ptolemaic system'
         else:
-            yield 'within the Ptolemaic class:'
-            yield repr(raisedby)
+            yield ' '.join((
+                f'within the Ptolemaic object `{repr(ptolemaic)}`',
+                f'of type `{repr(type(ptolemaic))}`',
+                ))
 
 
 class ParameterisationException(PtolemaicException):
+
+    __slots__ = ()
 
     def message(self, /):
         yield from super().message()
@@ -36,9 +40,20 @@ class ParameterisationException(PtolemaicException):
 
 class InitialisationException(PtolemaicException):
 
+    __slots__ = ()
+
     def message(self, /):
         yield from super().message()
         yield 'during initialisation'
+
+
+class IncisionException(PtolemaicException):
+
+    __slots__ = ()
+
+    def message(self, /):
+        yield from super().message()
+        yield 'during incision'
 
 
 ###############################################################################

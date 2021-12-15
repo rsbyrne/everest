@@ -139,7 +139,10 @@ class DataPtolemaic(Ptolemaic):
             exec('\n'.join((
                 f"@property",
                 f"def {field}(self, /):",
-                f"    return self.args[{i}]",
+                f"    try:",
+                f"        return self.args[{i}]",
+                f"    except IndexError:",
+                f"        raise AttributeError({repr(field)})",
                 )))
             setattr(cls, field, eval(field))
 

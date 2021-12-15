@@ -10,36 +10,64 @@ import collections as _collections
 
 from everest.abstract import *
 from everest.utilities import (
-    TypeMap as _TypeMap, MultiTypeMap as _MultiTypeMap
+    TypeMap as _TypeMap, MultiTypeMap as _MultiTypeMap, caching as _caching
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
+from everest.ptolemaic.ptolemaic import (
+    Ptolemaic as _Ptolemaic, DataPtolemaic as _DataPtolemaic
+    )
+from everest.ptolemaic import exceptions as _exceptions
 
 
-# class Element(_Ptolemaic):
-
-#     __slots__ = ('chora', 'index',)
-
-#     def __init__(self, chora, index, /):
-#         self.chora, self.index = chora, index
-
-#     def _repr(self, /):
-#         return f"{self.chora}[{self.index}]"
-
-#     def get_epitaph(self, /):
-#         return self.taphonomy.custom_epitaph(
-#             '$a[$b]',
-#             dict(a=self.chora, b=self.index),
-#             )
+PROTOCOLMETHS = ('trivial', 'incise', 'retrieve', 'fail')
 
 
-class Incision(_Ptolemaic):
+class ChoraException(_exceptions.PtolemaicException):
 
-    __slots__ = ('incised', 'chora')
+    __slots__ = ('chora',)
 
-    def __init__(self, incised, chora, /):
-        self.incised, self.chora = incised, chora
+    def __init__(self, chora=None, /, *args):
+        self.chora = chora
+        super().__init__(*args)
+
+    def message(self, /):
+        yield from super().message()
+        chora = self.chora
+        if chora is None:
+            yield 'within the Chora system'
+        elif chora is not self.ptolemaic:
+            yield ' '.join((
+                f'within its associated Chora object, `{repr(chora)}`',
+                f'of type `{repr(type(chora))}`,',
+                ))
+
+
+class IncisorTypeException(
+            _exceptions.IncisionException,
+            ChoraException,
+            TypeError,
+            ):
+
+    __slots__ = ('incisor',)
+
+    def __init__(self, incisor, /, *args):
+        self.incisor = incisor
+        super().__init__(*args)
+    
+    def message(self, /):
+        incisor = self.incisor
+        yield from super().message()
+        yield ' '.join((
+            f'when object `{repr(incisor)}`',
+            f'of type `{repr(type(incisor))}`',
+            f'was passed as an incisor',
+            ))
+
+
+class Incision(_DataPtolemaic):
+
+    FIELDS = ('incised', 'chora')
 
     def incise(self, chora, /):
         return type(self)(self.incised, chora)
@@ -54,29 +82,31 @@ class Incision(_Ptolemaic):
         except AttributeError:
             return getattr(superget('incised'), arg)
 
-    def _repr(self, /):
-        return f"{self.incised}, {self.chora}"
 
-    def get_epitaph(self, /):
-        return self.taphonomy.custom_epitaph(
-            '$A($a,$b)',
-            dict(A=type(self)._ptolemaic_class__, a=self.incised, b=self.chora),
-            )
+class IncisionHandler(metaclass=_Essence):
+
+    @_abc.abstractmethod
+    def incise(self, chora):
+        raise NotImplementedError
+
+    @_abc.abstractmethod
+    def retrieve(self, index, /):
+        raise NotImplementedError
+
+    @_abc.abstractmethod
+    def trivial(self, /):
+        raise NotImplementedError
+
+    @_abc.abstractmethod
+    def fail(self, chora, incisor, /):
+        raise NotImplementedError
 
 
-def default_meth(obj, caller, incisor, /):
-    raise TypeError(type(incisor))
-
-
-def default_incise(obj, chora, /):
-    return Incision(obj, chora)
+def default_getmeth(obj, caller, incisor, /):
+    raise IncisorTypeException(incisor, obj, caller)
 
 
 class ChoraBase(metaclass=_Essence):
-
-    _ptolemaic_mergetuples = ('CALLERREQS',)
-
-    CALLERREQS = ('retrieve', 'chora')
 
     def incise(self, chora, /):
         return chora
@@ -84,24 +114,35 @@ class ChoraBase(metaclass=_Essence):
     def retrieve(self, index, /):
         return index
 
-#     def retrieve(self, index, /):
-#         return Element(self, index)
+    def trivial(self, /):
+        return self
+
+    def fail(self, chora, incisor, /):
+        raise IncisorTypeException(incisor, chora, self)
 
     def __getitem__(self, arg, /):
         return self.getitem(self, arg)
 
     @_abc.abstractmethod
-    def getitem(self, caller, arg, /):
+    def getitem(self, caller: IncisionHandler, arg, /):
         raise NotImplementedError
+
+    @staticmethod
+    def default_incise(self, chora, /):
+        return Incision(self, chora)
+
+    @staticmethod
+    def default_trivial(self, /):
+        return self
+
+    @staticmethod
+    def default_fail(self, chora, incisor, /):
+        raise IncisorTypeException(incisor, chora, self)
 
     @classmethod
     def decorate(cls, other, /):
 
         with other.clsmutable:
-
-            reqs = cls.CALLERREQS
-            if not all(map(dir(other).__contains__, reqs)):
-                raise TypeError(f"Class {other} cannot be decorated by {cls}.")
 
             other.Chora = cls
 
@@ -109,70 +150,146 @@ class ChoraBase(metaclass=_Essence):
                 f"def __getitem__(self, arg, /):",
                 f"    return self.chora.getitem(self, arg)",
                 )))
-
             other.__getitem__ = eval('__getitem__')
-
-            if not hasattr(other, 'incise'):
-
-                def incise(self, chora, /):
-                    return Incised(self, chora)
-
-                other.incise = default_incise
-
-            for name, meth in cls.chorameths.items():
-
-                params = tuple(_inspect.signature(meth).parameters.values())[1:]
-                argstrn = ', '.join(
-                    param.name for param in params if param.kind.value == 0
-                    )
-
+            if not hasattr(other, 'chora'):
                 exec('\n'.join((
-                    f"@_functools.wraps(meth)",
-                    f"def {name}(self, {argstrn}):",
-                    f"    return meth(self.chora, self, {argstrn})",
+                    f"@property",
+                    f"@_caching.soft_cache()",
+                    f"def chora(self, /):",
+                    f"    return self.Chora()",
                     )))
+                other.chora = eval('chora')
 
-                setattr(other, name, eval(name))
+            for methname in PROTOCOLMETHS:
+                if not hasattr(other, methname):
+                    meth = getattr(cls, f"default_{methname}")
+                    setattr(other, methname, meth)
+
+#             for name, meth in cls.chorameths.items():
+#                 params = tuple(_inspect.signature(meth).parameters.values())[1:]
+#                 argstrn = ', '.join(
+#                     param.name for param in params if param.kind.value == 0
+#                     )
+#                 exec('\n'.join((
+#                     f"@_functools.wraps(meth)",
+#                     f"def {name}(self, {argstrn}):",
+#                     f"    return meth(self.chora, self, {argstrn})",
+#                     )))
+#                 setattr(other, name, eval(name))
 
         return other
 
+#     @classmethod
+#     def __class_call__(cls, arg=None, /, **kwargs):
+#         if arg is None:
+#             return super().__class_call__(**kwargs)
+#         if kwargs:
+#             raise RuntimeError(
+#                 "Cannot pass both args and kwargs to Chora."
+#                 )
+#         cls.decorate(arg)
+#         return arg
 
-class Composition(ChoraBase, _Ptolemaic):
 
-    __slots__ = ('fchora', 'gchora')
+class CompositionHandler(IncisionHandler, _DataPtolemaic):
 
-    def __init__(self, fchora: ChoraBase, gchora: ChoraBase, /):
-        self.fchora, self.gchora = fchora, gchora
-        super().__init__()
+    FIELDS = ('caller', 'fchora', 'gchora')
 
-#     @staticmethod
-#     def _sub_default_getmeth(chora, self, incisor, /):
-#         return self[incisor][chora]
+    @property
+    def incise(self, /):
+        return self.caller.incise
+
+    @property
+    def retrieve(self, /):
+        return self.caller.retrieve
+
+    def trivial(self, /):
+        return self.caller.trivial
+
+    @property
+    def fail(self, /):
+        return self.caller.fail
+
+
+class SuperCompHandler(CompositionHandler):
+
+    def incise(self, chora):
+        return super().incise(chora.compose(self.gchora))
+
+    def retrieve(self, index, /):
+        return super().retrieve(index)
+
+
+class SubCompHandler(CompositionHandler):
+
+    def incise(self, chora):
+        return super().incise(self.fchora.compose(chora))
+
+    def retrieve(self, index, /):
+        return self.fchora.getitem(self.caller, index)
+
+    def fail(self, chora, incisor, /):
+        caller, fchora, gchora = self.caller, self.fchora, self.gchora
+        return fchora.getitem(
+            SuperCompHandler(caller, fchora, gchora),
+            incisor,
+            )
+        
+
+class Composition(ChoraBase, _DataPtolemaic):
+
+    FIELDS = ('fchora', 'gchora')
 
     def getitem(self, caller, incisor: object, /):
         fchora, gchora = self.fchora, self.gchora
-        sub = gchora[incisor]
-        if sub is gchora:
-            return caller
-        return fchora.getitem(caller, sub)
-
-    def get_epitaph(self, /):
-        return self.taphonomy.custom_epitaph(
-            '$a[$b]',
-            dict(a=self.fchora, b=self.gchora),
+        return self.gchora.getitem(
+            SubCompHandler(caller, fchora, gchora),
+            incisor,
             )
 
-    def _repr(self, /):
-        return f"{self.fchora}[{self.gchora}]"
+
+def _wrap_trivial(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, caller, /, *_):
+        return caller.trivial()
+    return wrapper
+
+def _wrap_incise(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, caller, arg, /):
+        return caller.incise(meth(self, arg))
+    return wrapper
+
+def _wrap_retrieve(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, caller, arg, /):
+        return caller.retrieve(meth(self, arg))
+    return wrapper
+
+def _wrap_fail(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, caller, arg, /):
+        return caller.fail(self, arg)
+    return wrapper
+
+WRAPMETHS = dict(
+    trivial=_wrap_trivial,
+    incise=_wrap_incise,
+    retrieve=_wrap_retrieve,
+    fail=_wrap_fail,
+    )
 
 
-class Chora(ChoraBase):
+class Chora(ChoraBase, _DataPtolemaic):
 
-    _ptolemaic_mergetuples = ('PREFIX',)
+    _ptolemaic_mergetuples__ = ('PREFIX', 'TOWRAP')
 
-    PREFIXES = ('getitem', 'trivial', 'incise', 'retrieve', 'fallback')
+    PREFIXES = ('handle', *PROTOCOLMETHS)
 
-    def getitem_tuple(self, caller, incisor: tuple, /):
+    def compose(self, other, /):
+        return Composition(self, other)
+
+    def handle_tuple(self, caller, incisor: tuple, /):
         '''Captures the special behaviour implied by `self[a,b,...]`'''
         length = len(incisor)
         if length == 0:
@@ -183,239 +300,148 @@ class Chora(ChoraBase):
             raise NotImplementedError
         return out
 
-#     def getitem_element(self, caller, incisor: Element, /):
-#         return self.getitem(caller, incisor.index)
-
-    def trivial_none(self, caller, incisor: NoneType, /):
+    def trivial_none(self, incisor: NoneType, /):
         '''Captures the special behaviour implied by `self[None]`.'''
-        return caller
+        pass
 
-    def trivial_ellipsis(self, caller, incisor: EllipsisType, /):
+    def trivial_ellipsis(self, incisor: EllipsisType, /):
         '''Captures the special behaviour implied by `self[...]`.'''
-        return caller
+        pass
 
-    def incise_chora(self, caller, incisor: ChoraBase, /):
+    def incise_chora(self, incisor: ChoraBase, /):
         '''Returns the composition of two choras, i.e. f(g(x)).'''
-        return caller.incise(Composition(self, incisor))
+        return self.compose(incisor)
+
+    def fail_ultimate(self, incisor: object, /):
+        '''The ultimate fallback for unrecognised incision types.'''
+        pass
 
     @classmethod
-    def _yield_chorameths(cls, /):
+    def _yield_getmeths(cls, /, preprefix='', defaultwrap=(lambda x: x)):
+        prefixes = cls.PREFIXES
+        methnames = {prefix: _collections.deque() for prefix in prefixes}
+        adjprefixes = tuple(map(preprefix.__add__, prefixes))
         for name in cls.attributes:
-            for prefix in cls.PREFIXES:
-                if name.startswith(prefix + '_'):
-                    yield name, getattr(cls, name)
-                    break
-
-    @classmethod
-    def _get_chorameths(cls, /):
-        return dict(cls._yield_chorameths())
-
-    @classmethod
-    def _yield_getmeths(cls, /):
-        return (
-            (next(iter(meth.__annotations__.values())), meth)
-            for meth in cls.chorameths.values()
-            )
-
-    @classmethod
-    def _get_getmeths(cls, /):
-        return _TypeMap(cls._yield_getmeths())
-
-    @classmethod
-    def _get_default_getmeth(cls, /):
-        if hasattr(cls, 'default_getmeth'):
-            return cls.default_getmeth
-        return default_meth
-
-    @classmethod
-    def _get_getitem(cls, /):
-        exec('\n'.join((
-            f"def getitem(self,",
-            f"        caller, arg, /, *,",
-            f"        get_meth=cls.get_meth,"
-            f"        default_getmeth=cls.default_getmeth,",
-            f"        ):",
-            f"    return get_meth(type(arg), default_getmeth)(self, caller, arg)",
-            )))
-        return eval('getitem')
+            for prefix, deq in zip(adjprefixes, methnames.values()):
+                if name.startswith(prefix):
+                    if name is prefix:
+                        continue
+                    deq.append(name)
+        for prefix, deq in methnames.items():
+            wrap = WRAPMETHS.get(prefix, defaultwrap)
+            for name in deq:
+                meth = getattr(cls, name)
+                yield meth.__annotations__['incisor'], wrap(meth)
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.chorameths = cls._get_chorameths()
-        getmeths = cls.getmeths = cls._get_getmeths()
-        cls.get_meth = getmeths.get
-        cls.default_getmeth = cls._get_default_getmeth()
-        cls.getitem = cls._get_getitem()
+        cls.getmeths = _TypeMap(cls._yield_getmeths())
+
+    def getitem(self, caller, arg, /):
+        return self.getmeths[type(arg)](self, caller, arg)
 
 
 class Sliceable(Chora):
 
-    def getitem_slice(self, caller, incisor: slice, /):
-        slcargs = (incisor.start, incisor.stop, incisor.step)
-        meth = self.slcgetmeths[tuple(map(type, slcargs))]
-        return meth(self, caller, *slcargs)
+    def handle_slice(self, caller, incisor: slice, /):
+        tup = tuple(map(type, (incisor.start, incisor.stop, incisor.step)))
+        return self.slcgetmeths[tup](self, caller, incisor)
 
-    def slice_trivial_none(self, caller,
-            start: NoneType, stop: NoneType, step: NoneType, /
-            ):
+    def slice_trivial_none(self, incisor: (NoneType, NoneType, NoneType)):
         '''Captures the special behaviour implied by `self[:]`.'''
-        return caller
+        pass
 
-    @classmethod
-    def _yield_slcmeths(cls, /):
-        for name in cls.attributes:
-            for prefix in map('slice_'.__add__, cls.PREFIXES):
-                if name.startswith(prefix + '_'):
-                    yield name, getattr(cls, name)
-                    break
-
-    @classmethod
-    def _get_slcmeths(cls, /):
-        return dict(cls._yield_slcmeths())
-
-    @classmethod
-    def _yield_slcgetmeths(cls, /):
-        for methname, meth in cls.slcmeths.items():
-            hint = tuple(meth.__annotations__.values())[:3]
-            yield hint, meth
-
-    @classmethod
-    def _get_slcgetmeths(cls, /):
-        return _MultiTypeMap(cls._yield_slcgetmeths())
+    def slice_fail_ultimate(self, incisor: (object, object, object)):
+        '''The ultimate fallback for unrecognised slice types.'''
+        pass
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.slcmeths = cls._get_slcmeths()
-        cls.slcgetmeths = cls._get_slcgetmeths()
+        cls.slcgetmeths = _MultiTypeMap(cls._yield_getmeths('slice_'))
 
 
-# class Chora(Sliceable, _Ptolemaic):
+# class Traversable(Sliceable):
 
-#     def retrieve_default(self, caller, incisor: object, /):
-#         return caller.retrieve(incisor)
-
-#     def get_epitaph(self, /):
-#         return self.taphonomy.custom_epitaph(
-#             '$A()',
-#             dict(A=type(self)._ptolemaic_class__),
-#             )
-
-
-# class Bounds(_DataPtolemaic):
-
-#     FIELDS = ('lbnd', 'ubnd')
-
-
-# class Sampler(_DataPtolemaic):
-
-#     FIELDS = ('sampler',)
-
-
-class Traversable(Sliceable):
-
-#     def getitem_slice(self, caller, incisor: slice, /):
-#         lbnd, ubnd, sampler = (incisor.start, incisor.stop, incisor.step)
-#         bounds, sampler = Bounds(lbnd, ubnd), Sampler(sampler)
-#         return caller[bounds][sampler]
-
-#     def getitem_bounds(self, caller, incisor: Bounds, /):
-#         lbnd, ubnd = incisor.lbnd, incisor.ubnd
+#     def slice_incise_bound(self, incisor: (object, object, NoneType)):
 #         meth = self.bndgetmeths[type(lbnd), type(ubnd)]
 #         return meth(self, caller, lbnd, ubnd)
 
-#     def getitem_sampler(self, caller, incisor: Sampler, /):
-#         sampler = incisor.sampler
+#     def slice_incise_sample(self, caller,
+#             _: NoneType, __: NoneType, sampler: NotNone, /
+#             ):
 #         meth = self.samplegetmeths[type(sampler)]
 #         return meth(self, caller, sampler)
 
-    def slice_incise_bound(self, caller,
-            lbnd: object, ubnd: object, _: NoneType, /
-            ):
-        meth = self.bndgetmeths[type(lbnd), type(ubnd)]
-        return meth(self, caller, lbnd, ubnd)
+#     def slice_incise_boundsample(self, caller,
+#             lbnd: object, ubnd: object, sampler: NotNone, /
+#             ):
+#         return caller[lbnd:ubnd][::sampler]
 
-    def slice_incise_sample(self, caller,
-            _: NoneType, __: NoneType, sampler: NotNone, /
-            ):
-        meth = self.samplegetmeths[type(sampler)]
-        return meth(self, caller, sampler)
+#     def bound_trivial_none(self, caller, lbnd: NoneType, ubnd: NoneType):
+#         '''Captures the special behaviour implied by `self[:]`.'''
+#         return caller.trivial()
 
-    def slice_incise_boundsample(self, caller,
-            lbnd: object, ubnd: object, sampler: NotNone, /
-            ):
-        '''Equivalent to `caller[lbnd:ubnd][::sampler]`.'''
-        return (
-            self.slice_incise_bound(self, lbnd, ubnd, None)
-            .slice_incise_sample(caller, None, None, sampler)
-            )
-            
+#     def sample_trivial_none(self, caller, sampler: NoneType):
+#         '''Captures the special behaviour implied by `self[::None]`.'''
+#         return caller.trivial()
 
-    def bound_trivial_none(self, caller, lbnd: NoneType, ubnd: NoneType):
-        '''Captures the special behaviour implied by `self[:]`.'''
-        return caller
+#     def sample_trivial_ellipsis(self, caller, sampler: NoneType):
+#         '''Captures the special behaviour implied by `self[::...]`.'''
+#         return caller.trivial()
 
-    def sample_trivial_none(self, caller, sampler: NoneType):
-        '''Captures the special behaviour implied by `self[::None]`.'''
-        return caller
+#     @classmethod
+#     def _yield_bndmeths(cls, /):
+#         for prefix in map('bound_'.__add__, cls.PREFIXES):
+#             for name in cls.attributes:
+#                 if name.startswith(prefix + '_'):
+#                     yield name, getattr(cls, name)
 
-    def sample_trivial_ellipsis(self, caller, sampler: NoneType):
-        '''Captures the special behaviour implied by `self[::...]`.'''
-        return caller
+#     @classmethod
+#     def _get_bndmeths(cls, /):
+#         return dict(cls._yield_bndmeths())
 
-    @classmethod
-    def _yield_bndmeths(cls, /):
-        for name in cls.attributes:
-            for prefix in map('bound_'.__add__, cls.PREFIXES):
-                if name.startswith(prefix + '_'):
-                    yield name, getattr(cls, name)
-                    break
+#     @classmethod
+#     def _yield_bndgetmeths(cls, /):
+#         for meth in cls.bndmeths.values():
+#             hint = tuple(meth.__annotations__.values())[:3]
+#             yield hint, meth
 
-    @classmethod
-    def _get_bndmeths(cls, /):
-        return dict(cls._yield_bndmeths())
+#     @classmethod
+#     def _get_bndgetmeths(cls, /):
+#         return _MultiTypeMap(cls._yield_bndgetmeths())
 
-    @classmethod
-    def _yield_bndgetmeths(cls, /):
-        for meth in cls.bndmeths.values():
-            hint = tuple(meth.__annotations__.values())[:3]
-            yield hint, meth
+#     @classmethod
+#     def _yield_samplemeths(cls, /):
+#         for prefix in map('sample_'.__add__, cls.PREFIXES):
+#             for name in cls.attributes:
+#                 if name.startswith(prefix + '_'):
+#                     yield name, getattr(cls, name)
+#                     break
 
-    @classmethod
-    def _get_bndgetmeths(cls, /):
-        return _MultiTypeMap(cls._yield_bndgetmeths())
+#     @classmethod
+#     def _get_samplemeths(cls, /):
+#         return dict(cls._yield_samplemeths())
 
-    @classmethod
-    def _yield_samplemeths(cls, /):
-        for name in cls.attributes:
-            for prefix in map('sample_'.__add__, cls.PREFIXES):
-                if name.startswith(prefix + '_'):
-                    yield name, getattr(cls, name)
-                    break
+#     @classmethod
+#     def _yield_samplegetmeths(cls, /):
+#         return (
+#             (next(iter(meth.__annotations__.values())), meth)
+#             for meth in cls.samplemeths.values()
+#             )
 
-    @classmethod
-    def _get_samplemeths(cls, /):
-        return dict(cls._yield_samplemeths())
+#     @classmethod
+#     def _get_samplegetmeths(cls, /):
+#         return _TypeMap(cls._yield_samplegetmeths())
 
-    @classmethod
-    def _yield_samplegetmeths(cls, /):
-        return (
-            (next(iter(meth.__annotations__.values())), meth)
-            for meth in cls.samplemeths.values()
-            )
-
-    @classmethod
-    def _get_samplegetmeths(cls, /):
-        return _TypeMap(cls._yield_samplegetmeths())
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.bndmeths = cls._get_bndmeths()
-        cls.bndgetmeths = cls._get_bndgetmeths()
-        cls.samplemeths = cls._get_samplemeths()
-        cls.samplegetmeths = cls._get_samplegetmeths()
+#     @classmethod
+#     def __class_init__(cls, /):
+#         super().__class_init__()
+#         cls.bndmeths = cls._get_bndmeths()
+#         cls.bndgetmeths = cls._get_bndgetmeths()
+#         cls.samplemeths = cls._get_samplemeths()
+#         cls.samplegetmeths = cls._get_samplegetmeths()
 
 
 ###############################################################################
