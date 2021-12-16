@@ -3,6 +3,7 @@
 ###############################################################################
 
 
+import abc as _abc
 import inspect as _inspect
 import itertools as _itertools
 import weakref as _weakref
@@ -12,7 +13,7 @@ from collections import abc as _collabc
 from everest.utilities import caching as _caching, FrozenMap as _FrozenMap
 
 from everest.ptolemaic import chora as _chora
-from everest.ptolemaic.bythos import Bythos as _Bythos
+from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 from everest.ptolemaic import exceptions as _exceptions
 from everest.ptolemaic import utilities as _utilities
@@ -143,45 +144,51 @@ class TektonChora(_chora.Sliceable):
             raise KeyError from exc
 
 
-class Tekton(_Bythos):
+class Tekton(_Essence):
 
     @property
     @_caching.soft_cache('_cls_softcache')
     def __signature__(cls, /):
         return cls.get_signature()
 
-    def call(cls, /):
+    @_abc.abstractmethod
+    def method(cls, /):
         raise NotImplementedError
 
     def get_signature(cls, /):
-        return _inspect.signature(cls.call)
+        return _inspect.signature(cls.method)
 
     @property
     @_caching.soft_cache('_cls_softcache')
     def premade(cls, /):
-        return _weakref.WeakValueDictionary()
+        return {}
+
+    def construct(cls, callsig: CallSig, /) -> _collabc.Hashable:
+        return cls.method(*callsig.args, **callsig.kwargs)
+
+    def __class_getitem__(cls, callsig: CallSig, /):
+        if (hexcode := callsig.hexcode) in (pre := cls.premade):
+            out = pre[hexcode]
+            if isinstance(out, _weakref.ref):
+                out = out()
+                if out is not None:
+                    return out
+            return out
+        out = cls.construct(callsig)
+        ref = _weakref.ref(out) if type(out).__weakrefoffset__ else out
+        pre[hexcode] = ref
+        return out
+
+    def get_callsig(cls, /, *args, **kwargs):
+        register = Registrar(cls)
+        cls.parameterise(register, *args, **kwargs)
+        return register.finalise()
+
+    def __class_call__(cls, /, *args, **kwargs):
+        return cls[cls.get_callsig(*args, **kwargs)]
 
 
 class TektonBase(metaclass=Tekton):
-
-    Registrar = Registrar
-    ClassChora = TektonChora
-
-    @classmethod
-    def _get_classchora(cls, /) -> 'Chora':
-        return cls.ClassChora(cls.__signature__)
-
-    @classmethod
-    def construct(cls, callsig: CallSig, /) -> _collabc.Hashable:
-        return cls.call(*callsig.args, **callsig.kwargs)
-
-    @classmethod
-    def class_retrieve(cls, callsig: CallSig, /):
-        if (hexcode := callsig.hexcode) in (pre := cls.premade):
-            return pre[hexcode]
-        out = cls.construct(callsig)
-        pre[hexcode] = out
-        return out
 
     @classmethod
     def process_param(cls, arg, /):
@@ -194,16 +201,6 @@ class TektonBase(metaclass=Tekton):
     @classmethod
     def parameterise(cls, register, /, *args, **kwargs):
         register(*args, **kwargs)
-
-    @classmethod
-    def get_callsig(cls, /, *args, **kwargs):
-        register = cls.Registrar(cls)
-        cls.parameterise(register, *args, **kwargs)
-        return register.finalise()
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        return cls.class_retrieve(cls.get_callsig(*args, **kwargs))
 
 
 ###############################################################################

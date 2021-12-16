@@ -47,7 +47,7 @@ class OusiaBase(metaclass=Ousia):
     The basetype of all Ousia instances.
     '''
 
-    _ptolemaic_mergetuples__ = ('_req_slots__',)
+    MERGETUPLES = ('_req_slots__',)
     _req_slots__ = ('params',)
 
     ### What actually happens when the class is called:

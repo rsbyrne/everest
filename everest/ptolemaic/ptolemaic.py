@@ -15,6 +15,10 @@ from everest.utilities import (
 from everest.ptolemaic.essence import Essence as _Essence
 
 
+# class Ptolemaic(_Essence):
+#     ...
+
+
 class Ptolemaic(metaclass=_Essence):
 
     __slots__ = ('_softcache', '_weakcache', '__weakref__', '_freezeattr')
@@ -22,12 +26,16 @@ class Ptolemaic(metaclass=_Essence):
     ### Some aliases:
 
     @property
+    def _ptolemaic_class__(self, /):
+        return type(self)
+
+    @property
     def metacls(self, /):
-        return type(self)._ptolemaic_class__.metacls
+        return self._ptolemaic_class__.metacls
 
     @property
     def taphonomy(self, /):
-        return type(self)._ptolemaic_class__.clstaphonomy
+        return self._ptolemaic_class__.clstaphonomy
 
     ### What happens when the class is called:
 
@@ -122,7 +130,7 @@ class Ptolemaic(metaclass=_Essence):
 
 class DataPtolemaic(Ptolemaic):
 
-    _ptolemaic_mergetuples__ = ('FIELDS',)
+    MERGETUPLES = ('FIELDS',)
 
     FIELDS = ()
 

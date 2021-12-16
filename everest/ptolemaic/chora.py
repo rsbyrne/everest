@@ -7,10 +7,12 @@ import abc as _abc
 import functools as _functools
 import inspect as _inspect
 import collections as _collections
+import typing as _typing
 
-from everest.abstract import *
 from everest.utilities import (
-    TypeMap as _TypeMap, MultiTypeMap as _MultiTypeMap, caching as _caching
+    TypeMap as _TypeMap,
+    caching as _caching,
+    NotNone, Null, NoneType, EllipsisType,
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
@@ -21,6 +23,8 @@ from everest.ptolemaic import exceptions as _exceptions
 
 
 PROTOCOLMETHS = ('trivial', 'incise', 'retrieve', 'fail')
+
+T = _typing.TypeVar('T')
 
 
 class ChoraException(_exceptions.PtolemaicException):
@@ -165,30 +169,7 @@ class ChoraBase(metaclass=_Essence):
                     meth = getattr(cls, f"default_{methname}")
                     setattr(other, methname, meth)
 
-#             for name, meth in cls.chorameths.items():
-#                 params = tuple(_inspect.signature(meth).parameters.values())[1:]
-#                 argstrn = ', '.join(
-#                     param.name for param in params if param.kind.value == 0
-#                     )
-#                 exec('\n'.join((
-#                     f"@_functools.wraps(meth)",
-#                     f"def {name}(self, {argstrn}):",
-#                     f"    return meth(self.chora, self, {argstrn})",
-#                     )))
-#                 setattr(other, name, eval(name))
-
         return other
-
-#     @classmethod
-#     def __class_call__(cls, arg=None, /, **kwargs):
-#         if arg is None:
-#             return super().__class_call__(**kwargs)
-#         if kwargs:
-#             raise RuntimeError(
-#                 "Cannot pass both args and kwargs to Chora."
-#                 )
-#         cls.decorate(arg)
-#         return arg
 
 
 class CompositionHandler(IncisionHandler, _DataPtolemaic):
@@ -248,6 +229,9 @@ class Composition(ChoraBase, _DataPtolemaic):
             )
 
 
+
+
+
 def _wrap_trivial(meth, /):
     @_functools.wraps(meth)
     def wrapper(self, caller, /, *_):
@@ -282,7 +266,7 @@ WRAPMETHS = dict(
 
 class Chora(ChoraBase, _DataPtolemaic):
 
-    _ptolemaic_mergetuples__ = ('PREFIX', 'TOWRAP')
+    MERGETUPLES = ('PREFIX', 'TOWRAP')
 
     PREFIXES = ('handle', *PROTOCOLMETHS)
 
@@ -327,11 +311,15 @@ class Chora(ChoraBase, _DataPtolemaic):
                     if name is prefix:
                         continue
                     deq.append(name)
+        seen = set()
         for prefix, deq in methnames.items():
             wrap = WRAPMETHS.get(prefix, defaultwrap)
             for name in deq:
                 meth = getattr(cls, name)
-                yield meth.__annotations__['incisor'], wrap(meth)
+                hint = meth.__annotations__['incisor']
+                if hint not in seen:
+                    yield hint, wrap(meth)
+                    seen.add(hint)
 
     @classmethod
     def __class_init__(cls, /):
@@ -342,107 +330,58 @@ class Chora(ChoraBase, _DataPtolemaic):
         return self.getmeths[type(arg)](self, caller, arg)
 
 
+slcgen = _functools.partial(_typing.GenericAlias, slice)
+
+
 class Sliceable(Chora):
 
     def handle_slice(self, caller, incisor: slice, /):
-        tup = tuple(map(type, (incisor.start, incisor.stop, incisor.step)))
-        return self.slcgetmeths[tup](self, caller, incisor)
+        typs = tuple(map(type, (incisor.start, incisor.stop, incisor.step)))
+        return self.slcgetmeths[typs](self, caller, incisor)
 
-    def slice_trivial_none(self, incisor: (NoneType, NoneType, NoneType)):
+    def slice_trivial_none(self,
+            incisor: slcgen((NoneType, NoneType, NoneType)),
+            ):
         '''Captures the special behaviour implied by `self[:]`.'''
         pass
 
-    def slice_fail_ultimate(self, incisor: (object, object, object)):
+    def slice_fail_ultimate(self,
+            incisor: slcgen((object, object, object)),
+            ):
         '''The ultimate fallback for unrecognised slice types.'''
         pass
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.slcgetmeths = _MultiTypeMap(cls._yield_getmeths('slice_'))
+        cls.slcgetmeths = _TypeMap(cls._yield_getmeths('slice_'))
 
-
-# class Traversable(Sliceable):
-
-#     def slice_incise_bound(self, incisor: (object, object, NoneType)):
-#         meth = self.bndgetmeths[type(lbnd), type(ubnd)]
-#         return meth(self, caller, lbnd, ubnd)
-
-#     def slice_incise_sample(self, caller,
-#             _: NoneType, __: NoneType, sampler: NotNone, /
-#             ):
-#         meth = self.samplegetmeths[type(sampler)]
-#         return meth(self, caller, sampler)
-
-#     def slice_incise_boundsample(self, caller,
-#             lbnd: object, ubnd: object, sampler: NotNone, /
-#             ):
-#         return caller[lbnd:ubnd][::sampler]
-
-#     def bound_trivial_none(self, caller, lbnd: NoneType, ubnd: NoneType):
-#         '''Captures the special behaviour implied by `self[:]`.'''
-#         return caller.trivial()
-
-#     def sample_trivial_none(self, caller, sampler: NoneType):
-#         '''Captures the special behaviour implied by `self[::None]`.'''
-#         return caller.trivial()
-
-#     def sample_trivial_ellipsis(self, caller, sampler: NoneType):
-#         '''Captures the special behaviour implied by `self[::...]`.'''
-#         return caller.trivial()
-
-#     @classmethod
-#     def _yield_bndmeths(cls, /):
-#         for prefix in map('bound_'.__add__, cls.PREFIXES):
-#             for name in cls.attributes:
-#                 if name.startswith(prefix + '_'):
-#                     yield name, getattr(cls, name)
-
-#     @classmethod
-#     def _get_bndmeths(cls, /):
-#         return dict(cls._yield_bndmeths())
-
-#     @classmethod
-#     def _yield_bndgetmeths(cls, /):
-#         for meth in cls.bndmeths.values():
-#             hint = tuple(meth.__annotations__.values())[:3]
-#             yield hint, meth
-
-#     @classmethod
-#     def _get_bndgetmeths(cls, /):
-#         return _MultiTypeMap(cls._yield_bndgetmeths())
-
-#     @classmethod
-#     def _yield_samplemeths(cls, /):
-#         for prefix in map('sample_'.__add__, cls.PREFIXES):
-#             for name in cls.attributes:
-#                 if name.startswith(prefix + '_'):
-#                     yield name, getattr(cls, name)
-#                     break
-
-#     @classmethod
-#     def _get_samplemeths(cls, /):
-#         return dict(cls._yield_samplemeths())
-
-#     @classmethod
-#     def _yield_samplegetmeths(cls, /):
-#         return (
-#             (next(iter(meth.__annotations__.values())), meth)
-#             for meth in cls.samplemeths.values()
-#             )
-
-#     @classmethod
-#     def _get_samplegetmeths(cls, /):
-#         return _TypeMap(cls._yield_samplegetmeths())
-
-#     @classmethod
-#     def __class_init__(cls, /):
-#         super().__class_init__()
-#         cls.bndmeths = cls._get_bndmeths()
-#         cls.bndgetmeths = cls._get_bndgetmeths()
-#         cls.samplemeths = cls._get_samplemeths()
-#         cls.samplegetmeths = cls._get_samplegetmeths()
 
 
 ###############################################################################
 ###############################################################################
+
+
+# class OrdChora(Chora):
+#     '''Returns the `ord` of a character.'''
+
+#     def retrieve_string(self, incisor: str, /) -> int:
+#         return ord(incisor)
+
+
+# class PowChora(Chora):
+
+#     FIELDS = ('power',)
+
+#     def retrieve_num(self, incisor: int) -> int:
+#         return incisor**self.power
+
+
+# class ChrChora(Chora):
+#     '''Returns the `chr` of an integer.'''
+
+#     def retrieve_int(self, incisor: int, /):
+#         return chr(incisor)
+
+
+# ChrChora()[PowChora(2)[OrdChora()]]['z']

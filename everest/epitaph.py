@@ -220,7 +220,10 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         return _functools.partial(self.sub_encode, deps=deps)
 
     def sub_encode(self, arg: object, /, deps: set):
-        if isinstance(arg, Taphonomic):
+        istyp = isinstance(arg, type)
+        if istyp and hasattr(arg, 'clsepitaph'):
+            epitaph = arg.clsepitaph
+        elif not istyp and hasattr(arg, 'epitaph'):
             epitaph = arg.epitaph
         else:
             meth = self.encoders[type(arg)]

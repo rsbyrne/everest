@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from abc import ABC as _ABC
+import abc as _abc
 from collections import abc as _collabc
 import collections as _collections
 import itertools as _itertools
@@ -11,6 +11,7 @@ import functools as _functools
 import operator as _operator
 import os as _os
 import random as _random
+import typing as _typing
 
 import numpy as _np
 
@@ -315,23 +316,30 @@ class BoolMap(FrozenMap):
             return False
 
 
-class MultiBoolMap(BoolMap):
+# class MultiBoolMap(BoolMap):
 
-    def __getitem__(self, req):
-        if not isinstance(req, tuple):
-            req = (req,)
-        for dkey, dval in self.items():
-            if dkey(*req):
-                return dval
-        return self._getitem_deferred(req)
+#     def __getitem__(self, req):
+#         if not isinstance(req, tuple):
+#             req = (req,)
+#         for dkey, dval in self.items():
+#             if dkey(*req):
+#                 return dval
+#         return self._getitem_deferred(req)
 
 
 class TypeMap(BoolMap):
 
     @classmethod
     def process_key(cls, key):
-        def keyfunc(arg, /, *, key=key):
-            return issubclass(arg, key)
+        if isinstance(key, _typing.GenericAlias):
+            def keyfunc(args, /, *, keys=key.__args__):
+                return all(_itertools.starmap(
+                    issubclass,
+                    _itertools.zip_longest(args, keys, fillvalue=Null)
+                    ))
+        else:
+            def keyfunc(arg, /, *, key=key):
+                return issubclass(arg, key)
         return keyfunc
 
     @_functools.lru_cache
@@ -343,37 +351,29 @@ class TypeMap(BoolMap):
         return super().__contains__(key)
 
 
-class MultiTypeMap(TypeMap, MultiBoolMap):
+NoneType = type(None)
+EllipsisType = type(Ellipsis)
+
+
+class NotNone(_abc.ABC):
 
     @classmethod
-    def process_key(cls, key):
-        if not isinstance(key, tuple):
-            key = (key,)
-        def keyfunc(*args, keys=key):
-            return all(_itertools.starmap(
-                issubclass,
-                _itertools.zip_longest(args, keys, fillvalue=Null)
-                ))
-        return keyfunc
+    def __subclasshook__(cls, other, /):
+        return not issubclass(other, type(None))
 
 
-
-class Null:
-    '''
-    A class that clearly inherits from nothing
-    and is inherited by nothing.
-    '''
+class Null(_abc.ABC):
 
     @classmethod
-    def __subclasshook__(cls, arg, /):
-        ...
+    def __subclasshook__(cls, other, /):
+        return False
 
 
-class NotNone(_ABC):
+class Any(_abc.ABC):
 
     @classmethod
-    def __subclasshook__(cls, ACls):
-        return not issubclass(ACls, type(None))
+    def __subclasshook__(cls, other, /):
+        return True
 
 
 # def inject_extra_init(cls, func):

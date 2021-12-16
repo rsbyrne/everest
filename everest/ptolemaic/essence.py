@@ -152,22 +152,19 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         setattr(cls, fusename, mroclass)
         setattr(cls, name, mroclass)
 
-    def _add_mroclasses(cls, /):
-        for name in cls._ptolemaic_mroclasses__:
-            cls._add_mroclass(name)
-
-    def _process_mroclasses(cls, /):
-        cls._merge_names('_ptolemaic_mergetuples_')
-        cls._merge_names('_ptolemaic_mergedicts__')
+    def _process_mergers(cls, /):
+        cls._merge_names('MERGETUPLES')
+        cls._merge_names('MERGEDICTS')
+        cls._merge_names_all('MERGETUPLES')
         cls._merge_names_all(
-            '_ptolemaic_mergetuples__'
-            )
-        cls._merge_names_all(
-            '_ptolemaic_mergedicts__',
+            'MERGEDICTS',
             mergetyp=_FrozenMap,
             itermeth='items',
             )
-        cls._add_mroclasses()
+
+    def _process_mroclasses(cls, /):
+        for name in cls.MROCLASSES:
+            cls._add_mroclass(name)
 
     ### Handling annotations:
 
@@ -186,6 +183,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __init__(cls, /, *args, **kwargs):
         _abc.ABCMeta.__init__(type(cls), cls, *args, **kwargs)
         cls._process_annotations()
+        cls._process_mergers()
         cls._process_mroclasses()
 
     def __class_init__(cls, /):
@@ -208,29 +206,14 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Methods relating to class inheritance and getitem behaviour:
 
-#     def _ptolemaic_issubclass__(cls, arg, /):
-#         return _abc.ABCMeta.__subclasscheck__(cls, arg)
-
-#     def __subclasscheck__(cls, arg, /):
-#         return cls._ptolemaic_class__._ptolemaic_issubclass__(arg)
-
-#     def _ptolemaic_isinstance__(cls, arg, /):
-#         return _abc.ABCMeta.__instancecheck__(cls, arg)
-
-#     def __instancecheck__(cls, arg, /):
-#         return cls._ptolemaic_class__._ptolemaic_isinstance__(arg)
-
-    def _ptolemaic_getitem__(cls, arg, /):
-        return super().__getitem__(arg)
-
     def __getitem__(cls, arg, /):
-        return cls._ptolemaic_class__._ptolemaic_getitem__(arg)
+        return cls._ptolemaic_class__.__class_getitem__(arg)
 
-    def _ptolemaic_contains__(cls, arg, /):
+    def __class_contains__(cls, arg, /):
         return super().__contains__(arg)
 
     def __contains__(cls, arg, /):
-        return cls._ptolemaic_class__._ptolemaic_contains__(arg)
+        return cls._ptolemaic_class__.__class_contains__(arg)
 
     ### Methods relating to class serialisation:
 
@@ -243,15 +226,20 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls._ptolemaic_class__.metacls.metataphonomy
 
     def get_clsepitaph(cls, /):
-        return cls._ptolemaic_class__.clstaphonomy.auto_epitaph(cls)
+        ptolcls = cls._ptolemaic_class__
+        return ptolcls.clstaphonomy.auto_epitaph(ptolcls)
 
     @property
     @_caching.soft_cache('_cls_softcache')
     def clsepitaph(cls, /):
         ptolcls = cls._ptolemaic_class__
-        if '_clsepitaph' in ptolcls.__dict__:
-            return ptolcls._clsepitaph
+        if '_epitaph' in (dct := ptolcls.__dict__):
+            return dct['_epitaph']
         return ptolcls.get_clsepitaph()
+
+    @property
+    def epitaph(cls, /):
+        return cls._ptolemaic_class__.clsepitaph
 
     ### Representations:
 
@@ -274,12 +262,24 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.clsepitaph.hexcode
 
     @property
+    def hexcode(cls, /):
+        return cls.clshexcode
+
+    @property
     def clshashint(cls, /):
         return cls.clsepitaph.hashint
 
     @property
+    def hashint(cls, /):
+        return cls.clshashint
+
+    @property
     def clshashID(cls, /):
         return cls.clsepitaph.hashID
+
+    @property
+    def hashID(cls, /):
+        return cls.clshashID
 
     def __hash__(cls, /):
         return cls.clshashint
@@ -301,9 +301,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
 class EssenceBase(metaclass=Essence):
 
-    _ptolemaic_mergetuples__ = ('_ptolemaic_mroclasses__',)
-    _ptolemaic_mergedicts__ = ()
-    _ptolemaic_mroclasses__ = ()
+    MERGETUPLES = ('MROCLASSES',)
+    MERGEDICTS = ()
+    MROCLASSES = ()
 
     @classmethod
     def __class_init__(cls, /):

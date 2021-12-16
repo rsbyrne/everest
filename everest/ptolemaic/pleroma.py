@@ -37,10 +37,10 @@ class Pleroma(type):
         raise NotImplementedError
 
     def __init__(meta, /, *args, **kwargs):
-        with meta.metamutable:
-            meta._meta_softcache = {}
-            super().__init__(*args, **kwargs)
-            meta._pleroma_init__()
+        meta._meta_softcache = {}
+        super().__init__(*args, **kwargs)
+        meta._pleroma_init__()
+        meta.metafreezeattr = True
 
     @property
     def metafreezeattr(meta, /):
@@ -48,7 +48,7 @@ class Pleroma(type):
             return meta.__dict__['_metafreezeattr']
         except KeyError:
             super().__setattr__(
-                '_metafreezeattr', switch := _switch.Switch(True)
+                '_metafreezeattr', switch := _switch.Switch(False)
                 )
             return switch
 
