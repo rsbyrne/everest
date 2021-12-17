@@ -6,47 +6,58 @@
 import abc as _abc
 import weakref as _weakref
 
-from everest import classtools as _classtools
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
+    format_argskwargs as _format_argskwargs,
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
 
 
-# class Ptolemaic(_Essence):
-#     ...
-
-
 class Ptolemaic(metaclass=_Essence):
 
-    __slots__ = ('_softcache', '_weakcache', '__weakref__', '_freezeattr')
+    __slots__ = (
+        '_softcache', '_weakcache', '__weakref__', '_freezeattr',
+        'finalised',
+        )
+
+    ### What happens when the class is called:
+
+    def __init__(self, /):
+        self.finalised = False
+        self._softcache = {}
+        self._weakcache = _weakref.WeakValueDictionary()
+
+    @classmethod
+    def create_object(cls, /):
+        return cls.__new__(cls)
+
+    @classmethod
+    def instantiate(cls, /, *args, **kwargs):
+        obj = cls.create_object()
+        obj.__init__(*args, **kwargs)
+        return obj
+
+    def __finish__(self, /):
+        self.finalised = True
+        self.freezeattr.toggle(True)
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        obj = cls.instantiate(*args, **kwargs)
+        obj.__finish__()
+        return obj
 
     ### Some aliases:
 
     @property
-    def _ptolemaic_class__(self, /):
-        return type(self)
-
-    @property
     def metacls(self, /):
-        return self._ptolemaic_class__.metacls
+        return self.__class__._ptolemaic_class__.metacls
 
     @property
     def taphonomy(self, /):
-        return self._ptolemaic_class__.clstaphonomy
-
-    ### What happens when the class is called:
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        obj = cls.__new__(cls, *args, **kwargs)
-        obj._softcache = {}
-        obj._weakcache = _weakref.WeakValueDictionary()
-        obj.__init__(*args, **kwargs)
-        obj.freezeattr = True
-        return obj
+        return self.__class__._ptolemaic_class__.clstaphonomy
 
     ### Implementing the attribute-freezing behaviour for instances:
 
@@ -59,10 +70,6 @@ class Ptolemaic(metaclass=_Essence):
                 '_freezeattr', switch := _switch.Switch(False)
                 )
             return switch
-
-    @freezeattr.setter
-    def freezeattr(self, val, /):
-        self._freezeattr.toggle(val)
 
     @property
     def mutable(self, /):
@@ -89,6 +96,10 @@ class Ptolemaic(metaclass=_Essence):
     @property
     @_caching.soft_cache()
     def epitaph(self, /):
+        if not self.finalised:
+            raise RuntimeError(
+                "Cannot create epitaph before __finish__ is called.",
+                )
         return self.get_epitaph()
 
     ### Representations:
@@ -109,12 +120,10 @@ class Ptolemaic(metaclass=_Essence):
         return self.hashint
 
     def _repr(self, /):
-        return None
+        return ''
 
-    @_caching.soft_cache()
     def __repr__(self, /):
-        content = f"({rep})" if (rep := self._repr()) else ''
-        return f"<{self.__class__}{content}>"
+        return f"<{self.__class__}({self._repr()})>"
 
     ### Rich comparisons to support ordering of objects:
 
@@ -126,46 +135,6 @@ class Ptolemaic(metaclass=_Essence):
 
     def __gt__(self, other, /):
         return hash(self) < hash(other)
-
-
-class DataPtolemaic(Ptolemaic):
-
-    MERGETUPLES = ('FIELDS',)
-
-    FIELDS = ()
-
-    __slots__ = ('args',)
-
-    def __init__(self, /, *args):
-        self.args = args
-        super().__init__()
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        for i, field in enumerate(cls.FIELDS):
-            exec('\n'.join((
-                f"@property",
-                f"def {field}(self, /):",
-                f"    try:",
-                f"        return self.args[{i}]",
-                f"    except IndexError:",
-                f"        raise AttributeError({repr(field)})",
-                )))
-            setattr(cls, field, eval(field))
-
-    def _repr(self, /):
-        return ', '.join(map(repr, self.args))
-
-    def get_epitaph(self, /):
-        inames = {
-            '_' + str(i) : getattr(self, field)
-            for i, field in enumerate(self.FIELDS)
-            }
-        return self.taphonomy.custom_epitaph(
-            f"$A({','.join(map('$'.__add__, inames))})",
-            dict(A=type(self)._ptolemaic_class__, **inames),
-            )
 
 
 ###############################################################################

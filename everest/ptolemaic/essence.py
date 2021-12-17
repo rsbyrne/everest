@@ -8,11 +8,11 @@ import itertools as _itertools
 import more_itertools as _mitertools
 import weakref as _weakref
 import operator as _operator
+import types as _types
 
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
-    FrozenMap as _FrozenMap,
     )
 
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
@@ -57,7 +57,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         out._cls_weakcache = _weakref.WeakValueDictionary()
         meta.__init__(out, *args, **kwargs)
         out.__class_init__()
-        out.clsfreezeattr = True
+        out.clsfreezeattr.toggle(True)
         return out
 
     @classmethod
@@ -90,10 +90,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 '_clsfreezeattr', switch := _switch.Switch(False)
                 )
             return switch
-
-    @clsfreezeattr.setter
-    def clsfreezeattr(cls, val, /):
-        cls._clsfreezeattr.toggle(val)
 
     @property
     def clsmutable(cls, /):
@@ -158,7 +154,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         cls._merge_names_all('MERGETUPLES')
         cls._merge_names_all(
             'MERGEDICTS',
-            mergetyp=_FrozenMap,
+            mergetyp=_types.MappingProxyType,
             itermeth='items',
             )
 
@@ -176,7 +172,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             setattr(cls, annokey, anno := {})
         if (extkey := '_extra_annotations__') in clsdct:
             anno.update(clsdct[extkey])
-        setattr(cls, annokey, _FrozenMap(anno))
+        setattr(cls, annokey, _types.MappingProxyType(anno))
 
     ### Initialising the class:
 
@@ -206,9 +202,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Methods relating to class inheritance and getitem behaviour:
 
-    def __getitem__(cls, arg, /):
-        return cls._ptolemaic_class__.__class_getitem__(arg)
-
     def __class_contains__(cls, arg, /):
         return super().__contains__(arg)
 
@@ -233,8 +226,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @_caching.soft_cache('_cls_softcache')
     def clsepitaph(cls, /):
         ptolcls = cls._ptolemaic_class__
-        if '_epitaph' in (dct := ptolcls.__dict__):
-            return dct['_epitaph']
+        if '_clsepitaph' in (dct := ptolcls.__dict__):
+            return dct['_clsepitaph']
         return ptolcls.get_clsepitaph()
 
     @property

@@ -9,11 +9,16 @@ import abc as _abc
 import itertools as _itertools
 import pickle as _pickle
 import inspect as _inspect
+import types as _types
 
-from everest.utilities import caching as _caching, switch as _switch
+from everest.utilities import (
+    caching as _caching, switch as _switch,
+    format_argskwargs as _format_argskwargs,
+    )
 from everest.primitive import Primitive as _Primitive
 
 from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
+from everest.ptolemaic.params import Sig as _Sig
 from everest.ptolemaic.tekton import Tekton as _Tekton
 from everest.ptolemaic.corporealiser import Corporealiser as _Corporealiser
 
@@ -38,8 +43,16 @@ class Ousia(_Tekton):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        Concrete = cls.Concrete = cls.ConcreteMeta(cls)
-        cls.create_object = _functools.partial(Concrete.__new__, Concrete)
+        cls.Concrete = cls.ConcreteMeta(cls)
+
+    def get_signature(cls, /):
+        return _Sig(
+            (sig := _inspect.signature(cls.Concrete.__init__))
+            .replace(
+                parameters=tuple(sig.parameters.values())[1:],
+                return_annotation=cls,
+                )
+            )
 
 
 class OusiaBase(metaclass=Ousia):
@@ -53,53 +66,31 @@ class OusiaBase(metaclass=Ousia):
     ### What actually happens when the class is called:
 
     @classmethod
-    def get_signature(cls, /):
-        return (
-            (sig := _inspect.signature(cls.__init__))
-            .replace(
-                parameters=tuple(sig.parameters.values())[1:],
-                return_annotation=cls,
-                )
-            )
-
-    def initialise(self, /):
-        params = self.params
-        self.__init__(*params.args, **params.kwargs)
+    def create_object(cls, /):
+        conc = cls.Concrete
+        return conc.__new__(conc)
 
     @classmethod
-    def construct(cls, callsig, /):
+    def instantiate(cls, params, /):
         obj = cls.create_object()
-        obj.params = callsig
-        obj._softcache = {}
-        obj._weakcache = _weakref.WeakValueDictionary()
-        obj.initialise()
-        obj.freezeattr = True
+        obj.params = params
+        obj.__init__(*params.args, **params.kwargs)
         return obj
 
-    ### Epitaph support:
-
     @classmethod
-    def get_instance_epitaph(cls, callsig, /):
-        cls = cls._ptolemaic_class__
-        return cls.clstaphonomy.custom_epitaph(
-            "$a[$b]",
-            dict(a=cls, b=callsig),
-            )
-
-    ### Defining special behaviours for the concrete subclass:
+    def construct(cls, params, /):
+        obj = cls.instantiate(params)
+        obj.__finish__()
+        return obj
 
     def get_epitaph(self, /):
-        return self.get_instance_epitaph(self.params)
+        params = self.params
+        return self.taphonomy.callsig_epitaph(
+            self._ptolemaic_class__, *params.args, **params.kwargs
+            )
 
     def _repr(self, /):
-        args, kwargs = (params := self.params).args, params.kwargs
-        return ', '.join(_itertools.chain(
-            map(repr, args),
-            map(
-                '='.join,
-                zip(map(str, kwargs), map(repr, kwargs.values()))
-                ),
-            ))
+        return str(self.params)
 
 
 ###############################################################################

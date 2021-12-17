@@ -40,7 +40,7 @@ class Pleroma(type):
         meta._meta_softcache = {}
         super().__init__(*args, **kwargs)
         meta._pleroma_init__()
-        meta.metafreezeattr = True
+        meta.metafreezeattr.toggle(True)
 
     @property
     def metafreezeattr(meta, /):
@@ -55,10 +55,6 @@ class Pleroma(type):
     @property
     def metamutable(meta, /):
         return meta.metafreezeattr.as_(False)
-
-    @metafreezeattr.setter
-    def metafreezeattr(meta, val, /):
-        meta._metafreezeattr.toggle(val)
 
     def __setattr__(meta, key, val, /):
         if meta.metafreezeattr:

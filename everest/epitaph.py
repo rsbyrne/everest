@@ -17,9 +17,10 @@ import collections as _collections
 from collections import abc as _collabc
 from string import Template as _Template
 
-from everest.utilities import caching as _caching, word as _word
-from everest.utilities import FrozenMap as _FrozenMap, TypeMap as _TypeMap
-from everest import classtools as _classtools
+from everest.utilities import (
+    caching as _caching, word as _word, classtools as _classtools,
+    TypeMap as _TypeMap,
+    )
 from everest.primitive import Primitive as _Primitive
 
 
@@ -122,9 +123,11 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
                 raise ValueError(
                     "Cannot pass namespace as both arg and kwargs."
                     )
-        namespace = self.namespace = _FrozenMap(namespace)
+        namespace = self.namespace = \
+            _types.MappingProxyType(namespace)
         self.encoders = _TypeMap(self.yield_encoders())
-        decoders = self.decoders = _FrozenMap(self.yield_decoders())
+        decoders = self.decoders = \
+            _types.MappingProxyType(dict(self.yield_decoders()))
         self._primitivemeths = {
             self.encode_string, self.encode_primitive,
             self.encode_tuple, self.encode_dict,
@@ -281,10 +284,14 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
             ))
         return _Template(strn).substitute(substitutions), deps
 
-    def custom_epitaph(self, strn, /, substitutions=_FrozenMap()):
+    def custom_epitaph(self, strn, /, **substitutions):
         deps = set()
         encoded, deps = self.custom_encode(strn, substitutions, deps=deps)
         return self(encoded, deps)
+
+    def callsig_epitaph(self, caller, /, *args, **kwargs):
+        strn, subs = self.posformat_callsig(caller, *args, **kwargs)
+        return self.custom_epitaph(strn, **subs)
 
     def __call__(self, content, deps=None, hexcode=None, /) -> Epitaph:
         if deps is None:

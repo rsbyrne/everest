@@ -14,14 +14,21 @@ TEMPLATES = {
 def add_defer_meth(
         obj, methname: str, defertoname: str, /, defermethname=None
         ):
-    if defermethname is None:
-        defermethname = methname
-    exec('\n'.join((
-        f"@property",
-        f"def {methname}(self, /):"
-        f"    return self.{defertoname}.{defermethname}"
-        )))
-    setattr(obj, methname, eval(methname))
+    if mutable := hasattr(obj, 'clsfreezeattr'):
+        prev = obj.clsfreezeattr
+        obj.clsfreezeattr.toggle(False)
+    try:
+        if defermethname is None:
+            defermethname = methname
+        exec('\n'.join((
+            f"@property",
+            f"def {methname}(self, /):"
+            f"    return self.{defertoname}.{defermethname}"
+            )))
+        setattr(obj, methname, eval(methname))
+    finally:
+        if mutable:
+            obj.clsfreezeattr.toggle(prev)
 
 
 def add_defer_meths(deferto, args=(), kwargs=None, /, like=None):

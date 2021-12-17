@@ -376,6 +376,18 @@ class Any(_abc.ABC):
         return True
 
 
+def yield_callsig_argskwargs(*args, **kwargs):
+    yield from map(repr, args)
+    yield from map('='.join, zip(kwargs, map(repr, kwargs.values())))
+
+def format_argskwargs(*args, **kwargs):
+    return ', '.join(yield_callsig_argskwargs(*args, **kwargs))
+
+def format_callsig(caller, /, *args, **kwargs):
+    content = format_argskwargs(*args, **kwargs)
+    return f"{repr(caller)}({content})"
+
+
 # def inject_extra_init(cls, func):
 #     cls.__init__ = 
 #     old_init = cls.__init__

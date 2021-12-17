@@ -16,15 +16,12 @@ from everest.utilities import (
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ptolemaic import (
-    Ptolemaic as _Ptolemaic, DataPtolemaic as _DataPtolemaic
-    )
+from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
+from everest.ptolemaic.armature import Armature as _Armature
 from everest.ptolemaic import exceptions as _exceptions
 
 
 PROTOCOLMETHS = ('trivial', 'incise', 'retrieve', 'fail')
-
-T = _typing.TypeVar('T')
 
 
 class ChoraException(_exceptions.PtolemaicException):
@@ -69,7 +66,7 @@ class IncisorTypeException(
             ))
 
 
-class Incision(_DataPtolemaic):
+class Incision(_Armature):
 
     FIELDS = ('incised', 'chora')
 
@@ -172,7 +169,7 @@ class ChoraBase(metaclass=_Essence):
         return other
 
 
-class CompositionHandler(IncisionHandler, _DataPtolemaic):
+class CompositionHandler(IncisionHandler, _Armature):
 
     FIELDS = ('caller', 'fchora', 'gchora')
 
@@ -217,7 +214,7 @@ class SubCompHandler(CompositionHandler):
             )
         
 
-class Composition(ChoraBase, _DataPtolemaic):
+class Composition(ChoraBase, _Armature):
 
     FIELDS = ('fchora', 'gchora')
 
@@ -264,7 +261,7 @@ WRAPMETHS = dict(
     )
 
 
-class Chora(ChoraBase, _DataPtolemaic):
+class Chora(ChoraBase, _Armature):
 
     MERGETUPLES = ('PREFIX', 'TOWRAP')
 

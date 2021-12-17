@@ -6,148 +6,43 @@
 import functools as _functools
 import collections as _collections
 import operator as _operator
-import inspect as _inspect
-import weakref as _weakref
 
-from everest.utilities import caching as _caching, FrozenMap as _FrozenMap
+from everest.utilities import caching as _caching
 
-from everest.ptolemaic import utilities as _utilities
-from everest.ptolemaic.pleroma import Pleromatic as _Pleromatic
-from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
-from everest.ptolemaic.tekton import CallSig as _CallSig
 from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic.params import (
+    Sig as _Sig, Param as _Param, ParamProp as _ParamProp
+    )
 
 
-KINDS = dict(zip(
-    ('Pos', 'PosKw', 'Args', 'Kw', 'Kwargs'),
-    _inspect._ParameterKind,
-    ))
-
-
-class Generic:
-
-    def __class_getitem__(cls, arg, /):
-        return arg
-
-
-class ParamProp:
-
-    __slots__ = ('name',)
-
-    def __init__(self, name: str, /):
-        self.name = name
-
-    def __get__(self, instance, _=None):
-        return instance.params[self.name]
-
-
-class ParamMeta(_Pleromatic):
-
-    for kind in KINDS:
-        exec('\n'.join((
-            '@property',
-            f'def {kind}(cls, /):'
-            f"    return cls(kind='{kind}')"
-            )))
-
-
-class Param(_Ptolemaic, metaclass=ParamMeta):
-
-    __slots__ = ('hint', 'value', 'kind')
-
-    @classmethod
-    def _check_hint(cls, hint, /):
-        return hint
-
-    def __init__(self, /,
-            hint=Generic,
-            value=NotImplemented,
-            kind='PosKw',
-            ):
-        if not kind in KINDS:
-            raise ValueError(kind)
-        hint = self._check_hint(hint)
-        self.kind, self.hint = kind, hint
-        if kind in {'Args', 'Kwargs'}:
-            if value is not NotImplemented:
-                raise TypeError
-        self.value = value
-        super().__init__()
-
-    def get_epitaph(self, /):
-        return self.taphonomy.custom_epitaph(
-            "$a($b,$c,$d)",
-            dict(
-                a=self._ptolemaic_class__,
-                b=self.hint,
-                c=self.value,
-                d=self.kind
-                )
-            )
-
-    @property
-    def truekind(self, /):
-        return KINDS[self.kind]
-
-    @property
-    def default(self, /):
-        return (
-            _inspect.Parameter.empty
-            if (value := self.value) is NotImplemented
-            else value
-            )
-
-    def __call__(self, **kwargs):
-        return self.__class__(**dict(
-            hint=self.hint, kind=self.kind, value=self.value
-            ) | kwargs)
-
-    @classmethod
-    def _ptolemaic_getitem__(cls, arg, /):
-        return cls()[arg]
-
-    def __getitem__(self, arg, /):
-        if isinstance(arg, Param):
-            return self(**{**arg.inps, 'hint': self.hint[arg.hint]})
-        return self(hint=self.hint[arg])
-
-    def __repr__(self, /):
-        return (
-            f"Param.{self.kind}[{repr(self.hint)}]"
-            f"({self.name}={self.value})"
-            )
-
-    def get_parameter(self, name: str, /):
-        return _inspect.Parameter(
-            name, self.truekind,
-            default=self.default, annotation=self.hint,
-            )
-
-    def __gt__(self, arg, /):
-        if arg.value is NotImplemented:
-            if self.value is not NotImplemented:
-                return True
-        return self.truekind > arg.truekind
-
-
-@_utilities.add_defer_meths('paramdict', like=dict)
-class Sig(metaclass=_Ousia):
-
-    _req_slots__ = ('paramdict', 'signature')
-
-    @classmethod
-    def parameterise(cls, register, /, **params):
-        register(**dict(sorted(params.items(), key=lambda x: x[1])))
-
-    def __init__(self, **params):
-        self.paramdict = _FrozenMap(params)
-        self.signature = _inspect.Signature(
-            param.get_parameter(name) for name, param in params.items()
-            )
-        super().__init__()
-
-    def __call__(self, /, *args, **kwargs):
-        return _CallSig.signature_call(self.signature, args, kwargs)
+def collect_params(cls, /):
+    params = dict()
+    for name, note in cls.__annotations__.items():
+        deq = params.setdefault(name, _collections.deque())
+        if note is _Param:
+            param = note()
+        elif isinstance(note, _Param):
+            param = note
+        else:
+            param = _Param(note)
+        deq.append(param)
+    for base in cls.__bases__:
+        if not isinstance(base, Schema):
+            continue
+        for name, param in base.sig.params.items():
+            deq = params.setdefault(name, _collections.deque())
+            deq.append(param)
+    out = {}
+    for name, deq in params.items():
+        if len(deq) == 1:
+            param = deq[0]
+        else:
+            param = _functools.reduce(_operator.getitem, reversed(deq))
+        if hasattr(cls, name):
+            if (value := getattr(cls, name)) != param.value:
+                param = param(value=value)
+        out[name] = param
+    return out
 
 
 class Schema(_Ousia):
@@ -155,56 +50,35 @@ class Schema(_Ousia):
     The metaclass of all Schema classes.
     '''
 
-    def _collect_params(cls, /):
-        params = dict()
-        clsdict = cls.__dict__
-        for name, note in cls.__annotations__.items():
-            deq = params.setdefault(name, _collections.deque())
-            value = (
-                clsdict[name]
-                if (non := name in clsdict)
-                else NotImplemented
-                )
-            if note is Param:
-                param = note(value=value)
-            elif isinstance(note, Param):
-                if not non:
-                    param = note(value=value)
-            else:
-                param = Param(note, value)
-            deq.append(param)
-        for base in cls.__bases__:
-            if not isinstance(base, Schema):
-                continue
-            for name, param in base.sig.items():
-                deq = params.setdefault(name, _collections.deque())
-                deq.append(param)
-        return {
-            name: _functools.reduce(_operator.getitem, reversed(deq))
-            for name, deq in params.items()
-            }
-
-    @property
-    @_caching.soft_cache('_cls_softcache')
-    def sig(cls, /):
-        return Sig(**cls._collect_params())
-
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls.Concrete.__dict__.update(
-            {name: ParamProp(name) for name in cls.sig}
-            )
+        conc = cls.Concrete
+        with conc.clsmutable:
+            for name in cls.sig.params:
+                setattr(conc, name, _ParamProp(name))
+
+    def get_signature(cls, /):
+        return _Sig(**collect_params(cls))
 
 
 class SchemaBase(metaclass=Schema):
 
     @classmethod
-    def get_signature(cls, /):
-        return cls.sig.signature
-
-    def initialise(self, /):
-        self.__init__()
+    def instantiate(cls, params, /):
+        obj = cls.create_object()
+        obj.params = params
+        obj.__init__()
+        return obj
 
 
 ###############################################################################
 ###############################################################################
+
+
+# class MyClass(metaclass=Schema):
+#     a: Param.Pos[int]
+#     b: Param.Pos[float] = 2.
+#     c: int = 3
+#     args: Param.Args
+#     d: Param.Kw[int]
+#     kwargs: Param.Kwargs
