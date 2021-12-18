@@ -13,12 +13,24 @@ from everest.utilities import (
     format_argskwargs as _format_argskwargs,
     )
 
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
+from everest.ptolemaic.armature import (
+    Armature as _Armature,
+    ArmatureMeta as _ArmatureMeta,
+    )
+from everest.ptolemaic.chora import (
+    ChoraAbstract as _ChoraAbstract,
+    ChoraBase as _ChoraBase,
+    Chora as _Chora,
+    Degenerate as _Degenerate,
+    ChoraMapp as _ChoraMapp,
+    )
+
+_pkind = _inspect._ParameterKind
+_pempty = _inspect._empty
 
 
 KINDNAMES = ('Pos', 'PosKw', 'Args', 'Kw', 'Kwargs')
-KINDS = dict(zip(KINDNAMES, _inspect._ParameterKind))
+KINDS = dict(zip(KINDNAMES, _pkind))
 
 
 class _GenericMeta_(type):
@@ -29,76 +41,69 @@ class _GenericMeta_(type):
 
 class Generic(metaclass=_GenericMeta_):
 
+    @classmethod
     def __class_getitem__(cls, arg, /):
-        if isinstance(arg, type):
-            return arg
-        raise KeyError(arg)
+        return cls.getitem(cls, arg)
+
+    @classmethod
+    def getitem(cls, caller, arg, /):
+        if isinstance(arg, _ChoraAbstract):
+            return caller.incise(arg)
+        raise TypeError(arg)
+
+    @classmethod
+    def incise(cls, arg, /):
+        return arg
 
 
-class ParamMeta(_Essence):
+class ParamMeta(_ArmatureMeta):
 
     for kind in KINDS:
         exec('\n'.join((
             '@property',
             f'def {kind}(cls, /):'
-            f"    return cls(kind='{kind}')"
+            f"    return cls(kind=KINDS['{kind}'])"
             )))
 
 
-class Param(_Ptolemaic, metaclass=ParamMeta):
+class ParamBase(_ChoraBase, _Armature, metaclass=ParamMeta):
+    ...
 
-    __slots__ = ('hint', 'value', 'kind')
+
+class DegenerateParam(_Degenerate, ParamBase):
+
+    @property
+    def orderscore(self, /):
+        return 0
+
+
+class Param(ParamBase):
+
+    hint: type = Generic
+    value: object = NotImplemented
+    kind: str = 'PosKw'
 
     @classmethod
-    def _check_hint(cls, hint, /):
-        if hint is _inspect._empty:
-            return Generic
-        return hint
-
-    def __init__(self, /,
-            hint=Generic,
-            value=NotImplemented,
-            kind='PosKw',
-            ):
-        super().__init__()
-        if kind not in KINDNAMES:
-            kind = KINDNAMES[kind.value]
-        hint = self._check_hint(hint)
-        self.kind, self.hint = kind, hint
-        if kind in {'Args', 'Kwargs'}:
-            if value is not NotImplemented:
-                raise TypeError
-        self.value = NotImplemented if value is _inspect._empty else value
-
-    @property
-    def truekind(self, /):
-        return KINDS[self.kind]
-
-    @property
-    def truehint(self, /):
-        return (
-            _inspect._empty
-            if (hint := self.hint) is Generic
-            else hint
+    def parameterise(cls, /, *args, **kwargs):
+        bound = super().parameterise(*args, **kwargs)
+        hint, value, kind = bound.arguments.values()
+        bound.arguments.update(
+            hint=(Generic if hint is _pempty else hint),
+            value=(NotImplemented if value is _pempty else value),
+            kind=(KINDNAMES[kind.value] if isinstance(kind, _pkind) else kind),
             )
-
-    @property
-    def truevalue(self, /):
-        return (
-            _inspect._empty
-            if (value := self.value) is NotImplemented
-            else value
-            )
+        return bound
 
     def get_parameter(self, name: str = 'anon', /):
+        default = _pempty if (val:=self.value) is NotImplemented else val
         return _inspect.Parameter(
-            name, self.truekind,
-            default=self.truevalue,
-            annotation=self.truehint,
+            name, KINDS[self.kind],
+            default=default,
+            annotation=self.hint,
             )
 
-    def __call__(self, **kwargs):
-        return self.__class__(**dict(
+    def __call__(self, /, **kwargs):
+        return self.__class_call__(**dict(
             hint=self.hint, kind=self.kind, value=self.value
             ) | kwargs)
 
@@ -106,46 +111,41 @@ class Param(_Ptolemaic, metaclass=ParamMeta):
     def __class_getitem__(cls, arg, /):
         return cls()[arg]
 
-    def __getitem__(self, arg, /):
-        if isinstance(arg, Param):
-            return self(**{**arg.inps, 'hint': self.hint[arg.hint]})
-        return self(hint=self.hint[arg])
-
-
-
     @property
     def orderscore(self, /):
         adj = 0 if self.value is NotImplemented else 0.5
-        return self.truekind.value + adj
+        return KINDNAMES.index(self.kind) + adj
 
-    def get_epitaph(self, /):
-        return self.taphonomy.callsig_epitaph(
-            self.__class__._ptolemaic_class__,
-            self.hint, self.value, self.kind,
-            )
+    def __getitem__(self, arg, /):
+        if isinstance(arg, Param):
+            return self.__class_call__(
+                self.hint, arg.value, arg.kind
+                )[arg.hint]
+        return super().__getitem__(arg)
 
-    def _repr(self, /):
-        return _format_argskwargs(self.hint, self.value, self.kind)
+    def getitem(self, caller, arg, /):
+        return self.hint.getitem(caller, arg)
 
-    def __str__(self, /):
-        return f"{self.kind}:{self.hint}={self.value}"
+    def incise(self, chora, /):
+        return self.__class_call__(chora, self.value, self.kind)
+
+    @property
+    def degenerate(self, /):
+        return DegenerateParam
 
 
 # @_classtools.add_defer_meths('params', like=dict)
-class Sig(_Ptolemaic):
+class Sig(_ChoraMapp):
 
-    __slots__ = ('params', 'signature')
+    __slots__ = ('signature',)
 
-    def __init__(self, arg=None, /, **params):
-        super().__init__()
+    @classmethod
+    def parameterise(cls, arg=None, /, **params):
         if arg is None:
             params = dict(sorted(
                 params.items(),
                 key=lambda x: x[1].orderscore,
                 ))
-            signature = _inspect.Signature(
-                param.get_parameter(name) for name, param in params.items()
-                )
         elif not params:
             if isinstance(arg, _inspect.Signature):
                 signature = arg
@@ -160,8 +160,18 @@ class Sig(_Ptolemaic):
                 f"Must provide exactly one of either arg or params "
                 f"to {self.__class__._ptolemaic_class__}."
                 )
-        self.params = _types.MappingProxyType(params)
-        self.signature = signature
+        return super().parameterise(**params)
+
+    @property
+    def params(self, /):
+        return self.chorakws
+
+    def __init__(self, /):
+        super().__init__()
+        self.signature = _inspect.Signature(
+            param.get_parameter(name) for name, param in self.params.items()
+            if not isinstance(param, _Degenerate)
+            )
 
     @property
     def bind(self, /):
@@ -177,85 +187,77 @@ class Sig(_Ptolemaic):
     def commence(self, /):
         return _functools.partial(Params.instantiate, self)
 
-    def get_epitaph(self, /):
-        return self.taphonomy.callsig_epitaph(
-            self.__class__._ptolemaic_class__, **self.params
-            )
-
-    def _repr(self, /):
-        return _format_argskwargs(**self.params)
-
     def __str__(self, /):
         return str(self.signature)
 
 
-DEFAULTSIG = Sig(args=Param.Args, kwargs=Param.Kwargs)
+# DEFAULTSIG = Sig(args=Param.Args, kwargs=Param.Kwargs)
 
 
-class Params(_Ptolemaic):
+# class Params(_Ptolemaic):
 
-    __slots__ = (
-        'signature', '_args', '_kwargs', 'args', 'kwargs',
-        'arguments', '_getmeths', '_setmeths',
-        )
+#     __slots__ = (
+#         'signature', '_args', '_kwargs', 'args', 'kwargs',
+#         'arguments', '_getmeths', '_setmeths',
+#         )
 
-    def __init__(self, signature=DEFAULTSIG, /, *args, **kwargs):
-        super().__init__()
-        self.signature = signature
-        args = self._args = list(args)
-        self._kwargs = kwargs
-        self.kwargs = _types.MappingProxyType(kwargs)
-        self._getmeths = {int: args.__getitem__, str: kwargs.__getitem__}
-        self._setmeths = {int: args.__setitem__, str: kwargs.__setitem__}
+#     def __init__(self, signature=DEFAULTSIG, /, *args, **kwargs):
+#         super().__init__()
+#         self.signature = signature
+#         args = self._args = list(args)
+#         self._kwargs = kwargs
+#         self.kwargs = _types.MappingProxyType(kwargs)
+#         self._getmeths = {int: args.__getitem__, str: kwargs.__getitem__}
+#         self._setmeths = {int: args.__setitem__, str: kwargs.__setitem__}
 
-    def __finish__(self, /):
-        args, kwargs = self._args, self._kwargs
-        bound = self.signature.bind(*args, **kwargs)
-        bound.apply_defaults()
-        args[:] = bound.args
-        kwargs.update(bound.kwargs)
-        self.args = tuple(args)
-        self.arguments = _types.MappingProxyType(bound.arguments)
-        super().__finish__()
+#     def __finish__(self, /):
+#         args, kwargs = self._args, self._kwargs
+#         bound = self.signature.bind(*args, **kwargs)
+#         bound.apply_defaults()
+#         args[:] = bound.args
+#         kwargs.update(bound.kwargs)
+#         self.args = tuple(args)
+#         self.arguments = _types.MappingProxyType(bound.arguments)
+#         super().__finish__()
 
-    def __getitem__(self, arg, /):
-        if self.finalised:
-            return self.arguments[arg]
-        return self._getmeths[type(arg)](arg)
+#     def __getitem__(self, arg, /):
+#         if self.finalised:
+#             return self.arguments[arg]
+#         return self._getmeths[type(arg)](arg)
 
-    def __setitem__(self, arg, val, /):
-        if self.finalised:
-            raise RuntimeError("This object has been finalised.")
-        return self._setmeths[type(arg)](arg, val)
+#     def __setitem__(self, arg, val, /):
+#         if self.finalised:
+#             raise RuntimeError("This object has been finalised.")
+#         return self._setmeths[type(arg)](arg, val)
 
-    def __call__(self, /, *args, **kwargs):
-        if self.finalised:
-            raise RuntimeError("This object has been finalised.")
-        self._args.extend(args)
-        self._kwargs.update(kwargs)
+#     def __call__(self, /, *args, **kwargs):
+#         if self.finalised:
+#             raise RuntimeError("This object has been finalised.")
+#         self._args.extend(args)
+#         self._kwargs.update(kwargs)
 
-    def get_epitaph(self, /):
-        return self.taphonomy.callsig_epitaph(
-            self.__class__._ptolemaic_class__,
-            self.signature, *self._args, **self._kwargs,
-            )
+#     def get_epitaph(self, /):
+#         return self.taphonomy.callsig_epitaph(
+#             self.__class__._ptolemaic_class__,
+#             self.signature, *self._args, **self._kwargs,
+#             )
 
-    def __str__(self, /):
-        return _format_argskwargs(*self.args, **self.kwargs)
+#     def __str__(self, /):
+#         return _format_argskwargs(*self.args, **self.kwargs)
 
-    def _repr(self, /):
-        return f"{repr(self.signature)}, {str(self)}"
+#     def _repr(self, /):
+#         return f"{repr(self.signature)}, {str(self)}"
 
 
-class ParamProp:
+# class ParamProp:
 
-    __slots__ = ('name',)
+#     __slots__ = ('name',)
 
-    def __init__(self, name: str, /):
-        self.name = name
+#     def __init__(self, name: str, /):
+#         self.name = name
 
-    def __get__(self, instance, _=None):
-        return instance.params.arguments[self.name]
+#     def __get__(self, instance, _=None):
+#         return instance.params.arguments[self.name]
 
 
 ###############################################################################

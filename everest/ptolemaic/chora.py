@@ -7,12 +7,13 @@ import abc as _abc
 import functools as _functools
 import inspect as _inspect
 import collections as _collections
+import itertools as _itertools
 import typing as _typing
 
 from everest.utilities import (
     TypeMap as _TypeMap,
     caching as _caching,
-    NotNone, Null, NoneType, EllipsisType,
+    NotNone, Null, NoneType, EllipsisType, NotImplementedType
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
@@ -103,23 +104,7 @@ class IncisionHandler(metaclass=_Essence):
         raise NotImplementedError
 
 
-def default_getmeth(obj, caller, incisor, /):
-    raise IncisorTypeException(incisor, obj, caller)
-
-
-class ChoraBase(metaclass=_Essence):
-
-    def incise(self, chora, /):
-        return chora
-
-    def retrieve(self, index, /):
-        return index
-
-    def trivial(self, /):
-        return self
-
-    def fail(self, chora, incisor, /):
-        raise IncisorTypeException(incisor, chora, self)
+class ChoraAbstract(IncisionHandler):
 
     def __getitem__(self, arg, /):
         return self.getitem(self, arg)
@@ -127,6 +112,28 @@ class ChoraBase(metaclass=_Essence):
     @_abc.abstractmethod
     def getitem(self, caller: IncisionHandler, arg, /):
         raise NotImplementedError
+
+
+def default_getmeth(obj, caller, incisor, /):
+    raise IncisorTypeException(incisor, obj, caller)
+
+
+class ChoraBase(ChoraAbstract):
+
+    def incise(self, chora, /):
+        return chora
+
+    def retrieve(self, index, /):
+        return index
+
+    def degenerate(self, index, /):
+        return Degenerate(index)
+
+    def trivial(self, /):
+        return self
+
+    def fail(self, chora, incisor, /):
+        raise IncisorTypeException(incisor, chora, self)
 
     @staticmethod
     def default_incise(self, chora, /):
@@ -167,6 +174,16 @@ class ChoraBase(metaclass=_Essence):
                     setattr(other, methname, meth)
 
         return other
+
+
+class Degenerate(ChoraBase, _Armature):
+
+    value: object
+
+    def getitem(self, caller, arg=None, /):
+        if arg is None:
+            return caller.retrieve(self.value)
+        return caller.fail(self, arg)
 
 
 class CompositionHandler(IncisionHandler, _Armature):
@@ -275,11 +292,13 @@ class Chora(ChoraBase, _Armature):
         length = len(incisor)
         if length == 0:
             return caller
-        arg0, *argn = incisor
-        out = self.getitem(caller, arg0)
-        if argn:
-            raise NotImplementedError
-        return out
+        if length == 1:
+            return self.getitem(caller, incisor[0])
+        return caller.fail(self, incisor)
+
+    def trivial_notimplemented(self, incisor: NotImplementedType, /):
+        '''Captures the special behaviour implied by `self[NotImplemented]`.'''
+        pass
 
     def trivial_none(self, incisor: NoneType, /):
         '''Captures the special behaviour implied by `self[None]`.'''
@@ -325,6 +344,144 @@ class Chora(ChoraBase, _Armature):
 
     def getitem(self, caller, arg, /):
         return self.getmeths[type(arg)](self, caller, arg)
+
+
+class Degenerator(IncisionHandler, _Armature):
+
+    chora: ChoraBase
+
+    @property
+    def incise(self, /):
+        return self.chora.incise
+
+    @property
+    def retrieve(self, /):
+        return self.chora.degenerate
+
+    @property
+    def trivial(self, /):
+        return self.chora.trivial
+
+    @property
+    def fail(self, /):
+        return self.chora.fail
+
+
+class MultiChoraBase(ChoraBase):
+
+    @property
+    @_abc.abstractmethod
+    def choras(self, /):
+        raise NotImplementedError
+
+    @property
+    def depth(self, /):
+        return len(self.choras)
+
+    @property
+    @_caching.soft_cache()
+    def active(self, /):
+        return tuple(not isinstance(cho, Degenerate) for cho in self.choras)
+
+    @property
+    @_caching.soft_cache()
+    def activechoras(self, /):
+        return tuple(_itertools.compress(self.choras, self.active))
+
+    @property
+    def activedepth(self, /):
+        return len(self.activechoras)
+
+    def yield_tuple_multiincise(self, /, *incisors):
+        ninc, ncho = len(incisors), self.activedepth
+        nell = incisors.count(...)
+        if nell == 0:
+            pauseat, resumeat = 0, 0
+        elif nell == 1:
+            ninc -= 1
+            pauseat = incisors.index(...)
+            resumeat = pauseat + ncho - ninc
+        else:
+            raise ValueError("Cannot parse multiple `...` in tuple incision.")
+        if ninc > ncho:
+            raise ValueError("Too many incisors in tuple incision.")
+        chorait = iter(self.choras)
+        incisorit = (inc for inc in incisors if inc is not ...)
+        count = 0
+        while True:
+            if pauseat <= count < resumeat:
+                try:
+                    chora = next(chorait)
+                except StopIteration:
+                    break
+                yield chora
+                if not isinstance(chora, Degenerate):
+                    count += 1
+            else:
+                try:
+                    incisor = next(incisorit)
+                except StopIteration:
+                    yield from chorait
+                    break
+                try:
+                    chora = next(chorait)
+                except StopIteration:
+                    break
+                if isinstance(chora, Degenerate):
+                    yield chora
+                else:
+                    yield chora.getitem(Degenerator(chora), incisor)
+                    count += 1
+        else:
+            yield from chorait
+
+
+class ChoraBrace(Chora, MultiChoraBase):
+
+    FIELDS = (_inspect.Parameter('choraargs', 2),)
+
+    @property
+    def choras(self, /):
+        return self.choraargs
+
+    def handle_tuple(self, caller, incisor: tuple, /):
+        '''Captures the special behaviour implied by `self[a,b,...]`'''
+        choras = tuple(self.yield_tuple_multiincise(*incisor))
+        if all(isinstance(cho, Degenerate) for cho in choras):
+            return caller.retrieve(tuple(cho.value for cho in choras))
+        return caller.incise(self.__class_call__(*choras))
+
+
+class ChoraMapp(Chora, MultiChoraBase):
+
+    FIELDS = (_inspect.Parameter('chorakws', 4),)
+
+    @property
+    def choras(self, /):
+        return tuple(self.chorakws.values())
+
+    def handle_tuple(self, caller, incisor: tuple, /):
+        '''Captures the special behaviour implied by `self[a,b,...]`'''
+        choras = tuple(self.yield_tuple_multiincise(*incisor))
+        if all(isinstance(cho, Degenerate) for cho in choras):
+            return caller.retrieve(tuple(cho.value for cho in choras))
+        return caller.incise(self.__class_call__(**dict(
+            zip(self.chorakws, choras)
+            )))
+
+    def yield_dict_multiincise(self, /, **incisors):
+        chorakws = self.chorakws
+        for name, incisor in incisors.items():
+            chora = chorakws[name]
+            yield name, chora.getitem(Degenerator(chora), incisor)
+
+    def handle_dict(self, caller, incisor: dict, /):
+        choras = self.chorakws | dict(self.yield_dict_multiincise(**incisor))
+        if all(isinstance(chora, Degenerate) for chora in choras.values()):
+            return caller.retrieve(
+                {key: val.value for key, val in choras.items()}
+                )
+        return caller.incise(self.__class_call__(**choras))
 
 
 slcgen = _functools.partial(_typing.GenericAlias, slice)

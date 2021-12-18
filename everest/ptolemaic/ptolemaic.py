@@ -15,7 +15,11 @@ from everest.utilities import (
 from everest.ptolemaic.essence import Essence as _Essence
 
 
-class Ptolemaic(metaclass=_Essence):
+class PtolemaicMeta(_Essence):
+    ...
+
+
+class Ptolemaic(metaclass=PtolemaicMeta):
 
     __slots__ = (
         '_softcache', '_weakcache', '__weakref__', '_freezeattr',

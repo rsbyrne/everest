@@ -8,11 +8,13 @@ import itertools as _itertools
 
 from everest.utilities import caching as _caching
 
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
+from everest.ptolemaic.ptolemaic import (
+    PtolemaicMeta as _PtolemaicMeta,
+    Ptolemaic as _Ptolemaic,
+    )
 
 
-class Corporealiser(_Essence):
+class Corporealiser(_PtolemaicMeta):
 
     @classmethod
     def _pleroma_construct(meta, arg0, /, *args):

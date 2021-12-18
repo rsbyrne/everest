@@ -353,6 +353,7 @@ class TypeMap(BoolMap):
 
 NoneType = type(None)
 EllipsisType = type(Ellipsis)
+NotImplementedType = type(NotImplemented)
 
 
 class NotNone(_abc.ABC):
