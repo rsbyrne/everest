@@ -82,6 +82,27 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Implementing the attribute-freezing behaviour for classes:
 
+    def get_attributes(cls, /):
+        lst = list()
+        for ACls in cls.__mro__:
+            preserve = ACls.__dict__.get('PRESERVEORDER', set())
+            for name in ACls.__dict__:
+                if name.startswith('__'):
+                    continue
+                if name in lst:
+                    if name in preserve:
+                        continue
+                    else:
+                        lst.remove(name)
+                        lst.append(name)
+                else:
+                    lst.append(name)
+        return tuple(lst)
+
+    @property
+    def attributes(cls, /):
+        return cls.get_attributes()
+
     @property
     def freezeattr(cls, /):
         try:
@@ -271,23 +292,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __hash__(cls, /):
         return cls.hashint
-
-    ### Handy methods:
-
-    def _yield_attributes(cls, /):
-        seen = set()
-        for ACls in cls.__mro__:
-            for name in ACls.__dict__:
-                if name.startswith('__'):
-                    continue
-                if name in seen:
-                    continue
-                yield name
-                seen.add(name)
-
-    @property
-    def attributes(cls, /):
-        return tuple(reversed(tuple(cls._yield_attributes())))
 
 
 class EssenceBase(metaclass=Essence):

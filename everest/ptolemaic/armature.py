@@ -44,7 +44,8 @@ def collect_fields(cls, /):
 
 
 class Armature(_Ptolemaic):
-    ...
+
+    premade = _weakref.WeakValueDictionary()
 
 
 class ArmatureBase(metaclass=Armature):
@@ -54,8 +55,6 @@ class ArmatureBase(metaclass=Armature):
     FIELDS = ()
 
     __slots__ = ('arguments', 'args', 'kwargs', '_epitaph')
-
-    premade = _weakref.WeakValueDictionary()
 
     @classmethod
     def add_fields(cls, /):
@@ -106,10 +105,10 @@ class ArmatureBase(metaclass=Armature):
     def __class_call__(cls, /, *args, **kwargs):
         bound = cls.parameterise(*args, **kwargs)
         epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
-#         if (hexcode := epitaph.hexcode) in (pre := Armature.premade):
-#             return pre[hexcode]
+        if (hexcode := epitaph.hexcode) in (pre := Armature.premade):
+            return pre[hexcode]
         obj = super().__class_call__(bound, epitaph)
-#         pre[hexcode] = obj
+        pre[hexcode] = obj
         return obj
 
     def _repr(self, /):
