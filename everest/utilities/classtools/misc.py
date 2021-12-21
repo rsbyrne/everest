@@ -14,9 +14,9 @@ TEMPLATES = {
 def add_defer_meth(
         obj, methname: str, defertoname: str, /, defermethname=None
         ):
-    if mutable := hasattr(obj, 'clsfreezeattr'):
-        prev = obj.clsfreezeattr
-        obj.clsfreezeattr.toggle(False)
+    if mutable := hasattr(obj, 'freezeattr'):
+        prev = obj.freezeattr
+        obj.freezeattr.toggle(False)
     try:
         if defermethname is None:
             defermethname = methname
@@ -28,7 +28,7 @@ def add_defer_meth(
         setattr(obj, methname, eval(methname))
     finally:
         if mutable:
-            obj.clsfreezeattr.toggle(prev)
+            obj.freezeattr.toggle(prev)
 
 
 def add_defer_meths(deferto, args=(), kwargs=None, /, like=None):

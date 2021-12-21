@@ -9,6 +9,7 @@ import inspect as _inspect
 import collections as _collections
 import itertools as _itertools
 import typing as _typing
+import types as _types
 
 from everest.utilities import (
     TypeMap as _TypeMap,
@@ -17,7 +18,6 @@ from everest.utilities import (
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 from everest.ptolemaic.armature import Armature as _Armature
 from everest.ptolemaic import exceptions as _exceptions
 
@@ -67,7 +67,7 @@ class IncisorTypeException(
             ))
 
 
-class Incision(_Armature):
+class Incision(metaclass=_Armature):
 
     FIELDS = ('incised', 'chora')
 
@@ -176,7 +176,95 @@ class ChoraBase(ChoraAbstract):
         return other
 
 
-class Degenerate(ChoraBase, _Armature):
+def _wrap_trivial(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, caller, /, *_):
+        return caller.trivial()
+    return wrapper
+
+def _wrap_incise(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, caller, arg, /):
+        return caller.incise(meth(self, arg))
+    return wrapper
+
+def _wrap_retrieve(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, caller, arg, /):
+        return caller.retrieve(meth(self, arg))
+    return wrapper
+
+def _wrap_fail(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, caller, arg, /):
+        return caller.fail(self, arg)
+    return wrapper
+
+WRAPMETHS = dict(
+    trivial=_wrap_trivial,
+    incise=_wrap_incise,
+    retrieve=_wrap_retrieve,
+    fail=_wrap_fail,
+    )
+
+
+class PseudoChora(ChoraBase, metaclass=_Armature):
+
+    MERGETUPLES = ('PREFIXES',)
+    PREFIXES = ('handle', 'trivial', 'incise', 'retrieve', 'fallback', 'fail')
+
+    def trivial_notimplemented(self, incisor: NotImplementedType, /):
+        '''Captures the special behaviour implied by `self[NotImplemented]`.'''
+        pass
+
+    def trivial_none(self, incisor: NoneType, /):
+        '''Captures the special behaviour implied by `self[None]`.'''
+        pass
+
+    def trivial_ellipsis(self, incisor: EllipsisType, /):
+        '''Captures the special behaviour implied by `self[...]`.'''
+        pass
+
+    def fail_ultimate(self, incisor: object, /):
+        '''The ultimate fallback for unrecognised incision types.'''
+        pass
+
+    @classmethod
+    def get_getmethnames(cls, /, preprefix=''):
+        prefixes = cls.PREFIXES
+        methnames = {prefix: _collections.deque() for prefix in prefixes}
+        adjprefixes = tuple(map(preprefix.__add__, prefixes))
+        for name in cls.attributes:
+            for prefix, deq in zip(adjprefixes, methnames.values()):
+                if name.startswith(prefix):
+                    if name is prefix:
+                        continue
+                    deq.append(name)
+        return methnames
+
+    @classmethod
+    def _yield_getmeths(cls, /, preprefix='', defaultwrap=(lambda x: x)):
+        methnames = cls.get_getmethnames(preprefix)
+        seen = set()
+        for prefix, deq in methnames.items():
+            wrap = WRAPMETHS.get(prefix, defaultwrap)
+            for name in deq:
+                meth = getattr(cls, name)
+                hint = meth.__annotations__['incisor']
+                if hint not in seen:
+                    yield hint, wrap(meth)
+                    seen.add(hint)
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.getmeths = _TypeMap(cls._yield_getmeths())
+
+    def getitem(self, caller, arg, /):
+        return self.getmeths[type(arg)](self, caller, arg)
+
+
+class Degenerate(ChoraBase, metaclass=_Armature):
 
     value: object
 
@@ -186,7 +274,7 @@ class Degenerate(ChoraBase, _Armature):
         return caller.fail(self, arg)
 
 
-class CompositionHandler(IncisionHandler, _Armature):
+class CompositionHandler(IncisionHandler, metaclass=_Armature):
 
     FIELDS = ('caller', 'fchora', 'gchora')
 
@@ -231,7 +319,7 @@ class SubCompHandler(CompositionHandler):
             )
         
 
-class Composition(ChoraBase, _Armature):
+class Composition(ChoraBase, metaclass=_Armature):
 
     FIELDS = ('fchora', 'gchora')
 
@@ -243,110 +331,17 @@ class Composition(ChoraBase, _Armature):
             )
 
 
-
-
-
-def _wrap_trivial(meth, /):
-    @_functools.wraps(meth)
-    def wrapper(self, caller, /, *_):
-        return caller.trivial()
-    return wrapper
-
-def _wrap_incise(meth, /):
-    @_functools.wraps(meth)
-    def wrapper(self, caller, arg, /):
-        return caller.incise(meth(self, arg))
-    return wrapper
-
-def _wrap_retrieve(meth, /):
-    @_functools.wraps(meth)
-    def wrapper(self, caller, arg, /):
-        return caller.retrieve(meth(self, arg))
-    return wrapper
-
-def _wrap_fail(meth, /):
-    @_functools.wraps(meth)
-    def wrapper(self, caller, arg, /):
-        return caller.fail(self, arg)
-    return wrapper
-
-WRAPMETHS = dict(
-    trivial=_wrap_trivial,
-    incise=_wrap_incise,
-    retrieve=_wrap_retrieve,
-    fail=_wrap_fail,
-    )
-
-
-class Chora(ChoraBase, _Armature):
-
-    MERGETUPLES = ('PREFIX', 'TOWRAP')
-
-    PREFIXES = ('handle', *PROTOCOLMETHS)
+class Chora(PseudoChora):
 
     def compose(self, other, /):
         return Composition(self, other)
-
-    def handle_tuple(self, caller, incisor: tuple, /):
-        '''Captures the special behaviour implied by `self[a,b,...]`'''
-        length = len(incisor)
-        if length == 0:
-            return caller
-        if length == 1:
-            return self.getitem(caller, incisor[0])
-        return caller.fail(self, incisor)
-
-    def trivial_notimplemented(self, incisor: NotImplementedType, /):
-        '''Captures the special behaviour implied by `self[NotImplemented]`.'''
-        pass
-
-    def trivial_none(self, incisor: NoneType, /):
-        '''Captures the special behaviour implied by `self[None]`.'''
-        pass
-
-    def trivial_ellipsis(self, incisor: EllipsisType, /):
-        '''Captures the special behaviour implied by `self[...]`.'''
-        pass
 
     def incise_chora(self, incisor: ChoraBase, /):
         '''Returns the composition of two choras, i.e. f(g(x)).'''
         return self.compose(incisor)
 
-    def fail_ultimate(self, incisor: object, /):
-        '''The ultimate fallback for unrecognised incision types.'''
-        pass
 
-    @classmethod
-    def _yield_getmeths(cls, /, preprefix='', defaultwrap=(lambda x: x)):
-        prefixes = cls.PREFIXES
-        methnames = {prefix: _collections.deque() for prefix in prefixes}
-        adjprefixes = tuple(map(preprefix.__add__, prefixes))
-        for name in cls.attributes:
-            for prefix, deq in zip(adjprefixes, methnames.values()):
-                if name.startswith(prefix):
-                    if name is prefix:
-                        continue
-                    deq.append(name)
-        seen = set()
-        for prefix, deq in methnames.items():
-            wrap = WRAPMETHS.get(prefix, defaultwrap)
-            for name in deq:
-                meth = getattr(cls, name)
-                hint = meth.__annotations__['incisor']
-                if hint not in seen:
-                    yield hint, wrap(meth)
-                    seen.add(hint)
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.getmeths = _TypeMap(cls._yield_getmeths())
-
-    def getitem(self, caller, arg, /):
-        return self.getmeths[type(arg)](self, caller, arg)
-
-
-class Degenerator(IncisionHandler, _Armature):
+class Degenerator(IncisionHandler, metaclass=_Armature):
 
     chora: ChoraBase
 
@@ -436,7 +431,7 @@ class MultiChoraBase(ChoraBase):
             yield from chorait
 
 
-class ChoraBrace(Chora, MultiChoraBase):
+class MultiBrace(Chora, MultiChoraBase):
 
     FIELDS = (_inspect.Parameter('choraargs', 2),)
 
@@ -452,7 +447,7 @@ class ChoraBrace(Chora, MultiChoraBase):
         return caller.incise(self.__class_call__(*choras))
 
 
-class ChoraMapp(Chora, MultiChoraBase):
+class MultiMapp(Chora, MultiChoraBase):
 
     FIELDS = (_inspect.Parameter('chorakws', 4),)
 
@@ -464,7 +459,10 @@ class ChoraMapp(Chora, MultiChoraBase):
         '''Captures the special behaviour implied by `self[a,b,...]`'''
         choras = tuple(self.yield_tuple_multiincise(*incisor))
         if all(isinstance(cho, Degenerate) for cho in choras):
-            return caller.retrieve(tuple(cho.value for cho in choras))
+            return caller.retrieve(_types.MappingProxyType(dict(zip(
+                self.chorakws,
+                (cho.value for cho in choras),
+                ))))
         return caller.incise(self.__class_call__(**dict(
             zip(self.chorakws, choras)
             )))

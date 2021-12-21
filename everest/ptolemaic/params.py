@@ -15,58 +15,36 @@ from everest.utilities import (
 
 from everest.ptolemaic.armature import (
     Armature as _Armature,
-    ArmatureMeta as _ArmatureMeta,
     )
+from everest.ptolemaic import chora as _chora
 from everest.ptolemaic.chora import (
-    ChoraAbstract as _ChoraAbstract,
     ChoraBase as _ChoraBase,
-    Chora as _Chora,
+    PseudoChora as _PseudoChora,
     Degenerate as _Degenerate,
-    ChoraMapp as _ChoraMapp,
+    MultiMapp as _MultiMapp,
     )
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
+
+_mprox = _types.MappingProxyType
 
 
 KINDNAMES = ('Pos', 'PosKw', 'Args', 'Kw', 'Kwargs')
 KINDS = dict(zip(KINDNAMES, _pkind))
 
 
-class _GenericMeta_(type):
-
-    def __repr__(cls, /):
-        return cls.__name__
-
-
-class Generic(metaclass=_GenericMeta_):
-
-    @classmethod
-    def __class_getitem__(cls, arg, /):
-        return cls.getitem(cls, arg)
-
-    @classmethod
-    def getitem(cls, caller, arg, /):
-        if isinstance(arg, _ChoraAbstract):
-            return caller.incise(arg)
-        raise TypeError(arg)
-
-    @classmethod
-    def incise(cls, arg, /):
-        return arg
-
-
-class ParamMeta(_ArmatureMeta):
+class ParamMeta(_Armature):
 
     for kind in KINDS:
         exec('\n'.join((
             '@property',
             f'def {kind}(cls, /):'
-            f"    return cls(kind=KINDS['{kind}'])"
+            f"    return cls(KINDS['{kind}'])"
             )))
 
 
-class ParamBase(_ChoraBase, _Armature, metaclass=ParamMeta):
+class ParamBase(_ChoraBase, metaclass=ParamMeta):
     ...
 
 
@@ -77,20 +55,35 @@ class DegenerateParam(_Degenerate, ParamBase):
         return 0
 
 
-class Param(ParamBase):
+class Generic(_PseudoChora):
 
-    hint: type = Generic
-    value: object = NotImplemented
+    def incise_chora(self, incisor: _ChoraBase, /):
+        return incisor
+
+    def incise_type(self, incisor: type, /):
+        return incisor
+
+    def __repr__(self, /):
+        return 'GENERIC'
+
+
+GENERIC = Generic()
+
+
+class Param(_PseudoChora, ParamBase):
+
     kind: str = 'PosKw'
+    hint: type = GENERIC
+    value: object = NotImplemented
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
         bound = super().parameterise(*args, **kwargs)
-        hint, value, kind = bound.arguments.values()
+        kind, hint, value = bound.arguments.values()
         bound.arguments.update(
-            hint=(Generic if hint is _pempty else hint),
-            value=(NotImplemented if value is _pempty else value),
             kind=(KINDNAMES[kind.value] if isinstance(kind, _pkind) else kind),
+            hint=(GENERIC if hint is _pempty else hint),
+            value=(NotImplemented if value is _pempty else value),
             )
         return bound
 
@@ -102,40 +95,40 @@ class Param(ParamBase):
             annotation=self.hint,
             )
 
-    def __call__(self, /, **kwargs):
-        return self.__class_call__(**dict(
-            hint=self.hint, kind=self.kind, value=self.value
-            ) | kwargs)
+    def __call__(self, value, /):
+        return self.__class_call__(self.kind, self.hint, value)
 
     @classmethod
     def __class_getitem__(cls, arg, /):
-        return cls()[arg]
+        return cls(hint=arg)
+
+    @property
+    def degenerate(self, /):
+        return DegenerateParam
+
+    def incise_param(self, incisor: ParamBase, /):
+        return self.__class_call__(
+            max(KINDS[param.kind] for param in (self, incisor)),
+            self.hint[incisor.hint],
+            (self.value if (val := incisor.value) is NotImplemented else val),
+            )
+
+    def fallback_object(self, caller, incisor: object, /):
+        return self.hint.getitem(caller, incisor)
+
+    def incise(self, chora, /):
+        return self.__class_call__(self.kind, chora, self.value)
+
+    def retrieve(self, index, /):
+        return self.degenerate(index)
 
     @property
     def orderscore(self, /):
         adj = 0 if self.value is NotImplemented else 0.5
         return KINDNAMES.index(self.kind) + adj
 
-    def __getitem__(self, arg, /):
-        if isinstance(arg, Param):
-            return self.__class_call__(
-                self.hint, arg.value, arg.kind
-                )[arg.hint]
-        return super().__getitem__(arg)
 
-    def getitem(self, caller, arg, /):
-        return self.hint.getitem(caller, arg)
-
-    def incise(self, chora, /):
-        return self.__class_call__(chora, self.value, self.kind)
-
-    @property
-    def degenerate(self, /):
-        return DegenerateParam
-
-
-# @_classtools.add_defer_meths('params', like=dict)
-class Sig(_ChoraMapp):
+class Sig(_MultiMapp):
 
     __slots__ = ('signature',)
 
@@ -177,6 +170,9 @@ class Sig(_ChoraMapp):
     def bind(self, /):
         return self.signature.bind
 
+    def retrieve(self, index: tuple, /):
+        return Params(self, index)
+
     @property
     @_caching.soft_cache()
     def __call__(self, /):
@@ -192,6 +188,57 @@ class Sig(_ChoraMapp):
 
 
 # DEFAULTSIG = Sig(args=Param.Args, kwargs=Param.Kwargs)
+
+@_classtools.add_defer_meths('sigarguments', like=dict)
+class Params(metaclass=_Armature):
+
+    FIELDS = (
+        _inspect.Parameter('signature', 0, annotation=Sig),
+        _inspect.Parameter('content', 0, annotation=_mprox),
+        )
+
+    __slots__ = ('bound',)
+
+    @classmethod
+    def parameterise(cls, arg0, arg1=None, /, **kwargs):
+        if arg1 is None:
+            if kwargs:
+                return super().parameterise(arg0, _mprox(kwargs))
+            return super().parameterise(arg0)
+        if kwargs:
+            raise ValueError("Cannot pass kwargs if two args are passed.")
+        if not isinstance(arg1, _mprox):
+            arg1 = _mprox(arg1)
+        return super().parameterise(arg0, arg1)
+
+    def __init__(self, /):
+        super().__init__()
+        bound = self.bound = self.signature.signature.bind_partial()
+        bound.apply_defaults()
+        bound.arguments.update(self.content)
+
+    @property
+    def sigargs(self, /):
+        return self.bound.args
+
+    @property
+    def sigkwargs(self, /):
+        return _mprox(self.bound.kwargs)
+
+    @property
+    def sigarguments(self, /):
+        return _mprox(self.bound.arguments)
+
+
+class ParamProp:
+
+    __slots__ = ('name',)
+
+    def __init__(self, name: str, /):
+        self.name = name
+
+    def __get__(self, instance, _=None):
+        return instance.params.sigarguments[self.name]
 
 
 # class Params(_Ptolemaic):
@@ -249,16 +296,6 @@ class Sig(_ChoraMapp):
 #         return f"{repr(self.signature)}, {str(self)}"
 
 
-# class ParamProp:
-
-#     __slots__ = ('name',)
-
-#     def __init__(self, name: str, /):
-#         self.name = name
-
-#     def __get__(self, instance, _=None):
-#         return instance.params.arguments[self.name]
-
-
 ###############################################################################
 ###############################################################################
+

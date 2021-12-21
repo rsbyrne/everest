@@ -15,11 +15,55 @@ from everest.utilities import (
 from everest.ptolemaic.essence import Essence as _Essence
 
 
-class PtolemaicMeta(_Essence):
-    ...
+class Ptolemaic(_Essence):
+
+    ### Handling dynamic class attributes like `.epitaph`:
+
+    def __getattr__(cls, name, /):
+        if name in cls.DYNATTRS:
+            return getattr(cls, '_class_' + name)
+        return super().__getattr__(name)
+
+    @property
+    def _class__ptolemaic_class__(cls, /):
+        return super()._ptolemaic_class__
+
+    @property
+    def _class_epitaph(cls, /):
+        return super().epitaph
+
+    @property
+    def _class_taphonomy(cls, /):
+        return super().taphonomy
+
+    @property
+    def _class_mutable(cls, /):
+        return super().mutable
+
+    @property
+    def _class_freezeattr(cls, /):
+        return super().freezeattr
+
+    @property
+    def _class_hexcode(cls, /):
+        return super().hexcode
+
+    @property
+    def _class_hashint(cls, /):
+        return super().hashint
+
+    @property
+    def _class_hashID(cls, /):
+        return super().hashID
 
 
-class Ptolemaic(metaclass=PtolemaicMeta):
+class PtolemaicBase(metaclass=Ptolemaic):
+
+    MERGETUPLES = ('DYNATTRS',)
+    DYNATTRS = (
+        'epitaph', 'taphonomy', 'mutable', 'freezeattr',
+        'hexcode', 'hashint', 'hashID', '_ptolemaic_class__'
+        )
 
     __slots__ = (
         '_softcache', '_weakcache', '__weakref__', '_freezeattr',
@@ -56,12 +100,12 @@ class Ptolemaic(metaclass=PtolemaicMeta):
     ### Some aliases:
 
     @property
-    def metacls(self, /):
-        return self.__class__._ptolemaic_class__.metacls
+    def _ptolemaic_class__(self, /):
+        return self.__class__._ptolemaic_class__
 
     @property
     def taphonomy(self, /):
-        return self.__class__._ptolemaic_class__.clstaphonomy
+        return self._ptolemaic_class__.taphonomy
 
     ### Implementing the attribute-freezing behaviour for instances:
 

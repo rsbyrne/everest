@@ -47,9 +47,9 @@ class Epitaph(_classtools.Freezable):
         )
 
     def __init__(self, content, deps, hexcode, _process_content=False, /):
-        depdict = self.depdict = {
+        depdict = self.depdict = _types.MappingProxyType({
             f"_{ind}":dep for ind, dep in enumerate(deps)
-            }
+            })
         if _process_content:
             content = _Template(content).substitute(
                 **{f"_{val}": key for key, val in depdict.items()}
@@ -157,6 +157,11 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         pairs = zip(map(subencode, arg), map(subencode, arg.values()))
         return "{" + ','.join(map(':'.join, pairs)) + "}"
 
+    def encode_mappingproxy(self,
+            arg: _types.MappingProxyType, /, *, subencode: _Callable
+            ):
+        return self.enfence(self.encode_dict(arg, subencode=subencode), 'd')
+
 #         return self.enfence(','.join(_itertools.starmap(
 #             "({0},{1})".format,
 #             zip(map(subencode, arg), map(subencode, arg.values()))
@@ -205,6 +210,9 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
 
 #     def decode_dict(self:'d', /, *items) -> dict:
 #         return dict(items)
+
+    def decode_mappingproxy(self:'d', arg: dict, /) -> _types.MappingProxyType:
+        return _types.MappingProxyType(arg)
 
     def decode_module(self:'m', name: str, /) -> _types.ModuleType:
         return _import_module(name)

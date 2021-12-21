@@ -9,6 +9,7 @@ import more_itertools as _mitertools
 import weakref as _weakref
 import operator as _operator
 import types as _types
+import collections as _collections
 
 from everest.utilities import (
     caching as _caching,
@@ -57,7 +58,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         out._cls_weakcache = _weakref.WeakValueDictionary()
         meta.__init__(out, *args, **kwargs)
         out.__class_init__()
-        out.clsfreezeattr.toggle(True)
+        out.freezeattr.toggle(True)
         return out
 
     @classmethod
@@ -82,7 +83,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Implementing the attribute-freezing behaviour for classes:
 
     @property
-    def clsfreezeattr(cls, /):
+    def freezeattr(cls, /):
         try:
             return cls.__dict__['_clsfreezeattr']
         except KeyError:
@@ -92,11 +93,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             return switch
 
     @property
-    def clsmutable(cls, /):
-        return cls.clsfreezeattr.as_(False)
+    def mutable(cls, /):
+        return cls.freezeattr.as_(False)
 
     def __setattr__(cls, key, val, /):
-        if cls.clsfreezeattr:
+        if cls.freezeattr:
             raise AttributeError(
                 f"Setting attributes on an object of type {type(cls)} "
                 "is forbidden at this time; "
@@ -106,21 +107,35 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Implementing mergetuples and mergedicts:
 
-    @staticmethod
-    def _gather_names(bases, name, methcall, /):
-        return ordered_set(_itertools.chain.from_iterable(
-            methcall(getattr(base, name))
-            for base in bases if hasattr(base, name)
-            ))
+    def _yield_mergees(cls, name, /):
+        for base in cls.__bases__:
+            if hasattr(base, name):
+                yield getattr(base, name)
+        if name in (dct := cls.__dict__):
+            yield dct[name]
 
-    def _merge_names(cls, name, /, *, mergetyp=tuple, itermeth='__iter__'):
-        methcall = _operator.methodcaller(itermeth)
-        merged = []
-        merged.extend(cls._gather_names(cls.__bases__, name, methcall))
-        if name in cls.__dict__:
-            merged.extend(ordered_set(methcall(getattr(cls, name))))
-        merged = ordered_set(merged)
-        setattr(cls, name, mergetyp(merged))
+    def _gather_names_tuplelike(cls, name, /):
+        mergees = tuple(cls._yield_mergees(name))
+        for i, mergee in enumerate(mergees):
+            latter = set(_itertools.chain.from_iterable(mergees[i+1:]))
+            yield from (val for val in mergee if not val in latter)
+
+    def _gather_names_dictlike(cls, name, /):
+        mergees = tuple(cls._yield_mergees(name))
+        for i, mergee in enumerate(mergees):
+            latter = set(_itertools.chain.from_iterable(mergees[i+1:]))
+            for key in mergee:
+                if not key in latter:
+                    yield key, mergee[key]
+
+    _gathernamemeths = {
+        tuple: _gather_names_tuplelike,
+        _types.MappingProxyType: _gather_names_dictlike,
+        }
+
+    def _merge_names(cls, name, /, *, mergetyp=tuple):
+        merged = mergetyp(cls._gathernamemeths[mergetyp](cls, name))
+        setattr(cls, name, merged)
 
     def _merge_names_all(cls, overname, /, **kwargs):
         cls._merge_names(overname)
@@ -152,11 +167,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         cls._merge_names('MERGETUPLES')
         cls._merge_names('MERGEDICTS')
         cls._merge_names_all('MERGETUPLES')
-        cls._merge_names_all(
-            'MERGEDICTS',
-            mergetyp=_types.MappingProxyType,
-            itermeth='items',
-            )
+        cls._merge_names_all('MERGEDICTS', mergetyp=_types.MappingProxyType)
 
     def _process_mroclasses(cls, /):
         for name in cls.MROCLASSES:
@@ -172,7 +183,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             setattr(cls, annokey, anno := {})
         if (extkey := '_extra_annotations__') in clsdct:
             anno.update(clsdct[extkey])
-        setattr(cls, annokey, _types.MappingProxyType(anno))
+        setattr(cls, annokey, _types.MappingProxyType(anno))            
 
     ### Initialising the class:
 
@@ -181,6 +192,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         cls._process_annotations()
         cls._process_mergers()
         cls._process_mroclasses()
+        
 
     def __class_init__(cls, /):
         pass
@@ -215,24 +227,19 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return type(cls._ptolemaic_class__)
 
     @property
-    def clstaphonomy(cls, /):
-        return cls._ptolemaic_class__.metacls.metataphonomy
+    def taphonomy(cls, /):
+        return cls.metacls.metataphonomy
 
     def get_clsepitaph(cls, /):
-        ptolcls = cls._ptolemaic_class__
-        return ptolcls.clstaphonomy.auto_epitaph(ptolcls)
+        return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
 
     @property
     @_caching.soft_cache('_cls_softcache')
-    def clsepitaph(cls, /):
+    def epitaph(cls, /):
         ptolcls = cls._ptolemaic_class__
         if '_clsepitaph' in (dct := ptolcls.__dict__):
             return dct['_clsepitaph']
         return ptolcls.get_clsepitaph()
-
-    @property
-    def epitaph(cls, /):
-        return cls._ptolemaic_class__.clsepitaph
 
     ### Representations:
 
@@ -251,38 +258,25 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls._ptolemaic_class__.__class_str__()
 
     @property
-    def clshexcode(cls, /):
-        return cls.clsepitaph.hexcode
-
-    @property
     def hexcode(cls, /):
-        return cls.clshexcode
-
-    @property
-    def clshashint(cls, /):
-        return cls.clsepitaph.hashint
+        return cls.epitaph.hexcode
 
     @property
     def hashint(cls, /):
-        return cls.clshashint
-
-    @property
-    def clshashID(cls, /):
-        return cls.clsepitaph.hashID
+        return cls.epitaph.hashint
 
     @property
     def hashID(cls, /):
-        return cls.clshashID
+        return cls.epitaph.hashID
 
     def __hash__(cls, /):
-        return cls.clshashint
+        return cls.hashint
 
     ### Handy methods:
 
-    @property
-    def attributes(cls, /):
+    def _yield_attributes(cls, /):
         seen = set()
-        for ACls in reversed(cls.__mro__):
+        for ACls in cls.__mro__:
             for name in ACls.__dict__:
                 if name.startswith('__'):
                     continue
@@ -290,6 +284,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                     continue
                 yield name
                 seen.add(name)
+
+    @property
+    def attributes(cls, /):
+        return tuple(reversed(tuple(cls._yield_attributes())))
 
 
 class EssenceBase(metaclass=Essence):

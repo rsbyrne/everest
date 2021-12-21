@@ -13,7 +13,6 @@ from everest.utilities import (
     )
 
 from everest.ptolemaic.ptolemaic import (
-    PtolemaicMeta as _PtolemaicMeta,
     Ptolemaic as _Ptolemaic,
     )
 
@@ -44,17 +43,17 @@ def collect_fields(cls, /):
         yield _Parameter(name, 1, annotation=note, default=value)
 
 
-class ArmatureMeta(_PtolemaicMeta):
+class Armature(_Ptolemaic):
     ...
 
 
-class Armature(_Ptolemaic, metaclass=ArmatureMeta):
+class ArmatureBase(metaclass=Armature):
 
     MERGETUPLES = ('FIELDS',)
 
     FIELDS = ()
 
-    __slots__ = ('_arguments', '_args', '_kwargs', '_epitaph')
+    __slots__ = ('arguments', 'args', 'kwargs', '_epitaph')
 
     premade = _weakref.WeakValueDictionary()
 
@@ -70,7 +69,7 @@ class Armature(_Ptolemaic, metaclass=ArmatureMeta):
                 f"@property",
                 f"def {name}(self, /):",
                 f"    try:",
-                f"        return self._arguments['{name}']",
+                f"        return self.arguments['{name}']",
                 f"    except IndexError:",
                 f"        raise AttributeError({repr(name)})",
                 )))
@@ -82,7 +81,7 @@ class Armature(_Ptolemaic, metaclass=ArmatureMeta):
         cls.add_fields()
 
     @classmethod
-    def parameterise(cls, *args, **kwargs):
+    def parameterise(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
         return bound
@@ -90,15 +89,16 @@ class Armature(_Ptolemaic, metaclass=ArmatureMeta):
     @classmethod
     def instantiate(cls, bound, epitaph, /):
         obj = cls.create_object()
-        obj._args, obj._kwargs = bound.args, bound.kwargs
-        obj._arguments = _types.MappingProxyType(bound.arguments)
+        obj.args = bound.args
+        obj.kwargs = _types.MappingProxyType(bound.kwargs)
+        obj.arguments = _types.MappingProxyType(bound.arguments)
         obj._epitaph = epitaph
         obj.__init__()
         return obj
 
     @classmethod
     def get_instance_epitaph(cls, args, kwargs, /):
-        return cls.clstaphonomy.callsig_epitaph(
+        return cls.taphonomy.callsig_epitaph(
             cls._ptolemaic_class__, *args, **kwargs
             )
 
@@ -113,10 +113,10 @@ class Armature(_Ptolemaic, metaclass=ArmatureMeta):
         return obj
 
     def _repr(self, /):
-        return _format_argskwargs(*self._args, **self._kwargs)
+        return _format_argskwargs(*self.args, **self.kwargs)
 
     def get_epitaph(self, /):
-        raise NotImplementedError
+        return self._epitaph
 
     @property
     def epitaph(self, /):
@@ -125,3 +125,4 @@ class Armature(_Ptolemaic, metaclass=ArmatureMeta):
 
 ###############################################################################
 ###############################################################################
+

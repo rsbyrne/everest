@@ -9,12 +9,12 @@ import itertools as _itertools
 from everest.utilities import caching as _caching
 
 from everest.ptolemaic.ptolemaic import (
-    PtolemaicMeta as _PtolemaicMeta,
     Ptolemaic as _Ptolemaic,
+    PtolemaicBase as _PtolemaicBase,
     )
 
 
-class Corporealiser(_PtolemaicMeta):
+class Corporealiser(_Ptolemaic):
 
     @classmethod
     def _pleroma_construct(meta, arg0, /, *args):
@@ -35,7 +35,7 @@ class Corporealiser(_PtolemaicMeta):
             )
         return meta._create_class(
             f"Concrete{basecls.__name__}",
-            (basecls, _Ptolemaic),
+            (basecls, _PtolemaicBase),
             namespace,
             )
 
