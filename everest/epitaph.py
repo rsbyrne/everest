@@ -231,23 +231,22 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         return _functools.partial(self.sub_encode, deps=deps)
 
     def sub_encode(self, arg: object, /, deps: set):
-        istyp = isinstance(arg, type)
-        if istyp and hasattr(arg, 'clsepitaph'):
-            epitaph = arg.clsepitaph
-        elif not istyp and hasattr(arg, 'epitaph'):
+        if hasattr(arg, 'epitaph'):
             epitaph = arg.epitaph
-        else:
-            meth = self.encoders[type(arg)]
-            encoded = meth(arg, subencode=self.sub_part(subdeps:=set()))
-            if subdeps:
-                if len(encoded) <= 32:
-                    deps.update(subdeps)
-                    return encoded
-                epitaph = self(encoded, subdeps)
-            else:
+            if isinstance(epitaph, Epitaph):
+                deps.add(epitaph)
+                return f"$_{epitaph}"
+        meth = self.encoders[type(arg)]
+        encoded = meth(arg, subencode=self.sub_part(subdeps:=set()))
+        if subdeps:
+            if len(encoded) <= 32:
+                deps.update(subdeps)
                 return encoded
-        deps.add(epitaph)
-        return f"$_{epitaph}"
+            epitaph = self(encoded, subdeps)
+            deps.add(epitaph)
+            return f"$_{epitaph}"
+        else:
+            return encoded
 
     def encode(self, arg: object, /, deps: set) -> str:
         return self.encoders[type(arg)](arg, subencode=self.sub_part(deps))
@@ -273,7 +272,8 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         return self(self.encode(arg, deps:=set()), deps)
 
     @classmethod
-    def posformat_callsig(cls, caller, /, *args, n=0, **kwargs):
+    def posformat_callsig(cls, caller, /, *args, **kwargs):
+        n = 0
         count = _itertools.count(n+1)
         wrap = lambda it: (f"$_{next(count)}" for _ in it)
         strn = ','.join(_itertools.chain(
@@ -290,11 +290,11 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
             substitutions,
             map(sub, substitutions.values())
             ))
-        return _Template(strn).substitute(substitutions), deps
+        return _Template(strn).substitute(substitutions)
 
     def custom_epitaph(self, strn, /, **substitutions):
         deps = set()
-        encoded, deps = self.custom_encode(strn, substitutions, deps=deps)
+        encoded = self.custom_encode(strn, substitutions, deps=deps)
         return self(encoded, deps)
 
     def callsig_epitaph(self, caller, /, *args, **kwargs):

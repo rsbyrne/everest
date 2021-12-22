@@ -12,6 +12,7 @@ import operator as _operator
 import os as _os
 import random as _random
 import typing as _typing
+import types as _types
 
 import numpy as _np
 
@@ -387,6 +388,37 @@ def format_argskwargs(*args, **kwargs):
 def format_callsig(caller, /, *args, **kwargs):
     content = format_argskwargs(*args, **kwargs)
     return f"{repr(caller)}({content})"
+
+
+class ObjectMask:
+
+    __slots__ = ('_objectmask_under', '_objectmask_over')
+
+    def __init__(self, under, over=None, /, **kwargs):
+        self._objectmask_under = under
+        if over is None:
+            over = _types.SimpleNamespace(**kwargs)
+        elif kwargs:
+            raise ValueError("Cannot pass two args as well as kwargs.")
+        self._objectmask_over = over
+
+    def __getattr__(self, name, /):
+        if name.startswith('_objectview_'):
+            return object.__getattribute__(self, name)
+        try:
+            return getattr(
+                object.__getattribute__(self, '_objectmask_over'),
+                name,
+                )
+        except AttributeError:
+            return getattr(
+                object.__getattribute__(self, '_objectmask_under'),
+                name,
+                )
+
+    @property
+    def __getitem__(self, /):
+        return self.__getattr__('__getitem__')
 
 
 # def inject_extra_init(cls, func):

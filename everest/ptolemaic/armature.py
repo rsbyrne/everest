@@ -45,7 +45,10 @@ def collect_fields(cls, /):
 
 class Armature(_Ptolemaic):
 
-    premade = _weakref.WeakValueDictionary()
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls.premade = _weakref.WeakValueDictionary()
+        cls.add_fields()
 
 
 class ArmatureBase(metaclass=Armature):
@@ -75,25 +78,10 @@ class ArmatureBase(metaclass=Armature):
             setattr(cls, name, eval(name))
 
     @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.add_fields()
-
-    @classmethod
-    def parameterise(cls, /, *args, **kwargs):
+    def parameterise(cls, cache, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
         return bound
-
-    @classmethod
-    def instantiate(cls, bound, epitaph, /):
-        obj = cls.create_object()
-        obj.args = bound.args
-        obj.kwargs = _types.MappingProxyType(bound.kwargs)
-        obj.arguments = _types.MappingProxyType(bound.arguments)
-        obj._epitaph = epitaph
-        obj.__init__()
-        return obj
 
     @classmethod
     def get_instance_epitaph(cls, args, kwargs, /):
@@ -102,17 +90,66 @@ class ArmatureBase(metaclass=Armature):
             )
 
     @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        bound = cls.parameterise(*args, **kwargs)
+    def instantiate(cls, /, *args, **kwargs):
+        cache = {}
+        bound = cls.parameterise(cache, *args, **kwargs)
         epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
-        if (hexcode := epitaph.hexcode) in (pre := Armature.premade):
-            return pre[hexcode]
-        obj = super().__class_call__(bound, epitaph)
-        pre[hexcode] = obj
-        return obj
+#         if (hexcode := epitaph.hexcode) in (pre := cls.premade):
+#             return pre[hexcode]
+        return super().instantiate(
+            bound, epitaph, _softcache=cache, _weakcache=None
+            )
+
+    def initialise(self, bound, epitaph, /, _softcache=None, _weakcache=None):
+        self.args = bound.args
+        self.kwargs = _types.MappingProxyType(bound.kwargs)
+        self.arguments = _types.MappingProxyType(bound.arguments)
+        self._epitaph = epitaph
+        super().initialise(_softcache=_softcache, _weakcache=_weakcache)
+
+    def finalise(self, /):
+#         self._ptolemaic_class__.premade[self.hexcode] = self
+        super().finalise()
 
     def _repr(self, /):
+        return f"'{self.hashID}'"
+
+    def _str(self, /):
         return _format_argskwargs(*self.args, **self.kwargs)
+
+    def __str__(self, /):
+        return f"{self._ptolemaic_class__}({self._str()})"
+
+    def _repr_pretty_(self, p, cycle):
+        typnm = repr(self._ptolemaic_class__)
+        if cycle:
+            p.text(typnm + '{...}')
+        else:
+            with p.group(4, typnm + '(', ')'):
+                if args := self.args:
+                    argit = iter(args)
+                    p.breakable()
+                    p.pretty(next(argit))
+                    for val in argit:
+                        p.text(',')
+                        p.breakable()
+                        p.pretty(val)
+                    p.text(',')
+                if kwargs := self.kwargs:
+                    kwargit = iter(kwargs.items())
+                    p.breakable()
+                    key, val = next(kwargit)
+                    p.text(key)
+                    p.text(' = ')
+                    p.pretty(val)
+                    for key, val in kwargit:
+                        p.text(',')
+                        p.breakable()
+                        p.text(key)
+                        p.text(' = ')
+                        p.pretty(val)
+                    p.text(',')
+                p.breakable()
 
     def get_epitaph(self, /):
         return self._epitaph

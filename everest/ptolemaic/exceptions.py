@@ -47,14 +47,5 @@ class InitialisationException(PtolemaicException):
         yield 'during initialisation'
 
 
-class IncisionException(PtolemaicException):
-
-    __slots__ = ()
-
-    def message(self, /):
-        yield from super().message()
-        yield 'during incision'
-
-
 ###############################################################################
 ###############################################################################

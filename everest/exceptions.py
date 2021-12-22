@@ -17,6 +17,23 @@ class EverestException(Exception):
         return '\n'.join(map(str, self.message())) + '.'
 
 
+class ExceptionRaisedby(EverestException):
+
+    __slots__ = ('raisedby',)
+
+    def __init__(self, raisedby=None, /):
+        self.raisedby = raisedby
+
+    def message(self, /):
+        yield from super().message()
+        raisedby = self.raisedby
+        if raisedby is not None:
+            yield ' '.join((
+                f'within the object `{repr(raisedby)}`',
+                f'of type `{repr(type(raisedby))}`',
+                ))
+
+
 class MissingAsset(EverestException):
     '''Signals that something needs to be provided.'''
 

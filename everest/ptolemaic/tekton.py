@@ -25,10 +25,7 @@ class Tekton(_Essence):
 
     CACHE = False
 
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if cls.CACHE:
-            cls.premade = _weakref.WeakValueDictionary()
+    premade = _weakref.WeakValueDictionary()
 
     @classmethod
     def get_signature(cls, /) -> _params.Sig:
@@ -43,19 +40,13 @@ class Tekton(_Essence):
     def __signature__(cls, /):
         return cls.sig.signature
 
-    def _cache_getitem__(cls, arg, /):
+    def __getitem__(cls, arg, /):
         if isinstance(arg, str):
             return cls.premade[arg]
         if (hexcode := arg.hexcode) in (pre := cls.premade):
             return pre[hexcode]
         pre[hexcode] = (out := cls.construct(arg))
         return out
-
-    @property
-    def __getitem__(cls, /):
-        if cls.CACHE:
-            return cls._cache_getitem__
-        return cls.construct
 
 
 class TektonBase(metaclass=Tekton):

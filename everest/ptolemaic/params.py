@@ -13,16 +13,14 @@ from everest.utilities import (
     format_argskwargs as _format_argskwargs,
     )
 
-from everest.ptolemaic.armature import (
-    Armature as _Armature,
-    )
-from everest.ptolemaic import chora as _chora
-from everest.ptolemaic.chora import (
-    ChoraBase as _ChoraBase,
-    PseudoChora as _PseudoChora,
+from everest.incision import (
+    Incisable as _Incisable,
+    IncisableHost as _IncisableHost,
     Degenerate as _Degenerate,
-    MultiMapp as _MultiMapp,
+    DEFAULTCALLER as _DEFAULTCALLER
     )
+from everest.ptolemaic.armature import Armature as _Armature
+from everest.ptolemaic.chora import MultiMapp as _MultiMapp
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
@@ -32,6 +30,19 @@ _mprox = _types.MappingProxyType
 
 KINDNAMES = ('Pos', 'PosKw', 'Args', 'Kw', 'Kwargs')
 KINDS = dict(zip(KINDNAMES, _pkind))
+
+
+class GENERIC:
+
+    @classmethod
+    def __class_getitem__(cls, arg, /):
+        if isinstance(arg, _Incisable):
+            return arg
+        raise TypeError(type(arg))
+
+    @classmethod
+    def getitem(cls, arg, /, *, caller=_DEFAULTCALLER):
+        return caller.incise(arg)
 
 
 class ParamMeta(_Armature):
@@ -44,41 +55,15 @@ class ParamMeta(_Armature):
             )))
 
 
-class ParamBase(_ChoraBase, metaclass=ParamMeta):
-    ...
-
-
-class DegenerateParam(_Degenerate, ParamBase):
-
-    @property
-    def orderscore(self, /):
-        return 0
-
-
-class Generic(_PseudoChora):
-
-    def incise_chora(self, incisor: _ChoraBase, /):
-        return incisor
-
-    def incise_type(self, incisor: type, /):
-        return incisor
-
-    def __repr__(self, /):
-        return 'GENERIC'
-
-
-GENERIC = Generic()
-
-
-class Param(_PseudoChora, ParamBase):
+class Param(_IncisableHost, metaclass=ParamMeta):
 
     kind: str = 'PosKw'
     hint: type = GENERIC
     value: object = NotImplemented
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        bound = super().parameterise(*args, **kwargs)
+    def parameterise(cls, cache, /, *args, **kwargs):
+        bound = super().parameterise(cache, *args, **kwargs)
         kind, hint, value = bound.arguments.values()
         bound.arguments.update(
             kind=(KINDNAMES[kind.value] if isinstance(kind, _pkind) else kind),
@@ -103,47 +88,56 @@ class Param(_PseudoChora, ParamBase):
         return cls(hint=arg)
 
     @property
-    def degenerate(self, /):
-        return DegenerateParam
+    def retrieve(self, /):
+        return self.degenerate
 
-    def incise_param(self, incisor: ParamBase, /):
-        return self.__class_call__(
-            max(KINDS[param.kind] for param in (self, incisor)),
-            self.hint[incisor.hint],
-            (self.value if (val := incisor.value) is NotImplemented else val),
-            )
-
-    def fallback_object(self, caller, incisor: object, /):
-        return self.hint.getitem(caller, incisor)
+    def degenerate(self, index, /):
+        return self.incise(super().degenerate(index))
 
     def incise(self, chora, /):
         return self.__class_call__(self.kind, chora, self.value)
 
-    def retrieve(self, index, /):
-        return self.degenerate(index)
-
     @property
-    def orderscore(self, /):
-        adj = 0 if self.value is NotImplemented else 0.5
-        return KINDNAMES.index(self.kind) + adj
+    def chora(self, /):
+        return self.hint
+
+    def __getitem__(self, arg, /):
+        if isinstance(arg, Param):
+            return self.__class_call__(
+                max(KINDS[param.kind] for param in (self, incisor)),
+                self.hint[incisor.hint],
+                (self.value if (val := incisor.value) is NotImplemented else val),
+                )
+        elif isinstance(arg, _Degenerate):
+            return self.incise(arg)
+        return super().__getitem__(arg)
 
 
-class Sig(_MultiMapp):
+class Sig(_IncisableHost, metaclass=_Armature):
 
-    __slots__ = ('signature',)
+    FIELDS = (_inspect.Parameter('params', 4),)
+
+    @staticmethod
+    def _get_orderscore(pair):
+        _, obj = pair
+        if isinstance(obj, _Degenerate):
+            return -1
+        adj = 0 if obj.value is NotImplemented else 0.5
+        return KINDNAMES.index(obj.kind) + adj
 
     @classmethod
-    def parameterise(cls, arg=None, /, **params):
+    def parameterise(cls, cache, arg=None, /, _chora=None, **params):
         if arg is None:
             params = dict(sorted(
                 params.items(),
-                key=lambda x: x[1].orderscore,
+                key=cls._get_orderscore,
                 ))
         elif not params:
             if isinstance(arg, _inspect.Signature):
                 signature = arg
             else:
                 signature = _inspect.signature(arg)
+            cache['signature'] = signature
             params = {
                 pm.name: Param(pm.annotation, pm.default, pm.kind)
                 for pm in signature.parameters.values()
@@ -153,22 +147,40 @@ class Sig(_MultiMapp):
                 f"Must provide exactly one of either arg or params "
                 f"to {self.__class__._ptolemaic_class__}."
                 )
-        return super().parameterise(**params)
+        if _chora is not None:
+            cache['chora'] = _chora
+        return super().parameterise(cache, **params)
 
     @property
-    def params(self, /):
-        return self.chorakws
-
-    def __init__(self, /):
-        super().__init__()
-        self.signature = _inspect.Signature(
+    @_caching.soft_cache()
+    def signature(self, /):
+        return _inspect.Signature(
             param.get_parameter(name) for name, param in self.params.items()
-            if not isinstance(param, _Degenerate)
+            if not isinstance(param.hint, _Degenerate)
             )
 
     @property
     def bind(self, /):
         return self.signature.bind
+
+    @property
+    @_caching.soft_cache()
+    def chora(self, /):
+        return _MultiMapp(**{key: val.hint for key, val in self.params.items()})
+
+    def incise(self, chora, /):
+        params = {
+            key: Param(param.kind, cho, param.value)
+            for ((key, param), cho) in zip(self.params.items(), chora.choras)
+            }
+        return self.__class_call__(_chora=chora, **params)
+
+#     def incise(self, chora, /):
+#         print('foo')
+#         return self.__class_call__(**dict(zip(
+#             chora,
+#             (param[cho] for cho, param in zip(chora.choras, self.params.values()),
+#             )))  # INEFFICIENT! MultiMapp gets created twice!
 
     def retrieve(self, index: tuple, /):
         return Params(self, index)
@@ -177,11 +189,6 @@ class Sig(_MultiMapp):
     @_caching.soft_cache()
     def __call__(self, /):
         return _functools.partial(Params, self)
-
-    @property
-    @_caching.soft_cache()
-    def commence(self, /):
-        return _functools.partial(Params.instantiate, self)
 
     def __str__(self, /):
         return str(self.signature)
@@ -200,16 +207,16 @@ class Params(metaclass=_Armature):
     __slots__ = ('bound',)
 
     @classmethod
-    def parameterise(cls, arg0, arg1=None, /, **kwargs):
+    def parameterise(cls, cache, arg0, arg1=None, /, **kwargs):
         if arg1 is None:
             if kwargs:
-                return super().parameterise(arg0, _mprox(kwargs))
-            return super().parameterise(arg0)
+                return super().parameterise(cache, arg0, _mprox(kwargs))
+            return super().parameterise(cache, arg0)
         if kwargs:
             raise ValueError("Cannot pass kwargs if two args are passed.")
         if not isinstance(arg1, _mprox):
             arg1 = _mprox(arg1)
-        return super().parameterise(arg0, arg1)
+        return super().parameterise(cache, arg0, arg1)
 
     def __init__(self, /):
         super().__init__()

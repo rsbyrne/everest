@@ -20,7 +20,8 @@ def soft_cache(storage='_softcache', storetyp=dict):
 
     def decorator(func, storage=storage):
 
-        cachename = f"_softcache_{func.__name__}"
+#         cachename = f"_softcache_{func.__name__}"
+        cachename = func.__name__
         sig = _inspect.signature(func)
         attrstorage = isinstance(storage, str)
 

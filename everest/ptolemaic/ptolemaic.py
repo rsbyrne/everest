@@ -72,30 +72,41 @@ class PtolemaicBase(metaclass=Ptolemaic):
 
     ### What happens when the class is called:
 
-    def __init__(self, /):
-        self.finalised = False
-        self._softcache = {}
-        self._weakcache = _weakref.WeakValueDictionary()
-
     @classmethod
     def create_object(cls, /):
         return cls.__new__(cls)
 
     @classmethod
-    def instantiate(cls, /, *args, **kwargs):
+    def instantiate(cls, /, *args, _softcache=None, _weakcache=None, **kwargs):
         obj = cls.create_object()
-        obj.__init__(*args, **kwargs)
+        obj.initialise(*args, _softcache=_softcache, _weakcache=_weakcache, **kwargs)
+        obj.finalise()
         return obj
 
+    def __init__(self, /):
+        pass
+
+    def initialise(self, /, *args, _softcache=None, _weakcache=None, **kwargs):
+        self.finalised = False
+        softcache = self._softcache = {}
+        if not _softcache is None:
+            softcache.update(_softcache)
+        weakcache = self._weakcache = _weakref.WeakValueDictionary()
+        if not _weakcache is None:
+            weakcache.update(_weakcache)
+        self.__init__(*args, **kwargs)
+
     def __finish__(self, /):
+        pass
+
+    def finalise(self, /):
+        self.__finish__()
         self.finalised = True
         self.freezeattr.toggle(True)
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        obj = cls.instantiate(*args, **kwargs)
-        obj.__finish__()
-        return obj
+        return cls.instantiate(*args, **kwargs)
 
     ### Some aliases:
 
@@ -171,7 +182,10 @@ class PtolemaicBase(metaclass=Ptolemaic):
         return ''
 
     def __repr__(self, /):
-        return f"<{self.__class__}({self._repr()})>"
+        return f"<{self._ptolemaic_class__}({self._repr()})>"
+
+    def __str__(self, /):
+        return self.__repr__()
 
     ### Rich comparisons to support ordering of objects:
 
