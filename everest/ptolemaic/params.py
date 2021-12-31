@@ -3,9 +3,12 @@
 ###############################################################################
 
 
+import abc as _abc
 import inspect as _inspect
 import functools as _functools
 import types as _types
+import collections.abc as _collabc
+from enum import Enum as _Enum
 
 from everest.utilities import (
     caching as _caching,
@@ -13,14 +16,15 @@ from everest.utilities import (
     format_argskwargs as _format_argskwargs,
     )
 
-from everest.incision import (
+from everest import epitaph as _epitaph
+from everest.ptolemaic.chora import (
     Incisable as _Incisable,
-    IncisableHost as _IncisableHost,
     Degenerate as _Degenerate,
+    Chora as _Chora,
+    MultiMapp as _MultiMapp,
     DEFAULTCALLER as _DEFAULTCALLER
     )
 from everest.ptolemaic.armature import Armature as _Armature
-from everest.ptolemaic.chora import MultiMapp as _MultiMapp
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
@@ -28,36 +32,70 @@ _pempty = _inspect._empty
 _mprox = _types.MappingProxyType
 
 
-KINDNAMES = ('Pos', 'PosKw', 'Args', 'Kw', 'Kwargs')
-KINDS = dict(zip(KINDNAMES, _pkind))
+class _GENERICCLASS_(_Chora):
+
+    def compose(self, other, /):
+        return other
+
+    def retrieve_object(self, incisor: object, /):
+        return incisor
+
+    def __repr__(self, /):
+        return 'GENERIC'
 
 
-class GENERIC:
+GENERIC = _GENERICCLASS_()
+
+
+class ParamKind(_Enum):
+
+    Pos = _pkind['POSITIONAL_ONLY']
+    PosKw = _pkind['POSITIONAL_OR_KEYWORD']
+    Args = _pkind['VAR_POSITIONAL']
+    Kw = _pkind['KEYWORD_ONLY']
+    Kwargs = _pkind['VAR_KEYWORD']
+
+    def __repr__(self, /):
+        return f"ParamKind[{self.name}]"
+
+    @property
+    def epitaph(self, /):
+        try:
+            return self._epitaph
+        except AttributeError:
+            epi = self._epitaph = _epitaph.TAPHONOMY.custom_epitaph(
+                "$A[$a]", A=ParamKind, a=self.name
+                )
+            return epi
 
     @classmethod
-    def __class_getitem__(cls, arg, /):
-        if isinstance(arg, _Incisable):
+    def convert(cls, arg, /):
+        if isinstance(arg, cls):
             return arg
-        raise TypeError(type(arg))
+        if isinstance(arg, str):
+            return cls[arg]
+        if isinstance(arg, _pkind):
+            return tuple(cls)[arg.value]
+        raise TypeError("Cannot convert to `ParamKind`.")
 
-    @classmethod
-    def getitem(cls, arg, /, *, caller=_DEFAULTCALLER):
-        return caller.incise(arg)
+    @property
+    def score(self, /):
+        return self.value.value
 
 
 class ParamMeta(_Armature):
 
-    for kind in KINDS:
+    for kind in ParamKind:
         exec('\n'.join((
             '@property',
-            f'def {kind}(cls, /):'
-            f"    return cls(KINDS['{kind}'])"
+            f'def {kind.name}(cls, /):'
+            f"    return cls(ParamKind.{kind.name})"
             )))
 
 
-class Param(_IncisableHost, metaclass=ParamMeta):
+class Param(_Incisable, metaclass=ParamMeta):
 
-    kind: str = 'PosKw'
+    kind: str = ParamKind.Pos
     hint: type = GENERIC
     value: object = NotImplemented
 
@@ -66,7 +104,7 @@ class Param(_IncisableHost, metaclass=ParamMeta):
         bound = super().parameterise(cache, *args, **kwargs)
         kind, hint, value = bound.arguments.values()
         bound.arguments.update(
-            kind=(KINDNAMES[kind.value] if isinstance(kind, _pkind) else kind),
+            kind=(ParamKind.convert(kind) if isinstance(kind, _pkind) else kind),
             hint=(GENERIC if hint is _pempty else hint),
             value=(NotImplemented if value is _pempty else value),
             )
@@ -75,7 +113,7 @@ class Param(_IncisableHost, metaclass=ParamMeta):
     def get_parameter(self, name: str = 'anon', /):
         default = _pempty if (val:=self.value) is NotImplemented else val
         return _inspect.Parameter(
-            name, KINDS[self.kind],
+            name, self.kind.value,
             default=default,
             annotation=self.hint,
             )
@@ -87,12 +125,8 @@ class Param(_IncisableHost, metaclass=ParamMeta):
     def __class_getitem__(cls, arg, /):
         return cls(hint=arg)
 
-    @property
-    def retrieve(self, /):
-        return self.degenerate
-
-    def degenerate(self, index, /):
-        return self.incise(super().degenerate(index))
+    def retrieve(self, index, /):
+        return self.incise(_Degenerate(index))
 
     def incise(self, chora, /):
         return self.__class_call__(self.kind, chora, self.value)
@@ -104,7 +138,7 @@ class Param(_IncisableHost, metaclass=ParamMeta):
     def __getitem__(self, arg, /):
         if isinstance(arg, Param):
             return self.__class_call__(
-                max(KINDS[param.kind] for param in (self, incisor)),
+                max(param.kind for param in (self, incisor)),
                 self.hint[incisor.hint],
                 (self.value if (val := incisor.value) is NotImplemented else val),
                 )
@@ -113,9 +147,12 @@ class Param(_IncisableHost, metaclass=ParamMeta):
         return super().__getitem__(arg)
 
 
-class Sig(_IncisableHost, metaclass=_Armature):
+class Sig(_Incisable, metaclass=_Armature):
 
-    FIELDS = (_inspect.Parameter('params', 4),)
+    FIELDS = (
+        _inspect.Parameter('_basesig', 3, default=None),
+        _inspect.Parameter('params', 4),
+        )
 
     @staticmethod
     def _get_orderscore(pair):
@@ -123,33 +160,49 @@ class Sig(_IncisableHost, metaclass=_Armature):
         if isinstance(obj, _Degenerate):
             return -1
         adj = 0 if obj.value is NotImplemented else 0.5
-        return KINDNAMES.index(obj.kind) + adj
+        return obj.kind.score + adj
 
     @classmethod
-    def parameterise(cls, cache, arg=None, /, _chora=None, **params):
+    def parameterise(cls,
+            cache, arg=None, /,
+            _chora=None, _basesig=None, **params,
+            ):
         if arg is None:
             params = dict(sorted(
                 params.items(),
                 key=cls._get_orderscore,
                 ))
-        elif not params:
+        elif params:
+            raise RuntimeError(
+                f"Must provide exactly one of either arg or params "
+                f"to {self.__class__._ptolemaic_class__}."
+                )
+        else:
             if isinstance(arg, _inspect.Signature):
                 signature = arg
             else:
                 signature = _inspect.signature(arg)
             cache['signature'] = signature
             params = {
-                pm.name: Param(pm.annotation, pm.default, pm.kind)
+                pm.name: Param(pm.kind, pm.annotation, pm.default)
                 for pm in signature.parameters.values()
                 }
-        else:
-            raise RuntimeError(
-                f"Must provide exactly one of either arg or params "
-                f"to {self.__class__._ptolemaic_class__}."
-                )
         if _chora is not None:
             cache['chora'] = _chora
-        return super().parameterise(cache, **params)
+        return super().parameterise(cache, _basesig=_basesig, **params)
+
+    @property
+    @_caching.soft_cache()
+    def degenerates(self, /):
+        return _mprox({
+            name: param.hint.value
+            for name, param in self.params.items()
+            if isinstance(param.hint, _Degenerate)
+            })
+
+    @property
+    def basesig(self, /):
+        return self if (basesig := self._basesig) is None else basesig
 
     @property
     @_caching.soft_cache()
@@ -159,9 +212,10 @@ class Sig(_IncisableHost, metaclass=_Armature):
             if not isinstance(param.hint, _Degenerate)
             )
 
-    @property
-    def bind(self, /):
-        return self.signature.bind
+    def bind(self, /, *args, **kwargs):
+        bound = self.signature.bind(*args, **kwargs)
+        bound.apply_defaults()
+        return bound
 
     @property
     @_caching.soft_cache()
@@ -173,22 +227,16 @@ class Sig(_IncisableHost, metaclass=_Armature):
             key: Param(param.kind, cho, param.value)
             for ((key, param), cho) in zip(self.params.items(), chora.choras)
             }
-        return self.__class_call__(_chora=chora, **params)
+        return self.__class_call__(_chora=chora, _basesig=self.basesig, **params)
 
-#     def incise(self, chora, /):
-#         print('foo')
-#         return self.__class_call__(**dict(zip(
-#             chora,
-#             (param[cho] for cho, param in zip(chora.choras, self.params.values()),
-#             )))  # INEFFICIENT! MultiMapp gets created twice!
-
-    def retrieve(self, index: tuple, /):
+    def retrieve(self, index: dict, /):
         return Params(self, index)
 
-    @property
-    @_caching.soft_cache()
-    def __call__(self, /):
-        return _functools.partial(Params, self)
+    def __call__(self, /, *args, **kwargs):
+        return self.retrieve({
+            **self.bind(*args, **kwargs).arguments,
+            **self.degenerates,
+            })
 
     def __str__(self, /):
         return str(self.signature)
@@ -196,33 +244,39 @@ class Sig(_IncisableHost, metaclass=_Armature):
 
 # DEFAULTSIG = Sig(args=Param.Args, kwargs=Param.Kwargs)
 
-@_classtools.add_defer_meths('sigarguments', like=dict)
+@_classtools.add_defer_meths('content', like=dict)
 class Params(metaclass=_Armature):
 
     FIELDS = (
-        _inspect.Parameter('signature', 0, annotation=Sig),
-        _inspect.Parameter('content', 0, annotation=_mprox),
+        _inspect.Parameter('sig', 0, annotation=Sig),
+        _inspect.Parameter('content', 0, annotation=dict),
         )
-
-    __slots__ = ('bound',)
 
     @classmethod
     def parameterise(cls, cache, arg0, arg1=None, /, **kwargs):
+        if not isinstance(arg0, Sig):
+            arg0 = Sig(arg0)
+        arg0 = arg0.basesig
         if arg1 is None:
-            if kwargs:
-                return super().parameterise(cache, arg0, _mprox(kwargs))
-            return super().parameterise(cache, arg0)
-        if kwargs:
+            arg1 = kwargs
+        elif kwargs:
             raise ValueError("Cannot pass kwargs if two args are passed.")
-        if not isinstance(arg1, _mprox):
-            arg1 = _mprox(arg1)
+        elif isinstance(arg1, _inspect.BoundArguments):
+            cache['bound'] = arg1
+            arg1 = arg1.arguments
+        elif isinstance(arg1, _collabc.Mapping):
+            pass
+        else:
+            raise TypeError("Input for `arg1` not recognised.")
         return super().parameterise(cache, arg0, arg1)
 
-    def __init__(self, /):
-        super().__init__()
-        bound = self.bound = self.signature.signature.bind_partial()
+    @property
+    @_caching.soft_cache()
+    def bound(self, /):
+        bound = self.sig.signature.bind_partial()
         bound.apply_defaults()
         bound.arguments.update(self.content)
+        return bound
 
     @property
     def sigargs(self, /):
@@ -231,10 +285,6 @@ class Params(metaclass=_Armature):
     @property
     def sigkwargs(self, /):
         return _mprox(self.bound.kwargs)
-
-    @property
-    def sigarguments(self, /):
-        return _mprox(self.bound.arguments)
 
 
 class ParamProp:
@@ -245,7 +295,7 @@ class ParamProp:
         self.name = name
 
     def __get__(self, instance, _=None):
-        return instance.params.sigarguments[self.name]
+        return instance.params[self.name]
 
 
 # class Params(_Ptolemaic):

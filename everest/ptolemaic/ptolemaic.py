@@ -19,10 +19,13 @@ class Ptolemaic(_Essence):
 
     ### Handling dynamic class attributes like `.epitaph`:
 
-    def __getattr__(cls, name, /):
-        if name in cls.DYNATTRS:
-            return getattr(cls, '_class_' + name)
-        return super().__getattr__(name)
+    def __getattribute__(cls, name, /):
+        if name in type.__getattribute__(cls, 'DYNATTRS'):
+            try:
+                return getattr(cls, '_class_' + name)
+            except AttributeError:
+                pass
+        return type.__getattribute__(cls, name)
 
     @property
     def _class__ptolemaic_class__(cls, /):
@@ -62,7 +65,7 @@ class PtolemaicBase(metaclass=Ptolemaic):
     MERGETUPLES = ('DYNATTRS',)
     DYNATTRS = (
         'epitaph', 'taphonomy', 'mutable', 'freezeattr',
-        'hexcode', 'hashint', 'hashID', '_ptolemaic_class__'
+        'hexcode', 'hashint', 'hashID', '_ptolemaic_class__',
         )
 
     __slots__ = (
@@ -72,28 +75,35 @@ class PtolemaicBase(metaclass=Ptolemaic):
 
     ### What happens when the class is called:
 
+    def update_cache(self, cache: dict, /):
+        self._softcache.update(cache)
+
+    def clear_cache(self, /):
+        self._softcache.clear()
+
+    def set_cache(self, cache, /):
+        self.clear_cache()
+        self.update_cache(cache)
+
     @classmethod
     def create_object(cls, /):
         return cls.__new__(cls)
 
     @classmethod
-    def instantiate(cls, /, *args, _softcache=None, _weakcache=None, **kwargs):
+    def construct(cls, /, *args, _softcache=None, **kwargs):
         obj = cls.create_object()
-        obj.initialise(*args, _softcache=_softcache, _weakcache=_weakcache, **kwargs)
+        obj.initialise(*args, _softcache=_softcache, **kwargs)
         obj.finalise()
         return obj
 
     def __init__(self, /):
         pass
 
-    def initialise(self, /, *args, _softcache=None, _weakcache=None, **kwargs):
+    def initialise(self, /, *args, _softcache=None, **kwargs):
         self.finalised = False
-        softcache = self._softcache = {}
-        if not _softcache is None:
-            softcache.update(_softcache)
-        weakcache = self._weakcache = _weakref.WeakValueDictionary()
-        if not _weakcache is None:
-            weakcache.update(_weakcache)
+        self._softcache = dict()
+        if _softcache is not None:
+            self.update_cache(_softcache)
         self.__init__(*args, **kwargs)
 
     def __finish__(self, /):
@@ -106,7 +116,7 @@ class PtolemaicBase(metaclass=Ptolemaic):
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return cls.instantiate(*args, **kwargs)
+        return cls.construct(*args, **kwargs)
 
     ### Some aliases:
 

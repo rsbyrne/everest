@@ -3,72 +3,107 @@
 ###############################################################################
 
 
-import abc as _abc
-import inspect as _inspect
-import itertools as _itertools
 import weakref as _weakref
-import functools as _functools
-from collections import abc as _collabc
 
-from everest.utilities import (
-    caching as _caching,
-    classtools as _classtools,
-    )
+from everest.ptolemaic.chora import Incisable as _Incisable
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
-from everest.ptolemaic import params as _params
-from everest.ptolemaic import exceptions as _exceptions
+from everest.ptolemaic.armature import Armature as _Armature
+from everest.ptolemaic.params import Sig as _Sig, Params as _Params
 
 
-class Tekton(_Essence):
+class Tekton(_Incisable, _Essence):
 
-    CACHE = False
-
-    premade = _weakref.WeakValueDictionary()
-
-    @classmethod
-    def get_signature(cls, /) -> _params.Sig:
-        return _params.Sig(cls.method)
-
-    @property
-    @_caching.soft_cache('_cls_softcache')
-    def sig(cls, /):
-        return cls.get_signature()
+    def get_signature(cls, /):
+        return _Sig(cls.method)
 
     @property
     def __signature__(cls, /):
         return cls.sig.signature
 
-    def __getitem__(cls, arg, /):
-        if isinstance(arg, str):
-            return cls.premade[arg]
-        if (hexcode := arg.hexcode) in (pre := cls.premade):
-            return pre[hexcode]
-        pre[hexcode] = (out := cls.construct(arg))
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if cls.CACHE:
+            cls.premade = _weakref.WeakValueDictionary()
+        sig = cls.sig = cls.get_signature()
+
+    @property
+    def __signature__(cls, /):
+        return cls.sig.signature
+
+    def method(cls, /):
+        raise NotImplementedError
+
+    @property
+    def chora(cls, /):
+        return cls.sig
+
+    @property
+    def retrieve(cls, /):
+        return cls._cache_retrieve if cls.CACHE else cls._default_retrieve
+
+    def _default_retrieve(cls, params, /):
+        return cls.method(*params.sigargs, **params.sigkwargs)
+
+    def _cache_retrieve(cls, params, /):
+        if params in (premade := cls.premade):
+            return premade[params]
+        out = cls.method(*params.sigargs, **params.sigkwargs)
+        premade[params] = out
         return out
+
+    def incise(cls, chora, /):
+        return TektonIncision(cls, chora)
+
+
+class TektonIncision(_Incisable, metaclass=_Armature):
+# class TektonIncision(metaclass=_Armature):
+
+    tekton: Tekton
+    sig: _Sig
+
+    @property
+    def chora(self, /):
+        return self.sig
+
+    @property
+    def retrieve(self, /):
+        return self.tekton.retrieve
+
+    def incise(self, chora, /):
+        return TektonIncision(self.tekton, chora)
+
+    @property
+    def __signature__(self, /):
+        return self.sig.signature
+
+    def __call__(self, /, *args, **kwargs):
+        return self.retrieve(self.sig(*args, **kwargs))
 
 
 class TektonBase(metaclass=Tekton):
 
-    @classmethod
-    def method(cls, /):
-        raise NotImplementedError
+    CACHE = False
 
     @classmethod
-    def construct(cls, params, /):
-        return cls.method(*params.args, **params.kwargs)
+    def parameterise(cls, cache, /, *args, **kwargs):
+        bound = cls.__signature__.bind(*args, **kwargs)
+        bound.apply_defaults()
+        return bound
 
     @classmethod
-    def parameterise(cls, params, /, *args, **kwargs):
-        params(*args, **kwargs)
+    def construct(cls, /, *args, **kwargs):
+        cache = {}
+        bound = cls.parameterise(cache, *args, **kwargs)
+        params = _Params(cls.sig, bound)
+        out = cls.retrieve(params)
+        if cache:
+            out.update_cache(cache)
+        return out
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        params = cls.sig.commence()
-        cls.parameterise(params, *args, **kwargs)
-        params.__finish__()
-        return cls[params]
+        return cls.construct(*args, **kwargs)
 
 
 ###############################################################################

@@ -56,17 +56,21 @@ class ArmatureBase(metaclass=Armature):
     MERGETUPLES = ('FIELDS',)
 
     FIELDS = ()
+    DYNATTRS = ('__signature__',)
+
+    CACHED = True
 
     __slots__ = ('arguments', 'args', 'kwargs', '_epitaph')
 
     @classmethod
     def add_fields(cls, /):
-        FIELDS = cls.FIELDS = tuple(sorted(
-            sorted(collect_fields(cls), key = lambda x: x.kind),
-            key = lambda x: x.default is not _empty,
-            ))
-        sig = cls.__signature__ = _inspect.Signature(FIELDS)
-        for name in sig.parameters:
+        fields = list(collect_fields(cls))
+        fields.sort(key=(lambda x: x.default is not _empty))
+        fields.sort(key=(lambda x: x.kind))
+        fields = cls.FIELDS = tuple(fields)
+        signature = cls._class___signature__ = _inspect.Signature(fields)
+        space = {}
+        for name in signature.parameters:
             exec('\n'.join((
                 f"@property",
                 f"def {name}(self, /):",
@@ -74,8 +78,8 @@ class ArmatureBase(metaclass=Armature):
                 f"        return self.arguments['{name}']",
                 f"    except IndexError:",
                 f"        raise AttributeError({repr(name)})",
-                )))
-            setattr(cls, name, eval(name))
+                )), space)
+            setattr(cls, name, space[name])
 
     @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):
@@ -90,25 +94,27 @@ class ArmatureBase(metaclass=Armature):
             )
 
     @classmethod
-    def instantiate(cls, /, *args, **kwargs):
+    def construct(cls, /, *args, **kwargs):
         cache = {}
         bound = cls.parameterise(cache, *args, **kwargs)
         epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
-#         if (hexcode := epitaph.hexcode) in (pre := cls.premade):
-#             return pre[hexcode]
-        return super().instantiate(
-            bound, epitaph, _softcache=cache, _weakcache=None
+        if cls.CACHED:
+            if (hexcode := epitaph.hexcode) in (pre := cls.premade):
+                return pre[hexcode]
+        return super().construct(
+            bound, epitaph, _softcache=cache
             )
 
-    def initialise(self, bound, epitaph, /, _softcache=None, _weakcache=None):
+    def initialise(self, bound, epitaph, /, _softcache=None):
         self.args = bound.args
         self.kwargs = _types.MappingProxyType(bound.kwargs)
         self.arguments = _types.MappingProxyType(bound.arguments)
         self._epitaph = epitaph
-        super().initialise(_softcache=_softcache, _weakcache=_weakcache)
+        super().initialise(_softcache=_softcache)
 
     def finalise(self, /):
-#         self._ptolemaic_class__.premade[self.hexcode] = self
+        if self.CACHED:
+            self._ptolemaic_class__.premade[self.hexcode] = self
         super().finalise()
 
     def _repr(self, /):

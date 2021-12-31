@@ -10,6 +10,7 @@ import collections as _collections
 import itertools as _itertools
 import typing as _typing
 import types as _types
+from collections import deque as _deque
 
 from everest.utilities import (
     TypeMap as _TypeMap,
@@ -17,29 +18,168 @@ from everest.utilities import (
     NotNone, Null, NoneType, EllipsisType, NotImplementedType,
     ObjectMask as _ObjectMask
     )
-from everest.incision import *
+from everest import epitaph as _epitaph
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.armature import Armature as _Armature
-from everest.ptolemaic import exceptions as _exceptions
+
+from everest import exceptions as _exceptions
 
 
-class Incision(metaclass=_Armature):
+PROTOCOLMETHS = ('trivial', 'incise', 'retrieve', 'fail')
 
-    FIELDS = ('incised', 'chora')
+
+class IncisionException(_exceptions.ExceptionRaisedby):
+
+    __slots__ = ('chora',)
+
+    def __init__(self, chora=None, /, *args):
+        self.chora = chora
+        super().__init__(*args)
+
+    def message(self, /):
+        yield from super().message()
+        yield 'during incision'
+        chora = self.chora
+        if chora is None:
+            pass
+        elif chora is not self.raisedby:
+            yield ' '.join((
+                f'via the hosted incisable `{repr(chora)}`',
+                f'of type `{repr(type(chora))}`,',
+                ))
+
+
+class IncisorTypeException(IncisionException, TypeError):
+
+    __slots__ = ('incisor',)
+
+    def __init__(self, incisor, /, *args):
+        self.incisor = incisor
+        super().__init__(*args)
+    
+    def message(self, /):
+        incisor = self.incisor
+        yield from super().message()
+        yield ' '.join((
+            f'when object `{repr(incisor)}`',
+            f'of type `{repr(type(incisor))}`',
+            f'was passed as an incisor',
+            ))
+
+
+class IncisionHandler(_abc.ABC):
 
     def incise(self, chora, /):
-        return type(self)(self.incised, chora)
+        return chora
 
-    def __getitem__(self, arg, /):
-        return self.chora.getitem(arg, caller=self)
+    def retrieve(self, index, /):
+        return index
 
-    def __getattr__(self, arg, /):
-        superget = super().__getattribute__
+    def trivial(self, /):
+        return self
+
+    def fail(self, chora, incisor, /):
+        raise IncisorTypeException(incisor, chora, self)
+
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is not IncisionHandler:
+            return NotImplemented
+        if all(
+                any(meth in B.__dict__ for B in C.__mro__)
+                for meth in PROTOCOLMETHS
+                ):
+            return True
+        else:
+            return NotImplemented
+
+
+class ChainIncisionHandler(IncisionHandler, _deque):
+
+    def incise(self, chora, /):
+        for obj in reversed(self):
+            chora = obj.incise(chora)
+        return chora
+
+    def retrieve(self, index, /):
+        for obj in reversed(self):
+            index = obj.retrieve(index)
+        return index
+
+    def trivial(self, /):
+        return self[0]
+
+
+DEFAULTCALLER = IncisionHandler()
+
+
+class ChoraBase:
+    ...
+#     @_abc.abstractmethod
+#     def __getitem__(self, arg, caller: IncisionHandler = DEFAULTCALLER):
+#         raise NotImplementedError
+
+
+class Degenerate(ChoraBase):
+
+    __slots__ = ('value', '_epitaph')
+
+    def __init__(self, value, /):
+        self.value = value
+
+    def __getitem__(self, arg=None, /, *, caller=DEFAULTCALLER):
+        if arg is None:
+            return caller.retrieve(self.value)
+        return caller.fail(self, arg)
+
+    def get_epitaph(self, /):
+        return _epitaph.TAPHONOMY.callsig_epitaph(type(self), self.value)
+
+    @property
+    def epitaph(self, /):
         try:
-            return superget(arg)
+            return self._epitaph
         except AttributeError:
-            return getattr(superget('incised'), arg)
+            out = self._epitaph = self.get_epitaph()
+            return out
+
+    def __repr__(self, /):
+        return f"{type(self).__name__}({repr(self.value)})"
+
+
+class Incision(_ObjectMask, ChoraBase):
+
+    def __init__(self, obj, chora, /):
+        epitaph = _epitaph.TAPHONOMY.callsig_epitaph(type(self), obj, chora)
+        super().__init__(
+            obj, epitaph=epitaph,
+            chora=chora, __getitem__=chora.__getitem__,
+            )
+
+
+class Incisable(IncisionHandler, ChoraBase):
+
+    @_abc.abstractmethod
+    def retrieve(self, index, /):
+        raise NotImplementedError
+
+    def incise(self, chora, /):
+        return Incision(self, chora)
+
+    @property
+    @_abc.abstractmethod
+    def chora(self, /) -> ChoraBase:
+        raise NotImplementedError
+
+    def __getitem__(self, arg, /, *, caller: IncisionHandler = None):
+        if caller is None:
+            caller = self
+        elif isinstance(caller, ChainIncisionHandler):
+            caller.append(self)
+        else:
+            caller = ChainIncisionHandler((caller, self))
+        return self.chora.__getitem__(arg, caller=caller)
 
 
 def default_getmeth(obj, caller, incisor, /):
@@ -83,17 +223,17 @@ class SubCompHandler(CompositionHandler):
         return super().incise(self.fchora.compose(chora))
 
     def retrieve(self, index, /):
-        return self.fchora.getitem(index, caller=self.caller)
+        return self.fchora.__getitem__(index, caller=self.caller)
 
     def fail(self, chora, incisor, /):
-        return (fchora := self.fchora)._ptolemaic_class__.getitem(
+        return (fchora := self.fchora)._ptolemaic_class__.__getitem__(
             self.submask,
             incisor,
             caller=SuperCompHandler(self.caller, fchora, self.gchora),
             )
 
 
-class Composition(Incisable, metaclass=_Armature):
+class Composition(ChoraBase, metaclass=_Armature):
 
     FIELDS = ('fchora', 'gchora')
 
@@ -103,11 +243,11 @@ class Composition(Incisable, metaclass=_Armature):
         gchora = self.gchora
         self.submask = _ObjectMask(
             self.fchora,
-            getitem=gchora.getitem, __getitem__=gchora.__getitem__,
+            __getitem__=gchora.__getitem__,
             )
 
-    def getitem(self, incisor, /, *, caller=DEFAULTHANDLER):
-        return (gchora := self.gchora).getitem(
+    def __getitem__(self, incisor, /, *, caller=DEFAULTCALLER):
+        return (gchora := self.gchora).__getitem__(
             incisor,
             caller=SubCompHandler(caller, self.fchora, gchora, self.submask),
             )
@@ -145,7 +285,7 @@ WRAPMETHS = dict(
     )
 
 
-class Chora(Incisable, metaclass=_Armature):
+class Chora(ChoraBase, metaclass=_Armature):
 
     MERGETUPLES = ('PREFIXES',)
     PREFIXES = ('handle', 'trivial', 'incise', 'retrieve', 'fallback', 'fail')
@@ -165,7 +305,7 @@ class Chora(Incisable, metaclass=_Armature):
         '''Captures the special behaviour implied by `self[...]`.'''
         pass
 
-    def incise_chora(self, incisor: Incisable, /):
+    def incise_chora(self, incisor: ChoraBase, /):
         '''Returns the composition of two choras, i.e. f(g(x)).'''
         return self.compose(incisor)
 
@@ -204,20 +344,8 @@ class Chora(Incisable, metaclass=_Armature):
         super().__class_init__()
         cls.getmeths = _TypeMap(cls._yield_getmeths())
 
-    def getitem(self, arg, /, *, caller=DEFAULTHANDLER):
+    def __getitem__(self, arg, /, *, caller=DEFAULTCALLER):
         return self.getmeths[type(arg)](self, caller, arg)
-
-    @staticmethod
-    def default_incise(self, chora, /):
-        return Incision(self, chora)
-
-    @staticmethod
-    def default_trivial(self, /):
-        return self
-
-    @staticmethod
-    def default_fail(self, chora, incisor, /):
-        raise IncisorTypeException(incisor, chora, self)
 
     @classmethod
     def decorate(cls, other, /):
@@ -228,7 +356,7 @@ class Chora(Incisable, metaclass=_Armature):
 
             exec('\n'.join((
                 f"def __getitem__(self, arg, /):",
-                f"    return self.chora.getitem(arg, caller=self)",
+                f"    return self.chora.__getitem__(arg, caller=self)",
                 )))
             other.__getitem__ = eval('__getitem__')
             if not hasattr(other, 'chora'):
@@ -242,34 +370,22 @@ class Chora(Incisable, metaclass=_Armature):
 
             for methname in PROTOCOLMETHS:
                 if not hasattr(other, methname):
-                    meth = getattr(cls, f"default_{methname}")
+                    meth = getattr(Incisable, methname)
                     setattr(other, methname, meth)
 
         return other
 
 
-class Degenerator(IncisionHandler, metaclass=_Armature):
+class Degenerator(IncisionHandler):
 
-    chora: Incisable
-
-    @property
-    def incise(self, /):
-        return self.chora.incise
-
-    @property
-    def retrieve(self, /):
-        return self.chora.degenerate
-
-    @property
-    def trivial(self, /):
-        return self.chora.trivial
-
-    @property
-    def fail(self, /):
-        return self.chora.fail
+    def retrieve(self, index, /):
+        return Degenerate(index)
 
 
-class MultiChoraBase(Incisable):
+DEGENERATOR = Degenerator()
+
+
+class MultiChoraBase(ChoraBase):
 
     @property
     @_abc.abstractmethod
@@ -312,14 +428,14 @@ class MultiChoraBase(Incisable):
                         if not isinstance(chora, Degenerate):
                             count += 1
                         yield chora
-                else:
-                    while True:
-                        chora = next(chorait)
-                        if isinstance(chora, Degenerate):
-                            yield chora
-                        else:
-                            yield chora.getitem(incisor, caller=Degenerator(chora))
-                            break
+                    continue
+                while True:
+                    chora = next(chorait)
+                    if isinstance(chora, Degenerate):
+                        yield chora
+                        continue
+                    yield chora.__getitem__(incisor, caller=DEGENERATOR)
+                    break
         except StopIteration:
 #             raise ValueError("Too many incisors in tuple incision.")
             pass
@@ -366,7 +482,7 @@ class MultiMapp(Chora, MultiChoraBase):
         chorakws = self.chorakws
         for name, incisor in incisors.items():
             chora = chorakws[name]
-            yield name, chora.getitem(incisor, caller=Degenerator(chora))
+            yield name, chora.__getitem__(incisor, caller=Degenerator(chora))
 
     def handle_dict(self, caller, incisor: dict, /):
         choras = self.chorakws | dict(self.yield_dict_multiincise(**incisor))

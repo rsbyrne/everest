@@ -405,16 +405,13 @@ class ObjectMask:
     def __getattr__(self, name, /):
         if name.startswith('_objectview_'):
             return object.__getattribute__(self, name)
+        over = object.__getattribute__(self, '_objectmask_over')
         try:
-            return getattr(
-                object.__getattribute__(self, '_objectmask_over'),
-                name,
-                )
+            return getattr(over, name)
         except AttributeError:
-            return getattr(
-                object.__getattribute__(self, '_objectmask_under'),
-                name,
-                )
+            pass
+        under = object.__getattribute__(self, '_objectmask_under')
+        return getattr(under, name)
 
     @property
     def __getitem__(self, /):

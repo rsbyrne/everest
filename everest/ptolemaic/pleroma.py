@@ -4,6 +4,7 @@
 
 
 from inspect import getmodule as _getmodule
+import abc as _abc
 
 from everest.utilities import (
     caching as _caching,
@@ -13,7 +14,7 @@ from everest.utilities import (
 from everest import epitaph as _epitaph
 
 
-class Pleroma(type):
+class Pleroma(_abc.ABCMeta):
 
     def _pleroma_contains__(meta, _, /):
         raise NotImplementedError
