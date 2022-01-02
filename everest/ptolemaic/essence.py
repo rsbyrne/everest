@@ -23,6 +23,44 @@ def ordered_set(itr):
     return tuple(_mitertools.unique_everseen(itr))
 
 
+### Implementing mergetuples and mergedicts:
+
+def yield_mergees(bases, namespace, name, /):
+    for base in bases:
+        if hasattr(base, name):
+            yield getattr(base, name)
+    if name in namespace:
+        yield namespace[name]
+
+def gather_names_tuplelike(bases, namespace, name, /):
+    mergees = tuple(yield_mergees(bases, namespace, name))
+    for i, mergee in enumerate(mergees):
+        latter = set(_itertools.chain.from_iterable(mergees[i+1:]))
+        yield from (val for val in mergee if not val in latter)
+
+def gather_names_dictlike(bases, namespace, name, /):
+    mergees = tuple(yield_mergees(bases, namespace, name))
+    for i, mergee in enumerate(mergees):
+        latter = set(_itertools.chain.from_iterable(mergees[i+1:]))
+        for key in mergee:
+            if not key in latter:
+                yield key, mergee[key]
+
+gathernamemeths = {
+    tuple: gather_names_tuplelike,
+    _types.MappingProxyType: gather_names_dictlike,
+    }
+
+def merge_names(bases, namespace, name, /, *, mergetyp=tuple):
+    meth = gathernamemeths[mergetyp]
+    namespace[name] = mergetyp(meth(bases, namespace, name))
+
+def merge_names_all(bases, namespace, overname, /, **kwargs):
+    merge_names(bases, namespace, overname)
+    for name in namespace[overname]:
+        merge_names(bases, namespace, name, **kwargs)
+
+
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
@@ -33,6 +71,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def __prepare__(meta, name, bases, /, *args, **kwargs):
+        '''Called before class body evaluation as the namespace.'''
         return dict()
 
     @classmethod
@@ -50,12 +89,34 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return (*bases, basetyp)
 
     @classmethod
-    def _create_class(meta, name, bases, namespace, /, *args, **kwargs):
+    def process_mergenames(meta, bases, namespace):
+        merge_names_all(bases, namespace, 'MERGETUPLES')
+        merge_names_all(
+            bases, namespace, 'MERGEDICTS',
+            mergetyp=_types.MappingProxyType
+            )
+
+    @classmethod
+    def process_annotations(meta, namespace):
+        anno = namespace.get('__annotations__', {})
+        if (extkey := '_extra_annotations__') in namespace:
+            anno.update(namespace[extkey])
+        namespace['__annotations__'] = _types.MappingProxyType(anno)
+
+    @classmethod
+    def pre_create_class(meta, name, bases, namespace):
         if '__slots__' not in namespace:
-            namespace = {**namespace, '__slots__':()}
+            namespace['__slots__'] = ()
+        meta.process_mergenames(bases, namespace)
+        namespace['_cls_softcache'] = {}
+        namespace['_cls_weakcache'] = _weakref.WeakValueDictionary()
+        meta.process_annotations(namespace)
+
+    @classmethod
+    def create_class(meta, name, bases, namespace, /, *args, **kwargs):
+        bases = meta.process_bases(bases)
+        meta.pre_create_class(name, bases, namespace)
         out = meta.__new__(meta, name, bases, namespace)
-        out._cls_softcache = {}
-        out._cls_weakcache = _weakref.WeakValueDictionary()
         meta.__init__(out, *args, **kwargs)
         out.__class_init__()
         out.freezeattr.toggle(True)
@@ -77,8 +138,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                     "Must provide at least one "
                     "of either a class name or a tuple of bases."
                     )
-        bases = meta.process_bases(bases)
-        return meta._create_class(name, bases, namespace, *args, **kwargs)
+        return meta.create_class(name, bases, namespace, *args, **kwargs)
 
     ### Implementing the attribute-freezing behaviour for classes:
 
@@ -126,43 +186,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 )
         super().__setattr__(key, val)
 
-    ### Implementing mergetuples and mergedicts:
-
-    def _yield_mergees(cls, name, /):
-        for base in cls.__bases__:
-            if hasattr(base, name):
-                yield getattr(base, name)
-        if name in (dct := cls.__dict__):
-            yield dct[name]
-
-    def _gather_names_tuplelike(cls, name, /):
-        mergees = tuple(cls._yield_mergees(name))
-        for i, mergee in enumerate(mergees):
-            latter = set(_itertools.chain.from_iterable(mergees[i+1:]))
-            yield from (val for val in mergee if not val in latter)
-
-    def _gather_names_dictlike(cls, name, /):
-        mergees = tuple(cls._yield_mergees(name))
-        for i, mergee in enumerate(mergees):
-            latter = set(_itertools.chain.from_iterable(mergees[i+1:]))
-            for key in mergee:
-                if not key in latter:
-                    yield key, mergee[key]
-
-    _gathernamemeths = {
-        tuple: _gather_names_tuplelike,
-        _types.MappingProxyType: _gather_names_dictlike,
-        }
-
-    def _merge_names(cls, name, /, *, mergetyp=tuple):
-        merged = mergetyp(cls._gathernamemeths[mergetyp](cls, name))
-        setattr(cls, name, merged)
-
-    def _merge_names_all(cls, overname, /, **kwargs):
-        cls._merge_names(overname)
-        for name in getattr(cls, overname):
-            cls._merge_names(name, **kwargs)
-
     ### Implementing mroclasses:
 
     def _add_mroclass(cls, name: str, /):
@@ -184,36 +207,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         setattr(cls, fusename, mroclass)
         setattr(cls, name, mroclass)
 
-    def _process_mergers(cls, /):
-        cls._merge_names('MERGETUPLES')
-        cls._merge_names('MERGEDICTS')
-        cls._merge_names_all('MERGETUPLES')
-        cls._merge_names_all('MERGEDICTS', mergetyp=_types.MappingProxyType)
-
     def _process_mroclasses(cls, /):
         for name in cls.MROCLASSES:
             cls._add_mroclass(name)
-
-    ### Handling annotations:
-
-    def _process_annotations(cls, /):
-        clsdct = cls.__dict__
-        if (annokey := '__annotations__') in clsdct:
-            anno = clsdct[annokey]
-        else:
-            setattr(cls, annokey, anno := {})
-        if (extkey := '_extra_annotations__') in clsdct:
-            anno.update(clsdct[extkey])
-        setattr(cls, annokey, _types.MappingProxyType(anno))            
 
     ### Initialising the class:
 
     def __init__(cls, /, *args, **kwargs):
         _abc.ABCMeta.__init__(type(cls), cls, *args, **kwargs)
-        cls._process_annotations()
-        cls._process_mergers()
         cls._process_mroclasses()
-        
 
     def __class_init__(cls, /):
         pass

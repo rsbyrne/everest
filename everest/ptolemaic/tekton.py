@@ -4,18 +4,28 @@
 
 
 import weakref as _weakref
+import functools as _functools
 
-from everest.ptolemaic.chora import Incisable as _Incisable
+from everest.ptolemaic import chora as _chora
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.armature import Armature as _Armature
-from everest.ptolemaic.params import Sig as _Sig, Params as _Params
+from everest.ptolemaic.sig import Sig as _Sig, Params as _Params
 
 
-class Tekton(_Incisable, _Essence):
+class Tekton(_Essence):
 
-    def get_signature(cls, /):
-        return _Sig(cls.method)
+    def __construct__(cls, /):
+        raise NotImplementedError
+
+    @classmethod
+    def get_signature(meta, name, bases, namespace, /):
+        return _Sig(namespace.get('__construct__', meta.__construct__))
+
+    @classmethod
+    def pre_create_class(meta, name, bases, namespace, /):
+        super().pre_create_class(name, bases, namespace)
+        namespace['sig'] = meta.get_signature(name, bases, namespace)
 
     @property
     def __signature__(cls, /):
@@ -25,39 +35,56 @@ class Tekton(_Incisable, _Essence):
         super().__init__(*args, **kwargs)
         if cls.CACHE:
             cls.premade = _weakref.WeakValueDictionary()
-        sig = cls.sig = cls.get_signature()
-
-    @property
-    def __signature__(cls, /):
-        return cls.sig.signature
-
-    def method(cls, /):
-        raise NotImplementedError
 
     @property
     def chora(cls, /):
         return cls.sig
 
-    @property
-    def retrieve(cls, /):
-        return cls._cache_retrieve if cls.CACHE else cls._default_retrieve
+    def retrieve(cls, params, /):
+        if cls.CACHE:
+            if params in (premade := cls.premade):
+                return premade[params]
+            out = cls.construct(params)
+            premade[params] = out
+        else:
+            out = cls.construct(params)
+        return out
 
-    def _default_retrieve(cls, params, /):
-        return cls.method(*params.sigargs, **params.sigkwargs)
-
-    def _cache_retrieve(cls, params, /):
-        if params in (premade := cls.premade):
-            return premade[params]
-        out = cls.method(*params.sigargs, **params.sigkwargs)
-        premade[params] = out
+    def __class_call__(cls, /, *args, **kwargs):
+        cache = {}
+        bound = cls.parameterise(cache, *args, **kwargs)
+        params = _Params(bound)
+        out = cls.retrieve(params)
+        if cache:
+            out.update_cache(cache)
         return out
 
     def incise(cls, chora, /):
         return TektonIncision(cls, chora)
 
+    def trivial(cls, /):
+        return cls
 
-class TektonIncision(_Incisable, metaclass=_Armature):
-# class TektonIncision(metaclass=_Armature):
+    @property
+    def fail(cls, /):
+        return _functools.partial(_chora.Incisable.fail, cls)
+
+    @property
+    def __getitem__(cls, /):
+        return _functools.partial(_chora.Incisable.__getitem__, cls)
+
+    @classmethod
+    def decorate(meta, arg, /):
+        return meta(
+            name=arg.__name__,
+            namespace=dict(
+                __construct__=arg,
+                _clsepitaph=meta.metataphonomy(arg)
+                ),
+            )
+
+
+class TektonIncision(_chora.Incisable, metaclass=_Armature):
 
     tekton: Tekton
     sig: _Sig
@@ -92,18 +119,8 @@ class TektonBase(metaclass=Tekton):
         return bound
 
     @classmethod
-    def construct(cls, /, *args, **kwargs):
-        cache = {}
-        bound = cls.parameterise(cache, *args, **kwargs)
-        params = _Params(cls.sig, bound)
-        out = cls.retrieve(params)
-        if cache:
-            out.update_cache(cache)
-        return out
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        return cls.construct(*args, **kwargs)
+    def construct(cls, params, /):
+        return cls.__construct__(*params.sigargs, **params.sigkwargs)
 
 
 ###############################################################################

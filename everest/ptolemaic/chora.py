@@ -173,6 +173,7 @@ class Incisable(IncisionHandler, ChoraBase):
         raise NotImplementedError
 
     def __getitem__(self, arg, /, *, caller: IncisionHandler = None):
+#         assert hasattr(arg, 'chora')
         if caller is None:
             caller = self
         elif isinstance(caller, ChainIncisionHandler):

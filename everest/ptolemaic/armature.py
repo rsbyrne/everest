@@ -12,9 +12,7 @@ from everest.utilities import (
     format_argskwargs as _format_argskwargs
     )
 
-from everest.ptolemaic.ptolemaic import (
-    Ptolemaic as _Ptolemaic,
-    )
+from everest.ptolemaic.ousia import Ousia as _Ousia
 
 _Parameter = _inspect.Parameter
 _empty = _inspect._empty
@@ -32,23 +30,52 @@ def get_parameter(arg, /):
     raise TypeError(type(arg))
 
 
-def collect_fields(cls, /):
-    yield from map(get_parameter, cls.FIELDS)
-    anno = cls.__annotations__
-    values = tuple(
-        getattr(cls, name) if hasattr(cls, name) else _empty
-        for name in anno
-        )
-    for name, note, value in zip(anno, anno.values(), values):
-        yield _Parameter(name, 1, annotation=note, default=value)
+def get_parameter_value(bases, namespace, name):
+    if name in namespace:
+        return namespace[name]
+    for base in bases:
+        if hasattr(base, name):
+            return getattr(base, name)
+    return _empty
 
 
-class Armature(_Ptolemaic):
+def collect_fields(bases, namespace, /):
+    if 'FIELDS' in namespace:
+        yield from map(get_parameter, namespace['FIELDS'])
+    if '__annotations__' in namespace:
+        for name, note in namespace['__annotations__'].items():
+            value = get_parameter_value(bases, namespace, name)
+            yield _Parameter(name, 1, annotation=note, default=value)
+
+def add_fields(bases, namespace, /):
+    fields = list(collect_fields(bases, namespace))
+    fields.sort(key=(lambda x: x.default is not _empty))
+    fields.sort(key=(lambda x: x.kind))
+    fields = namespace['FIELDS'] = tuple(fields)
+    signature = namespace['_class___signature__'] = _inspect.Signature(fields)
+    space = {}
+    for name in signature.parameters:
+        exec('\n'.join((
+            f"@property",
+            f"def {name}(self, /):",
+            f"    try:",
+            f"        return self.arguments['{name}']",
+            f"    except IndexError:",
+            f"        raise AttributeError({repr(name)})",
+            )), space)
+    namespace.update(space)
+
+
+class Armature(_Ousia):
+
+    @classmethod
+    def pre_create_class(meta, name, bases, namespace):
+        super().pre_create_class(name, bases, namespace)
+        add_fields(bases, namespace)
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         cls.premade = _weakref.WeakValueDictionary()
-        cls.add_fields()
 
 
 class ArmatureBase(metaclass=Armature):
@@ -63,25 +90,6 @@ class ArmatureBase(metaclass=Armature):
     __slots__ = ('arguments', 'args', 'kwargs', '_epitaph')
 
     @classmethod
-    def add_fields(cls, /):
-        fields = list(collect_fields(cls))
-        fields.sort(key=(lambda x: x.default is not _empty))
-        fields.sort(key=(lambda x: x.kind))
-        fields = cls.FIELDS = tuple(fields)
-        signature = cls._class___signature__ = _inspect.Signature(fields)
-        space = {}
-        for name in signature.parameters:
-            exec('\n'.join((
-                f"@property",
-                f"def {name}(self, /):",
-                f"    try:",
-                f"        return self.arguments['{name}']",
-                f"    except IndexError:",
-                f"        raise AttributeError({repr(name)})",
-                )), space)
-            setattr(cls, name, space[name])
-
-    @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
@@ -94,14 +102,14 @@ class ArmatureBase(metaclass=Armature):
             )
 
     @classmethod
-    def construct(cls, /, *args, **kwargs):
+    def __class_call__(cls, /, *args, **kwargs):
         cache = {}
         bound = cls.parameterise(cache, *args, **kwargs)
         epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
         if cls.CACHED:
             if (hexcode := epitaph.hexcode) in (pre := cls.premade):
                 return pre[hexcode]
-        return super().construct(
+        return super().__class_call__(
             bound, epitaph, _softcache=cache
             )
 

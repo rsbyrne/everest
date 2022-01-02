@@ -4,9 +4,6 @@
 
 
 import abc as _abc
-import itertools as _itertools
-
-from everest.utilities import caching as _caching
 
 from everest.ptolemaic.ptolemaic import (
     Ptolemaic as _Ptolemaic,
