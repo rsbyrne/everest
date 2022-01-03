@@ -33,8 +33,8 @@ class ConcreteMeta(_Ousia):
             )
         concretecls = meta.__new__(
             meta,
-#             f"Concrete{basecls.__name__}",
-            basecls.__name__,
+            f"Concrete{basecls.__name__}",
+#             basecls.__name__,
             (basecls, _OusiaBase),
             namespace,
             )
@@ -46,7 +46,7 @@ class ConcreteMeta(_Ousia):
         return cls._ptolemaic_class__.__signature__
 
     @property
-    def _ptolemaic_class__(cls, /):
+    def _class__ptolemaic_class__(cls, /):
         return cls._basecls
 
 
@@ -68,7 +68,7 @@ def collect_fields(bases, namespace, /):
         elif isinstance(note, _Field):
             field = note
         else:
-            field = _Field(note)
+            field = _Field[note]
         deq.append(field)
     for base in bases:
         if not isinstance(base, Schema):
@@ -122,13 +122,15 @@ class SchemaBase(metaclass=Schema):
     MERGETUPLES = ('_req_slots__',)
     _req_slots__ = ('params',)
 
+    CACHE = True
+
     def initialise(self, params, /, *args, **kwargs):
         self.params = params
         super().initialise(*args, **kwargs)
 
     def get_epitaph(self, /):
         return self.taphonomy.custom_epitaph(
-            "$a[b]",
+            "$a.retrieve($b)",
             a=self._ptolemaic_class__, b=self.params,
             )
 

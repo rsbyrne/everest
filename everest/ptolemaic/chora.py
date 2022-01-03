@@ -76,23 +76,22 @@ class IncisionHandler(_abc.ABC):
     def retrieve(self, index, /):
         return index
 
-    def trivial(self, /):
+    def trivial(self, chora, /):
         return self
 
     def fail(self, chora, incisor, /):
         raise IncisorTypeException(incisor, chora, self)
 
     @classmethod
-    def __subclasshook__(cls, C):
+    def __subclasshook__(cls, ACls):
         if cls is not IncisionHandler:
             return NotImplemented
         if all(
-                any(meth in B.__dict__ for B in C.__mro__)
+                any(meth in Base.__dict__ for Base in ACls.__mro__)
                 for meth in PROTOCOLMETHS
                 ):
             return True
-        else:
-            return NotImplemented
+        return NotImplemented
 
 
 class ChainIncisionHandler(IncisionHandler, _deque):
@@ -107,11 +106,27 @@ class ChainIncisionHandler(IncisionHandler, _deque):
             index = obj.retrieve(index)
         return index
 
-    def trivial(self, /):
+    def trivial(self, chora, /):
         return self[0]
 
 
-DEFAULTCALLER = IncisionHandler()
+class DefaultCaller:
+
+    @classmethod
+    def incise(cls, chora, /):
+        return chora
+
+    @classmethod
+    def retrieve(cls, index, /):
+        return index
+
+    @classmethod
+    def trivial(cls, chora, /):
+        return chora
+
+    @classmethod
+    def fail(cls, chora, incisor, /):
+        raise IncisorTypeException(incisor, chora, cls)
 
 
 class ChoraBase:
@@ -128,7 +143,7 @@ class Degenerate(ChoraBase):
     def __init__(self, value, /):
         self.value = value
 
-    def __getitem__(self, arg=None, /, *, caller=DEFAULTCALLER):
+    def __getitem__(self, arg=None, /, *, caller=DefaultCaller):
         if arg is None:
             return caller.retrieve(self.value)
         return caller.fail(self, arg)
@@ -148,14 +163,14 @@ class Degenerate(ChoraBase):
         return f"{type(self).__name__}({repr(self.value)})"
 
 
-class Incision(_ObjectMask, ChoraBase):
+# class Incision(_ObjectMask, ChoraBase):
 
-    def __init__(self, obj, chora, /):
-        epitaph = _epitaph.TAPHONOMY.callsig_epitaph(type(self), obj, chora)
-        super().__init__(
-            obj, epitaph=epitaph,
-            chora=chora, __getitem__=chora.__getitem__,
-            )
+#     def __init__(self, obj, chora, /):
+#         epitaph = _epitaph.TAPHONOMY.callsig_epitaph(type(self), obj, chora)
+#         super().__init__(
+#             obj, epitaph=epitaph,
+#             chora=chora, __getitem__=chora.__getitem__,
+#             )
 
 
 class Incisable(IncisionHandler, ChoraBase):
@@ -180,7 +195,39 @@ class Incisable(IncisionHandler, ChoraBase):
             caller.append(self)
         else:
             caller = ChainIncisionHandler((caller, self))
+#         print((repr(self), type(self)), arg, caller)
         return self.chora.__getitem__(arg, caller=caller)
+
+    @classmethod
+    def __subclasshook__(cls, ACls):
+        if cls is not Incisable:
+            return NotImplemented
+        if not IncisionHandler.__subclasshook__(ACls):
+            return NotImplemented
+        if all(
+                any(meth in Base.__dict__ for Base in ACls.__mro__)
+                for meth in ('__getitem__', 'chora')
+                ):
+            return True
+        return NotImplemented
+
+
+class Incision(Incisable, metaclass=_Armature):
+
+    incised: Incisable
+    chora: ChoraBase
+
+    @property
+    def retrieve(self, /):
+        return self.incised.retrieve
+
+    @property
+    def incise(self, /):
+        return self.incised.incise
+
+    @property
+    def __getitem__(self, /):
+        return _functools.partial(self.chora.__getitem__, caller=self.incised)
 
 
 def default_getmeth(obj, caller, incisor, /):
@@ -199,6 +246,7 @@ class CompositionHandler(IncisionHandler, metaclass=_Armature):
     def retrieve(self, /):
         return self.caller.retrieve
 
+    @property
     def trivial(self, /):
         return self.caller.trivial
 
@@ -247,7 +295,7 @@ class Composition(ChoraBase, metaclass=_Armature):
             __getitem__=gchora.__getitem__,
             )
 
-    def __getitem__(self, incisor, /, *, caller=DEFAULTCALLER):
+    def __getitem__(self, incisor, /, *, caller=DefaultCaller):
         return (gchora := self.gchora).__getitem__(
             incisor,
             caller=SubCompHandler(caller, self.fchora, gchora, self.submask),
@@ -256,8 +304,8 @@ class Composition(ChoraBase, metaclass=_Armature):
 
 def _wrap_trivial(meth, /):
     @_functools.wraps(meth)
-    def wrapper(self, caller, /, *_):
-        return caller.trivial()
+    def wrapper(self, caller, arg, /):
+        return caller.trivial(self)
     return wrapper
 
 def _wrap_incise(meth, /):
@@ -328,14 +376,16 @@ class Chora(ChoraBase, metaclass=_Armature):
         return methnames
 
     @classmethod
-    def _yield_getmeths(cls, /, preprefix='', defaultwrap=(lambda x: x)):
+    def _yield_getmeths(cls, /,
+            preprefix='', defaultwrap=(lambda x: x), hintprocess=(lambda x: x)
+            ):
         methnames = cls.get_getmethnames(preprefix)
         seen = set()
         for prefix, deq in methnames.items():
             wrap = WRAPMETHS.get(prefix, defaultwrap)
             for name in deq:
                 meth = getattr(cls, name)
-                hint = meth.__annotations__['incisor']
+                hint = hintprocess(meth.__annotations__['incisor'])
                 if hint not in seen:
                     yield hint, wrap(meth)
                     seen.add(hint)
@@ -345,7 +395,7 @@ class Chora(ChoraBase, metaclass=_Armature):
         super().__class_init__()
         cls.getmeths = _TypeMap(cls._yield_getmeths())
 
-    def __getitem__(self, arg, /, *, caller=DEFAULTCALLER):
+    def __getitem__(self, arg, /, *, caller=DefaultCaller):
         return self.getmeths[type(arg)](self, caller, arg)
 
     @classmethod
@@ -494,31 +544,31 @@ class MultiMapp(Chora, MultiChoraBase):
         return caller.incise(self.__class_call__(**choras))
 
 
-slcgen = _functools.partial(_typing.GenericAlias, slice)
-
-
 class Sliceable(Chora):
 
     def handle_slice(self, caller, incisor: slice, /):
         typs = tuple(map(type, (incisor.start, incisor.stop, incisor.step)))
         return self.slcgetmeths[typs](self, caller, incisor)
 
-    def slice_trivial_none(self,
-            incisor: slcgen((NoneType, NoneType, NoneType)),
-            ):
+    def slice_trivial_none(self, incisor: (NoneType, NoneType, NoneType)):
         '''Captures the special behaviour implied by `self[:]`.'''
         pass
 
-    def slice_fail_ultimate(self,
-            incisor: slcgen((object, object, object)),
-            ):
+    def slice_fail_ultimate(self, incisor: (object, object, object)):
         '''The ultimate fallback for unrecognised slice types.'''
         pass
 
     @classmethod
+    def _yield_slcgetmeths(cls, /):
+        return cls._yield_getmeths(
+            'slice_',
+            hintprocess=_functools.partial(_typing.GenericAlias, slice),
+            )
+
+    @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.slcgetmeths = _TypeMap(cls._yield_getmeths('slice_'))
+        cls.slcgetmeths = _TypeMap(cls._yield_slcgetmeths())
 
 
 

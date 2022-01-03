@@ -8,14 +8,15 @@ import functools as _functools
 
 from everest.ptolemaic import chora as _chora
 
-from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.armature import Armature as _Armature
 from everest.ptolemaic.sig import Sig as _Sig, Params as _Params
 
 
-class Tekton(_Essence):
+class Tekton(_Bythos):
 
-    def __construct__(cls, /):
+    @staticmethod
+    def __construct__():
         raise NotImplementedError
 
     @classmethod
@@ -47,6 +48,7 @@ class Tekton(_Essence):
             out = cls.construct(params)
             premade[params] = out
         else:
+            print(cls, params)
             out = cls.construct(params)
         return out
 
@@ -59,20 +61,6 @@ class Tekton(_Essence):
             out.update_cache(cache)
         return out
 
-    def incise(cls, chora, /):
-        return TektonIncision(cls, chora)
-
-    def trivial(cls, /):
-        return cls
-
-    @property
-    def fail(cls, /):
-        return _functools.partial(_chora.Incisable.fail, cls)
-
-    @property
-    def __getitem__(cls, /):
-        return _functools.partial(_chora.Incisable.__getitem__, cls)
-
     @classmethod
     def decorate(meta, arg, /):
         return meta(
@@ -82,30 +70,6 @@ class Tekton(_Essence):
                 _clsepitaph=meta.metataphonomy(arg)
                 ),
             )
-
-
-class TektonIncision(_chora.Incisable, metaclass=_Armature):
-
-    tekton: Tekton
-    sig: _Sig
-
-    @property
-    def chora(self, /):
-        return self.sig
-
-    @property
-    def retrieve(self, /):
-        return self.tekton.retrieve
-
-    def incise(self, chora, /):
-        return TektonIncision(self.tekton, chora)
-
-    @property
-    def __signature__(self, /):
-        return self.sig.signature
-
-    def __call__(self, /, *args, **kwargs):
-        return self.retrieve(self.sig(*args, **kwargs))
 
 
 class TektonBase(metaclass=Tekton):
@@ -127,71 +91,26 @@ class TektonBase(metaclass=Tekton):
 ###############################################################################
 
 
-# class BadParameters(_exceptions.ParameterisationException):
+# class TektonIncision(_chora.Incision):
 
-#     def __init__(self, owner: type, bads: tuple, /):
-#         self.bads = bads
-#         super().__init__(owner)
-
-#     def message(self, /):
-#         yield from super().message()
-#         yield "when one or more parameters failed the prescribed check:"
-#         for param in self.bads:
-#             yield f"{repr(param)}, {repr(type(param))}"
-
-
-# class Registrar:
-#     '''
-#     Handles parameterisation and type checking
-#     on behalf of its outer class.
-#     '''
-
-#     __slots__ = ('_owner', 'args', 'kwargs')
-
-#     def __init__(self, owner: type, /):
-#         self._owner, self.args, self.kwargs = \
-#             _weakref.ref(owner), [], {}
-
-#     ### Basic functionality to check and process parameters:
+#     tekton: Tekton
+#     sig: _Sig
 
 #     @property
-#     def owner(self, /):
-#         return self._owner()
+#     def chora(self, /):
+#         return self.sig
 
 #     @property
-#     def process_param(self, /):
-#         return self.owner.process_param
+#     def retrieve(self, /):
+#         return self.tekton.retrieve
+
+#     def incise(self, chora, /):
+#         return TektonIncision(self.tekton, chora)
 
 #     @property
-#     def check_param(self, /):
-#         return self.owner.check_param
+#     def __signature__(self, /):
+#         return self.sig.signature
 
 #     def __call__(self, /, *args, **kwargs):
-#         self.args.extend(map(self.process_param, args))
-#         self.kwargs.update(zip(
-#             map(str, kwargs),
-#             map(self.process_param, kwargs.values())
-#             ))
+#         return self.retrieve(self.chora(*args, **kwargs))
 
-#     def finalise(self, /):
-#         callsig = CallSig.signature_call(
-#             self.owner.__signature__,
-#             self.args,
-#             self.kwargs,
-#             )
-#         if bads := tuple(_itertools.filterfalse(
-#                 self.check_param,
-#                 callsig.values(),
-#                 )):
-#             raise BadParameters(self.owner, bads)
-#         return callsig
-
-#     ### Basic object legibility:
-
-#     def _repr(self, /):
-#         argtup = ', '.join(map(repr, self.args))
-#         kwargtup = ', '.join(
-#             f"{key}: {repr(val)}"
-#             for key, val in self.kwargs.items()
-#             )
-#         return f"*({argtup}), **{{{kwargtup}}}"

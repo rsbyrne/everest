@@ -22,7 +22,6 @@ from everest.ptolemaic.chora import (
     Degenerate as _Degenerate,
     Chora as _Chora,
     MultiMapp as _MultiMapp,
-    DEFAULTCALLER as _DEFAULTCALLER
     )
 from everest.ptolemaic.armature import Armature as _Armature
 
@@ -272,7 +271,7 @@ class Params(metaclass=_Armature):
             return super().parameterise(cache, len(bndargs), **arg0.arguments)
         elif arg0 is None:
             return super().parameterise(cache, **kwargs)
-        return super().parameterise(arg0, **kwargs)
+        return super().parameterise(cache, arg0, **kwargs)
 
     @property
     @_caching.soft_cache()
