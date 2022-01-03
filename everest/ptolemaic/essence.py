@@ -79,16 +79,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         pass
 
     @classmethod
-    def process_bases(meta, bases):
-        '''Inserts the metaclass's mandatory basetype if necessary.'''
-        basetyp = meta.BaseTyp
-        if not isinstance(bases, tuple):
-            raise TypeError("Bad bases passed into class construct.")
-        if tuple(filter(basetyp.__subclasscheck__, bases)):
-            return bases
-        return (*bases, basetyp)
-
-    @classmethod
     def process_mergenames(meta, bases, namespace):
         merge_names_all(bases, namespace, 'MERGETUPLES')
         merge_names_all(
@@ -111,6 +101,18 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         namespace['_cls_softcache'] = {}
         namespace['_cls_weakcache'] = _weakref.WeakValueDictionary()
         meta.process_annotations(namespace)
+
+    @classmethod
+    def process_bases(meta, bases, /):
+        bases = [*bases]
+        for basetyp in meta.basetypes:
+            for base in bases:
+                if issubclass(base, basetyp):
+                    break
+            else:
+                if basetyp not in bases:
+                    bases.append(basetyp)
+        return tuple(bases)
 
     @classmethod
     def create_class(meta, name, bases, namespace, /, *args, **kwargs):
@@ -233,7 +235,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def __call__(cls, /):
-        return cls._ptolemaic_class__.__class_call__
+        return cls.__class_call__
 
     ### Methods relating to class inheritance and getitem behaviour:
 
@@ -272,11 +274,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __class_str__(cls, /):
         return cls.__name__
 
-    @_caching.soft_cache('_cls_softcache')
+#     @_caching.soft_cache('_cls_softcache')
     def __repr__(cls, /):
         return cls.__class_repr__()
 
-    @_caching.soft_cache('_cls_softcache')
+#     @_caching.soft_cache('_cls_softcache')
     def __str__(cls, /):
         return cls._ptolemaic_class__.__class_str__()
 

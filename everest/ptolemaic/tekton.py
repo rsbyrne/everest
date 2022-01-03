@@ -52,7 +52,7 @@ class Tekton(_Bythos):
             out = cls.construct(params)
         return out
 
-    def __class_call__(cls, /, *args, **kwargs):
+    def __call__(cls, /, *args, **kwargs):
         cache = {}
         bound = cls.parameterise(cache, *args, **kwargs)
         params = _Params(bound)

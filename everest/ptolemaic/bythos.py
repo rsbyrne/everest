@@ -14,10 +14,12 @@ class Bythos(_Essence):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not hasattr(cls, 'chora'):
+        if cls.chora is None:
             raise RuntimeError(
                 "Classes inheriting from `Bythos` must provide a chora."
                 )
+
+    chora = None
 
     def incise(cls, chora, /):
         return _Incisable.incise(cls, chora)

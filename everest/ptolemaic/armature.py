@@ -12,7 +12,7 @@ from everest.utilities import (
     format_argskwargs as _format_argskwargs
     )
 
-from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 
 _Parameter = _inspect.Parameter
 _empty = _inspect._empty
@@ -66,7 +66,7 @@ def add_fields(bases, namespace, /):
     namespace.update(space)
 
 
-class Armature(_Ousia):
+class Armature(_Ptolemaic):
 
     @classmethod
     def pre_create_class(meta, name, bases, namespace):
@@ -76,6 +76,17 @@ class Armature(_Ousia):
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         cls.premade = _weakref.WeakValueDictionary()
+
+    def __call__(cls, /, *args, **kwargs):
+        cache = {}
+        bound = cls.parameterise(cache, *args, **kwargs)
+        epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
+        if cls.CACHED:
+            if (hexcode := epitaph.hexcode) in (pre := cls.premade):
+                return pre[hexcode]
+        return super().__call__(
+            bound, epitaph, _softcache=cache
+            )
 
 
 class ArmatureBase(metaclass=Armature):
@@ -99,18 +110,6 @@ class ArmatureBase(metaclass=Armature):
     def get_instance_epitaph(cls, args, kwargs, /):
         return cls.taphonomy.callsig_epitaph(
             cls._ptolemaic_class__, *args, **kwargs
-            )
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        cache = {}
-        bound = cls.parameterise(cache, *args, **kwargs)
-        epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
-        if cls.CACHED:
-            if (hexcode := epitaph.hexcode) in (pre := cls.premade):
-                return pre[hexcode]
-        return super().__class_call__(
-            bound, epitaph, _softcache=cache
             )
 
     def initialise(self, bound, epitaph, /, _softcache=None):

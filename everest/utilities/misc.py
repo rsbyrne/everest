@@ -284,6 +284,14 @@ class FrozenMap(_collabc.Mapping):
                 )
             return hashint
 
+    @property
+    def keys(self, /):
+        return self.content.keys
+
+    @property
+    def values(self, /):
+        return self.content.values
+
 
 class BoolMap(FrozenMap):
 

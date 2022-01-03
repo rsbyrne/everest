@@ -4,6 +4,7 @@
 
 
 import abc as _abc
+from enum import Enum as _Enum
 import functools as _functools
 import inspect as _inspect
 import collections as _collections
@@ -11,6 +12,7 @@ import itertools as _itertools
 import typing as _typing
 import types as _types
 from collections import deque as _deque
+from collections import abc as _collabc
 
 from everest.utilities import (
     TypeMap as _TypeMap,
@@ -26,7 +28,28 @@ from everest.ptolemaic.armature import Armature as _Armature
 from everest import exceptions as _exceptions
 
 
-PROTOCOLMETHS = ('trivial', 'incise', 'retrieve', 'fail')
+class IncisionProtocol(_Enum):
+
+    TRIVIAL = 'trivial'
+    INCISE = 'incise'
+    RETRIEVE = 'retrieve'
+    FAIL = 'fail'
+
+    @classmethod
+    def complies(cls, ACls, /):
+        for meth in cls:
+            for Base in ACls.__mro__:
+                if meth.value in Base.__dict__:
+                    continue
+            return NotImplemented
+        return True
+
+#     def __init__(self, value, /):
+#         self.lower = self.name.lower()
+#         super().__init__(value)
+
+    def __call__(self, on: _collabc.Callable, /):
+        return getattr(on, self.value)
 
 
 class IncisionException(_exceptions.ExceptionRaisedby):
@@ -86,12 +109,14 @@ class IncisionHandler(_abc.ABC):
     def __subclasshook__(cls, ACls):
         if cls is not IncisionHandler:
             return NotImplemented
-        if all(
-                any(meth in Base.__dict__ for Base in ACls.__mro__)
-                for meth in PROTOCOLMETHS
-                ):
-            return True
-        return NotImplemented
+        return IncisionProtocol.complies(ACls)
+
+
+class ChoraBase(_abc.ABC):
+
+    @_abc.abstractmethod
+    def __getitem__(self, arg, /, *, caller=None):
+        raise NotImplementedError
 
 
 class ChainIncisionHandler(IncisionHandler, _deque):
@@ -129,11 +154,46 @@ class DefaultCaller:
         raise IncisorTypeException(incisor, chora, cls)
 
 
-class ChoraBase:
-    ...
-#     @_abc.abstractmethod
-#     def __getitem__(self, arg, caller: IncisionHandler = DEFAULTCALLER):
-#         raise NotImplementedError
+class Incisable(ChoraBase, IncisionHandler):
+
+    def retrieve(self, index, /):
+        raise Element(self, index)
+
+    def incise(self, chora, /):
+        return Incision(self, chora)
+
+    @property
+    @_abc.abstractmethod
+    def chora(self, /) -> 'Incisable':
+        raise NotImplementedError
+
+    def __getitem__(self, arg, /, *, caller: IncisionHandler = None):
+#         assert hasattr(arg, 'chora')
+        if caller is None:
+            caller = self
+        elif isinstance(caller, ChainIncisionHandler):
+            caller.append(self)
+        else:
+            caller = ChainIncisionHandler((caller, self))
+        return self.chora.__getitem__(arg, caller=caller)
+
+    @classmethod
+    def __subclasshook__(cls, ACls):
+        if cls is not Incisable:
+            return NotImplemented
+        if not IncisionHandler.__subclasshook__(ACls):
+            return NotImplemented
+        if all(
+                any(meth in Base.__dict__ for Base in ACls.__mro__)
+                for meth in ('__getitem__', 'chora')
+                ):
+            return True
+        return NotImplemented
+
+    def __contains__(self, arg: _collabc.Hashable, /):
+        if isinstance(arg, Element):
+            return arg.incised is self
+        return NotImplemented
 
 
 class Degenerate(ChoraBase):
@@ -163,59 +223,16 @@ class Degenerate(ChoraBase):
         return f"{type(self).__name__}({repr(self.value)})"
 
 
-# class Incision(_ObjectMask, ChoraBase):
+class Element(metaclass=_Armature):
 
-#     def __init__(self, obj, chora, /):
-#         epitaph = _epitaph.TAPHONOMY.callsig_epitaph(type(self), obj, chora)
-#         super().__init__(
-#             obj, epitaph=epitaph,
-#             chora=chora, __getitem__=chora.__getitem__,
-#             )
-
-
-class Incisable(IncisionHandler, ChoraBase):
-
-    @_abc.abstractmethod
-    def retrieve(self, index, /):
-        raise NotImplementedError
-
-    def incise(self, chora, /):
-        return Incision(self, chora)
-
-    @property
-    @_abc.abstractmethod
-    def chora(self, /) -> ChoraBase:
-        raise NotImplementedError
-
-    def __getitem__(self, arg, /, *, caller: IncisionHandler = None):
-#         assert hasattr(arg, 'chora')
-        if caller is None:
-            caller = self
-        elif isinstance(caller, ChainIncisionHandler):
-            caller.append(self)
-        else:
-            caller = ChainIncisionHandler((caller, self))
-#         print((repr(self), type(self)), arg, caller)
-        return self.chora.__getitem__(arg, caller=caller)
-
-    @classmethod
-    def __subclasshook__(cls, ACls):
-        if cls is not Incisable:
-            return NotImplemented
-        if not IncisionHandler.__subclasshook__(ACls):
-            return NotImplemented
-        if all(
-                any(meth in Base.__dict__ for Base in ACls.__mro__)
-                for meth in ('__getitem__', 'chora')
-                ):
-            return True
-        return NotImplemented
+    incised: Incisable
+    index: _collabc.Hashable
 
 
 class Incision(Incisable, metaclass=_Armature):
 
     incised: Incisable
-    chora: ChoraBase
+    chora: Incisable
 
     @property
     def retrieve(self, /):
@@ -301,32 +318,46 @@ class Composition(ChoraBase, metaclass=_Armature):
             caller=SubCompHandler(caller, self.fchora, gchora, self.submask),
             )
 
+def _wrap_process(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, arg, /, *, caller):
+        return meth(self, arg)(self, arg, caller=caller)
+    return wrapper
+
+def _wrap_getitem(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, arg, /, *, caller):
+        incisor, protocol = meth(self, arg)
+        return protocol(caller)(incisor)
+    return wrapper
 
 def _wrap_trivial(meth, /):
     @_functools.wraps(meth)
-    def wrapper(self, caller, arg, /):
-        return caller.trivial(self)
+    def wrapper(self, arg, /, *, caller):
+        return IncisionProtocol.TRIVIAL(caller)(self)
     return wrapper
 
 def _wrap_incise(meth, /):
     @_functools.wraps(meth)
-    def wrapper(self, caller, arg, /):
-        return caller.incise(meth(self, arg))
+    def wrapper(self, arg, /, *, caller):
+        return IncisionProtocol.INCISE(caller)(meth(self, arg))
     return wrapper
 
 def _wrap_retrieve(meth, /):
     @_functools.wraps(meth)
-    def wrapper(self, caller, arg, /):
-        return caller.retrieve(meth(self, arg))
+    def wrapper(self, arg, /, *, caller):
+        return IncisionProtocol.RETRIEVE(caller)(meth(self, arg))
     return wrapper
 
 def _wrap_fail(meth, /):
     @_functools.wraps(meth)
-    def wrapper(self, caller, arg, /):
-        return caller.fail(self, arg)
+    def wrapper(self, arg, /, *, caller):
+        return IncisionProtocol.FAIL(caller)(self, arg)
     return wrapper
 
 WRAPMETHS = dict(
+    process=_wrap_process,
+    getitem=_wrap_getitem,
     trivial=_wrap_trivial,
     incise=_wrap_incise,
     retrieve=_wrap_retrieve,
@@ -337,7 +368,7 @@ WRAPMETHS = dict(
 class Chora(ChoraBase, metaclass=_Armature):
 
     MERGETUPLES = ('PREFIXES',)
-    PREFIXES = ('handle', 'trivial', 'incise', 'retrieve', 'fallback', 'fail')
+    PREFIXES = ('process', 'getitem', *(meth.value for meth in IncisionProtocol))
 
     def compose(self, other, /):
         return Composition(self, other)
@@ -396,35 +427,35 @@ class Chora(ChoraBase, metaclass=_Armature):
         cls.getmeths = _TypeMap(cls._yield_getmeths())
 
     def __getitem__(self, arg, /, *, caller=DefaultCaller):
-        return self.getmeths[type(arg)](self, caller, arg)
+        return self.getmeths[type(arg)](self, arg, caller=caller)
 
-    @classmethod
-    def decorate(cls, other, /):
+#     @classmethod
+#     def decorate(cls, other, /):
 
-        with other.mutable:
+#         with other.mutable:
 
-            other.Chora = cls
+#             other.Chora = cls
 
-            exec('\n'.join((
-                f"def __getitem__(self, arg, /):",
-                f"    return self.chora.__getitem__(arg, caller=self)",
-                )))
-            other.__getitem__ = eval('__getitem__')
-            if not hasattr(other, 'chora'):
-                exec('\n'.join((
-                    f"@property",
-                    f"@_caching.soft_cache()",
-                    f"def chora(self, /):",
-                    f"    return self.Chora()",
-                    )))
-                other.chora = eval('chora')
+#             exec('\n'.join((
+#                 f"def __getitem__(self, arg, /):",
+#                 f"    return self.chora.__getitem__(arg, caller=self)",
+#                 )))
+#             other.__getitem__ = eval('__getitem__')
+#             if not hasattr(other, 'chora'):
+#                 exec('\n'.join((
+#                     f"@property",
+#                     f"@_caching.soft_cache()",
+#                     f"def chora(self, /):",
+#                     f"    return self.Chora()",
+#                     )))
+#                 other.chora = eval('chora')
 
-            for methname in PROTOCOLMETHS:
-                if not hasattr(other, methname):
-                    meth = getattr(Incisable, methname)
-                    setattr(other, methname, meth)
+#             for methname in PROTOCOLMETHS:
+#                 if not hasattr(other, methname):
+#                     meth = getattr(Incisable, methname)
+#                     setattr(other, methname, meth)
 
-        return other
+#         return other
 
 
 class Degenerator(IncisionHandler):
@@ -501,12 +532,12 @@ class MultiBrace(Chora, MultiChoraBase):
     def choras(self, /):
         return self.choraargs
 
-    def handle_tuple(self, caller, incisor: tuple, /):
+    def getitem_tuple(self, incisor: tuple, /) -> tuple[object, IncisionProtocol]:
         '''Captures the special behaviour implied by `self[a,b,...]`'''
         choras = tuple(self.yield_tuple_multiincise(*incisor))
         if all(isinstance(cho, Degenerate) for cho in choras):
-            return caller.retrieve(tuple(cho.value for cho in choras))
-        return caller.incise(self.__class_call__(*choras))
+            return tuple(cho.value for cho in choras), IncisionProtocol.RETRIEVE
+        return self._ptolemaic_class__(*choras), IncisionProtocol.INCISE
 
 
 class MultiMapp(Chora, MultiChoraBase):
@@ -517,17 +548,19 @@ class MultiMapp(Chora, MultiChoraBase):
     def choras(self, /):
         return tuple(self.chorakws.values())
 
-    def handle_tuple(self, caller, incisor: tuple, /):
+    def getitem_tuple(self, incisor: tuple, /) -> tuple[object, IncisionProtocol]:
         '''Captures the special behaviour implied by `self[a,b,...]`'''
         choras = tuple(self.yield_tuple_multiincise(*incisor))
         if all(isinstance(cho, Degenerate) for cho in choras):
-            return caller.retrieve(_types.MappingProxyType(dict(zip(
+            out = _types.MappingProxyType(dict(zip(
                 self.chorakws,
                 (cho.value for cho in choras),
-                ))))
-        return caller.incise(self.__class_call__(**dict(
+                )))
+            return out, IncisionProtocol.RETRIEVE
+        out = self._ptolemaic_class__(**dict(
             zip(self.chorakws, choras)
-            )))
+            ))
+        return out, IncisionProtocol.INCISE
 
     def yield_dict_multiincise(self, /, **incisors):
         chorakws = self.chorakws
@@ -535,20 +568,23 @@ class MultiMapp(Chora, MultiChoraBase):
             chora = chorakws[name]
             yield name, chora.__getitem__(incisor, caller=Degenerator(chora))
 
-    def handle_dict(self, caller, incisor: dict, /):
+    def getitem_dict(self, incisor: dict, /):
         choras = self.chorakws | dict(self.yield_dict_multiincise(**incisor))
         if all(isinstance(chora, Degenerate) for chora in choras.values()):
-            return caller.retrieve(
+            out = caller.retrieve(
                 {key: val.value for key, val in choras.items()}
                 )
-        return caller.incise(self.__class_call__(**choras))
+            return out, IncisionProtocol.RETRIEVE
+        out = self._ptolemaic_class__(**choras)
+        return out, IncisionProtocol.INCISE
 
 
 class Sliceable(Chora):
 
-    def handle_slice(self, caller, incisor: slice, /):
-        typs = tuple(map(type, (incisor.start, incisor.stop, incisor.step)))
-        return self.slcgetmeths[typs](self, caller, incisor)
+    def process_slice(self, incisor: slice, /):
+        return self.slcgetmeths[
+            tuple(map(type, (incisor.start, incisor.stop, incisor.step)))
+            ]
 
     def slice_trivial_none(self, incisor: (NoneType, NoneType, NoneType)):
         '''Captures the special behaviour implied by `self[:]`.'''

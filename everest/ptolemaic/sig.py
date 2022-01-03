@@ -124,7 +124,7 @@ class Field(_Incisable, metaclass=FieldMeta):
             )
 
     def __call__(self, value, /):
-        return self.__class_call__(self.kind, self.hint, value)
+        return self._ptolemaic_class__(self.kind, self.hint, value)
 
     @classmethod
     def __class_getitem__(cls, arg, /):
@@ -134,7 +134,7 @@ class Field(_Incisable, metaclass=FieldMeta):
         return self.incise(_Degenerate(index))
 
     def incise(self, chora, /):
-        return self.__class_call__(self.kind, chora, self.value)
+        return self._ptolemaic_class__(self.kind, chora, self.value)
 
     @property
     def chora(self, /):
@@ -142,7 +142,7 @@ class Field(_Incisable, metaclass=FieldMeta):
 
     def __getitem__(self, arg, /):
         if isinstance(arg, Field):
-            return self.__class_call__(
+            return self._ptolemaic_class__(
                 max(param.kind for param in (self, incisor)),
                 self.hint[incisor.hint],
                 (self.value if (val := incisor.value) is NotImplemented else val),
@@ -235,7 +235,7 @@ class Sig(_Incisable, metaclass=_Armature):
             key: Field(field.kind, cho, field.value)
             for ((key, field), cho) in zip(self.fields.items(), chora.choras)
             }
-        return self.__class_call__(chora, **fields)
+        return self._ptolemaic_class__(chora, **fields)
 
     def retrieve(self, index: dict, /):
         bound = self.signature.bind_partial()

@@ -3,51 +3,19 @@
 ###############################################################################
 
 
-import abc as _abc
 import functools as _functools
 import collections as _collections
 import operator as _operator
 
 from everest.ptolemaic.tekton import Tekton as _Tekton
 from everest.ptolemaic.ousia import Ousia as _Ousia, OusiaBase as _OusiaBase
+# from everest.ptolemaic.ptolemaic import (
+#     Ptolemaic as _Ptolemaic,
+#     PtolemaicBase as _PtolemaicBase,
+#     )
 from everest.ptolemaic.sig import (
     Sig as _Sig, Field as _Field, ParamProp as _ParamProp
     )
-
-
-class ConcreteMeta(_Ousia):
-
-    @classmethod
-    def _pleroma_construct(meta, basecls):
-        if not isinstance(basecls, type):
-            raise TypeError(
-                "ConcreteMeta only accepts one argument:"
-                " the class to be concreted."
-                )
-        if issubclass(type(basecls), ConcreteMeta):
-            raise TypeError("Cannot subclass a Concrete type.")
-        namespace = dict(
-            __slots__=basecls._req_slots__,
-            _basecls=basecls,
-            __class_init__=lambda: None,
-            )
-        concretecls = meta.__new__(
-            meta,
-            f"Concrete{basecls.__name__}",
-#             basecls.__name__,
-            (basecls, _OusiaBase),
-            namespace,
-            )
-        _abc.ABCMeta.__init__(meta, concretecls)
-        return concretecls
-
-    @property
-    def __signature__(cls, /):
-        return cls._ptolemaic_class__.__signature__
-
-    @property
-    def _class__ptolemaic_class__(cls, /):
-        return cls._basecls
 
 
 def get_field_value(bases, namespace, name, /):
@@ -88,17 +56,7 @@ def collect_fields(bases, namespace, /):
     return fields
 
 
-class Schema(_Tekton):
-
-    @classmethod
-    def _pleroma_init__(meta, /):
-        super()._pleroma_init__()
-        if not issubclass(meta, ConcreteMeta):
-            meta.ConcreteMeta = type(
-                f"{meta.__name__}_ConcreteMeta",
-                (ConcreteMeta, meta),
-                {},
-                )
+class Schema(_Tekton, _Ousia):
 
     @classmethod
     def get_signature(meta, name, bases, namespace, /):
@@ -113,29 +71,29 @@ class Schema(_Tekton):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        conc = cls.Concrete = cls.ConcreteMeta(cls)
-        cls.construct = conc.__class_call__
+        cls.construct = cls.Concrete
 
 
 class SchemaBase(metaclass=Schema):
 
-    MERGETUPLES = ('_req_slots__',)
-    _req_slots__ = ('params',)
-
     CACHE = True
 
-    def initialise(self, params, /, *args, **kwargs):
-        self.params = params
-        super().initialise(*args, **kwargs)
+    _req_slots__ = ('params',)
 
-    def get_epitaph(self, /):
-        return self.taphonomy.custom_epitaph(
-            "$a.retrieve($b)",
-            a=self._ptolemaic_class__, b=self.params,
-            )
+    class ConcreteBase:
 
-    def _repr(self, /):
-        return str(self.params)
+        def initialise(self, params, /, *args, **kwargs):
+            self.params = params
+            super().initialise(*args, **kwargs)
+
+        def get_epitaph(self, /):
+            return self.taphonomy.custom_epitaph(
+                "$a.retrieve($b)",
+                a=self._ptolemaic_class__, b=self.params,
+                )
+
+        def _repr(self, /):
+            return str(self.params)
 
 
 ###############################################################################

@@ -91,6 +91,20 @@ class Pleroma(type):
     def BaseTyp(meta, /):
         return meta.get_basetyp()
 
+    def yield_basetypes(meta, /):
+        seen = set()
+        seen.add(typ := meta.BaseTyp)
+        yield typ
+        for pleromabase in meta.pleromabases:
+            basetyp = pleromabase.BaseTyp
+            if basetyp not in seen:
+                seen.add(basetyp)
+                yield basetyp
+
+    @property
+    def basetypes(meta, /):
+        return tuple(meta.yield_basetypes())
+
     @property
     def metataphonomy(meta, /):
         return _epitaph.TAPHONOMY
