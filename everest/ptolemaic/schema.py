@@ -77,11 +77,7 @@ class SchemaBase(metaclass=Schema):
 
     @classmethod
     def construct(cls, params, /):
-        if cls._var_slots__:
-            return cls.Var(params)
-        if any(isinstance(param, _ur.Var) for param in params.values()):
-            return cls.Var(params)
-        return cls.Dat(params)
+        return cls.Concrete(params)
 
     class ConcreteBase:
 
@@ -103,6 +99,13 @@ class SchemaBase(metaclass=Schema):
 
 ###############################################################################
 ###############################################################################
+
+
+#         if cls._var_slots__:
+#             return cls.Var(params)
+#         if any(isinstance(param, _ur.Var) for param in params.values()):
+#             return cls.Var(params)
+#         return cls.Dat(params)
 
 
 # class MyClass(metaclass=Schema):

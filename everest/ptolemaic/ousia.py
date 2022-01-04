@@ -9,7 +9,7 @@ import itertools as _itertools
 
 from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic import ur as _ur
+# from everest.ptolemaic import ur as _ur
 
 
 class ConcreteMeta(_Essence):
@@ -23,14 +23,10 @@ class ConcreteMeta(_Essence):
                 )
         if issubclass(type(basecls), ConcreteMeta):
             raise TypeError("Cannot subclass a Concrete type.")
-        slots = tuple(sorted(set(_itertools.chain(
-            basecls._req_slots__, basecls._var_slots__
-            ))))
         namespace = dict(
-            __slots__=slots,
+            __slots__=basecls._req_slots__,
             _basecls=basecls,
             taphonomy=basecls.taphonomy,
-#             __signature__=basecls.__signature__,
             __class_init__=lambda: None,
             __init__=basecls.__init__,
             __finish__=basecls.__finish__,
@@ -60,10 +56,6 @@ class ConcreteMeta(_Essence):
     def __signature__(cls, /):
         return cls._ptolemaic_class__.__signature__
 
-#     @property
-#     def __call__(cls, /):
-#         return cls.__class_call__
-
 
 class Ousia(_Essence):
 
@@ -81,22 +73,13 @@ class Ousia(_Essence):
                 meta.concretemeta_namespace(),
                 )
 
-    def create_ur_class(cls, name, /):
-        return cls.ConcreteMeta.create_class(
-            f"{cls.__name__}{name}",
-            (getattr(cls, f"{name}Base"), cls.Concrete),
-            {'__slots__': ()}
-            )
-
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        Concrete = cls.Concrete = cls.ConcreteMeta(cls)
-        cls.Var = cls.create_ur_class('Var')
-        cls.Dat = cls.create_ur_class('Dat')
+        cls.Concrete = cls.ConcreteMeta(cls)
 
-#     @property
-#     def __call__(cls, /):
-#         return cls.construct
+    @property
+    def __call__(cls, /):
+        return cls.Concrete
 
     @property
     def __signature__(cls, /):
@@ -105,16 +88,10 @@ class Ousia(_Essence):
 
 class OusiaBase(metaclass=Ousia):
 
-    MERGETUPLES = ('_req_slots__', '_var_slots__')
+    MERGETUPLES = ('_req_slots__',)
     _req_slots__ = ()
-    _var_slots__ = ()
 
-    MROCLASSES = ('ConcreteBase', 'VarBase', 'DatBase')
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        constructor = cls.Var if cls._var_slots__ else cls.Dat
-        return constructor.__class_call__(*args, **kwargs)
+    MROCLASSES = ('ConcreteBase',)
 
     def __init__(self, /):
         pass
@@ -130,20 +107,50 @@ class OusiaBase(metaclass=Ousia):
         def _ptolemaic_class__(self, /):
             return self.__class__._ptolemaic_class__
 
-    class VarBase(_ur.Var):
-
-        __slots__ = ()
-
-        def __setattr__(self, name, value, /):
-            if name in self._var_slots__:
-                self._alt_setattr__(name, value)
-            else:
-                super().__setattr__(name, value)
-
-    class DatBase(_ur.Dat):
-
-        __slots__ = ()
-
 
 ###############################################################################
 ###############################################################################
+
+
+#         slots = tuple(sorted(set(_itertools.chain(
+#             basecls._req_slots__, basecls._var_slots__
+#             ))))
+
+#     @property
+#     def __call__(cls, /):
+#         return cls.__class_call__
+
+#     def create_ur_class(cls, name, /):
+#         return cls.ConcreteMeta.create_class(
+#             f"{cls.__name__}{name}",
+#             (getattr(cls, f"{name}Base"), cls.Concrete),
+#             {'__slots__': ()}
+#             )
+
+#         cls.Var = cls.create_ur_class('Var')
+#         cls.Dat = cls.create_ur_class('Dat')
+
+#     MERGETUPLES = ('_req_slots__', '_var_slots__')
+
+#     _var_slots__ = ()
+
+#     MROCLASSES = ('ConcreteBase', 'VarBase', 'DatBase')
+
+#     @classmethod
+#     def __class_call__(cls, /, *args, **kwargs):
+#         constructor = cls.Var if cls._var_slots__ else cls.Dat
+#         return constructor.__class_call__(*args, **kwargs)
+
+#     class VarBase(_ur.Var):
+
+#         __slots__ = ()
+
+#         def __setattr__(self, name, value, /):
+#             if name in self._var_slots__:
+#                 self._alt_setattr__(name, value)
+#             else:
+#                 super().__setattr__(name, value)
+
+#     class DatBase(_ur.Dat):
+
+#         __slots__ = ()
