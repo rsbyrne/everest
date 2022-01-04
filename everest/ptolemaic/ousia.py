@@ -4,14 +4,15 @@
 
 
 import abc as _abc
+import inspect as _inspect
+import itertools as _itertools
 
-from everest.ptolemaic.ptolemaic import (
-    Ptolemaic as _Ptolemaic, PtolemaicBase as _PtolemaicBase
-    )
+from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
 from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic import ur as _ur
 
 
-class ConcreteMeta(_Ptolemaic):
+class ConcreteMeta(_Essence):
 
     @classmethod
     def _pleroma_construct(meta, basecls):
@@ -22,31 +23,53 @@ class ConcreteMeta(_Ptolemaic):
                 )
         if issubclass(type(basecls), ConcreteMeta):
             raise TypeError("Cannot subclass a Concrete type.")
+        slots = tuple(sorted(set(_itertools.chain(
+            basecls._req_slots__, basecls._var_slots__
+            ))))
         namespace = dict(
-            __slots__=basecls._req_slots__,
+            __slots__=slots,
             _basecls=basecls,
+            taphonomy=basecls.taphonomy,
+#             __signature__=basecls.__signature__,
             __class_init__=lambda: None,
+            __init__=basecls.__init__,
+            __finish__=basecls.__finish__,
             )
-        concretecls = meta.__new__(
-            meta,
+        return meta.create_class(
             f"Concrete{basecls.__name__}",
-#             basecls.__name__,
-            (basecls.ConcreteBase, _PtolemaicBase, basecls),
+            (basecls.ConcreteBase, _Ptolemaic, basecls),
             namespace,
             )
-        _abc.ABCMeta.__init__(meta, concretecls)
-        return concretecls
+
+    @classmethod
+    def process_bases(meta, bases, /):
+        return bases
+
+    @classmethod
+    def pre_create_class(meta, name, bases, namespace, /):
+        pass
+
+    def __init__(cls, /, *args, **kwargs):
+        _abc.ABCMeta.__init__(type(cls), cls, *args, **kwargs)
+
+    @property
+    def _ptolemaic_class__(cls, /):
+        return cls._basecls
 
     @property
     def __signature__(cls, /):
         return cls._ptolemaic_class__.__signature__
 
-    @property
-    def _class__ptolemaic_class__(cls, /):
-        return cls._basecls
+#     @property
+#     def __call__(cls, /):
+#         return cls.__class_call__
 
 
 class Ousia(_Essence):
+
+    @classmethod
+    def concretemeta_namespace(meta, /):
+        return {}
 
     @classmethod
     def _pleroma_init__(meta, /):
@@ -55,27 +78,71 @@ class Ousia(_Essence):
             meta.ConcreteMeta = type(
                 f"{meta.__name__}_ConcreteMeta",
                 (ConcreteMeta, meta),
-                {},
+                meta.concretemeta_namespace(),
                 )
+
+    def create_ur_class(cls, name, /):
+        return cls.ConcreteMeta.create_class(
+            f"{cls.__name__}{name}",
+            (getattr(cls, f"{name}Base"), cls.Concrete),
+            {'__slots__': ()}
+            )
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls.Concrete = cls.ConcreteMeta(cls)
+        Concrete = cls.Concrete = cls.ConcreteMeta(cls)
+        cls.Var = cls.create_ur_class('Var')
+        cls.Dat = cls.create_ur_class('Dat')
+
+#     @property
+#     def __call__(cls, /):
+#         return cls.construct
 
     @property
-    def __call__(cls, /):
-        return cls.Concrete
+    def __signature__(cls, /):
+        return _inspect.signature(cls.Concrete.__init__)
 
 
 class OusiaBase(metaclass=Ousia):
 
-    MERGETUPLES = ('_req_slots__',)
+    MERGETUPLES = ('_req_slots__', '_var_slots__')
     _req_slots__ = ()
+    _var_slots__ = ()
 
-    MROCLASSES = ('ConcreteBase',)
+    MROCLASSES = ('ConcreteBase', 'VarBase', 'DatBase')
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        constructor = cls.Var if cls._var_slots__ else cls.Dat
+        return constructor.__class_call__(*args, **kwargs)
+
+    def __init__(self, /):
+        pass
+
+    def __finish__(self, /):
+        pass
 
     class ConcreteBase:
-        ...
+
+        __slots__ = ()
+
+        @property
+        def _ptolemaic_class__(self, /):
+            return self.__class__._ptolemaic_class__
+
+    class VarBase(_ur.Var):
+
+        __slots__ = ()
+
+        def __setattr__(self, name, value, /):
+            if name in self._var_slots__:
+                self._alt_setattr__(name, value)
+            else:
+                super().__setattr__(name, value)
+
+    class DatBase(_ur.Dat):
+
+        __slots__ = ()
 
 
 ###############################################################################

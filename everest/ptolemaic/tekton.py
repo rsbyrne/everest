@@ -9,7 +9,6 @@ import functools as _functools
 from everest.ptolemaic import chora as _chora
 
 from everest.ptolemaic.bythos import Bythos as _Bythos
-from everest.ptolemaic.armature import Armature as _Armature
 from everest.ptolemaic.sig import Sig as _Sig, Params as _Params
 
 
@@ -52,15 +51,6 @@ class Tekton(_Bythos):
             out = cls.construct(params)
         return out
 
-    def __call__(cls, /, *args, **kwargs):
-        cache = {}
-        bound = cls.parameterise(cache, *args, **kwargs)
-        params = _Params(bound)
-        out = cls.retrieve(params)
-        if cache:
-            out.update_cache(cache)
-        return out
-
     @classmethod
     def decorate(meta, arg, /):
         return meta(
@@ -81,6 +71,16 @@ class TektonBase(metaclass=Tekton):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
         return bound
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        cache = {}
+        bound = cls.parameterise(cache, *args, **kwargs)
+        params = _Params(bound)
+        out = cls.retrieve(params)
+        if cache:
+            out.update_cache(cache)
+        return out
 
     @classmethod
     def construct(cls, params, /):

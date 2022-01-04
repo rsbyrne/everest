@@ -4,88 +4,23 @@
 
 
 import abc as _abc
-import weakref as _weakref
 
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
-    format_argskwargs as _format_argskwargs,
-    )
+    ) 
 
 from everest.ptolemaic.essence import Essence as _Essence
 
 
-class Ptolemaic(_Essence):
-    '''
-    The metaclass of all classes that can be instantiated.
-    '''
-
-    def __call__(cls, /, *args, _softcache=None, **kwargs):
-        obj = cls.create_object()
-        obj.initialise(*args, _softcache=_softcache, **kwargs)
-        obj.finalise()
-        return obj
-
-    ### Handling dynamic class attributes like `.epitaph`:
-
-    def __getattribute__(cls, name, /):
-        if name in type.__getattribute__(cls, 'DYNATTRS'):
-            try:
-                return getattr(cls, '_class_' + name)
-            except AttributeError:
-                pass
-        return type.__getattribute__(cls, name)
-
-    @property
-    def _class__ptolemaic_class__(cls, /):
-        return super()._ptolemaic_class__
-
-    @property
-    def _class_epitaph(cls, /):
-        return super().epitaph
-
-    @property
-    def _class_taphonomy(cls, /):
-        return super().taphonomy
-
-    @property
-    def _class_mutable(cls, /):
-        return super().mutable
-
-    @property
-    def _class_freezeattr(cls, /):
-        return super().freezeattr
-
-    @property
-    def _class_hexcode(cls, /):
-        return super().hexcode
-
-    @property
-    def _class_hashint(cls, /):
-        return super().hashint
-
-    @property
-    def _class_hashID(cls, /):
-        return super().hashID
-
-
-class PtolemaicBase(metaclass=Ptolemaic):
-    '''
-    The class of all classes that can be instantiated.
-    '''
-
-    MERGETUPLES = ('DYNATTRS',)
-    DYNATTRS = (
-        'epitaph', 'taphonomy', 'mutable', 'freezeattr',
-        'hexcode', 'hashint', 'hashID', '_ptolemaic_class__',
-        )
+class Ptolemaic(metaclass=_Essence):
 
     __slots__ = (
         '_softcache', '_weakcache', '__weakref__', '_freezeattr',
         'finalised',
         )
 
-    ### What happens when the class is called:
+    ### Managing the instance cache:
 
     def update_cache(self, cache: dict, /):
         self._softcache.update(cache)
@@ -97,6 +32,15 @@ class PtolemaicBase(metaclass=Ptolemaic):
         self.clear_cache()
         self.update_cache(cache)
 
+    ### What happens when the class is called:
+
+    @classmethod
+    def __class_call__(cls, /, *args, _softcache=None, **kwargs):
+        obj = cls.create_object()
+        obj.initialise(*args, _softcache=_softcache, **kwargs)
+        obj.finalise()
+        return obj
+
     @classmethod
     def create_object(cls, /):
         return cls.__new__(cls)
@@ -105,6 +49,7 @@ class PtolemaicBase(metaclass=Ptolemaic):
         pass
 
     def initialise(self, /, *args, _softcache=None, **kwargs):
+        assert not hasattr(self, '__dict__'), type(self)
         self.finalised = False
         self._softcache = dict()
         if _softcache is not None:
@@ -118,16 +63,6 @@ class PtolemaicBase(metaclass=Ptolemaic):
         self.__finish__()
         self.finalised = True
         self.freezeattr.toggle(True)
-
-    ### Some aliases:
-
-    @property
-    def _ptolemaic_class__(self, /):
-        return self.__class__._ptolemaic_class__
-
-    @property
-    def taphonomy(self, /):
-        return self._ptolemaic_class__.taphonomy
 
     ### Implementing the attribute-freezing behaviour for instances:
 
@@ -158,6 +93,10 @@ class PtolemaicBase(metaclass=Ptolemaic):
         super().__setattr__(key, val)
 
     ### Implementing serialisation:
+
+    @property
+    def taphonomy(self, /):
+        return _Essence.BaseTyp.taphonomy
 
     @_abc.abstractmethod
     def get_epitaph(self, /):
@@ -193,7 +132,7 @@ class PtolemaicBase(metaclass=Ptolemaic):
         return ''
 
     def __repr__(self, /):
-        return f"<{self._ptolemaic_class__}({self._repr()})>"
+        return f"<{type(self)}({self._repr()})>"
 
     def __str__(self, /):
         return self.__repr__()

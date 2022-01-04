@@ -23,7 +23,7 @@ from everest.ptolemaic.chora import (
     Chora as _Chora,
     MultiMapp as _MultiMapp,
     )
-from everest.ptolemaic.armature import Armature as _Armature
+from everest.ptolemaic.eidos import Eidos as _Eidos
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
@@ -82,7 +82,7 @@ class ParamKind(_Enum):
         return self.value.value
 
 
-class FieldMeta(_Armature):
+class FieldMeta(_Eidos):
 
     for kind in ParamKind:
         exec('\n'.join((
@@ -152,7 +152,7 @@ class Field(_Incisable, metaclass=FieldMeta):
         return super().__getitem__(arg)
 
 
-class Sig(_Incisable, metaclass=_Armature):
+class Sig(_Incisable, metaclass=_Eidos):
 
     FIELDS = (
         _inspect.Parameter('chora', 0, default=None),
@@ -255,12 +255,12 @@ class Sig(_Incisable, metaclass=_Armature):
         return str(self.effsignature)
 
 
-@_classtools.add_defer_meths('_arguments', like=dict)
-class Params(metaclass=_Armature):
+@_classtools.add_defer_meths('arguments', like=dict)
+class Params(metaclass=_Eidos):
 
     FIELDS = (
         _inspect.Parameter('nargs', 0, default=0),
-        _inspect.Parameter('_arguments', 4),
+        _inspect.Parameter('arguments', 4),
         )
 
     @classmethod
@@ -276,24 +276,13 @@ class Params(metaclass=_Armature):
     @property
     @_caching.soft_cache()
     def sigargs(self, /):
-        return tuple(self._arguments.values())[:self.nargs]
+        return tuple(self.arguments.values())[:self.nargs]
 
     @property
     @_caching.soft_cache()
     def sigkwargs(self, /):
-        dct = self._arguments
+        dct = self.arguments
         return {name: dct[name] for name in tuple(dct)[self.nargs:]}
-
-
-class ParamProp:
-
-    __slots__ = ('name',)
-
-    def __init__(self, name: str, /):
-        self.name = name
-
-    def __get__(self, instance, _=None):
-        return instance.params[self.name]
 
 
 ###############################################################################

@@ -23,7 +23,7 @@ from everest.utilities import (
 from everest import epitaph as _epitaph
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.armature import Armature as _Armature
+from everest.ptolemaic.eidos import Eidos as _Eidos
 
 from everest import exceptions as _exceptions
 
@@ -93,6 +93,8 @@ class IncisorTypeException(IncisionException, TypeError):
 
 class IncisionHandler(_abc.ABC):
 
+    __slots__ = ()
+
     def incise(self, chora, /):
         return chora
 
@@ -113,6 +115,8 @@ class IncisionHandler(_abc.ABC):
 
 
 class ChoraBase(_abc.ABC):
+
+    __slots__ = ()
 
     @_abc.abstractmethod
     def __getitem__(self, arg, /, *, caller=None):
@@ -153,8 +157,13 @@ class DefaultCaller:
     def fail(cls, chora, incisor, /):
         raise IncisorTypeException(incisor, chora, cls)
 
+    def __init__(self, /):
+        raise RuntimeError
+
 
 class Incisable(ChoraBase, IncisionHandler):
+
+    __slots__ = ()
 
     def retrieve(self, index, /):
         raise Element(self, index)
@@ -223,13 +232,13 @@ class Degenerate(ChoraBase):
         return f"{type(self).__name__}({repr(self.value)})"
 
 
-class Element(metaclass=_Armature):
+class Element(metaclass=_Eidos):
 
     incised: Incisable
     index: _collabc.Hashable
 
 
-class Incision(Incisable, metaclass=_Armature):
+class Incision(Incisable, metaclass=_Eidos):
 
     incised: Incisable
     chora: Incisable
@@ -251,7 +260,7 @@ def default_getmeth(obj, caller, incisor, /):
     raise IncisorTypeException(incisor, obj, caller)
 
 
-class CompositionHandler(IncisionHandler, metaclass=_Armature):
+class CompositionHandler(IncisionHandler, metaclass=_Eidos):
 
     FIELDS = ('caller', 'fchora', 'gchora')
 
@@ -299,11 +308,11 @@ class SubCompHandler(CompositionHandler):
             )
 
 
-class Composition(ChoraBase, metaclass=_Armature):
+class Composition(ChoraBase, metaclass=_Eidos):
 
     FIELDS = ('fchora', 'gchora')
 
-    __slots__ = ('submask',)
+    _req_slots__ = ('submask',)
 
     def __init__(self, /):
         gchora = self.gchora
@@ -365,7 +374,7 @@ WRAPMETHS = dict(
     )
 
 
-class Chora(ChoraBase, metaclass=_Armature):
+class Chora(ChoraBase, metaclass=_Eidos):
 
     MERGETUPLES = ('PREFIXES',)
     PREFIXES = ('process', 'getitem', *(meth.value for meth in IncisionProtocol))
@@ -460,6 +469,8 @@ class Chora(ChoraBase, metaclass=_Armature):
 
 class Degenerator(IncisionHandler):
 
+    __slots__ = ()
+
     def retrieve(self, index, /):
         return Degenerate(index)
 
@@ -468,6 +479,8 @@ DEGENERATOR = Degenerator()
 
 
 class MultiChoraBase(ChoraBase):
+
+    __slots__ = ()
 
     @property
     @_abc.abstractmethod

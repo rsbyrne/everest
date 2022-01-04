@@ -23,7 +23,7 @@ _OPINT = (type(None), int)
 
 class InttRange(_Sliceable):
 
-    __slots__ = ('_iterfn', '_lenfn', '_rangeobj', '_tupobj',)
+    _req_slots__ = ('_iterfn', '_lenfn', '_rangeobj', '_tupobj',)
 
     start: int
     stop: int
@@ -72,7 +72,7 @@ class InttRange(_Sliceable):
 
 class InttCount(_Sliceable):
 
-    __slots__ = ('_iterfn',)
+    _req_slots__ = ('_iterfn',)
 
     start: int
     step: int
