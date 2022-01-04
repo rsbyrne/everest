@@ -77,7 +77,7 @@ class SchemaBase(metaclass=Schema):
 
     @classmethod
     def construct(cls, params, /):
-        return cls.Concrete(params)
+        return cls.Concrete.__class_call__(params)
 
     class ConcreteBase:
 

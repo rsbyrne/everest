@@ -79,7 +79,7 @@ class Ousia(_Essence):
 
     @property
     def __call__(cls, /):
-        return cls.Concrete
+        return cls.Concrete.__class_call__
 
     @property
     def __signature__(cls, /):
