@@ -51,6 +51,9 @@ class Tekton(_Bythos):
             out = cls.construct(params)
         return out
 
+    def incise(cls, chora, /):
+        return Tektoid(cls, chora)
+
     @classmethod
     def decorate(meta, arg, /):
         return meta(
@@ -60,6 +63,10 @@ class Tekton(_Bythos):
                 _clsepitaph=meta.metataphonomy(arg)
                 ),
             )
+
+
+class Tektoid(_chora.Incision):
+    ...
 
 
 class TektonBase(metaclass=Tekton):

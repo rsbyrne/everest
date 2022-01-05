@@ -3,10 +3,9 @@
 ###############################################################################
 
 
-import functools as _functools
+# import functools as _functools
 
-from everest.ptolemaic.chora import Incisable as _Incisable
-
+from everest.ptolemaic.incision import Incisable as _Incisable
 from everest.ptolemaic.essence import Essence as _Essence
 
 
@@ -21,14 +20,20 @@ class Bythos(_Essence):
 
     chora = None
 
+    def trivial(cls, chora, /):
+        return _Incisable.trivial(cls, chora)
+
     def incise(cls, chora, /):
         return _Incisable.incise(cls, chora)
 
+    def generic(cls, /):
+        return _Incisable.generic(cls)
+
+    def variable(cls, /):
+        return _Incisable.variable(cls)
+
     def retrieve(cls, index, /):
         return _Incisable.retrieve(cls, index)
-
-    def trivial(cls, chora, /):
-        return _Incisable.trivial(cls, chora)
 
     def fail(cls, /, *args):
         return _Incisable.fail(cls, *args)

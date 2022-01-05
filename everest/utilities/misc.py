@@ -397,6 +397,16 @@ def format_callsig(caller, /, *args, **kwargs):
     content = format_argskwargs(*args, **kwargs)
     return f"{repr(caller)}({content})"
 
+class ArgsKwargs:
+
+    __slots__ = ('args', 'kwargs')
+
+    def __init__(self, /, *args, **kwargs):
+        self.args, self.kwargs = args, kwargs
+
+    def __repr__(self, /):
+        return f"( {format_argskwargs(*self.args, **self.kwargs)} )"
+
 
 class ObjectMask:
 

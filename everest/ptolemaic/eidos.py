@@ -8,10 +8,12 @@ import types as _types
 import weakref as _weakref
 
 from everest.utilities import (
-    format_argskwargs as _format_argskwargs
+    format_argskwargs as _format_argskwargs,
     )
 
 from everest.ptolemaic.ousia import Ousia as _Ousia
+
+from everest.ptolemaic.exceptions import ParameterisationException
 
 _Parameter = _inspect.Parameter
 _empty = _inspect._empty
@@ -92,6 +94,14 @@ class Eidos(_Ousia):
     def __signature__(cls, /):
         return cls._signature_
 
+    @property
+    def param_exc(cls, /):
+        def func(message=None, /):
+            def subfunc(args, kwargs):
+                return ParameterisationException((args, kwargs), cls, message)
+            return subfunc
+        return func
+
 
 class EidosBase(metaclass=Eidos):
 
@@ -122,7 +132,10 @@ class EidosBase(metaclass=Eidos):
         @classmethod
         def __class_call__(cls, /, *args, **kwargs):
             cache = {}
-            bound = cls.parameterise(cache, *args, **kwargs)
+            try:
+                bound = cls.parameterise(cache, *args, **kwargs)
+            except Exception as exc:
+                raise cls.param_exc(exc)(args, kwargs)
             epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
             if cls.CACHED:
                 if (hexcode := epitaph.hexcode) in (pre := cls.premade):

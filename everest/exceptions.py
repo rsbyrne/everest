@@ -6,6 +6,9 @@
 class EverestException(Exception):
     '''Parent exception of all Everest exceptions.'''
 
+    def __init__(self, /, message=None):
+        self._message = message
+
     @classmethod
     def trigger(cls, /, *args, **kwargs):
         raise cls(*args, **kwargs)
@@ -14,15 +17,18 @@ class EverestException(Exception):
         yield '\nSomething went wrong within Everest'
 
     def __str__(self, /):
-        return '\n'.join(map(str, self.message())) + '.'
+        message = self._message
+        return (
+            '\n'.join(map(str, self.message()))
+            + ('' if message is None else '\n' + str(message))
+            )
 
 
-class ExceptionRaisedby(EverestException):
+class ExceptionRaisedBy(EverestException):
 
-    __slots__ = ('raisedby',)
-
-    def __init__(self, raisedby=None, /):
+    def __init__(self, /, raisedby=None, *args, **kwargs):
         self.raisedby = raisedby
+        super().__init__(*args, **kwargs)
 
     def message(self, /):
         yield from super().message()

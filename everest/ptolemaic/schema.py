@@ -13,7 +13,7 @@ from everest.ptolemaic.sig import (
     Sig as _Sig, Field as _Field
     )
 from everest.ptolemaic.eidos import ParamProp as _ParamProp
-from everest.ptolemaic import ur as _ur
+from everest.ptolemaic.chora import Incision as _Incision
 
 
 class Schema(_Tekton, _Ousia):
@@ -67,6 +67,13 @@ class Schema(_Tekton, _Ousia):
         namespace.update({
             name: _ParamProp(name) for name in namespace['sig'].fields
             })
+
+    def incise(cls, chora, /):
+        return Schemoid(cls, chora)
+
+
+class Schemoid(_Incision):
+    ...
 
 
 class SchemaBase(metaclass=Schema):

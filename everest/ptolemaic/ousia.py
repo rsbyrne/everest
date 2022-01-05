@@ -78,10 +78,6 @@ class Ousia(_Essence):
         cls.Concrete = cls.ConcreteMeta(cls)
 
     @property
-    def __call__(cls, /):
-        return cls.Concrete.__class_call__
-
-    @property
     def __signature__(cls, /):
         return _inspect.signature(cls.Concrete.__init__)
 
@@ -92,6 +88,10 @@ class OusiaBase(metaclass=Ousia):
     _req_slots__ = ()
 
     MROCLASSES = ('ConcreteBase',)
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        return cls.Concrete(*args, **kwargs)
 
     def __init__(self, /):
         pass

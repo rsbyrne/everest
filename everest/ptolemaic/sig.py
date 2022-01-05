@@ -22,6 +22,7 @@ from everest.ptolemaic.chora import (
     Degenerate as _Degenerate,
     Chora as _Chora,
     MultiMapp as _MultiMapp,
+    GENERIC,
     )
 from everest.ptolemaic.eidos import Eidos as _Eidos
 
@@ -29,21 +30,6 @@ _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
 
 _mprox = _types.MappingProxyType
-
-
-class _GENERICCLASS_(_Chora):
-
-    def compose(self, other, /):
-        return other
-
-    def retrieve_object(self, incisor: object, /):
-        return incisor
-
-    def __repr__(self, /):
-        return 'GENERIC'
-
-
-GENERIC = _GENERICCLASS_()
 
 
 class ParamKind(_Enum):
