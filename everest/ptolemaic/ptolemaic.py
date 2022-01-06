@@ -81,17 +81,29 @@ class Ptolemaic(metaclass=_Essence):
     def mutable(self, /):
         return self.freezeattr.as_(False)
 
-    def _alt_setattr__(self, key, val, /):
-        super().__setattr__(key, val)
+    def _alt_setattr__(self, name, val, /):
+        super().__setattr__(name, val)
 
-    def __setattr__(self, key, val, /):
+    def __setattr__(self, name, val, /):
         if self.freezeattr:
             raise AttributeError(
                 f"Setting attributes on an object of type {type(self)} "
                 "is forbidden at this time; "
                 f"toggle switch `.freezeattr` to override."
                 )
-        super().__setattr__(key, val)
+        super().__setattr__(name, val)
+
+    def _alt_delattr__(self, name, /):
+        super().__delattr__(name)
+
+    def __delattr__(self, name, /):
+        if self.freezeattr:
+            raise AttributeError(
+                f"Deleting attributes on an object of type {type(self)} "
+                "is forbidden at this time; "
+                f"toggle switch `.freezeattr` to override."
+                )
+        super().__delattr__(name)
 
     ### Representations:
 
@@ -174,6 +186,12 @@ class PtolemaicVar(Ptolemaic):
             self._alt_setattr__(name, value)
         else:
             super().__setattr__(name, value)
+
+    def __delattr__(self, name, /):
+        if name in self._var_slots__:
+            self._alt_delattr__(name)
+        else:
+            super().__delattr__(name)
 
     def __hash__(self, /):
         return self.identity

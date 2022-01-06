@@ -142,6 +142,36 @@ class OusiaBase(metaclass=Ousia):
             return self.__class__._ptolemaic_class__
 
 
+class Monument(metaclass=Ousia):
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.monumentname = cls.__name__.upper()
+
+    def __finish__(self, /):
+        with (kls := self._ptolemaic_class__).mutable:
+            kls.Concrete = None
+
+    class ConcreteBase:
+
+        __slots__ = ()
+
+        @classmethod
+        def __class_call__(cls, /):
+            return super().__class_call__()
+
+        def get_epitaph(self, /):
+            ptolclass = self._ptolemaic_class__
+            return self.taphonomy.custom_epitaph(
+                f"$a.{ptolclass.monumentname}",
+                a=ptolclass.__module__,
+                )
+
+        def __repr__(self, /):
+            return self._ptolemaic_class__.monumentname
+
+
 ###############################################################################
 ###############################################################################
 

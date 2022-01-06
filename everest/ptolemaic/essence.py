@@ -239,11 +239,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Methods relating to class inheritance and getitem behaviour:
 
-    def __class_contains__(cls, arg, /):
-        return super().__contains__(arg)
+#     def __class_contains__(cls, arg, /):
+#         return super().__contains__(arg)
 
-    def __contains__(cls, arg, /):
-        return cls._ptolemaic_class__.__class_contains__(arg)
+#     @property
+#     def __contains__(cls, /):
+#         return cls._ptolemaic_class__.__class_contains__
 
     ### Methods relating to class serialisation:
 

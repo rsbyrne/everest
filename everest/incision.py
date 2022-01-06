@@ -76,7 +76,7 @@ class ChainIncisionHandler(IncisionHandler, _deque):
 
     __slots__ = ()
 
-    def __incise_trivial__(self, chora, /):
+    def __incise_trivial__(self, /):
         return self[0]
 
     def __incise_slyce__(self, chora, /):

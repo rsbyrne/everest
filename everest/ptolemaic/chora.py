@@ -28,7 +28,7 @@ from everest.incision import (
     IncisionHandler as _IncisionHandler,
     )
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic.ousia import Monument as _Monument
 from everest.ptolemaic.eidos import Eidos as _Eidos
 from everest.ptolemaic.protean import Protean as _Protean
 
@@ -77,15 +77,6 @@ class Choric(metaclass=_abc.ABCMeta):
         return NotImplemented
 
 
-class GENERIC(metaclass=_Essence):
-
-    @classmethod
-    def __class_getitem__(cls, arg, /):
-        if isinstance(arg, Choric):
-            return arg
-        raise KeyError(arg)
-
-
 class ElementType(_Enum):
 
     GENERIC = '__incise_generic__'
@@ -113,38 +104,11 @@ class ElementType(_Enum):
                 ) from exc
 
 
-class Element(metaclass=_Essence):
-
+class ChoraMeta(_Essence):
     ...
 
 
-class GenericElement(Element, metaclass=_Eidos):
-
-    FIELDS = (
-        _inspect.Parameter('basis', 0, default=GENERIC),
-        _inspect.Parameter('identity', 3, default=None),
-        )
-
-    reseed = _reseed.GLOBALRAND
-
-    @classmethod
-    def parameterise(cls, cache, *args, **kwargs):
-        bound = super().parameterise(cache, *args, **kwargs)
-        if (argu := bound.arguments)['identity'] is None:
-            argu['identity'] = cls.reseed.rdigits(12)
-        return bound
-
-
-class VariableElement(Element, metaclass=_Protean):
-
-    defaultbasis = GENERIC
-
-
-class Chora(_Essence):
-    ...
-
-
-class ChoraBase(_Incisable, metaclass=Chora):
+class Chora(_Incisable, metaclass=ChoraMeta):
 
     MERGETUPLES = ('PREFIXES', 'REQMETHS')
     PREFIXES = (
@@ -153,7 +117,7 @@ class ChoraBase(_Incisable, metaclass=Chora):
         )
     REQMETHS = (
         *(el.value for el in ElementType),
-        'retrievable', 'slyceable',
+#         'retrievable', 'slyceable', 'iselement',
         )
 
     def handle_none(self, incisor: type(None), /, *, caller):
@@ -229,14 +193,11 @@ class ChoraBase(_Incisable, metaclass=Chora):
     def __incise__(self, incisor, /, *, caller: _IncisionHandler):
         return self.Chora.incise(self, incisor, caller=caller)
 
-    def __contains__(self, arg, /):
-        return super().__contains__(arg)
-
     def __incise_generic__(self, /):
-        return GenericElement(self)
+        return Generic(self)
 
     def __incise_variable__(self, /):
-        return VariableElement(self)
+        return Variable(self)
 
     def __incise_default__(self, /):
         raise NotImplementedError
@@ -254,7 +215,7 @@ class ChoraBase(_Incisable, metaclass=Chora):
         abstract = set()
         with ACls.mutable:
             ACls.Chora = cls
-            for name in ('__incise__', *cls.REQMETHS):
+            for name in cls.REQMETHS:
                 if not hasattr(ACls, name):
                     setattr(ACls, name, getattr(cls, name))
                     if name in ACls.__abstractmethods__:
@@ -275,7 +236,71 @@ class ChoraBase(_Incisable, metaclass=Chora):
         return cls in chora.__mro__
 
 
-class Sliceable(metaclass=Chora):
+class Universal(Chora):
+
+    def incise_chora(self, incisor: Chora, /):
+        return incisor
+
+    def retrieve_object(self, incisor: object, /):
+        return incisor
+
+
+@Universal
+class Universe(_Monument):
+    ...
+
+
+UNIVERSE = Universe()
+
+
+class Element(metaclass=_Essence):
+
+    ...
+
+
+class Generic(Element, metaclass=_Eidos):
+
+    FIELDS = (
+        _inspect.Parameter('basis', 0, default=UNIVERSE),
+        _inspect.Parameter('identity', 3, default=None),
+        )
+
+    reseed = _reseed.GLOBALRAND
+
+    @classmethod
+    def parameterise(cls, cache, *args, **kwargs):
+        bound = super().parameterise(cache, *args, **kwargs)
+        if (argu := bound.arguments)['identity'] is None:
+            argu['identity'] = cls.reseed.rdigits(12)
+        return bound
+
+
+class Variable(Element, metaclass=_Protean):
+
+    defaultbasis = UNIVERSE
+
+    _var_slots__ = ('value', '_value')
+
+    @property
+    def value(self, /):
+        try:
+            return self._value
+        except AttributeError as exc:
+            raise ValueError from exc
+
+    @value.setter
+    def value(self, val, /):
+        if val in self.basis:
+            self._alt_setattr__('_value', val)
+        else:
+            raise ValueError(val)
+
+    @value.deleter
+    def value(self, /):
+        self._alt_delattr__('_value')
+
+
+class Sliceable(Chora):
 
     def handle_slice(self, incisor: slice, /, *, caller):
         return self.Chora.slcgetmeths[
@@ -300,6 +325,7 @@ class Sliceable(metaclass=Chora):
             ))
 
 
+@Chora
 class Composition(_Incisable, metaclass=_Eidos):
 
     fobj: _Incisable
@@ -319,7 +345,7 @@ class Composition(_Incisable, metaclass=_Eidos):
         return self.gobj.__incise__
 
 
-class Composable(metaclass=Chora):
+class Composable(Chora):
 
     def slyce_compose(self, incisor: _Incisable, /):
         '''Returns the composition of two choras, i.e. f(g(x)).'''
