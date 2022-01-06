@@ -22,7 +22,10 @@ class PtolemaicExceptionRaisedBy(
     ...
 
 
-class ParameterisationException(PtolemaicExceptionRaisedBy):
+class ParameterisationException(
+        _exceptions.ExceptionRaisedBy,
+        PtolemaicException,
+        ):
 
     def __init__(self, /, parameters=None, *args, **kwargs):
         if not parameters is None:
@@ -40,46 +43,14 @@ class ParameterisationException(PtolemaicExceptionRaisedBy):
             yield repr(parameters)
 
 
-class InitialisationException(PtolemaicExceptionRaisedBy):
+class InitialisationException(
+        _exceptions.ExceptionRaisedBy,
+        PtolemaicException,
+        ):
 
     def message(self, /):
         yield from super().message()
         yield 'during initialisation'
-
-
-class IncisionException(PtolemaicExceptionRaisedBy):
-
-    def __init__(self, /, chora=None, *args, **kwargs):
-        self.chora = chora
-        super().__init__(*args, **kwargs)
-
-    def message(self, /):
-        yield from super().message()
-        yield 'during incision'
-        chora = self.chora
-        if chora is None:
-            pass
-        elif chora is not self.raisedby:
-            yield ' '.join((
-                f'via the hosted incisable `{repr(chora)}`',
-                f'of type `{repr(type(chora))}`,',
-                ))
-
-
-class IncisorTypeException(IncisionException, TypeError):
-
-    def __init__(self, /, incisor, *args, **kwargs):
-        self.incisor = incisor
-        super().__init__(*args, **kwargs)
-    
-    def message(self, /):
-        incisor = self.incisor
-        yield from super().message()
-        yield ' '.join((
-            f'when object `{repr(incisor)}`',
-            f'of type `{repr(type(incisor))}`',
-            f'was passed as an incisor',
-            ))
 
 
 ###############################################################################

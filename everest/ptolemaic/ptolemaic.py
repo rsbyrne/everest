@@ -8,6 +8,7 @@ import abc as _abc
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
+    reseed as _reseed,
     ) 
 
 from everest.ptolemaic.essence import Essence as _Essence
@@ -37,6 +38,8 @@ class Ptolemaic(metaclass=_Essence):
     @classmethod
     def __class_call__(cls, /, *args, _softcache=None, **kwargs):
         obj = cls.create_object()
+        if _softcache is None:
+            _softcache = dict()
         obj.initialise(*args, _softcache=_softcache, **kwargs)
         obj.finalise()
         return obj
@@ -48,12 +51,10 @@ class Ptolemaic(metaclass=_Essence):
     def __init__(self, /):
         pass
 
-    def initialise(self, /, *args, _softcache=None, **kwargs):
+    def initialise(self, /, *args, _softcache, **kwargs):
         assert not hasattr(self, '__dict__'), type(self)
         self.finalised = False
-        self._softcache = dict()
-        if _softcache is not None:
-            self.update_cache(_softcache)
+        self._softcache = _softcache
         self.__init__(*args, **kwargs)
 
     def __finish__(self, /):
@@ -92,6 +93,33 @@ class Ptolemaic(metaclass=_Essence):
                 )
         super().__setattr__(key, val)
 
+    ### Representations:
+
+    def _repr(self, /):
+        return str(hash(self))
+
+    def __repr__(self, /):
+        return f"<{type(self)}({self._repr()})>"
+
+    def __str__(self, /):
+        return self.__repr__()
+
+    ### Rich comparisons to support ordering of objects:
+
+    def __eq__(self, other, /):
+        return hash(self) == hash(other)
+
+    def __lt__(self, other, /):
+        return hash(self) < hash(other)
+
+    def __gt__(self, other, /):
+        return hash(self) < hash(other)
+
+
+class PtolemaicDat(Ptolemaic):
+
+    __slots__ = ()
+
     ### Implementing serialisation:
 
     @property
@@ -128,25 +156,27 @@ class Ptolemaic(metaclass=_Essence):
     def __hash__(self, /):
         return self.hashint
 
-    def _repr(self, /):
-        return ''
 
-    def __repr__(self, /):
-        return f"<{type(self)}({self._repr()})>"
+class PtolemaicVar(Ptolemaic):
 
-    def __str__(self, /):
-        return self.__repr__()
+    __slots__ = ('identity',)
 
-    ### Rich comparisons to support ordering of objects:
+    reseed = _reseed.GLOBALRAND
 
-    def __eq__(self, other, /):
-        return hash(self) == hash(other)
+    def initialise(self, /, *args, identity=None, **kwargs):
+        if identity is None:
+            identity = self.reseed.rdigits(12)
+        self.identity = identity
+        super().initialise(*args, **kwargs)
+        
+    def __setattr__(self, name, value, /):
+        if name in self._var_slots__:
+            self._alt_setattr__(name, value)
+        else:
+            super().__setattr__(name, value)
 
-    def __lt__(self, other, /):
-        return hash(self) < hash(other)
-
-    def __gt__(self, other, /):
-        return hash(self) < hash(other)
+    def __hash__(self, /):
+        return self.identity
 
 
 ###############################################################################

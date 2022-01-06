@@ -109,8 +109,6 @@ class EidosBase(metaclass=Eidos):
 
     FIELDS = ()
 
-    CACHED = True
-
     _req_slots__ = ('params', 'args', 'kwargs', '_epitaph')
 
     @classmethod
@@ -137,9 +135,8 @@ class EidosBase(metaclass=Eidos):
             except Exception as exc:
                 raise cls.param_exc(exc)(args, kwargs)
             epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
-            if cls.CACHED:
-                if (hexcode := epitaph.hexcode) in (pre := cls.premade):
-                    return pre[hexcode]
+            if (hexcode := epitaph.hexcode) in (pre := cls.premade):
+                return pre[hexcode]
             return super().__class_call__(
                 bound, epitaph, _softcache=cache
                 )
@@ -152,8 +149,7 @@ class EidosBase(metaclass=Eidos):
             super().initialise(_softcache=_softcache)
 
         def finalise(self, /):
-            if self.CACHED:
-                self._ptolemaic_class__.premade[self.hexcode] = self
+            self._ptolemaic_class__.premade[self.hexcode] = self
             super().finalise()
 
         ### Serialisation:
@@ -177,11 +173,11 @@ class EidosBase(metaclass=Eidos):
             return f"{self._ptolemaic_class__}({self._str()})"
 
         def _repr_pretty_(self, p, cycle):
-            typnm = repr(self._ptolemaic_class__)
+            root = repr(self)
             if cycle:
-                p.text(typnm + '{...}')
+                p.text(root + '{...}')
             else:
-                with p.group(4, typnm + '(', ')'):
+                with p.group(4, root + '(', ')'):
                     if args := self.args:
                         argit = iter(args)
                         p.breakable()

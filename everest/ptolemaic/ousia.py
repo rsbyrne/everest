@@ -5,11 +5,9 @@
 
 import abc as _abc
 import inspect as _inspect
-import itertools as _itertools
 
-from everest.ptolemaic.ptolemaic import Ptolemaic as _Ptolemaic
+from everest.ptolemaic import ptolemaic as _ptolemaic
 from everest.ptolemaic.essence import Essence as _Essence
-# from everest.ptolemaic import ur as _ur
 
 
 class ConcreteMeta(_Essence):
@@ -23,18 +21,10 @@ class ConcreteMeta(_Essence):
                 )
         if issubclass(type(basecls), ConcreteMeta):
             raise TypeError("Cannot subclass a Concrete type.")
-        namespace = dict(
-            __slots__=basecls._req_slots__,
-            _basecls=basecls,
-            taphonomy=basecls.taphonomy,
-            __class_init__=lambda: None,
-            __init__=basecls.__init__,
-            __finish__=basecls.__finish__,
-            )
         return meta.create_class(
-            f"Concrete{basecls.__name__}",
-            (basecls.ConcreteBase, _Ptolemaic, basecls),
-            namespace,
+            basecls.concrete_name,
+            basecls.concrete_bases,
+            basecls.concrete_namespace,
             )
 
     @classmethod
@@ -81,6 +71,22 @@ class Ousia(_Essence):
     def __signature__(cls, /):
         return _inspect.signature(cls.Concrete.__init__)
 
+    @property
+    def concrete_slots(cls, /):
+        return cls.get_concrete_slots()
+
+    @property
+    def concrete_name(cls, /):
+        return cls.get_concrete_name()
+
+    @property
+    def concrete_bases(cls, /):
+        return tuple(cls.get_concrete_bases())
+
+    @property
+    def concrete_namespace(cls, /):
+        return cls.get_concrete_namespace()
+
 
 class OusiaBase(metaclass=Ousia):
 
@@ -88,6 +94,34 @@ class OusiaBase(metaclass=Ousia):
     _req_slots__ = ()
 
     MROCLASSES = ('ConcreteBase',)
+
+    @classmethod
+    def get_concrete_name(cls, /):
+        return f"Concrete_{cls._ptolemaic_class__.__name__}"
+
+    @classmethod
+    def get_concrete_bases(cls, /):
+        yield cls.ConcreteBase
+        yield _ptolemaic.PtolemaicDat
+        yield cls
+
+    @classmethod
+    def get_concrete_slots(cls, /):
+        return tuple(
+            name for name in cls._req_slots__
+            if not hasattr(cls, name)
+            )
+
+    @classmethod
+    def get_concrete_namespace(cls, /):
+        return dict(
+            __slots__=cls.concrete_slots,
+            _basecls=cls,
+            taphonomy=cls.taphonomy,
+            __class_init__=lambda: None,
+            __init__=cls.__init__,
+            __finish__=cls.__finish__,
+            )
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
@@ -112,9 +146,50 @@ class OusiaBase(metaclass=Ousia):
 ###############################################################################
 
 
+#     MERGETUPLES = ('_req_slots__', '_var_slots__')
+#     _req_slots__ = ()
+#     _var_slots__ = ()
+
+#     MROCLASSES = ('ConcreteBase', 'VarBase', 'DatBase')
+
+#     @classmethod
+#     def get_concrete_name(cls, /):
+#         return f"{'Var' if cls._var_slots__ else 'Dat'}_{cls.__name__}"
+
+#     @classmethod
+#     def get_concrete_bases(cls, /):
+#         if cls._var_slots__:
+#             yield cls.VarBase
+#             yield cls.ConcreteBase
+#             yield _ptolemaic.PtolemaicVar
+#         else:
+#             yield cls.DatBase
+#             yield cls.ConcreteBase
+#             yield _ptolemaic.PtolemaicDat
+#         yield cls
+
+#     @classmethod
+#     def get_slots(cls, /):
+#         return tuple(sorted(set(
+#             name for name in _itertools.chain(
+#                 cls._req_slots__,
+#                 cls._var_slots__,
+#                 )
+#             if not hasattr(cls, name)
+#             )))
+
+
 #         slots = tuple(sorted(set(_itertools.chain(
 #             basecls._req_slots__, basecls._var_slots__
 #             ))))
+
+#     class VarBase:
+
+#         __slots__ = ()
+
+#     class DatBase:
+
+#         __slots__ = ()
 
 #     @property
 #     def __call__(cls, /):

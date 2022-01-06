@@ -48,5 +48,28 @@ class NotYetImplemented(EverestException):
     '''Dev exception for a feature not yet implemented.'''
 
 
+class IncisionException(EverestException):
+
+    def message(self, /):
+        yield from super().message()
+        yield 'during incision'
+
+
+class IncisorTypeException(ExceptionRaisedBy, IncisionException):
+
+    def __init__(self, /, incisor, *args, **kwargs):
+        self.incisor = incisor
+        super().__init__(*args, **kwargs)
+    
+    def message(self, /):
+        incisor = self.incisor
+        yield from super().message()
+        yield ' '.join((
+            f'when object `{repr(incisor)}`',
+            f'of type `{repr(type(incisor))}`',
+            f'was passed as an incisor',
+            ))
+
+
 ###############################################################################
 ###############################################################################
