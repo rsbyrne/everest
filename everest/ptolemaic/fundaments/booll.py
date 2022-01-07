@@ -31,6 +31,14 @@ class Booll(metaclass=_Bythos):
     def __class_call__(cls, arg, /):
         return bool(arg)
 
+#     @classmethod
+#     def __incise_generic__(cls, /):
+#         return _Chora.__incise_generic__(cls)
+
+#     @classmethod
+#     def __incise_variable__(cls, /):
+#         return _Chora.__incise_variable__(cls)
+
 
 ###############################################################################
 ###############################################################################

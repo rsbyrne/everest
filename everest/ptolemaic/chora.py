@@ -3,34 +3,22 @@
 ###############################################################################
 
 
-import abc as _abc
 import functools as _functools
-import inspect as _inspect
 from collections import deque as _deque
-import itertools as _itertools
 import typing as _typing
 import types as _types
-from enum import Enum as _Enum
-from collections import abc as _collabc
 
 from everest.utilities import (
     TypeMap as _TypeMap,
-    caching as _caching,
     NotNone, Null, NoneType, EllipsisType, NotImplementedType,
-    ObjectMask as _ObjectMask,
-    reseed as _reseed,
     )
-from everest.utilities.classtools import add_defer_meth as _add_defer_meth
 
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     Incisable as _Incisable,
-    IncisionHandler as _IncisionHandler,
     )
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ousia import Monument as _Monument
 from everest.ptolemaic.eidos import Eidos as _Eidos
-from everest.ptolemaic.protean import Protean as _Protean
 
 
 def _wrap_trivial(meth, /):
@@ -65,65 +53,18 @@ WRAPMETHS = dict(
     )
 
 
-class Choric(metaclass=_abc.ABCMeta):
-
-    @classmethod
-    def __subclasshook__(cls, ACls, /):
-        if not issubclass(ACls, _Incisable):
-            return NotImplemented
-        for Base in ACls.__mro__:
-            if 'Chora' in Base.__dict__:
-                return True
-        return NotImplemented
-
-
-class ElementType(_Enum):
-
-    GENERIC = '__incise_generic__'
-    VARIABLE = '__incise_variable__'
-    DEFAULT = '__incise_default__'
-
-    @classmethod
-    def complies(cls, ACls, /):
-        for meth in cls:
-            name = meth.value
-            for Base in ACls.__mro__:
-                if name in Base.__dict__:
-                    break
-            else:
-                return False
-        return True
-
-    def __call__(self, on: _collabc.Callable, /):
-        try:
-            return getattr(on, self.value)
-        except AttributeError as exc:
-            raise TypeError(
-                f"Element type {self} not supported "
-                f"on object {on} of type {type(on)}."
-                ) from exc
-
-
-class ChoraMeta(_Essence):
-    ...
-
-
-class Chora(_Incisable, metaclass=ChoraMeta):
+class Chora(_Incisable, metaclass=_Essence):
 
     MERGETUPLES = ('PREFIXES', 'REQMETHS')
     PREFIXES = (
         'handle',
         *(protocol.name.lower() for protocol in _IncisionProtocol),
         )
-    REQMETHS = (
-        *(el.value for el in ElementType),
-#         'retrievable', 'slyceable', 'iselement',
-        )
 
     def handle_none(self, incisor: type(None), /, *, caller):
-        return ElementType.DEFAULT(caller)()
+        return _IncisionProtocol.DEFAULT(caller)()
 
-    def handle_elementtype(self, incisor: ElementType, /, *, caller):
+    def handle_protocol(self, incisor: _IncisionProtocol, /, *, caller):
         return incisor(caller)()
 
     def trivial_ellipsis(self, incisor: EllipsisType, /):
@@ -185,29 +126,17 @@ class Chora(_Incisable, metaclass=ChoraMeta):
         cls.update_getmeth_names()
         cls.getmeths = _TypeMap(cls._yield_getmeths())
         assert all(hasattr(cls, meth) for meth in cls.REQMETHS)
+        cls.Chora = cls
 
-    @classmethod
-    def incise(cls, user, arg, /, *, caller: _IncisionHandler):
-        return cls.getmeths[type(arg)](user, arg, caller=caller)
-
-    def __incise__(self, incisor, /, *, caller: _IncisionHandler):
-        return self.Chora.incise(self, incisor, caller=caller)
-
-    def __incise_generic__(self, /):
-        return Generic(self)
-
-    def __incise_variable__(self, /):
-        return Variable(self)
-
-    def __incise_default__(self, /):
-        raise NotImplementedError
+    def __incise__(self, incisor, /, *, caller):
+        return self.Chora.getmeths[type(incisor)](self, incisor, caller=caller)
 
     @classmethod
     def compatible(cls, ACls, /):
         return isinstance(ACls, _Essence)
 
     @classmethod
-    def __class_call__(cls, ACls: _Essence, /):
+    def decorate(cls, ACls: _Essence, /):
         if not cls.compatible(ACls):
             raise TypeError(
                 f"Type {ACls} is incompatible for decoration with {cls}."
@@ -227,77 +156,9 @@ class Chora(_Incisable, metaclass=ChoraMeta):
 
     @classmethod
     def __subclasshook__(cls, ACls, /):
-        if isinstance(type(ACls), Chora):
-            chora = ACls
-        elif hasattr(ACls, 'Chora'):
-            chora = ACls.Chora
-        else:
-            return NotImplemented
-        return cls in chora.__mro__
-
-
-class Universal(Chora):
-
-    def incise_chora(self, incisor: Chora, /):
-        return incisor
-
-    def retrieve_object(self, incisor: object, /):
-        return incisor
-
-
-@Universal
-class Universe(_Monument):
-    ...
-
-
-UNIVERSE = Universe()
-
-
-class Element(metaclass=_Essence):
-
-    ...
-
-
-class Generic(Element, metaclass=_Eidos):
-
-    FIELDS = (
-        _inspect.Parameter('basis', 0, default=UNIVERSE),
-        _inspect.Parameter('identity', 3, default=None),
-        )
-
-    reseed = _reseed.GLOBALRAND
-
-    @classmethod
-    def parameterise(cls, cache, *args, **kwargs):
-        bound = super().parameterise(cache, *args, **kwargs)
-        if (argu := bound.arguments)['identity'] is None:
-            argu['identity'] = cls.reseed.rdigits(12)
-        return bound
-
-
-class Variable(Element, metaclass=_Protean):
-
-    defaultbasis = UNIVERSE
-
-    _var_slots__ = ('value', '_value')
-
-    @property
-    def value(self, /):
-        try:
-            return self._value
-        except AttributeError as exc:
-            raise ValueError from exc
-
-    @value.setter
-    def value(self, val, /):
-        if val in self.basis:
-            self._alt_setattr__('_value', val)
-        else:
-            raise ValueError(val)
-
-    @value.deleter
-    def value(self, /):
-        self._alt_delattr__('_value')
+        if hasattr(ACls, 'Chora'):
+            return cls in ACls.Chora.__mro__
+        return super().__subclasshook__(ACls)
 
 
 class Sliceable(Chora):
@@ -325,7 +186,7 @@ class Sliceable(Chora):
             ))
 
 
-@Chora
+@Chora.decorate
 class Composition(_Incisable, metaclass=_Eidos):
 
     fobj: _Incisable
@@ -354,3 +215,71 @@ class Composable(Chora):
 
 ###############################################################################
 ###############################################################################
+
+
+# class CompositionHandler(IncisionHandler, metaclass=_Eidos):
+
+#     FIELDS = ('caller', 'fchora', 'gchora')
+
+#     @property
+#     def incise(self, /):
+#         return self.caller.incise
+
+#     @property
+#     def retrieve(self, /):
+#         return self.caller.retrieve
+
+#     @property
+#     def trivial(self, /):
+#         return self.caller.trivial
+
+#     @property
+#     def fail(self, /):
+#         return self.caller.fail
+
+
+# class SuperCompHandler(CompositionHandler):
+
+#     def incise(self, chora):
+#         return super().incise(chora.compose(self.gchora))
+
+#     def retrieve(self, index, /):
+#         return super().retrieve(index)
+
+
+# class SubCompHandler(CompositionHandler):
+
+#     FIELDS = ('submask',)
+
+#     def incise(self, chora):
+#         return super().incise(self.fchora.compose(chora))
+
+#     def retrieve(self, index, /):
+#         return self.fchora.__getitem__(index, caller=self.caller)
+
+#     def fail(self, chora, incisor, /):
+#         return (fchora := self.fchora)._ptolemaic_class__.__getitem__(
+#             self.submask,
+#             incisor,
+#             caller=SuperCompHandler(self.caller, fchora, self.gchora),
+#             )
+
+
+# class Composition(ChoraBase, metaclass=_Eidos):
+
+#     FIELDS = ('fchora', 'gchora')
+
+#     _req_slots__ = ('submask',)
+
+#     def __init__(self, /):
+#         gchora = self.gchora
+#         self.submask = _ObjectMask(
+#             self.fchora,
+#             __getitem__=gchora.__getitem__,
+#             )
+
+#     def __getitem__(self, incisor, /, *, caller=DefaultCaller):
+#         return (gchora := self.gchora).__getitem__(
+#             incisor,
+#             caller=SubCompHandler(caller, self.fchora, gchora, self.submask),
+#             )

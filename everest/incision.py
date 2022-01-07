@@ -25,6 +25,9 @@ class IncisionProtocol(_Enum):
 
     TRIVIAL = '__incise_trivial__'
     SLYCE = '__incise_slyce__'
+    GENERIC = '__incise_generic__'
+    VARIABLE = '__incise_variable__'
+    DEFAULT = '__incise_default__'
     RETRIEVE = '__incise_retrieve__'
     FAIL = '__incise_fail__'
 
@@ -59,6 +62,15 @@ class IncisionHandler(_abc.ABC):
     def __incise_slyce__(self, incisor, /):
         return incisor
 
+    def __incise_generic__(self, /):
+        raise NotImplementedError
+
+    def __incise_variable__(self, /):
+        raise NotImplementedError
+
+    def __incise_default__(self, /):
+        raise NotImplementedError
+
     def __incise_retrieve__(self, incisor, /) -> _Null:
         return incisor
 
@@ -77,7 +89,7 @@ class ChainIncisionHandler(IncisionHandler, _deque):
     __slots__ = ()
 
     def __incise_trivial__(self, /):
-        return self[0]
+        return self[0].__incise__trivial__()
 
     def __incise_slyce__(self, chora, /):
         for obj in reversed(self):
@@ -88,6 +100,10 @@ class ChainIncisionHandler(IncisionHandler, _deque):
         for obj in reversed(self):
             index = obj.__incise_retrieve__(index)
         return index
+
+    @property
+    def __incise_fail__(self, /):
+        return self[0].__incise_fail__
 
 
 class Incisable(IncisionHandler):
@@ -141,7 +157,10 @@ class Degenerate(Incisable):
         self.value = value
 
     def __incise__(self, incisor, /, *, caller):
-        return caller.fail(self, incisor)
+        return caller.__incise_fail__(
+            incisor,
+            "Cannot further incise an already degenerate incisable."
+            )
 
     def get_epitaph(self, /):
         return _epitaph.TAPHONOMY.callsig_epitaph(type(self), self.value)

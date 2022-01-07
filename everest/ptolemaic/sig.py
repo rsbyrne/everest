@@ -15,16 +15,16 @@ from everest.utilities import (
     classtools as _classtools,
     format_argskwargs as _format_argskwargs,
     )
-
 from everest import epitaph as _epitaph
-from everest.ptolemaic.chora import (
+from everest.incision import (
     Incisable as _Incisable,
     Degenerate as _Degenerate,
-    Chora as _Chora,
-    MultiMapp as _MultiMapp,
-    GENERIC,
     )
+
+from everest.ptolemaic.chora import Chora as _Chora
+from everest.ptolemaic.armature import MultiMapp as _MultiMapp
 from everest.ptolemaic.eidos import Eidos as _Eidos
+from everest.ptolemaic.fundaments.thing import THING
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
@@ -81,7 +81,7 @@ class FieldMeta(_Eidos):
 class Field(_Incisable, metaclass=FieldMeta):
 
     kind: str = ParamKind.Pos
-    hint: type = GENERIC
+    hint: type = THING
     value: object = NotImplemented
 
     @classmethod
@@ -95,7 +95,7 @@ class Field(_Incisable, metaclass=FieldMeta):
 #             value = hint.value
         else:
             if hint is _pempty:
-                hint = GENERIC
+                hint = THING
             if value is _pempty:
                 value = NotImplemented
         bound.arguments.update(kind=kind, hint=hint, value=value)
@@ -116,15 +116,20 @@ class Field(_Incisable, metaclass=FieldMeta):
     def __class_getitem__(cls, arg, /):
         return cls(hint=arg)
 
-    def retrieve(self, index, /):
-        return self.incise(_Degenerate(index))
+    def __incise_retrieve__(self, incisor, /):
+        return self.__incise_slyce__(_Degenerate(incisor))
 
-    def incise(self, chora, /):
-        return self._ptolemaic_class__(self.kind, chora, self.value)
+    def __incise_slyce__(self, incisor, /):
+        return self._ptolemaic_class__(self.kind, incisor, self.value)
 
-    @property
-    def chora(self, /):
-        return self.hint
+    def __incise__(self, incisor, /, *, caller):
+        if not isinstance(self.hint, _Incisable):
+            return self.__incise_fail__(
+                incisor,
+                f"The `Field` hint must be an instance of `Incisable`:\n"
+                f"{self.hint}"
+                )
+        return self.hint.__chain_incise__(incisor, caller=caller)
 
     def __getitem__(self, arg, /):
         if isinstance(arg, Field):
@@ -134,141 +139,141 @@ class Field(_Incisable, metaclass=FieldMeta):
                 (self.value if (val := incisor.value) is NotImplemented else val),
                 )
         elif isinstance(arg, _Degenerate):
-            return self.incise(arg)
+            return self.__incise_slyce__(arg)
         return super().__getitem__(arg)
 
 
-class Sig(_Incisable, metaclass=_Eidos):
+# class Sig(_Incisable, metaclass=_Eidos):
 
-    FIELDS = (
-        _inspect.Parameter('chora', 0, default=None),
-        _inspect.Parameter('fields', 4),
-        )
+#     FIELDS = (
+#         _inspect.Parameter('chora', 0, default=None),
+#         _inspect.Parameter('fields', 4),
+#         )
 
-    @staticmethod
-    def _get_orderscore(pair):
-        _, obj = pair
-        if isinstance(obj, _Degenerate):
-            return -1
-        adj = 0 if obj.value is NotImplemented else 0.5
-        return obj.kind.score + adj
+#     @staticmethod
+#     def _get_orderscore(pair):
+#         _, obj = pair
+#         if isinstance(obj, _Degenerate):
+#             return -1
+#         adj = 0 if obj.value is NotImplemented else 0.5
+#         return obj.kind.score + adj
 
-    @staticmethod
-    def _sort_fields(dct):
-        return dict(sorted(dct.items(), key=Sig._get_orderscore))
+#     @staticmethod
+#     def _sort_fields(dct):
+#         return dict(sorted(dct.items(), key=Sig._get_orderscore))
 
-    @classmethod
-    def parameterise(cls, cache,
-            arg=None, /, *,
-            _signature_=None, **kwargs,
-            ):
-        if isinstance(arg, _Chora):
-            if _signature_ is not None:
-                cache['signature'] = _signature_
-            kwargs = cls._sort_fields(kwargs)
-        else:
-            if arg is not None:
-                if _signature_ is not None:
-                    raise RuntimeError(
-                        "Cannot provide signature as both arg and kwarg."
-                        )
-                if kwargs:
-                    raise RuntimeError(
-                        "Cannot provide fields when args are provided."
-                        )
-                if isinstance(arg, _inspect.Signature):
-                    _signature_ = arg
-                else:
-                    _signature_ = _inspect.signature(arg)
-                kwargs = cls._sort_fields({
-                    pm.name: Field(pm.kind, pm.annotation, pm.default)
-                    for pm in _signature_.parameters.values()
-                    })
-                cache['signature'] = _signature_
-            arg = _MultiMapp(**{
-                key: val.hint for key, val in kwargs.items()
-                })
-        return super().parameterise(cache, arg, **kwargs)
+#     @classmethod
+#     def parameterise(cls, cache,
+#             arg=None, /, *,
+#             _signature_=None, **kwargs,
+#             ):
+#         if isinstance(arg, _Chora):
+#             if _signature_ is not None:
+#                 cache['signature'] = _signature_
+#             kwargs = cls._sort_fields(kwargs)
+#         else:
+#             if arg is not None:
+#                 if _signature_ is not None:
+#                     raise RuntimeError(
+#                         "Cannot provide signature as both arg and kwarg."
+#                         )
+#                 if kwargs:
+#                     raise RuntimeError(
+#                         "Cannot provide fields when args are provided."
+#                         )
+#                 if isinstance(arg, _inspect.Signature):
+#                     _signature_ = arg
+#                 else:
+#                     _signature_ = _inspect.signature(arg)
+#                 kwargs = cls._sort_fields({
+#                     pm.name: Field(pm.kind, pm.annotation, pm.default)
+#                     for pm in _signature_.parameters.values()
+#                     })
+#                 cache['signature'] = _signature_
+#             arg = _MultiMapp(**{
+#                 key: val.hint for key, val in kwargs.items()
+#                 })
+#         return super().parameterise(cache, arg, **kwargs)
 
-    @property
-    @_caching.soft_cache()
-    def degenerates(self, /):
-        return _mprox({
-            name: field.hint.value
-            for name, field in self.fields.items()
-            if isinstance(field.hint, _Degenerate)
-            })
+#     @property
+#     @_caching.soft_cache()
+#     def degenerates(self, /):
+#         return _mprox({
+#             name: field.hint.value
+#             for name, field in self.fields.items()
+#             if isinstance(field.hint, _Degenerate)
+#             })
 
-    @property
-    @_caching.soft_cache()
-    def signature(self, /):
-        return _inspect.Signature(
-            field.get_parameter(name)
-            for name, field in self.fields.items()
-            )
+#     @property
+#     @_caching.soft_cache()
+#     def signature(self, /):
+#         return _inspect.Signature(
+#             field.get_parameter(name)
+#             for name, field in self.fields.items()
+#             )
 
-    @property
-    @_caching.soft_cache()
-    def effsignature(self, /):
-        return _inspect.Signature(
-            parameter for name, parameter in self.signature.parameters.items()
-            if name not in self.degenerates
-            )
+#     @property
+#     @_caching.soft_cache()
+#     def effsignature(self, /):
+#         return _inspect.Signature(
+#             parameter for name, parameter in self.signature.parameters.items()
+#             if name not in self.degenerates
+#             )
 
-    def incise(self, chora, /):
-        assert isinstance(chora, _MultiMapp)
-        fields = {
-            key: Field(field.kind, cho, field.value)
-            for ((key, field), cho) in zip(self.fields.items(), chora.choras)
-            }
-        return self._ptolemaic_class__(chora, **fields)
+#     def incise(self, chora, /):
+#         assert isinstance(chora, _MultiMapp)
+#         fields = {
+#             key: Field(field.kind, cho, field.value)
+#             for ((key, field), cho) in zip(self.fields.items(), chora.choras)
+#             }
+#         return self._ptolemaic_class__(chora, **fields)
 
-    def retrieve(self, index: dict, /):
-        bound = self.signature.bind_partial()
-        bound.arguments.update(index)
-        bound.apply_defaults()
-        return Params(bound)
+#     def retrieve(self, index: dict, /):
+#         bound = self.signature.bind_partial()
+#         bound.arguments.update(index)
+#         bound.apply_defaults()
+#         return Params(bound)
 
-    def __call__(self, /, *args, **kwargs):
-        effbound = self.effsignature.bind(*args, **kwargs)
-        bound = self.signature.bind_partial()
-        bound.arguments.update(effbound.arguments)
-        bound.arguments.update(self.degenerates)
-        bound.apply_defaults()
-        return Params(bound)
+#     def __call__(self, /, *args, **kwargs):
+#         effbound = self.effsignature.bind(*args, **kwargs)
+#         bound = self.signature.bind_partial()
+#         bound.arguments.update(effbound.arguments)
+#         bound.arguments.update(self.degenerates)
+#         bound.apply_defaults()
+#         return Params(bound)
 
-    def __str__(self, /):
-        return str(self.effsignature)
+#     def __str__(self, /):
+#         return str(self.effsignature)
 
 
-@_classtools.add_defer_meths('arguments', like=dict)
-class Params(metaclass=_Eidos):
+# @_classtools.add_defer_meths('arguments', like=dict)
+# class Params(metaclass=_Eidos):
 
-    FIELDS = (
-        _inspect.Parameter('nargs', 0, default=0),
-        _inspect.Parameter('arguments', 4),
-        )
+#     FIELDS = (
+#         _inspect.Parameter('nargs', 0, default=0),
+#         _inspect.Parameter('arguments', 4),
+#         )
 
-    @classmethod
-    def parameterise(cls, cache, arg0=None, /, **kwargs):
-        if isinstance(arg0, _inspect.BoundArguments):
-            bndargs = cache['sigargs'] = arg0.args
-            cache['sigkwargs'] = arg0.kwargs
-            return super().parameterise(cache, len(bndargs), **arg0.arguments)
-        elif arg0 is None:
-            return super().parameterise(cache, **kwargs)
-        return super().parameterise(cache, arg0, **kwargs)
+#     @classmethod
+#     def parameterise(cls, cache, arg0=None, /, **kwargs):
+#         if isinstance(arg0, _inspect.BoundArguments):
+#             bndargs = cache['sigargs'] = arg0.args
+#             cache['sigkwargs'] = arg0.kwargs
+#             return super().parameterise(cache, len(bndargs), **arg0.arguments)
+#         elif arg0 is None:
+#             return super().parameterise(cache, **kwargs)
+#         return super().parameterise(cache, arg0, **kwargs)
 
-    @property
-    @_caching.soft_cache()
-    def sigargs(self, /):
-        return tuple(self.arguments.values())[:self.nargs]
+#     @property
+#     @_caching.soft_cache()
+#     def sigargs(self, /):
+#         return tuple(self.arguments.values())[:self.nargs]
 
-    @property
-    @_caching.soft_cache()
-    def sigkwargs(self, /):
-        dct = self.arguments
-        return {name: dct[name] for name in tuple(dct)[self.nargs:]}
+#     @property
+#     @_caching.soft_cache()
+#     def sigkwargs(self, /):
+#         dct = self.arguments
+#         return {name: dct[name] for name in tuple(dct)[self.nargs:]}
 
 
 ###############################################################################

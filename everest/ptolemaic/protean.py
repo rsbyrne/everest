@@ -5,6 +5,7 @@
 
 import itertools as _itertools
 import weakref as _weakref
+import types as _types
 
 from everest.ptolemaic import ptolemaic as _ptolemaic
 from everest.ptolemaic.ousia import Ousia as _Ousia
@@ -22,8 +23,6 @@ class ProteanBase(metaclass=Protean):
     MERGETUPLES = ('_var_slots__',)
     _var_slots__ = ()
     _req_slots__ = ('basis',)
-
-    defaultbasis = None
 
     @classmethod
     def get_concrete_bases(cls, /):
@@ -46,7 +45,7 @@ class ProteanBase(metaclass=Protean):
         __slots__ = ()
 
         def initialise(self, basis=None, /, **kwargs):
-            self.basis = self.defaultbasis if basis is None else basis
+            self.basis = basis
             super().initialise(**kwargs)
 
         @classmethod
@@ -64,13 +63,45 @@ class ProteanBase(metaclass=Protean):
             premade[basis, out.identity] = out
             return out
 
+        @property
+        def varvals(self, /):
+            return _types.MappingProxyType({
+                key: getattr(self, key) for key in self._var_slots__
+                })
+
         ### Representations:
 
+        def _var_reprs(self, /):
+            for key in self._var_slots__:
+                yield f"{key}={getattr(self, key)}"
+
         def _repr(self, /):
-            out = super()._repr()
-            if (basis := self.basis is None):
-                return out
-            return f"{repr(self.basis)}, {out}"
+            return (
+                f"{repr(self.basis)}, identity={super()._repr()}"
+                )
+
+        def _repr_pretty_(self, p, cycle):
+            root = repr(self)
+            if cycle:
+                p.text(root + '{...}')
+            elif not (kwargs := self.varvals):
+                return
+            with p.group(4, root + '(', ')'):
+                kwargit = iter(kwargs.items())
+                p.breakable()
+                key, val = next(kwargit)
+                p.text(key)
+                p.text(' = ')
+                p.pretty(val)
+                for key, val in kwargit:
+                    p.text(',')
+                    p.breakable()
+                    p.text(key)
+                    p.text(' = ')
+                    p.pretty(val)
+                p.text(',')
+            p.breakable()
+
 
 
 ###############################################################################

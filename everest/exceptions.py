@@ -18,10 +18,11 @@ class EverestException(Exception):
 
     def __str__(self, /):
         message = self._message
-        return (
-            '\n'.join(map(str, self.message()))
-            + ('' if message is None else '\n' + str(message))
-            )
+        if message is None:
+            message = ''
+        else:
+            message = ('\n' + str(message)).replace('\n', '\n    ')
+        return '\n'.join(map(str, self.message())) + ":" + message
 
 
 class ExceptionRaisedBy(EverestException):

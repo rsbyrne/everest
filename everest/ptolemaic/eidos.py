@@ -164,7 +164,7 @@ class EidosBase(metaclass=Eidos):
         ### Representations:
 
         def _repr(self, /):
-            return f"'{self.hashID}'"
+            return f"{self.hashID}"
 
         def _str(self, /):
             return _format_argskwargs(*self.args, **self.kwargs)
@@ -173,35 +173,36 @@ class EidosBase(metaclass=Eidos):
             return f"{self._ptolemaic_class__}({self._str()})"
 
         def _repr_pretty_(self, p, cycle):
-            root = repr(self)
+            root = repr(self._ptolemaic_class__)
             if cycle:
                 p.text(root + '{...}')
-            else:
-                with p.group(4, root + '(', ')'):
-                    if args := self.args:
-                        argit = iter(args)
-                        p.breakable()
-                        p.pretty(next(argit))
-                        for val in argit:
-                            p.text(',')
-                            p.breakable()
-                            p.pretty(val)
+            elif not (args := self.args) or (kwargs := self.kwargs):
+                return
+            with p.group(4, root + '(', ')'):
+                if args:
+                    argit = iter(args)
+                    p.breakable()
+                    p.pretty(next(argit))
+                    for val in argit:
                         p.text(',')
-                    if kwargs := self.kwargs:
-                        kwargit = iter(kwargs.items())
                         p.breakable()
-                        key, val = next(kwargit)
+                        p.pretty(val)
+                    p.text(',')
+                if kwargs:
+                    kwargit = iter(kwargs.items())
+                    p.breakable()
+                    key, val = next(kwargit)
+                    p.text(key)
+                    p.text(' = ')
+                    p.pretty(val)
+                    for key, val in kwargit:
+                        p.text(',')
+                        p.breakable()
                         p.text(key)
                         p.text(' = ')
                         p.pretty(val)
-                        for key, val in kwargit:
-                            p.text(',')
-                            p.breakable()
-                            p.text(key)
-                            p.text(' = ')
-                            p.pretty(val)
-                        p.text(',')
-                    p.breakable()
+                    p.text(',')
+                p.breakable()
 
 
 ###############################################################################
