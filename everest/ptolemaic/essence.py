@@ -14,6 +14,7 @@ import collections as _collections
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
+    reseed as _reseed,
     )
 
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
@@ -21,6 +22,8 @@ from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 
 def ordered_set(itr):
     return tuple(_mitertools.unique_everseen(itr))
+
+_mprox = _types.MappingProxyType
 
 
 ### Implementing mergetuples and mergedicts:
@@ -93,17 +96,20 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             anno.update(namespace[extkey])
         namespace['__annotations__'] = _types.MappingProxyType(anno)
 
-    @classmethod
-    def pre_create_class(meta, name, bases, namespace):
-        if '__slots__' not in namespace:
-            namespace['__slots__'] = ()
-        meta.process_mergenames(bases, namespace)
-        namespace['_cls_softcache'] = {}
-        namespace['_cls_weakcache'] = _weakref.WeakValueDictionary()
-        meta.process_annotations(namespace)
+    @property
+    def softcache(cls, /):
+        return cls._ptolemaic_class__.__dict__['_clssoftcache']
+
+    @property
+    def weakcache(cls, /):
+        return cls._ptolemaic_class__.__dict__['_clssoftcache']
 
     @classmethod
-    def process_bases(meta, bases, /):
+    def process_name(meta, name, bases, namespace, /):
+        return name
+
+    @classmethod
+    def process_bases(meta, name, bases, namespace, /):
         bases = [*bases]
         for basetyp in meta.basetypes:
             for base in bases:
@@ -115,10 +121,28 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return tuple(bases)
 
     @classmethod
+    def process_namespace(meta, name, bases, namespace, /):
+        if '__slots__' not in namespace:
+            namespace['__slots__'] = ()
+        meta.process_mergenames(bases, namespace)
+        namespace['_clssoftcache'] = {}
+        namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
+        meta.process_annotations(namespace)
+        return namespace
+
+    @classmethod
+    def process_metainputs(meta, name, bases, namespace, /):
+        return(
+            meta.process_name(name, bases, proxnm := _mprox(namespace)),
+            meta.process_bases(name, bases, proxnm),
+            meta.process_namespace(name, bases, namespace),
+            )
+
+    @classmethod
     def create_class(meta, name, bases, namespace, /, *args, **kwargs):
-        bases = meta.process_bases(bases)
-        meta.pre_create_class(name, bases, namespace)
-        out = meta.__new__(meta, name, bases, namespace)
+        out = meta.__new__(
+            meta, *meta.process_metainputs(name, bases, namespace),
+            )
         meta.__init__(out, *args, **kwargs)
         out.__class_init__()
         out.freezeattr.toggle(True)
@@ -217,7 +241,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __init__(cls, /, *args, **kwargs):
         _abc.ABCMeta.__init__(type(cls), cls, *args, **kwargs)
-        cls._process_mroclasses()
+        if hasattr(cls, 'MROCLASSES'):
+            cls._process_mroclasses()
 
     def __class_init__(cls, /):
         pass
@@ -260,7 +285,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
 
     @property
-    @_caching.soft_cache('_cls_softcache')
+    @_caching.soft_cache()
     def epitaph(cls, /):
         ptolcls = cls._ptolemaic_class__
         if '_clsepitaph' in (dct := ptolcls.__dict__):
@@ -275,11 +300,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __class_str__(cls, /):
         return cls.__name__
 
-#     @_caching.soft_cache('_cls_softcache')
+#     @_caching.soft_cache('_clssoftcache')
     def __repr__(cls, /):
         return cls.__class_repr__()
 
-#     @_caching.soft_cache('_cls_softcache')
+#     @_caching.soft_cache('_clssoftcache')
     def __str__(cls, /):
         return cls._ptolemaic_class__.__class_str__()
 
@@ -295,19 +320,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def hashID(cls, /):
         return cls.epitaph.hashID
 
+    @_caching.soft_cache()
     def __hash__(cls, /):
-        return cls.hashint
-
-
-class EssenceBase(metaclass=Essence):
-
-    MERGETUPLES = ('MROCLASSES',)
-    MERGEDICTS = ()
-    MROCLASSES = ()
-
-    @classmethod
-    def __class_init__(cls, /):
-        pass
+        return _reseed.rdigits(12)
+#         return cls.hashint
 
 
 ###############################################################################

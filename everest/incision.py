@@ -177,6 +177,10 @@ class Degenerate(Incisable):
         return f"{type(self).__name__}({repr(self.value)})"
 
 
+###############################################################################
+###############################################################################
+
+
 # class Incision(Incisable, metaclass=_Eidos):
 
 #     incised: Incisable
@@ -249,7 +253,3 @@ class Degenerate(Incisable):
 
 # class VarElement(ArbitraryElement, metaclass=_Eidos):
 #     ...
-
-
-###############################################################################
-###############################################################################

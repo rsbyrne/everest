@@ -23,9 +23,10 @@ class Tekton(_Bythos):
         return _Sig(namespace.get('__construct__', meta.__construct__))
 
     @classmethod
-    def pre_create_class(meta, name, bases, namespace, /):
-        super().pre_create_class(name, bases, namespace)
+    def process_namespace(meta, name, bases, namespace, /):
+        namespace = super().process_namespace(name, bases, namespace)
         namespace['sig'] = meta.get_signature(name, bases, namespace)
+        return namespace
 
     @property
     def __signature__(cls, /):

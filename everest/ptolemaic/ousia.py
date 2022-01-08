@@ -28,11 +28,7 @@ class ConcreteMeta(_Essence):
             )
 
     @classmethod
-    def process_bases(meta, bases, /):
-        return bases
-
-    @classmethod
-    def pre_create_class(meta, name, bases, namespace, /):
+    def pre_create_class(meta, /, *_, **__):
         pass
 
     def __init__(cls, /, *args, **kwargs):
@@ -45,6 +41,10 @@ class ConcreteMeta(_Essence):
     @property
     def __signature__(cls, /):
         return cls._ptolemaic_class__.__signature__
+
+    @property
+    def __call__(cls, /):
+        return cls.construct
 
 
 class Ousia(_Essence):
@@ -87,6 +87,10 @@ class Ousia(_Essence):
     def concrete_namespace(cls, /):
         return cls.get_concrete_namespace()
 
+    @property
+    def __call__(cls, /):
+        return cls.Concrete
+
 
 class OusiaBase(metaclass=Ousia):
 
@@ -123,10 +127,6 @@ class OusiaBase(metaclass=Ousia):
             __finish__=cls.__finish__,
             )
 
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        return cls.Concrete(*args, **kwargs)
-
     def __init__(self, /):
         pass
 
@@ -142,24 +142,41 @@ class OusiaBase(metaclass=Ousia):
             return self.__class__._ptolemaic_class__
 
 
+# class Nullary(metaclass=Ousia):
+
+#     @classmethod
+#     def __class_call__(cls, /, *, _softcache=None):
+#         try:
+#             return cls.weakcache['instance']
+#         except KeyError:
+#             instance = super().__class_call__(_softcache=_softcache)
+#             cls.weakcache['instance'] = instance
+#             return instance
+
+#     class ConcreteBase:
+
+#         @classmethod
+#         def __class_call__(cls, /, *, _softcache=None):
+#             return cls.Concrete(_softcache=_softcache)
+
+
 class Monument(metaclass=Ousia):
 
     @classmethod
     def __class_init__(cls, /):
-        super().__class_init__()
         cls.monumentname = cls.__name__.upper()
 
     def __finish__(self, /):
         with (kls := self._ptolemaic_class__).mutable:
-            kls.Concrete = None
+            kls.Concrete = lambda: self
 
     class ConcreteBase:
 
         __slots__ = ()
 
         @classmethod
-        def __class_call__(cls, /):
-            return super().__class_call__()
+        def construct(cls, /):
+            return super().construct()
 
         def get_epitaph(self, /):
             ptolclass = self._ptolemaic_class__

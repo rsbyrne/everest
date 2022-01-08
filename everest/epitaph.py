@@ -63,6 +63,10 @@ class Epitaph(_classtools.Freezable):
         self.freezeattr = True
 
     @property
+    def softcache(self, /):
+        return self._softcache
+
+    @property
     @_caching.soft_cache()
     def degenerate(self, /):
         return len() >= len(self.content)
@@ -136,6 +140,10 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         super().__init__()
         self._softcache = dict()
         self.freezeattr = True
+
+    @property
+    def softcache(self, /):
+        return self._softcache
 
     def enfence(self, arg: str, /, directive=''):
         '''Wraps a string in a fence, optionally with a 'directive'.'''

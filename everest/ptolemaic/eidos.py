@@ -81,10 +81,11 @@ class Eidos(_Ousia):
             namespace[name] = ParamProp(name)
     
     @classmethod
-    def pre_create_class(meta, name, bases, namespace):
-        super().pre_create_class(name, bases, namespace)
+    def process_namespace(meta, name, bases, namespace):
+        namespace = super().process_namespace(name, bases, namespace)
         meta.add_fields(bases, namespace)
         meta.add_params(namespace)
+        return namespace
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -128,7 +129,7 @@ class EidosBase(metaclass=Eidos):
         __slots__ = ()
 
         @classmethod
-        def __class_call__(cls, /, *args, **kwargs):
+        def construct(cls, /, *args, **kwargs):
             cache = {}
             try:
                 bound = cls.parameterise(cache, *args, **kwargs)
@@ -137,7 +138,7 @@ class EidosBase(metaclass=Eidos):
             epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
             if (hexcode := epitaph.hexcode) in (pre := cls.premade):
                 return pre[hexcode]
-            return super().__class_call__(
+            return super().construct(
                 bound, epitaph, _softcache=cache
                 )
 

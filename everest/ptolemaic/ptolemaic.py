@@ -23,11 +23,19 @@ class Ptolemaic(metaclass=_Essence):
 
     ### Managing the instance cache:
 
+    @property
+    def softcache(self, /):
+        return self._softcache
+
+    @property
+    def weakcache(self, /):
+        return self._weakcache
+
     def update_cache(self, cache: dict, /):
-        self._softcache.update(cache)
+        self.softcache.update(cache)
 
     def clear_cache(self, /):
-        self._softcache.clear()
+        self.softcache.clear()
 
     def set_cache(self, cache, /):
         self.clear_cache()
@@ -36,13 +44,17 @@ class Ptolemaic(metaclass=_Essence):
     ### What happens when the class is called:
 
     @classmethod
-    def __class_call__(cls, /, *args, _softcache=None, **kwargs):
+    def construct(cls, /, *args, _softcache=None, **kwargs):
         obj = cls.create_object()
         if _softcache is None:
             _softcache = dict()
         obj.initialise(*args, _softcache=_softcache, **kwargs)
         obj.finalise()
         return obj
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        return cls.construct(*args, **kwargs)
 
     @classmethod
     def create_object(cls, /):

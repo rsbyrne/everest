@@ -13,7 +13,7 @@ from collections import abc as _collabc
 from .makehash import quick_hash as _quick_hash
 
 
-def soft_cache(storage='_softcache', storetyp=dict):
+def soft_cache(storage='softcache', storetyp=dict):
 
     if not isinstance(storage, (str, _collabc.Collection)):
         raise TypeError("Storage must be str or Collection type.")
@@ -56,7 +56,8 @@ def soft_cache(storage='_softcache', storetyp=dict):
 
             def wrapper(
                     arg0, *args,
-                    func=wrapper, storage=storage, storetyp=storetyp, **kwargs,
+                    func=wrapper, storage=storage, storetyp=storetyp,
+                    **kwargs,
                     ):
                 try:
                     storage = getattr(arg0, storage)
@@ -69,7 +70,7 @@ def soft_cache(storage='_softcache', storetyp=dict):
     return decorator
 
 
-def weak_cache(storage='_weakcache'):
+def weak_cache(storage='weakcache'):
     return soft_cache(storage, _weakref.WeakValueDictionary)
 
 

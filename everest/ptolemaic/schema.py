@@ -62,11 +62,12 @@ class Schema(_Tekton, _Ousia):
         return _Sig(**meta.collect_fields(bases, namespace))
 
     @classmethod
-    def pre_create_class(meta, name, bases, namespace):
-        super().pre_create_class(name, bases, namespace)
+    def process_namespace(meta, name, bases, namespace):
+        namespace = super().process_namespace(name, bases, namespace)
         namespace.update({
             name: _ParamProp(name) for name in namespace['sig'].fields
             })
+        return namespace
 
     def incise(cls, chora, /):
         return Schemoid(cls, chora)

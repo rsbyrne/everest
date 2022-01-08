@@ -77,10 +77,17 @@ class Pleroma(type):
             base for base in meta.__mro__ if isinstance(base, Pleroma)
             )
 
+    @property
+    def basetypname(meta, /):
+        metaname = meta.__name__
+        if metaname.endswith(suffix := 'Meta'):
+            return metaname.removesuffix(suffix)
+        return f"{metaname}Base"
+
     def get_basetyp(meta, /):
         module = _getmodule(meta)
         try:
-            return eval(f"{meta.__name__}Base", {}, module.__dict__)
+            return eval(meta.basetypname, {}, module.__dict__)
         except NameError:
             bases = meta.pleromabases[1:]
             if bases:

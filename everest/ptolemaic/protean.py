@@ -49,17 +49,17 @@ class ProteanBase(metaclass=Protean):
             super().initialise(**kwargs)
 
         @classmethod
-        def __class_call__(cls,
+        def construct(cls,
                 basis=None, /, *, identity=None, _softcache=None
                 ):
             premade = cls.premade
             if identity is None:
-                out = super().__class_call__(basis, _softcache=_softcache)    
+                out = super().construct(basis, _softcache=_softcache)    
             else:
                 key = (basis, identity)
                 if key in premade:
                     return premade[key]
-                out = super().__class_call__(identity, _softcache=_softcache)
+                out = super().construct(identity, _softcache=_softcache)
             premade[basis, out.identity] = out
             return out
 
