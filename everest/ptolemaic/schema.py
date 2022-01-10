@@ -6,17 +6,32 @@
 import functools as _functools
 import collections as _collections
 import operator as _operator
+import weakref as _weakref
 
-from everest.ptolemaic.tekton import Tekton as _Tekton
-from everest.ptolemaic.ousia import Ousia as _Ousia, OusiaBase as _OusiaBase
+from everest.ptolemaic.tekton import Tekton as _Tekton, Tektoid as _Tektoid
+from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.sig import (
     Sig as _Sig, Field as _Field
     )
-from everest.ptolemaic.eidos import ParamProp as _ParamProp
-from everest.ptolemaic.chora import Incision as _Incision
 
 
-class Schema(_Tekton, _Ousia):
+class ParamProp:
+
+    __slots__ = ('name',)
+
+    def __init__(self, name: str, /):
+        self.name = name
+
+    def __get__(self, instance, _=None):
+        try:
+            return instance.params[self.name]
+        except KeyError:
+            raise AttributeError(self.name)
+        except AttributeError:
+            return self
+
+
+class Schema(_Ousia, _Tekton):
 
     @classmethod
     def get_field_value(meta, bases, namespace, name, /):
@@ -69,57 +84,77 @@ class Schema(_Tekton, _Ousia):
             })
         return namespace
 
-    def incise(cls, chora, /):
-        return Schemoid(cls, chora)
+    def __incise_slyce__(cls, sig, /):
+        return Schemoid(cls, sig)
+
+    def __incise_retrieve__(cls, params, /):
+        try:
+            return (premade := cls.premade)[params]
+        except KeyError:
+            out = premade[params] = cls.__construct__(params)
+            return out
+
+    @classmethod
+    def __meta_call__(meta, /, *args, **kwargs):
+        return meta.__class_construct__(*args, **kwargs)
+
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls.premade = _weakref.WeakValueDictionary()
+
+    def __call__(cls, /, *args, **kwargs):
+        return cls.__incise_retrieve__(cls.sig(*args, **kwargs))
 
 
-class Schemoid(_Incision):
+class Schemoid(_Tektoid):
     ...
 
 
 class SchemaBase(metaclass=Schema):
 
-    CACHE = True
-
     _req_slots__ = ('params',)
 
     @classmethod
-    def construct(cls, params, /):
-        return cls.Concrete.__class_call__(params)
+    def __construct__(cls, params, /):
+        obj = object.__new__(cls.Concrete)
+        obj.params = params
+        obj.__init__()
+        obj.freezeattr.toggle(True)
+        return obj
 
-    class ConcreteBase:
+    def get_epitaph(self, /):
+        return self.taphonomy.custom_epitaph(
+            "$a[$b]",
+            a=self._ptolemaic_class__, b=self.params,
+            )
 
-        __slots__ = ()
+    def _repr(self, /):
+        return self.hashID
 
-        def initialise(self, params, /, *args, **kwargs):
-            self.params = params
-            super().initialise(*args, **kwargs)
-
-        def get_epitaph(self, /):
-            return self.taphonomy.custom_epitaph(
-                "$a.retrieve($b)",
-                a=self._ptolemaic_class__, b=self.params,
-                )
-
-        def _repr(self, /):
-            return str(self.params)
+    def _repr_pretty_(self, p, cycle):
+        p.text('<')
+        root = repr(self._ptolemaic_class__)
+        if cycle:
+            p.text(root + '{...}')
+        elif not (kwargs := self.params):
+            p.text(root + '()')
+        else:
+            with p.group(4, root + '(', ')'):
+                kwargit = iter(kwargs.items())
+                p.breakable()
+                key, val = next(kwargit)
+                p.text(key)
+                p.text(' = ')
+                p.pretty(val)
+                for key, val in kwargit:
+                    p.text(',')
+                    p.breakable()
+                    p.text(key)
+                    p.text(' = ')
+                    p.pretty(val)
+                p.breakable()
+        p.text('>')
 
 
 ###############################################################################
 ###############################################################################
-
-
-#         if cls._var_slots__:
-#             return cls.Var(params)
-#         if any(isinstance(param, _ur.Var) for param in params.values()):
-#             return cls.Var(params)
-#         return cls.Dat(params)
-
-
-# class MyClass(metaclass=Schema):
-#     a: Param.Pos[int]
-#     b: Param.Pos[float] = 2.
-#     c: int = 3
-#     args: Param.Args
-#     d: Param.Kw[int]
-#     kwargs: Param.Kwargs

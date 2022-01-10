@@ -7,15 +7,21 @@ import itertools as _itertools
 import weakref as _weakref
 import types as _types
 
-from everest.ptolemaic import ptolemaic as _ptolemaic
 from everest.ptolemaic.ousia import Ousia as _Ousia
+
+from everest.utilities import reseed as _reseed
 
 
 class Protean(_Ousia):
 
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        cls.premade = _weakref.WeakValueDictionary()
+    def __call__(cls, basis=None, /):
+        obj = object.__new__(cls.Concrete)
+        obj.basis = basis
+        for name in cls._var_slots__:
+            obj._alt_setattr__(name, None)
+        obj.__init__()
+        obj.freezeattr.toggle(True)
+        return obj
 
 
 class ProteanBase(metaclass=Protean):
@@ -24,68 +30,53 @@ class ProteanBase(metaclass=Protean):
     _var_slots__ = ()
     _req_slots__ = ('basis',)
 
-    @classmethod
-    def get_concrete_bases(cls, /):
-        yield cls.ConcreteBase
-        yield _ptolemaic.PtolemaicVar
-        yield cls
+    reseed = _reseed.GLOBALRAND
 
     @classmethod
     def get_concrete_slots(cls, /):
         return tuple(sorted(set(
             name for name in _itertools.chain(
-                cls._req_slots__,
+                super().get_concrete_slots(),
                 cls._var_slots__,
                 )
             if not hasattr(cls, name)
             )))
 
-    class ConcreteBase:
+    @property
+    def varvals(self, /):
+        return _types.MappingProxyType({
+            key: getattr(self, key) for key in self._var_slots__
+            })
+        
+    def __setattr__(self, name, value, /):
+        if name in self._var_slots__:
+            self._alt_setattr__(name, value)
+        else:
+            super().__setattr__(name, value)
 
-        __slots__ = ()
+    def __delattr__(self, name, /):
+        if name in self._var_slots__:
+            self._alt_delattr__(name)
+        else:
+            super().__delattr__(name)
 
-        def initialise(self, basis=None, /, **kwargs):
-            self.basis = basis
-            super().initialise(**kwargs)
+    ### Representations:
 
-        @classmethod
-        def construct(cls,
-                basis=None, /, *, identity=None, _softcache=None
-                ):
-            premade = cls.premade
-            if identity is None:
-                out = super().construct(basis, _softcache=_softcache)    
-            else:
-                key = (basis, identity)
-                if key in premade:
-                    return premade[key]
-                out = super().construct(identity, _softcache=_softcache)
-            premade[basis, out.identity] = out
-            return out
+    def _var_reprs(self, /):
+        for key in self._var_slots__:
+            yield f"{key}={getattr(self, key)}"
 
-        @property
-        def varvals(self, /):
-            return _types.MappingProxyType({
-                key: getattr(self, key) for key in self._var_slots__
-                })
+    def _repr(self, /):
+        return repr(self.basis)
 
-        ### Representations:
-
-        def _var_reprs(self, /):
-            for key in self._var_slots__:
-                yield f"{key}={getattr(self, key)}"
-
-        def _repr(self, /):
-            return (
-                f"{repr(self.basis)}, identity={super()._repr()}"
-                )
-
-        def _repr_pretty_(self, p, cycle):
-            root = repr(self)
-            if cycle:
-                p.text(root + '{...}')
-            elif not (kwargs := self.varvals):
-                return
+    def _repr_pretty_(self, p, cycle):
+        p.text('<')
+        root = repr(self._ptolemaic_class__)
+        if cycle:
+            p.text(root + '{...}')
+        elif not (kwargs := self.varvals):
+            p.text(root + '()')
+        else:
             with p.group(4, root + '(', ')'):
                 kwargit = iter(kwargs.items())
                 p.breakable()
@@ -99,9 +90,8 @@ class ProteanBase(metaclass=Protean):
                     p.text(key)
                     p.text(' = ')
                     p.pretty(val)
-                p.text(',')
-            p.breakable()
-
+                p.breakable()
+        p.text('>')
 
 
 ###############################################################################

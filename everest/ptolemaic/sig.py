@@ -14,6 +14,8 @@ from everest.utilities import (
     caching as _caching,
     classtools as _classtools,
     format_argskwargs as _format_argskwargs,
+    FrozenMap as _FrozenMap,
+    reseed as _reseed,
     )
 from everest import epitaph as _epitaph
 from everest.incision import (
@@ -22,9 +24,11 @@ from everest.incision import (
     )
 
 from everest.ptolemaic.chora import Chora as _Chora
-from everest.ptolemaic.armature import MultiMapp as _MultiMapp
-from everest.ptolemaic.eidos import Eidos as _Eidos
-from everest.ptolemaic.fundaments.thing import THING
+from everest.ptolemaic.armature import Armature as _Armature, MultiMapp as _MultiMapp
+from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.fundament import Thing as _Thing
+from everest.ptolemaic.bythos import Bythos as _Bythos
+from everest.ptolemaic.essence import Essence as _Essence
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
@@ -39,6 +43,8 @@ class ParamKind(_Enum):
     Args = _pkind['VAR_POSITIONAL']
     Kw = _pkind['KEYWORD_ONLY']
     Kwargs = _pkind['VAR_KEYWORD']
+
+    __slots__ = ('_epitaph',)
 
     def __repr__(self, /):
         return f"ParamKind[{self.name}]"
@@ -67,39 +73,88 @@ class ParamKind(_Enum):
     def score(self, /):
         return self.value.value
 
+    def __gt__(self, other, /):
+        return self.score > other.score
 
-class FieldMeta(_Eidos):
+    def __lt__(self, other, /):
+        return self.score < other.score
+
+    def __ge__(self, other, /):
+        return self.score >= other.score
+
+    def __le__(self, other, /):
+        return self.score <= other.score
+
+    def __eq__(self, other, /):
+        return self.score == other.score
+
+    def __ne__(self, other, /):
+        return self.score != other.score
+
+    def __hash__(self, /):
+        return self.epitaph.hashint
+
+
+class FieldMeta(_Sprite):
 
     for kind in ParamKind:
         exec('\n'.join((
             '@property',
             f'def {kind.name}(cls, /):'
-            f"    return cls(ParamKind.{kind.name})"
+            f"    return FieldKind(ParamKind.{kind.name})"
             )))
+
+
+class FieldKind(metaclass=FieldMeta):
+
+    kind: ParamKind
+
+    def __call__(self, /, *args, **kwargs):
+        return Field(self.kind, *args, **kwargs)
+
+    def __getitem__(self, arg, /):
+        if isinstance(arg, FieldKind):
+            if (kind := arg.kind) <= self.kind:
+                raise ValueError("Argument kind must be greater than or equal to `self.kind`")
+            return self._ptolemaic_class__(kind)
+        if isinstance(arg, FieldKind):
+            kind = max(arg.kind, self.kind)
+            return Field(kind, arg.hint, arg.value)
+        return Field(self.kind, arg)
 
 
 class Field(_Incisable, metaclass=FieldMeta):
 
-    kind: str = ParamKind.Pos
-    hint: type = THING
-    value: object = NotImplemented
+    kind: ParamKind
+    hint: _Incisable
+    value: object
 
     @classmethod
-    def parameterise(cls, cache, /, *args, **kwargs):
-        bound = super().parameterise(cache, *args, **kwargs)
-        kind, hint, value = bound.arguments.values()
+    def __new__(cls, /, kind=ParamKind.PosKw, hint=_Thing, value=NotImplemented):
         if isinstance(kind, _pkind):
             kind = ParamKind.convert(kind)
+        elif not isinstance(kind, ParamKind):
+            raise TypeError(f"Kind must be `ParamKind`.")
         if isinstance(hint, _Degenerate):
-            pass
-#             value = hint.value
+            value = NotImplemented
         else:
             if hint is _pempty:
-                hint = THING
+                hint = _Thing
+            elif not isinstance(hint, _Incisable):
+                raise TypeError(
+                    f"The `Field` hint must be an instance of `Incisable`:\n"
+                    f"{hint}"
+                    )
             if value is _pempty:
                 value = NotImplemented
-        bound.arguments.update(kind=kind, hint=hint, value=value)
-        return bound
+            elif value is not NotImplemented:
+                if value not in hint:
+                    raise ValueError(
+                        f"The default value must be a member "
+                        f"of the provided 'hint' `Incisable`: "
+                        f"`{value} in {hint}` must be `True`."
+                        )
+        return super().__new__(cls, kind, hint, value)
 
     def get_parameter(self, name: str = 'anon', /):
         default = _pempty if (val:=self.value) is NotImplemented else val
@@ -109,8 +164,10 @@ class Field(_Incisable, metaclass=FieldMeta):
             annotation=self.hint,
             )
 
-    def __call__(self, value, /):
-        return self._ptolemaic_class__(self.kind, self.hint, value)
+    def __call__(self, arg, /):
+        return self._ptolemaic_class__(
+            kind=self.kind, hint=self.hint, value=arg
+            )
 
     @classmethod
     def __class_getitem__(cls, arg, /):
@@ -123,157 +180,161 @@ class Field(_Incisable, metaclass=FieldMeta):
         return self._ptolemaic_class__(self.kind, incisor, self.value)
 
     def __incise__(self, incisor, /, *, caller):
-        if not isinstance(self.hint, _Incisable):
-            return self.__incise_fail__(
-                incisor,
-                f"The `Field` hint must be an instance of `Incisable`:\n"
-                f"{self.hint}"
-                )
         return self.hint.__chain_incise__(incisor, caller=caller)
 
     def __getitem__(self, arg, /):
         if isinstance(arg, Field):
+            incval = arg.value
             return self._ptolemaic_class__(
-                max(param.kind for param in (self, incisor)),
-                self.hint[incisor.hint],
-                (self.value if (val := incisor.value) is NotImplemented else val),
+                max(param.kind for param in (self, arg)),
+                arg.hint,
+                (self.value if incval is NotImplemented else incval),
                 )
         elif isinstance(arg, _Degenerate):
             return self.__incise_slyce__(arg)
         return super().__getitem__(arg)
 
 
-# class Sig(_Incisable, metaclass=_Eidos):
+class Sig(_Incisable, _Armature, metaclass=_Sprite):
 
-#     FIELDS = (
-#         _inspect.Parameter('chora', 0, default=None),
-#         _inspect.Parameter('fields', 4),
-#         )
+    chora: _Incisable = None
+    fields: _FrozenMap = _FrozenMap()
 
-#     @staticmethod
-#     def _get_orderscore(pair):
-#         _, obj = pair
-#         if isinstance(obj, _Degenerate):
-#             return -1
-#         adj = 0 if obj.value is NotImplemented else 0.5
-#         return obj.kind.score + adj
+    @staticmethod
+    def _get_orderscore(pair):
+        _, obj = pair
+        if isinstance(obj, _Degenerate):
+            return -1
+        adj = 0 if obj.value is NotImplemented else 0.5
+        return obj.kind.score + adj
 
-#     @staticmethod
-#     def _sort_fields(dct):
-#         return dict(sorted(dct.items(), key=Sig._get_orderscore))
+    @staticmethod
+    def _sort_fields(dct):
+        return dict(sorted(dct.items(), key=Sig._get_orderscore))
 
-#     @classmethod
-#     def parameterise(cls, cache,
-#             arg=None, /, *,
-#             _signature_=None, **kwargs,
-#             ):
-#         if isinstance(arg, _Chora):
-#             if _signature_ is not None:
-#                 cache['signature'] = _signature_
-#             kwargs = cls._sort_fields(kwargs)
-#         else:
-#             if arg is not None:
-#                 if _signature_ is not None:
-#                     raise RuntimeError(
-#                         "Cannot provide signature as both arg and kwarg."
-#                         )
-#                 if kwargs:
-#                     raise RuntimeError(
-#                         "Cannot provide fields when args are provided."
-#                         )
-#                 if isinstance(arg, _inspect.Signature):
-#                     _signature_ = arg
-#                 else:
-#                     _signature_ = _inspect.signature(arg)
-#                 kwargs = cls._sort_fields({
-#                     pm.name: Field(pm.kind, pm.annotation, pm.default)
-#                     for pm in _signature_.parameters.values()
-#                     })
-#                 cache['signature'] = _signature_
-#             arg = _MultiMapp(**{
-#                 key: val.hint for key, val in kwargs.items()
-#                 })
-#         return super().parameterise(cache, arg, **kwargs)
+    @classmethod
+    def __new__(cls, arg0=None, arg1=None, /, **kwargs):
+        cache = {}
+        if arg1 is None:
+            if arg0 is None:
+                fields = kwargs
+            else:
+                if kwargs:
+                    raise TypeError
+                if isinstance(arg0, _inspect.Signature):
+                    signature = arg0
+                else:
+                    signature = _inspect.signature(arg0)
+                cache['signature'] = signature
+                fields = {
+                    pm.name: Field(pm.kind, pm.annotation, pm.default)
+                    for pm in signature.parameters.values()
+                    }
+            fields = cls._sort_fields(fields)
+            chora = _MultiMapp(**{
+                key: val.hint for key, val in fields.items()
+                })
+        else:
+            if kwargs:
+                raise TypeError
+            chora, fields = arg0, arg1
+        obj = super().__new__(cls, chora, _FrozenMap(fields))
+        if cache:
+            obj.softcache.update(cache)
+        return obj
 
-#     @property
-#     @_caching.soft_cache()
-#     def degenerates(self, /):
-#         return _mprox({
-#             name: field.hint.value
-#             for name, field in self.fields.items()
-#             if isinstance(field.hint, _Degenerate)
-#             })
+    @property
+    @_caching.soft_cache()
+    def degenerates(self, /):
+        return _mprox({
+            name: field.hint.value
+            for name, field in self.fields.items()
+            if isinstance(field.hint, _Degenerate)
+            })
 
-#     @property
-#     @_caching.soft_cache()
-#     def signature(self, /):
-#         return _inspect.Signature(
-#             field.get_parameter(name)
-#             for name, field in self.fields.items()
-#             )
+    @property
+    @_caching.soft_cache()
+    def signature(self, /):
+        return _inspect.Signature(
+            field.get_parameter(name)
+            for name, field in self.fields.items()
+            )
 
-#     @property
-#     @_caching.soft_cache()
-#     def effsignature(self, /):
-#         return _inspect.Signature(
-#             parameter for name, parameter in self.signature.parameters.items()
-#             if name not in self.degenerates
-#             )
+    @property
+    @_caching.soft_cache()
+    def effsignature(self, /):
+        return _inspect.Signature(
+            parameter for name, parameter in self.signature.parameters.items()
+            if name not in self.degenerates
+            )
 
-#     def incise(self, chora, /):
-#         assert isinstance(chora, _MultiMapp)
-#         fields = {
-#             key: Field(field.kind, cho, field.value)
-#             for ((key, field), cho) in zip(self.fields.items(), chora.choras)
-#             }
-#         return self._ptolemaic_class__(chora, **fields)
+    def __incise__(self, incisor, /, *, caller):
+        return self.chora.__chain_incise__(incisor, caller=caller)
 
-#     def retrieve(self, index: dict, /):
-#         bound = self.signature.bind_partial()
-#         bound.arguments.update(index)
-#         bound.apply_defaults()
-#         return Params(bound)
+    def __incise_slyce__(self, chora, /):
+        assert isinstance(chora, _MultiMapp)
+        fields = {
+            key: Field(field.kind, cho, field.value)
+            for ((key, field), cho) in zip(self.fields.items(), chora.choras)
+            }
+        return self._ptolemaic_class__(chora, fields)
 
-#     def __call__(self, /, *args, **kwargs):
-#         effbound = self.effsignature.bind(*args, **kwargs)
-#         bound = self.signature.bind_partial()
-#         bound.arguments.update(effbound.arguments)
-#         bound.arguments.update(self.degenerates)
-#         bound.apply_defaults()
-#         return Params(bound)
+    def __incise_retrieve__(self, index: dict, /):
+        bound = self.signature.bind_partial()
+        bound.arguments.update(index)
+        bound.apply_defaults()
+        return Params(bound)
 
-#     def __str__(self, /):
-#         return str(self.effsignature)
+    def __call__(self, /, *args, **kwargs):
+        effbound = self.effsignature.bind(*args, **kwargs)
+        bound = self.signature.bind_partial()
+        bound.arguments.update(effbound.arguments)
+        bound.arguments.update(self.degenerates)
+        bound.apply_defaults()
+        return Params(bound)
+
+    def __str__(self, /):
+        return str(self.effsignature)
 
 
-# @_classtools.add_defer_meths('arguments', like=dict)
-# class Params(metaclass=_Eidos):
+@_classtools.add_defer_meths('arguments', like=dict)
+class Params(metaclass=_Sprite):
 
-#     FIELDS = (
-#         _inspect.Parameter('nargs', 0, default=0),
-#         _inspect.Parameter('arguments', 4),
-#         )
+    nargs: int = 0
+    arguments: _FrozenMap = _FrozenMap()
 
-#     @classmethod
-#     def parameterise(cls, cache, arg0=None, /, **kwargs):
-#         if isinstance(arg0, _inspect.BoundArguments):
-#             bndargs = cache['sigargs'] = arg0.args
-#             cache['sigkwargs'] = arg0.kwargs
-#             return super().parameterise(cache, len(bndargs), **arg0.arguments)
-#         elif arg0 is None:
-#             return super().parameterise(cache, **kwargs)
-#         return super().parameterise(cache, arg0, **kwargs)
+    def __new__(cls, arg0=0, arg1=None, /, **kwargs):
+        cache = {}
+        if arg1 is None:
+            if isinstance(arg0, _inspect.BoundArguments):
+                if kwargs:
+                    raise TypeError
+                cache['sigkwargs'] = arg0.kwargs
+                bndargs = cache['sigargs'] = arg0.args
+                nargs = len(bndargs)
+                arguments = arg0.arguments
+            else:
+                nargs = arg0
+                arguments = kwargs
+        else:
+            if kwargs:
+                raise TypeError
+            nargs, arguments = arg0, arg1
+        obj = super().__new__(cls, int(nargs), _FrozenMap(arguments))
+        if cache:
+            obj.softcache.update(cache)
+        return obj
 
-#     @property
-#     @_caching.soft_cache()
-#     def sigargs(self, /):
-#         return tuple(self.arguments.values())[:self.nargs]
+    @property
+    @_caching.soft_cache()
+    def sigargs(self, /):
+        return tuple(self.arguments.values())[:self.nargs]
 
-#     @property
-#     @_caching.soft_cache()
-#     def sigkwargs(self, /):
-#         dct = self.arguments
-#         return {name: dct[name] for name in tuple(dct)[self.nargs:]}
+    @property
+    @_caching.soft_cache()
+    def sigkwargs(self, /):
+        dct = self.arguments
+        return {name: dct[name] for name in tuple(dct)[self.nargs:]}
 
 
 ###############################################################################

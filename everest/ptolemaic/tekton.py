@@ -6,119 +6,78 @@
 import weakref as _weakref
 import functools as _functools
 
-from everest.ptolemaic import chora as _chora
+from everest.incision import Incisable as _Incisable
 
 from everest.ptolemaic.bythos import Bythos as _Bythos
-from everest.ptolemaic.sig import Sig as _Sig, Params as _Params
+from everest.ptolemaic.sig import Sig as _Sig
+from everest.ptolemaic.armature import Armature as _Armature
+from everest.ptolemaic.sprite import Sprite as _Sprite
 
 
 class Tekton(_Bythos):
 
-    @staticmethod
-    def __construct__():
-        raise NotImplementedError
-
     @classmethod
     def get_signature(meta, name, bases, namespace, /):
-        return _Sig(namespace.get('__construct__', meta.__construct__))
+        try:
+            construct = namespace['__construct__']
+        except KeyError:
+            for base in bases:
+                try:
+                    getattr(base, '__construct__')
+                    break
+                except AttributeError:
+                    pass
+            else:
+                raise TypeError("No __construct__ method provided!")
+        return _Sig(construct)
 
     @classmethod
-    def process_namespace(meta, name, bases, namespace, /):
-        namespace = super().process_namespace(name, bases, namespace)
+    def pre_create_class(meta, /, *args):
+        name, bases, namespace = super().pre_create_class(*args)
         namespace['sig'] = meta.get_signature(name, bases, namespace)
-        return namespace
+        return name, bases, namespace
 
     @property
     def __signature__(cls, /):
         return cls.sig.signature
 
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if cls.CACHE:
-            cls.premade = _weakref.WeakValueDictionary()
+    def __class_incise__(cls, incisor, /, *, caller):
+        return cls.sig.__chain_incise__(incisor, caller=caller)
 
-    @property
-    def chora(cls, /):
-        return cls.sig
+    def __incise_retrieve__(cls, params, /):
+        return cls.__construct__(*params.sigargs, **params.sigkwargs)
 
-    def retrieve(cls, params, /):
-        if cls.CACHE:
-            if params in (premade := cls.premade):
-                return premade[params]
-            out = cls.construct(params)
-            premade[params] = out
-        else:
-            print(cls, params)
-            out = cls.construct(params)
-        return out
-
-    def incise(cls, chora, /):
-        return Tektoid(cls, chora)
+    def __incise_slyce__(cls, sig, /):
+        return Tektoid(cls, sig)
 
     @classmethod
-    def decorate(meta, arg, /):
-        return meta(
+    def __meta_call__(meta, arg, /):
+        return meta.__class_construct__(
             name=arg.__name__,
             namespace=dict(
                 __construct__=arg,
-                _clsepitaph=meta.metataphonomy(arg)
+                _clsepitaph=meta.taphonomy(arg)
                 ),
             )
 
+    def __call__(cls, /, *args, **kwargs):
+        return cls.__incise_retrieve__(cls.sig(*args, **kwargs))
 
-class Tektoid(_chora.Incision):
-    ...
 
+class Tektoid(_Armature, _Incisable, metaclass=_Sprite):
 
-class TektonBase(metaclass=Tekton):
+    incised: _Incisable
+    incisor: _Incisable
 
-    CACHE = False
+    def __incise__(self, incisor, /, *, caller):
+        return self.incisor.__chain_incise__(incisor, caller=caller)
 
-    @classmethod
-    def parameterise(cls, cache, /, *args, **kwargs):
-        bound = cls.__signature__.bind(*args, **kwargs)
-        bound.apply_defaults()
-        return bound
+    def __incise_retrieve__(self, incisor, /):
+        return self.incised.__incise_retrieve__(incisor)
 
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        cache = {}
-        bound = cls.parameterise(cache, *args, **kwargs)
-        params = _Params(bound)
-        out = cls.retrieve(params)
-        if cache:
-            out.update_cache(cache)
-        return out
-
-    @classmethod
-    def construct(cls, params, /):
-        return cls.__construct__(*params.sigargs, **params.sigkwargs)
+    def __incise_slyce__(self, incisor, /):
+        return self._ptolemaic_class__(self.incised, incisor)
 
 
 ###############################################################################
 ###############################################################################
-
-
-# class TektonIncision(_chora.Incision):
-
-#     tekton: Tekton
-#     sig: _Sig
-
-#     @property
-#     def chora(self, /):
-#         return self.sig
-
-#     @property
-#     def retrieve(self, /):
-#         return self.tekton.retrieve
-
-#     def incise(self, chora, /):
-#         return TektonIncision(self.tekton, chora)
-
-#     @property
-#     def __signature__(self, /):
-#         return self.sig.signature
-
-#     def __call__(self, /, *args, **kwargs):
-#         return self.retrieve(self.chora(*args, **kwargs))
-

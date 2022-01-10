@@ -15,31 +15,25 @@ from everest import epitaph as _epitaph
 
 class Pleroma(type):
 
-    def _pleroma_contains__(meta, _, /):
+    def __meta_contains__(meta, _, /):
         raise NotImplementedError
 
     def __contains__(meta, arg, /):
-        return meta._pleroma_contains__(arg)
+        return meta.__meta_contains__(arg)
 
-    def _pleroma_getitem__(meta, arg, /):
+    def __meta_getitem__(meta, arg, /):
         raise NotImplementedError
 
     def __getitem__(meta, arg, /):
-        return meta._pleroma_getitem__(arg)
+        return meta.__meta_getitem__(arg)
 
-    def _pleroma_setitem__(meta, key, val, /):
-        raise NotImplementedError
-
-    def __setitem__(meta, key, val, /):
-        return meta._pleroma_setitem__(key, val)
-
-    def _pleroma_init__(meta, /):
+    def __meta_init__(meta, /):
         pass
 
     def __init__(meta, /, *args, **kwargs):
         meta._meta_softcache = {}
         super().__init__(*args, **kwargs)
-        meta._pleroma_init__()
+        meta.__meta_init__()
         meta.metafreezeattr.toggle(True)
 
     @property
@@ -65,11 +59,15 @@ class Pleroma(type):
                 )
         super().__setattr__(key, val)
 
-    def _pleroma_construct(meta, /):
+    def __class_construct__(meta, /):
         raise NotImplementedError
 
-    def __call__(meta, /, *args, **kwargs):
-        return meta._pleroma_construct(*args, **kwargs)
+    def __meta_call__(meta, /, *args, **kwargs):
+        return meta.__class_construct__(*args, **kwargs)
+
+    @property
+    def __call__(meta, /):
+        return meta.__meta_call__
 
     @property
     def pleromabases(meta, /):
@@ -113,7 +111,7 @@ class Pleroma(type):
         return tuple(meta.yield_basetypes())
 
     @property
-    def metataphonomy(meta, /):
+    def taphonomy(meta, /):
         return _epitaph.TAPHONOMY
 
 

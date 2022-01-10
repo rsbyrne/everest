@@ -269,10 +269,29 @@ class FrozenMap(_collabc.Mapping):
         raise KeyError(key)
 
     def __repr__(self, /):
-        return (
-            f"{type(self).__name__}(len=={len(self)})"
-            + repr(self.content)
-            )
+        return f"{type(self).__name__}({self.content})"
+
+    def _repr_pretty_(self, p, cycle):
+        root = type(self).__name__
+        if cycle:
+            p.text(root + '{...}')
+        elif not (kwargs := self.content):
+            p.text(root)
+        else:
+            with p.group(4, root + '(', ')'):
+                kwargit = iter(kwargs.items())
+                p.breakable()
+                key, val = next(kwargit)
+                p.text(key)
+                p.text(' = ')
+                p.pretty(val)
+                for key, val in kwargit:
+                    p.text(',')
+                    p.breakable()
+                    p.text(key)
+                    p.text(' = ')
+                    p.pretty(val)
+                p.breakable()
 
     def __hash__(self, /):
         try:

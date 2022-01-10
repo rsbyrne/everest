@@ -78,7 +78,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return dict()
 
     @classmethod
-    def _pleroma_init__(meta, /):
+    def __meta_init__(meta, /):
         pass
 
     @classmethod
@@ -91,25 +91,33 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def process_annotations(meta, namespace):
-        anno = namespace.get('__annotations__', {})
-        if (extkey := '_extra_annotations__') in namespace:
-            anno.update(namespace[extkey])
-        namespace['__annotations__'] = _types.MappingProxyType(anno)
+        namespace['__annotations__'] = _types.MappingProxyType(
+#             meta.BaseTyp.__dict__.get('__annotations__', (empty := {}))
+            namespace.get('__annotations__', empty := {})
+            | namespace.get('__extra_annotations__', empty)
+            )
 
     @property
     def softcache(cls, /):
-        return cls._ptolemaic_class__.__dict__['_clssoftcache']
+        try:
+            return cls._ptolemaic_class__.__dict__['_clssoftcache']
+        except KeyError:
+            with (ptolcls := cls._ptolemaic_class__).mutable:
+                out = ptolcls._clssoftcache = {}
+            return out
 
     @property
     def weakcache(cls, /):
-        return cls._ptolemaic_class__.__dict__['_clssoftcache']
+        try:
+            return cls._ptolemaic_class__.__dict__['_clsweakcache']
+        except KeyError:
+            with (ptolcls := cls._ptolemaic_class__).mutable:
+                out = ptolcls._clsweakcache = _weakref.WeakValueDictionary()
+            return out
 
     @classmethod
-    def process_name(meta, name, bases, namespace, /):
-        return name
+    def pre_create_class(meta, name, bases, namespace, /):
 
-    @classmethod
-    def process_bases(meta, name, bases, namespace, /):
         bases = [*bases]
         for basetyp in meta.basetypes:
             for base in bases:
@@ -118,38 +126,19 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             else:
                 if basetyp not in bases:
                     bases.append(basetyp)
-        return tuple(bases)
+        bases = tuple(bases)
 
-    @classmethod
-    def process_namespace(meta, name, bases, namespace, /):
         if '__slots__' not in namespace:
             namespace['__slots__'] = ()
         meta.process_mergenames(bases, namespace)
         namespace['_clssoftcache'] = {}
         namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
         meta.process_annotations(namespace)
-        return namespace
+
+        return name, bases, namespace
 
     @classmethod
-    def process_metainputs(meta, name, bases, namespace, /):
-        return(
-            meta.process_name(name, bases, proxnm := _mprox(namespace)),
-            meta.process_bases(name, bases, proxnm),
-            meta.process_namespace(name, bases, namespace),
-            )
-
-    @classmethod
-    def create_class(meta, name, bases, namespace, /, *args, **kwargs):
-        out = meta.__new__(
-            meta, *meta.process_metainputs(name, bases, namespace),
-            )
-        meta.__init__(out, *args, **kwargs)
-        out.__class_init__()
-        out.freezeattr.toggle(True)
-        return out
-
-    @classmethod
-    def _pleroma_construct(meta,
+    def __class_construct__(meta,
             name: str = None,
             bases: tuple = (),
             namespace: dict = None,
@@ -164,7 +153,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                     "Must provide at least one "
                     "of either a class name or a tuple of bases."
                     )
-        return meta.create_class(name, bases, namespace, *args, **kwargs)
+        name, bases, namespace = meta.pre_create_class(name, bases, namespace)
+        out = _abc.ABCMeta.__new__(meta, name, bases, namespace)
+        meta.__init__(out, *args, **kwargs)
+        out.__class_init__()
+        out.freezeattr.toggle(True)
+        return out
 
     ### Implementing the attribute-freezing behaviour for classes:
 
@@ -255,9 +249,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### What happens when the class is called:
 
-    def __class_call__(cls, /, *_, **__):
-        raise NotImplementedError
-
     @property
     def __call__(cls, /):
         return cls.__class_call__
@@ -279,7 +270,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def taphonomy(cls, /):
-        return cls.metacls.metataphonomy
+        return cls.metacls.taphonomy
 
     def get_clsepitaph(cls, /):
         return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
@@ -287,10 +278,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @property
     @_caching.soft_cache()
     def epitaph(cls, /):
-        ptolcls = cls._ptolemaic_class__
-        if '_clsepitaph' in (dct := ptolcls.__dict__):
-            return dct['_clsepitaph']
-        return ptolcls.get_clsepitaph()
+        return cls._ptolemaic_class__.get_clsepitaph()
 
     ### Representations:
 
@@ -324,6 +312,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __hash__(cls, /):
         return _reseed.rdigits(12)
 #         return cls.hashint
+
+
+class EssenceBase(metaclass=Essence):
+
+    @classmethod
+    def __class_init__(cls, /):
+        pass
 
 
 ###############################################################################

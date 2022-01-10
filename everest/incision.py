@@ -27,7 +27,7 @@ class IncisionProtocol(_Enum):
     SLYCE = '__incise_slyce__'
     GENERIC = '__incise_generic__'
     VARIABLE = '__incise_variable__'
-    DEFAULT = '__incise_default__'
+#     DEFAULT = '__incise_default__'
     RETRIEVE = '__incise_retrieve__'
     FAIL = '__incise_fail__'
 
@@ -45,14 +45,24 @@ class IncisionProtocol(_Enum):
     def __call__(self, on: _collabc.Callable, /):
         try:
             return getattr(on, self.value)
-        except AttributeError as exc:
-            raise TypeError(
-                f"Incision protocol {self} not supported "
-                f"on object {on} of type {type(on)}."
-                ) from exc
+        except AttributeError:
+            pass
+        try:
+            chora = getattr(on, 'chora')
+        except:
+            pass
+        else:
+            try:
+                return self(chora)
+            except TypeError:
+                pass
+        raise TypeError(
+            f"Incision protocol {self} not supported "
+            f"on object {on} of type {type(on)}."
+            )
 
 
-class IncisionHandler(_abc.ABC):
+class IncisionHandler(metaclass=_abc.ABCMeta):
 
     __slots__ = ()
 
@@ -68,13 +78,13 @@ class IncisionHandler(_abc.ABC):
     def __incise_variable__(self, /):
         raise NotImplementedError
 
-    def __incise_default__(self, /):
-        raise NotImplementedError
+#     def __incise_default__(self, /):
+#         raise NotImplementedError
 
     def __incise_retrieve__(self, incisor, /) -> _Null:
         return incisor
 
-    def __incise_fail__(self, incisor, message, /):
+    def __incise_fail__(self, incisor, message=None, /):
         raise IncisorTypeException(incisor, self, message)
 
     @classmethod
@@ -135,6 +145,12 @@ class Incisable(IncisionHandler):
         except KeyError:
             raise NotImplementedError
         return isinstance(arg, rettyp)
+
+    def issuperset(self, other, /):
+        raise NotImplementedError
+
+    def issubset(self, other, /):
+        raise NotImplementedError
 
     @classmethod
     def __subclasshook__(cls, ACls, /):

@@ -18,7 +18,7 @@ from everest.incision import (
     Incisable as _Incisable,
     )
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.eidos import Eidos as _Eidos
+from everest.ptolemaic.sprite import Sprite as _Sprite
 
 
 def _wrap_trivial(meth, /):
@@ -70,6 +70,10 @@ class Chora(_Incisable, metaclass=_Essence):
     def trivial_ellipsis(self, incisor: EllipsisType, /):
         '''Captures the special behaviour implied by `self[...]`.'''
         pass
+
+    def slyce_compose(self, incisor: _Incisable, /):
+        '''Returns the composition of two choras, i.e. f(g(x)).'''
+        return Composition(self, incisor)
 
     def fail_ultimate(self, incisor: object, /):
         '''The ultimate fallback for unrecognised incision types.'''
@@ -187,7 +191,7 @@ class Sliceable(Chora):
 
 
 @Chora.decorate
-class Composition(_Incisable, metaclass=_Eidos):
+class Composition(_Incisable, metaclass=_Sprite):
 
     fobj: _Incisable
     gobj: _Incisable
@@ -204,13 +208,6 @@ class Composition(_Incisable, metaclass=_Eidos):
     @property
     def __incise__(self, /):
         return self.gobj.__incise__
-
-
-class Composable(Chora):
-
-    def slyce_compose(self, incisor: _Incisable, /):
-        '''Returns the composition of two choras, i.e. f(g(x)).'''
-        return Composition(self, incisor)
 
 
 ###############################################################################

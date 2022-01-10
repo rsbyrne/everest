@@ -9,6 +9,7 @@ import weakref as _weakref
 
 from everest.utilities import (
     format_argskwargs as _format_argskwargs,
+    caching as _caching,
     )
 
 from everest.ptolemaic.ousia import Ousia as _Ousia
@@ -81,11 +82,11 @@ class Eidos(_Ousia):
             namespace[name] = ParamProp(name)
     
     @classmethod
-    def process_namespace(meta, name, bases, namespace):
-        namespace = super().process_namespace(name, bases, namespace)
+    def pre_create_class(meta, *args):
+        name, bases, namespace = super().pre_create_class(*args)
         meta.add_fields(bases, namespace)
         meta.add_params(namespace)
-        return namespace
+        return name, bases, namespace
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -103,20 +104,32 @@ class Eidos(_Ousia):
             return subfunc
         return func
 
+    def __call__(cls, /, *args, **kwargs):
+        cache = {}
+        try:
+            bound = cls.parameterise(cache, *args, **kwargs)
+        except Exception as exc:
+            raise cls.param_exc(exc)(args, kwargs)
+        epitaph = cls.taphonomy.callsig_epitaph(
+            cls._ptolemaic_class__, *bound.args, **bound.kwargs
+            )
+        if (hexcode := epitaph.hexcode) in (pre := cls.premade):
+            return pre[hexcode]
+        obj = object.__new__(cls.Concrete)
+        obj._epitaph = epitaph
+        obj._softcache = cache
+        obj.params = _types.MappingProxyType(bound.arguments)
+        obj.__init__()
+        obj.freezeattr.toggle(True)
+        pre[hexcode] = obj
+        return obj
+
 
 class EidosBase(metaclass=Eidos):
 
     MERGETUPLES = ('FIELDS',)
 
-    FIELDS = ()
-
     _req_slots__ = ('params', 'args', 'kwargs', '_epitaph')
-
-    @classmethod
-    def get_instance_epitaph(cls, args, kwargs, /):
-        return cls.taphonomy.callsig_epitaph(
-            cls._ptolemaic_class__, *args, **kwargs
-            )
 
     @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):
@@ -124,85 +137,62 @@ class EidosBase(metaclass=Eidos):
         bound.apply_defaults()
         return bound
 
-    class ConcreteBase:
+    ### Implementing serialisation:
 
-        __slots__ = ()
+    @property
+    def epitaph(self, /):
+        return self._epitaph
 
-        @classmethod
-        def construct(cls, /, *args, **kwargs):
-            cache = {}
-            try:
-                bound = cls.parameterise(cache, *args, **kwargs)
-            except Exception as exc:
-                raise cls.param_exc(exc)(args, kwargs)
-            epitaph = cls.get_instance_epitaph(bound.args, bound.kwargs)
-            if (hexcode := epitaph.hexcode) in (pre := cls.premade):
-                return pre[hexcode]
-            return super().construct(
-                bound, epitaph, _softcache=cache
-                )
+    ### Representations:
 
-        def initialise(self, bound, epitaph, /, _softcache=None):
-            self.args = bound.args
-            self.kwargs = _types.MappingProxyType(bound.kwargs)
-            self.params = _types.MappingProxyType(bound.arguments)
-            self._epitaph = epitaph
-            super().initialise(_softcache=_softcache)
+    @property
+    def hexcode(self, /):
+        return self.epitaph.hexcode
 
-        def finalise(self, /):
-            self._ptolemaic_class__.premade[self.hexcode] = self
-            super().finalise()
+    @property
+    def hashint(self, /):
+        return self.epitaph.hashint
 
-        ### Serialisation:
+    @property
+    def hashID(self, /):
+        return self.epitaph.hashID
 
-        def get_epitaph(self, /):
-            return self._epitaph
+    def __hash__(self, /):
+        return self.hashint
 
-        @property
-        def epitaph(self, /):
-            return self._epitaph
+    def _repr(self, /):
+        return self.hashID
 
-        ### Representations:
+    def _str(self, /):
+        return ', '.join(
+            f"{name}={value}"
+            for name, value in self.params.items()
+            )
 
-        def _repr(self, /):
-            return f"{self.hashID}"
+    def __str__(self, /):
+        return f"{self._ptolemaic_class__}({self._str()})"
 
-        def _str(self, /):
-            return _format_argskwargs(*self.args, **self.kwargs)
-
-        def __str__(self, /):
-            return f"{self._ptolemaic_class__}({self._str()})"
-
-        def _repr_pretty_(self, p, cycle):
-            root = repr(self._ptolemaic_class__)
-            if cycle:
-                p.text(root + '{...}')
-            elif not (args := self.args) or (kwargs := self.kwargs):
-                return
+    def _repr_pretty_(self, p, cycle):
+        root = repr(self)
+        if cycle:
+            p.text(root + '{...}')
+        elif not (kwargs := self.params):
+            p.text(root)
+        else:
             with p.group(4, root + '(', ')'):
-                if args:
-                    argit = iter(args)
-                    p.breakable()
-                    p.pretty(next(argit))
-                    for val in argit:
-                        p.text(',')
-                        p.breakable()
-                        p.pretty(val)
+                kwargit = iter(kwargs.items())
+                p.breakable()
+                key, val = next(kwargit)
+                p.text(key)
+                p.text(' = ')
+                p.pretty(val)
+                for key, val in kwargit:
                     p.text(',')
-                if kwargs:
-                    kwargit = iter(kwargs.items())
                     p.breakable()
-                    key, val = next(kwargit)
                     p.text(key)
                     p.text(' = ')
                     p.pretty(val)
-                    for key, val in kwargit:
-                        p.text(',')
-                        p.breakable()
-                        p.text(key)
-                        p.text(' = ')
-                        p.pretty(val)
-                    p.text(',')
+                p.text(',')
                 p.breakable()
 
 

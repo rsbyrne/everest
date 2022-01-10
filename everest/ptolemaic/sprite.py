@@ -6,6 +6,8 @@
 import collections as _collections
 import functools as _functools
 import types as _types
+import inspect as _inspect
+import weakref as _weakref
 
 from everest.utilities import caching as _caching, reseed as _reseed
 
@@ -13,28 +15,108 @@ from everest.ptolemaic.essence import Essence as _Essence
 
 
 def _sprite_get_epitaph(self, /):
-    clas = type(self)
-    clascache = clas._instancecaches
-    try:
-        cache = clascache[self]
-    except KeyError:
-        cache = clascache[self] = _types.SimpleNamespace()
-    else:
-        try:
-            return cache.epitaph
-        except AttributeError:
-            pass
-    epitaph = cache.epitaph = clas.taphonomy.callsig_epitaph(clas, *self)
-    return epitaph
+    ptolcls = self._ptolemaic_class__
+    return ptolcls.taphonomy.callsig_epitaph(ptolcls, *self)
 
-def _sprite_get_hexcode(self, /):
+@property
+@_caching.soft_cache()
+def _sprite_epitaph(self, /):
+    return self.get_epitaph()
+
+@property
+def _sprite_hexcode(self, /):
     return self.epitaph.hexcode
 
-def _sprite_get_hashint(self, /):
+@property
+def _sprite_hashint(self, /):
     return self.epitaph.hashint
 
-def _sprite_get_hashID(self, /):
+@property
+def _sprite_hashID(self, /):
     return self.epitaph.hashID
+
+@property
+def _sprite_softcache(self, /):
+    hashno = hash(self)
+    try:
+        return self._instancesoftcaches[hashno]
+    except KeyError:
+        out = self._instancesoftcaches[hashno] = {}
+        return out
+
+@property
+def _sprite_weakcache(self, /):
+    hashno = hash(self)
+    try:
+        return self._instanceweakcaches[hashno]
+    except KeyError:
+        out = self._instanceweakcaches[hashno] = {}
+        return out
+
+@property
+def _sprite___ptolemaic_class__(self, /):
+    return type(self)._ptolemaic_class__
+
+@property
+@_caching.soft_cache()
+def _sprite_params(self, /):
+    return _types.MappingProxyType({
+        key: getattr(self, key) for key in self._fields
+        })
+
+def _sprite___del__(self, /):
+    hashno = hash(self)
+    for cache in (self._instancesoftcaches, self._instanceweakcaches):
+        try:
+            del cache[hashno]
+        except KeyError:
+            pass
+
+def _sprite___repr__(self, /):
+    valpairs = ', '.join(map('='.join, zip(
+        (params := self.params),
+        map(repr, params.values()),
+        )))
+    return f"<{self._ptolemaic_class__}({valpairs})>"
+
+def _sprite__repr_pretty_(self, p, cycle):
+    p.text('<')
+    root = repr(self._ptolemaic_class__)
+    if cycle:
+        p.text(root + '{...}')
+    elif not (kwargs := self.params):
+        p.text(root + '()')
+    else:
+        with p.group(4, root + '(', ')'):
+            kwargit = iter(kwargs.items())
+            p.breakable()
+            key, val = next(kwargit)
+            p.text(key)
+            p.text(' = ')
+            p.pretty(val)
+            for key, val in kwargit:
+                p.text(',')
+                p.breakable()
+                p.text(key)
+                p.text(' = ')
+                p.pretty(val)
+            p.breakable()
+    p.text('>')
+
+SPRITENAMESPACE = dict(
+    get_epitaph=_sprite_get_epitaph,
+    epitaph=_sprite_epitaph,
+    hexcode=_sprite_hexcode,
+    hashint=_sprite_hashint,
+    hashID=_sprite_hashID,
+    softcache=_sprite_softcache,
+    weakcache=_sprite_weakcache,
+    _ptolemaic_class__=_sprite___ptolemaic_class__,
+    params=_sprite_params,
+    __del__=_sprite___del__,
+    __repr__=_sprite___repr__,
+    _repr_pretty_=_sprite__repr_pretty_,
+    )
 
 
 class Sprite(_Essence):
@@ -56,34 +138,34 @@ class Sprite(_Essence):
                     ) from exc
 
     @classmethod
-    def process_bases(meta, name, bases, namespace, /):
+    def pre_create_class(meta, name, bases, namespace, /):
+
         NamedTup = _collections.namedtuple(
             f"{name}_NamedTuple",
             (fields := namespace.get('__annotations__', {})),
             defaults=tuple(meta.yield_default_values(fields, namespace)),
             module=namespace['__module__'],
             )
-        return super().process_bases(name, (*bases, NamedTup), namespace)
+        for nm in fields:
+            if nm in namespace:
+                del namespace[nm]
+            
+        bases = (*bases, NamedTup)
 
-    @classmethod
-    def process_namespace(meta, name, bases, namespace, /):
-        namespace = super().process_namespace(name, bases, namespace)
-        namespace.update(
-            epitaph = property(_sprite_get_epitaph),
-            hexcode = property(_sprite_get_hexcode),
-            hashint = property(_sprite_get_hashint),
-            hashID = property(_sprite_get_hashID),
-            )
-        return namespace
+        namespace = SPRITENAMESPACE | namespace
+
+        return name, bases, namespace
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls._instancecaches = {}
-        cls.construct = _functools.partial(cls.__new__, cls)
+        cls._instancesoftcaches = {}
+        cls._instanceweakcaches = {}
+        callmeth = cls.__callmeth__ = cls.__new__.__get__(cls)
+        cls.__signature__ = _inspect.signature(callmeth)
 
     @property
     def __call__(cls, /):
-        return cls.construct
+        return cls.__callmeth__
 
 
 ###############################################################################

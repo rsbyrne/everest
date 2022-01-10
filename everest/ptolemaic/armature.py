@@ -10,16 +10,18 @@ import itertools as _itertools
 from everest.utilities import (
     caching as _caching,
     reseed as _reseed,
+    FrozenMap as _FrozenMap,
     )
 from everest.incision import (
+    Incisable as _Incisable,
     Degenerate as _Degenerate,
     IncisionHandler as _IncisionHandler,
     IncisionProtocol as _IncisionProtocol,
     )
 
 from everest.ptolemaic.chora import Chora as _Chora
-from everest.ptolemaic.eidos import Eidos as _Eidos
-from everest.ptolemaic.ousia import Monument as _Monument
+from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.protean import Protean as _Protean
 
@@ -31,34 +33,14 @@ class Armature(metaclass=_Essence):
     '''
 
 
-class Brace(Armature):
-    ...
-
-
-class Mapp(Armature):
-    ...
-
-
 class Element(Armature):
-
     ...
 
 
-class GenericElement(Element, metaclass=_Eidos):
+class GenericElement(Element, metaclass=_Sprite):
 
-    FIELDS = (
-        _inspect.Parameter('basis', 0),
-        _inspect.Parameter('identity', 3, default=None),
-        )
-
-    reseed = _reseed.GLOBALRAND
-
-    @classmethod
-    def parameterise(cls, cache, *args, **kwargs):
-        bound = super().parameterise(cache, *args, **kwargs)
-        if (argu := bound.arguments)['identity'] is None:
-            argu['identity'] = cls.reseed.rdigits(12)
-        return bound
+    basis: object
+    identity: int
 
 
 class VariableElement(Element, metaclass=_Protean):
@@ -77,23 +59,29 @@ class VariableElement(Element, metaclass=_Protean):
     def value(self, val, /):
         if val in self.basis:
             self._alt_setattr__('_value', val)
+        elif val is None:
+            self._alt_setattr__('_value', val)
         else:
             raise ValueError(val)
 
     @value.deleter
     def value(self, /):
-        self._alt_delattr__('_value')
+        self._alt_setattr__('_value', None)
 
 
-class Degenerator(_Monument, _IncisionHandler):
-
-    __slots__ = ()
-
-    def __incise_retrieve__(self, index, /):
-        return _Degenerate(index)
+class Brace(Armature):
+    ...
 
 
-DEGENERATOR = Degenerator()
+class Mapp(Armature):
+    ...
+
+
+class Degenerator(metaclass=_Bythos):
+
+    @classmethod
+    def __class_incise_retrieve__(cls, incisor, /):
+        return _Degenerate(incisor)
 
 
 class MultiChora(_Chora, Armature):
@@ -101,8 +89,6 @@ class MultiChora(_Chora, Armature):
     A `MultiChora` is a collection of choras which are indexed collectively
     in a similar manner to a Numpy 'fancy slice' or Pandas `MultiIndex`.
     '''
-
-    __slots__ = ()
 
     @property
     @_abc.abstractmethod
@@ -151,7 +137,7 @@ class MultiChora(_Chora, Armature):
                     if isinstance(chora, _Degenerate):
                         yield chora
                         continue
-                    yield chora.__incise__(incisor, caller=DEGENERATOR)
+                    yield chora.__incise__(incisor, caller=Degenerator)
                     break
         except StopIteration:
 #             raise ValueError("Too many incisors in tuple incision.")
@@ -159,9 +145,15 @@ class MultiChora(_Chora, Armature):
         yield from chorait
 
 
-class MultiBrace(Brace, MultiChora, metaclass=_Eidos):
+class MultiBrace(Brace, MultiChora, metaclass=_Sprite):
 
-    FIELDS = (_inspect.Parameter('choraargs', 2),)
+    choraargs: tuple
+
+    @classmethod
+    def __new__(cls, arg=None, /, *args):
+        if args:
+            return super().__new__(cls, (arg, *args))
+        return super().__new__(cls, tuple(arg))
 
     @property
     def choras(self, /):
@@ -171,20 +163,24 @@ class MultiBrace(Brace, MultiChora, metaclass=_Eidos):
         '''Captures the special behaviour implied by `self[a,b,...]`'''
         choras = tuple(self.yield_tuple_multiincise(*incisor))
         if all(isinstance(cho, _Degenerate) for cho in choras):
-            incisor = self.retrieve_tuple(tuple(cho.value for cho in choras))
+            incisor = tuple(cho.value for cho in choras)
             return _IncisionProtocol.RETRIEVE(caller)(incisor)
-        return _IncisionProtocol.SLYCE(caller)(self.slyce_tuple(choras))
-
-    def retrieve_tuple(self, incisor: tuple, /):
-        return incisor
-
-    def slyce_tuple(self, incisor: tuple, /):
-        return self._ptolemaic_class__(*incisor)
+        return _IncisionProtocol.SLYCE(caller)(
+            self._ptolemaic_class__(choras)
+            )
 
 
-class MultiMapp(Mapp, MultiChora, metaclass=_Eidos):
+class MultiMapp(Mapp, MultiChora, metaclass=_Sprite):
 
-    FIELDS = (_inspect.Parameter('chorakws', 4),)
+    chorakws: _FrozenMap = _FrozenMap()
+
+    @classmethod
+    def __new__(cls, dct=None, /, **kwargs):
+        if dct is not None:
+            if kwargs:
+                raise ValueError("Cannot input both arg and kwargs.")
+            kwargs = dict(dct)
+        return super().__new__(cls, _FrozenMap(kwargs))
 
     @property
     def choras(self, /):
@@ -193,14 +189,16 @@ class MultiMapp(Mapp, MultiChora, metaclass=_Eidos):
     def handle_tuple(self, incisor: tuple, /, *, caller):
         '''Captures the special behaviour implied by `self[a,b,...]`'''
         choras = tuple(self.yield_tuple_multiincise(*incisor))
-        if all(isinstance(cho, Degenerate) for cho in choras):
-            incisor = self.retrieve_dict(dict(zip(
+        if all(isinstance(cho, _Degenerate) for cho in choras):
+            incisor = _FrozenMap(zip(
                 self.chorakws,
                 (cho.value for cho in choras),
-                )))
+                ))
             return _IncisionProtocol.RETRIEVE(caller)(incisor)
-        incisor = dict(zip(self.chorakws, choras))
-        return _IncisionProtocol.SLYCE(caller)(self.slyce_dict(incisor))
+        incisor = _FrozenMap(zip(self.chorakws, choras))
+        return _IncisionProtocol.SLYCE(caller)(
+            self._ptolemaic_class__(incisor)
+            )
 
     def yield_dict_multiincise(self, /, **incisors):
         chorakws = self.chorakws
@@ -210,18 +208,14 @@ class MultiMapp(Mapp, MultiChora, metaclass=_Eidos):
 
     def handle_dict(self, incisor: dict, /, *, caller):
         choras = self.chorakws | dict(self.yield_dict_multiincise(**incisor))
-        if all(isinstance(chora, Degenerate) for chora in choras.values()):
-            incisor = self.retrieve_dict({
+        if all(isinstance(chora, _Degenerate) for chora in choras.values()):
+            incisor = _FrozenMap({
                 key: val.value for key, val in choras.items()
                 })
             return _IncisionProtocol.RETRIEVE(caller)(incisor)
-        return _IncisionProtocol.SLYCE(caller)(self.slyce_dict(choras))
-
-    def retrieve_dict(self, incisor: dict, /):
-        return _types.MappingProxyType(incisor)
-
-    def slyce_dict(self, incisor: dict, /):
-        return self._ptolemaic_class__(**incisor)
+        return _IncisionProtocol.SLYCE(caller)(
+            self._ptolemaic_class__(choras)
+            )
 
 
 ###############################################################################
