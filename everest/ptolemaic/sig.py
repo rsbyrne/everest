@@ -24,9 +24,12 @@ from everest.incision import (
     )
 
 from everest.ptolemaic.chora import Chora as _Chora
-from everest.ptolemaic.armature import Armature as _Armature, MultiMapp as _MultiMapp
+from everest.ptolemaic.armature import (
+    Armature as _Armature,
+    MultiMapp as _MultiMapp,
+    )
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.fundament import Thing as _Thing
+from everest.ptolemaic.fundaments.thing import Thing as _Thing
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 
@@ -38,16 +41,16 @@ _mprox = _types.MappingProxyType
 
 class ParamKind(_Enum):
 
-    Pos = _pkind['POSITIONAL_ONLY']
-    PosKw = _pkind['POSITIONAL_OR_KEYWORD']
-    Args = _pkind['VAR_POSITIONAL']
-    Kw = _pkind['KEYWORD_ONLY']
-    Kwargs = _pkind['VAR_KEYWORD']
+    POS = _pkind['POSITIONAL_ONLY']
+    POSKW = _pkind['POSITIONAL_OR_KEYWORD']
+    ARGS = _pkind['VAR_POSITIONAL']
+    KW = _pkind['KEYWORD_ONLY']
+    KWARGS = _pkind['VAR_KEYWORD']
 
     __slots__ = ('_epitaph',)
 
     def __repr__(self, /):
-        return f"ParamKind[{self.name}]"
+        return f"<ParamKind[{self.name}]>"
 
     @property
     def epitaph(self, /):
@@ -114,12 +117,8 @@ class FieldKind(metaclass=FieldMeta):
 
     def __getitem__(self, arg, /):
         if isinstance(arg, FieldKind):
-            if (kind := arg.kind) <= self.kind:
-                raise ValueError("Argument kind must be greater than or equal to `self.kind`")
-            return self._ptolemaic_class__(kind)
-        if isinstance(arg, FieldKind):
             kind = max(arg.kind, self.kind)
-            return Field(kind, arg.hint, arg.value)
+            return FieldKind(kind)
         return Field(self.kind, arg)
 
 
@@ -130,7 +129,9 @@ class Field(_Incisable, metaclass=FieldMeta):
     value: object
 
     @classmethod
-    def __new__(cls, /, kind=ParamKind.PosKw, hint=_Thing, value=NotImplemented):
+    def __new__(cls, /,
+            kind=ParamKind.POSKW, hint=_Thing, value=NotImplemented
+            ):
         if isinstance(kind, _pkind):
             kind = ParamKind.convert(kind)
         elif not isinstance(kind, ParamKind):
@@ -190,7 +191,13 @@ class Field(_Incisable, metaclass=FieldMeta):
                 arg.hint,
                 (self.value if incval is NotImplemented else incval),
                 )
-        elif isinstance(arg, _Degenerate):
+        if isinstance(arg, FieldKind):
+            return self._ptolemaic_class__(
+                max(param.kind for param in (self, arg)),
+                self.hint,
+                self.value,
+                )
+        if isinstance(arg, _Degenerate):
             return self.__incise_slyce__(arg)
         return super().__getitem__(arg)
 
@@ -217,7 +224,10 @@ class Sig(_Incisable, _Armature, metaclass=_Sprite):
         cache = {}
         if arg1 is None:
             if arg0 is None:
-                fields = kwargs
+                fields = {
+                    key: field() if isinstance(field, FieldKind) else field
+                    for key, field in kwargs.items()
+                    }
             else:
                 if kwargs:
                     raise TypeError
@@ -296,6 +306,30 @@ class Sig(_Incisable, _Armature, metaclass=_Sprite):
     def __str__(self, /):
         return str(self.effsignature)
 
+    def _repr_pretty_(self, p, cycle):
+        p.text('<')
+        root = repr(self._ptolemaic_class__)
+        if cycle:
+            p.text(root + '{...}')
+        elif not (kwargs := self.fields):
+            p.text(root + '()')
+        else:
+            with p.group(4, root + '(', ')'):
+                kwargit = iter(kwargs.items())
+                p.breakable()
+                key, val = next(kwargit)
+                p.text(key)
+                p.text(' = ')
+                p.pretty(val)
+                for key, val in kwargit:
+                    p.text(',')
+                    p.breakable()
+                    p.text(key)
+                    p.text(' = ')
+                    p.pretty(val)
+                p.breakable()
+        p.text('>')
+
 
 @_classtools.add_defer_meths('arguments', like=dict)
 class Params(metaclass=_Sprite):
@@ -335,6 +369,19 @@ class Params(metaclass=_Sprite):
     def sigkwargs(self, /):
         dct = self.arguments
         return {name: dct[name] for name in tuple(dct)[self.nargs:]}
+
+
+class Param(metaclass=_Sprite):
+
+    name: str
+
+    def __get__(self, instance, _=None):
+        try:
+            return instance.params[self.name]
+        except KeyError:
+            raise AttributeError(self.name)
+        except AttributeError:
+            return self
 
 
 ###############################################################################

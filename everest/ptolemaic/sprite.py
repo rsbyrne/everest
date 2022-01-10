@@ -16,7 +16,7 @@ from everest.ptolemaic.essence import Essence as _Essence
 
 def _sprite_get_epitaph(self, /):
     ptolcls = self._ptolemaic_class__
-    return ptolcls.taphonomy.callsig_epitaph(ptolcls, *self)
+    return ptolcls.taphonomy.callsig_epitaph(ptolcls, *self.values())
 
 @property
 @_caching.soft_cache()

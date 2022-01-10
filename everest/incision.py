@@ -24,11 +24,11 @@ from everest.exceptions import (
 class IncisionProtocol(_Enum):
 
     TRIVIAL = '__incise_trivial__'
-    SLYCE = '__incise_slyce__'
     GENERIC = '__incise_generic__'
     VARIABLE = '__incise_variable__'
 #     DEFAULT = '__incise_default__'
     RETRIEVE = '__incise_retrieve__'
+    SLYCE = '__incise_slyce__'
     FAIL = '__incise_fail__'
 
     @classmethod
@@ -69,9 +69,6 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
     def __incise_trivial__(self, /):
         return self
 
-    def __incise_slyce__(self, incisor, /):
-        return incisor
-
     def __incise_generic__(self, /):
         raise NotImplementedError
 
@@ -82,6 +79,9 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
 #         raise NotImplementedError
 
     def __incise_retrieve__(self, incisor, /) -> _Null:
+        return incisor
+
+    def __incise_slyce__(self, incisor, /):
         return incisor
 
     def __incise_fail__(self, incisor, message=None, /):

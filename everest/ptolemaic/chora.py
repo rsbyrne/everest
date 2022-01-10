@@ -133,7 +133,9 @@ class Chora(_Incisable, metaclass=_Essence):
         cls.Chora = cls
 
     def __incise__(self, incisor, /, *, caller):
-        return self.Chora.getmeths[type(incisor)](self, incisor, caller=caller)
+        return self.Chora.getmeths[type(incisor)](
+            self, incisor, caller=caller
+            )
 
     @classmethod
     def compatible(cls, ACls, /):
@@ -165,6 +167,25 @@ class Chora(_Incisable, metaclass=_Essence):
         return super().__subclasshook__(ACls)
 
 
+class Composition(_Incisable, metaclass=_Sprite):
+
+    fobj: _Incisable
+    gobj: _Incisable
+
+    def __incise_trivial__(self, /):
+        return self
+
+    def __incise_slyce__(self, incisor, /):
+        return Composition(self.fobj, self.gobj.__incise_slyce__(incisor))
+
+    def __incise_retrieve__(self, incisor, /):
+        return self.fobj[self.gobj.__incise_retrieve__(incisor)]
+
+    @property
+    def __incise__(self, /):
+        return self.gobj.__incise__
+
+
 class Sliceable(Chora):
 
     def handle_slice(self, incisor: slice, /, *, caller):
@@ -188,26 +209,6 @@ class Sliceable(Chora):
             'slice',
             hintprocess=_functools.partial(_typing.GenericAlias, slice),
             ))
-
-
-@Chora.decorate
-class Composition(_Incisable, metaclass=_Sprite):
-
-    fobj: _Incisable
-    gobj: _Incisable
-
-    def __incise_trivial__(self, /):
-        return self
-
-    def __incise_slyce__(self, incisor, /):
-        return Composition(self.fobj, self.gobj.__incise_slyce__(incisor))
-
-    def __incise_retrieve__(self, incisor, /):
-        return self.fobj[self.gobj.__incise_retrieve__(incisor)]
-
-    @property
-    def __incise__(self, /):
-        return self.gobj.__incise__
 
 
 ###############################################################################

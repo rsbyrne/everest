@@ -44,10 +44,10 @@ class Tekton(_Bythos):
     def __class_incise__(cls, incisor, /, *, caller):
         return cls.sig.__chain_incise__(incisor, caller=caller)
 
-    def __incise_retrieve__(cls, params, /):
+    def __class_incise_retrieve__(cls, params, /):
         return cls.__construct__(*params.sigargs, **params.sigkwargs)
 
-    def __incise_slyce__(cls, sig, /):
+    def __class_incise_slyce__(cls, sig, /):
         return Tektoid(cls, sig)
 
     @classmethod

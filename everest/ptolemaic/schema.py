@@ -7,30 +7,20 @@ import functools as _functools
 import collections as _collections
 import operator as _operator
 import weakref as _weakref
+import types as _types
+import inspect as _inspect
 
 from everest.utilities import caching as _caching, reseed as _reseed
 
 from everest.ptolemaic.tekton import Tekton as _Tekton, Tektoid as _Tektoid
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.sig import (
-    Sig as _Sig, Field as _Field
+    Sig as _Sig,
+    Field as _Field,
+    FieldKind as _FieldKind,
+    Params as _Params,
+    Param as _Param,
     )
-
-
-class ParamProp:
-
-    __slots__ = ('name',)
-
-    def __init__(self, name: str, /):
-        self.name = name
-
-    def __get__(self, instance, _=None):
-        try:
-            return instance.params[self.name]
-        except KeyError:
-            raise AttributeError(self.name)
-        except AttributeError:
-            return self
 
 
 class Schema(_Ousia, _Tekton):
@@ -48,21 +38,21 @@ class Schema(_Ousia, _Tekton):
     def collect_fields(meta, bases, namespace, /):
         fields = dict()
         anno = namespace['__annotations__']
+        for base in reversed(bases):
+            if not isinstance(base, Schema):
+                continue
+            for name, field in base.fields.items():
+                deq = fields.setdefault(name, _collections.deque())
+                deq.append(field)
         for name, note in anno.items():
             deq = fields.setdefault(name, _collections.deque())
             if note is _Field:
                 field = note()
-            elif isinstance(note, _Field):
+            elif isinstance(note, (_Field, _FieldKind)):
                 field = note
             else:
                 field = _Field[note]
             deq.append(field)
-        for base in bases:
-            if not isinstance(base, Schema):
-                continue
-            for name, field in base.sig.fields.items():
-                deq = fields.setdefault(name, _collections.deque())
-                deq.append(field)
         for name, deq in tuple(fields.items()):
             if len(deq) == 1:
                 field = deq[0]
@@ -76,25 +66,22 @@ class Schema(_Ousia, _Tekton):
 
     @classmethod
     def get_signature(meta, name, bases, namespace, /):
-        return _Sig(**meta.collect_fields(bases, namespace))
+        fields = namespace['fields'] = _types.MappingProxyType(
+            meta.collect_fields(bases, namespace)
+            )
+        return _Sig(**fields)
+
+    @property
+    def __signature__(cls, /):
+        return cls.sig.signature
 
     @classmethod
-    def process_namespace(meta, name, bases, namespace):
-        namespace = super().process_namespace(name, bases, namespace)
+    def pre_create_class(meta, /, *args):
+        name, bases, namespace = super().pre_create_class(*args)
         namespace.update({
-            name: _ParamProp(name) for name in namespace['sig'].fields
+            name: _Param(name) for name in namespace['fields']
             })
-        return namespace
-
-    def __incise_slyce__(cls, sig, /):
-        return Schemoid(cls, sig)
-
-    def __incise_retrieve__(cls, params, /):
-        try:
-            return (premade := cls.premade)[(hashID := params.hashID)]
-        except KeyError:
-            out = premade[hashID] = cls.__construct__(params)
-            return out
+        return name, bases, namespace
 
     @classmethod
     def __meta_call__(meta, /, *args, **kwargs):
@@ -102,10 +89,18 @@ class Schema(_Ousia, _Tekton):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls.premade = _weakref.WeakValueDictionary()
+        if cls.CACHE:
+            cls.premade = _weakref.WeakValueDictionary()
+            cls.__class_incise_retrieve__ = cls.__cache_construct__
+        else:
+            cls.__class_incise_retrieve__ = cls.__construct__
 
     def __call__(cls, /, *args, **kwargs):
-        return cls.__incise_retrieve__(cls.sig(*args, **kwargs))
+        out = cls.__incise_retrieve__(_Params(cls.parameterise(
+            cache := {}, *args, **kwargs
+            )))
+        out.softcache.update(cache)
+        return out
 
 
 class Schemoid(_Tektoid):
@@ -115,6 +110,25 @@ class Schemoid(_Tektoid):
 class SchemaBase(metaclass=Schema):
 
     _req_slots__ = ('params',)
+
+    CACHE = False
+
+    @classmethod
+    def __class_incise_slyce__(cls, sig, /):
+        return Schemoid(cls, sig)
+
+    @classmethod
+    def __cache_construct__(cls, params, /):
+        try:
+            return (premade := cls.premade)[(hashID := params.hashID)]
+        except KeyError:
+            out = premade[hashID] = cls.__construct__(params)
+            return out
+
+    @classmethod
+    def parameterise(cls, cache, /, *args, **kwargs):
+        bound = cls.__signature__.bind(*args, **kwargs)
+        return bound
 
     @classmethod
     def __construct__(cls, params, /):

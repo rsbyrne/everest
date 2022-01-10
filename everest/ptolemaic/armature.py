@@ -33,40 +33,7 @@ class Armature(metaclass=_Essence):
     '''
 
 
-class Element(Armature):
-    ...
 
-
-class GenericElement(Element, metaclass=_Sprite):
-
-    basis: object
-    identity: int
-
-
-class VariableElement(Element, metaclass=_Protean):
-
-    _req_slots__ = ('_value',)
-    _var_slots__ = ('value',)
-
-    @property
-    def value(self, /):
-        try:
-            return self._value
-        except AttributeError as exc:
-            raise ValueError from exc
-
-    @value.setter
-    def value(self, val, /):
-        if val in self.basis:
-            self._alt_setattr__('_value', val)
-        elif val is None:
-            self._alt_setattr__('_value', val)
-        else:
-            raise ValueError(val)
-
-    @value.deleter
-    def value(self, /):
-        self._alt_setattr__('_value', None)
 
 
 class Brace(Armature):
