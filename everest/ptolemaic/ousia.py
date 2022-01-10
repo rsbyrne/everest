@@ -167,6 +167,10 @@ class OusiaBase(metaclass=Ousia):
     def _ptolemaic_class__(self, /):
         return self.__class__._ptolemaic_class__
 
+    @property
+    def taphonomy(self, /):
+        return self._ptolemaic_class__.taphonomy
+
     ### Class instantiation:
 
     def __init__(self, /):

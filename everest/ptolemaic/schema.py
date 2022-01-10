@@ -8,6 +8,8 @@ import collections as _collections
 import operator as _operator
 import weakref as _weakref
 
+from everest.utilities import caching as _caching, reseed as _reseed
+
 from everest.ptolemaic.tekton import Tekton as _Tekton, Tektoid as _Tektoid
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.sig import (
@@ -89,9 +91,9 @@ class Schema(_Ousia, _Tekton):
 
     def __incise_retrieve__(cls, params, /):
         try:
-            return (premade := cls.premade)[params]
+            return (premade := cls.premade)[(hashID := params.hashID)]
         except KeyError:
-            out = premade[params] = cls.__construct__(params)
+            out = premade[hashID] = cls.__construct__(params)
             return out
 
     @classmethod
@@ -122,14 +124,39 @@ class SchemaBase(metaclass=Schema):
         obj.freezeattr.toggle(True)
         return obj
 
+    ### Serialisation
+
     def get_epitaph(self, /):
         return self.taphonomy.custom_epitaph(
             "$a[$b]",
             a=self._ptolemaic_class__, b=self.params,
             )
 
+    @property
+    @_caching.soft_cache()
+    def epitaph(self, /):
+        return self.get_epitaph()
+
+    ### Representations:
+
+    @property
+    def hexcode(self, /):
+        return self.epitaph.hexcode
+
+    @property
+    def hashint(self, /):
+        return self.epitaph.hashint
+
+    @property
+    def hashID(self, /):
+        return self.epitaph.hashID
+
     def _repr(self, /):
         return self.hashID
+
+    @_caching.soft_cache()
+    def __hash__(self, /):
+        return _reseed.rdigits(12)
 
     def _repr_pretty_(self, p, cycle):
         p.text('<')
