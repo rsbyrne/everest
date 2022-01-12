@@ -9,9 +9,12 @@ from everest.utilities import caching as _caching
 from everest.incision import IncisionProtocol as _IncisionProtocol
 
 from everest.ptolemaic.fundaments.thing import Thing as _Thing
-from everest.ptolemaic.chora import Sliceable as _Sliceable
+from everest.ptolemaic.chora import (
+    Sliceable as _Sliceable,
+    )
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.schema import Schema as _Schema
+from everest.ptolemaic.sprite import Sprite as _Sprite
 
 
 def _nth(iterable, n):
@@ -24,36 +27,84 @@ def _nth(iterable, n):
 _OPINT = (type(None), int)
 
 
-class IntLike:
+class IntLike(metaclass=_Essence):
     ...
+
+
+class IntSpace(_Sliceable, IntLike, metaclass=_Sprite):
+
+    def retrieve_int(self, incisor: int, /):
+        return incisor
+
+    def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
+        start, stop, step = incisor.start, incisor.stop, incisor.step
+        return IntCount(start, step)
+
+    def slice_slyce_closed(self, incisor: (_OPINT, int, _OPINT), /):
+        start, stop, step = incisor.start, incisor.stop, incisor.step
+        return IntRange(start, stop, step)
 
 
 class Int(IntLike, _Thing):
 
-    class Chora(_Sliceable):
-
-        def retrieve_int(self, incisor: int, /):
-            return incisor
-
-        def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
-            start, stop, step = incisor.start, incisor.stop, incisor.step
-            return IntCount(start, step)
-
-        def slice_slyce_closed(self, incisor: (_OPINT, int, _OPINT), /):
-            start, stop, step = incisor.start, incisor.stop, incisor.step
-            return IntRange(start, stop, step)
+    @classmethod
+    def __class_incise__(cls, incisor, /, *, caller):
+        return IntSpace.__incise__(IntSpace, incisor, caller=caller)
 
     @classmethod
     def __class_contains__(cls, arg, /):
         return isinstance(arg, int)
 
 
-class IntCount(IntLike, _Sliceable, metaclass=_Schema):
+class IntCount(IntLike, metaclass=_Schema):
 
     _req_slots__ = ('_iterfn',)
 
     start: Int
     step: Int
+
+    class Choret(_Sliceable):
+
+        BOUNDREQS = ('start', 'step')
+
+        def handle_intlike(self, incisor: IntLike, /, *, caller):
+            if isinstance(incisor, IntRange):
+                incisor = self.slice_slyce_closed(incisor.slc)
+            elif isinstance(incisor, IntCount):
+                incisor = self.slice_slyce_open(incisor.slc)
+            elif incisor is Int:
+                return _IncisionProtocol.TRIVIAL(caller)()
+            else:
+                raise TypeError(type(incisor))
+            return _IncisionProtocol.SLYCE(caller)(incisor)
+
+        def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
+            start, stop, step = incisor.start, incisor.stop, incisor.step
+            pstart, pstep = self.start, self.step
+            if start is not None:
+                if start < 0:
+                    raise ValueError(start)
+                pstart += int(start)
+            if step is not None:
+                if step < 0:
+                    raise ValueError(step)
+                pstep *= int(step)
+            return IntCount(pstart, pstep)
+
+        def slice_slyce_closed(self, incisor: (_OPINT, int, _OPINT), /):
+            istart, istop, istep = incisor.start, incisor.stop, incisor.step
+            start, step = self.start, self.step
+            if istart is not None:
+                start += istart
+            stop = start + istop
+            if istep is not None:
+                step *= istep
+            return IntRange(start, stop, step)
+
+        def retrieve_contains(self, incisor: int, /) -> int:
+            if incisor >= 0:
+                return _nth(self, incisor)
+            raise ValueError(incisor)
 
     @classmethod
     def parameterise(cls, cache, /, *args):
@@ -74,49 +125,6 @@ class IntCount(IntLike, _Sliceable, metaclass=_Schema):
     def slc(self, /):
         return slice(self.start, None, self.step)
 
-#     def __instancecheck__(self, val: int, /):
-#         start, step = self.start, self.step
-#         return val >= start and not (val - start) % step
-
-    def handle_intlike(self, incisor: IntLike, /, *, caller):
-        if isinstance(incisor, IntRange):
-            incisor = self.slice_slyce_closed(incisor.slc)
-        elif isinstance(incisor, IntCount):
-            incisor = self.slice_slyce_open(incisor.slc)
-        elif incisor is Int:
-            return _IncisionProtocol.TRIVIAL(caller)()
-        else:
-            raise TypeError(type(incisor))
-        return _IncisionProtocol.SLYCE(caller)(incisor)
-
-    def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
-        start, stop, step = incisor.start, incisor.stop, incisor.step
-        pstart, pstep = self.start, self.step
-        if start is not None:
-            if start < 0:
-                raise ValueError(start)
-            pstart += int(start)
-        if step is not None:
-            if step < 0:
-                raise ValueError(step)
-            pstep *= int(step)
-        return IntCount(pstart, pstep)
-
-    def slice_slyce_closed(self, incisor: (_OPINT, int, _OPINT), /):
-        istart, istop, istep = incisor.start, incisor.stop, incisor.step
-        start, step = self.start, self.step
-        if istart is not None:
-            start += istart
-        stop = start + istop
-        if istep is not None:
-            step *= istep
-        return IntRange(start, stop, step)
-
-    def retrieve_contains(self, incisor: int, /) -> int:
-        if incisor >= 0:
-            return _nth(self, incisor)
-        raise ValueError(incisor)
-
     def __iter__(self, /):
         return self._iterfn()
 
@@ -124,13 +132,49 @@ class IntCount(IntLike, _Sliceable, metaclass=_Schema):
         return f"{self.start}::{self.step}"
 
 
-class IntRange(IntLike, _Sliceable, metaclass=_Schema):
+class IntRange(IntLike, metaclass=_Schema):
 
     start: Int
     stop: Int
     step: Int = 1
 
     _req_slots__ = ('_iterfn', '_lenfn', '_rangeobj', '_tupobj',)
+
+    class Choret(_Sliceable):
+
+        BOUNDREQS = ('start', 'stop', 'step')
+
+        @property
+        def start(self, /):
+            return self.bound.start
+
+        @property
+        def stop(self, /):
+            return self.bound.stop
+
+        @property
+        def step(self, /):
+            return self.bound.step
+
+        def handle_intlike(self, incisor: IntLike, /, *, caller):
+            if isinstance(incisor, IntRange):
+                slc = incisor.slc
+            elif isinstance(incisor, IntCount):
+                slc = slice(incisor.start, self.stop, incisor.step)
+            elif incisor is Int:
+                return _IncisionProtocol.TRIVIAL(caller)()
+            else:
+                raise TypeError(type(incisor))
+            incisor = self.slice_slyce_nontrivial(slc)
+            return _IncisionProtocol.SLYCE(caller)(incisor)
+
+        def slice_slyce_nontrivial(self, incisor: (_OPINT, _OPINT, _OPINT), /):
+            start, stop, step = incisor.start, incisor.stop, incisor.step
+            nrang = self._rangeobj[start:stop:step]
+            return IntRange(nrang.start, nrang.stop, nrang.step)
+
+        def retrieve_contains(self, incisor: int, /) -> int:
+            return self._tupobj[incisor]
 
     @classmethod
     def parameterise(cls, cache, arg0, /, *argn):
@@ -169,26 +213,6 @@ class IntRange(IntLike, _Sliceable, metaclass=_Schema):
 
     def __reversed__(self, /):
         return self[::-1]
-
-    def handle_intlike(self, incisor: IntLike, /, *, caller):
-        if isinstance(incisor, IntRange):
-            slc = incisor.slc
-        elif isinstance(incisor, IntCount):
-            slc = slice(incisor.start, self.stop, incisor.step)
-        elif incisor is Int:
-            return _IncisionProtocol.TRIVIAL(caller)()
-        else:
-            raise TypeError(type(incisor))
-        incisor = self.slice_slyce_nontrivial(slc)
-        return _IncisionProtocol.SLYCE(caller)(incisor)
-
-    def slice_slyce_nontrivial(self, incisor: (_OPINT, _OPINT, _OPINT), /):
-        start, stop, step = incisor.start, incisor.stop, incisor.step
-        nrang = self._rangeobj[start:stop:step]
-        return IntRange(nrang.start, nrang.stop, nrang.step)
-
-    def retrieve_contains(self, incisor: int, /) -> int:
-        return self._tupobj[incisor]
 
     def __str__(self, /):
         return ':'.join(map(str, self.args))

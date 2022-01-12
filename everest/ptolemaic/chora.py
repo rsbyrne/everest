@@ -7,9 +7,12 @@ import functools as _functools
 from collections import deque as _deque
 import typing as _typing
 import types as _types
+import itertools as _itertools
+import abc as _abc
 
 from everest.utilities import (
-    TypeMap as _TypeMap,
+    TypeMap as _TypeMap, FrozenMap as _FrozenMap,
+    caching as _caching,
     NotNone, Null, NoneType, EllipsisType, NotImplementedType,
     )
 
@@ -19,6 +22,107 @@ from everest.incision import (
     )
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.ousia import Ousia as _Ousia
+
+
+class Chora(metaclass=_Essence):
+
+    MROCLASSES = ('Choret',)
+
+    @classmethod
+    def __subclasshook__(cls, ACls, /):
+        if cls is Chora:
+            if not isinstance(ACls, _Essence):
+                return False
+            return getattr(ACls, '_ptolemaic_choret_decorated_', False)
+        return NotImplemented
+
+
+class ProxyChora(_Incisable, metaclass=_Essence):
+
+    @property
+    @_abc.abstractmethod
+    def chora(self, /):
+        raise NotImplementedError
+
+    def __incise__(self, incisor, /, *, caller):
+        return self.hint.__chain_incise__(incisor, caller=caller)
+
+
+class Choret(_Sprite):
+
+    def __set_name__(cls, owner, name, /):
+        if isinstance(owner, _Essence):
+            if name == 'Choret':
+                cls.decorate(owner)
+
+    def __call__(cls, arg, /):
+        if isinstance(arg, _Essence):
+            return cls.decorate(arg)
+        return cls.__callmeth__(arg)
+
+
+class ChoretBase(metaclass=Choret):
+    
+    BOUNDREQS = ()
+
+    bound: object
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        @property
+        @_caching.soft_cache()
+        def __incise__(self, /):
+            return cls(self).__incise__
+        cls._boundincise = __incise__
+
+    @classmethod
+    def compatible(cls, ACls, /):
+        if not isinstance(ACls, _Essence):
+            return False
+        direc = dir(ACls)
+        slots = getattr(ACls, '_req_slots__', ())
+        fields = getattr(ACls, 'fields', ())
+        for name in cls.BOUNDREQS:
+            if name not in direc:
+                if name not in slots:
+                    if name not in fields:
+                        return False
+        return True
+
+    @classmethod
+    def decorate(cls, ACls, /):
+        if not cls.compatible(ACls):
+            raise TypeError(f"Type {ACls} incompatible with chora {cls}.")
+        abstract = set()
+        if hasattr(ACls, '__choret_decorate__'):
+            ACls.__choret_decorate__(cls)
+            return ACls
+        with ACls.mutable:
+            ACls.__incise__ = cls._boundincise
+            for methname in _Incisable.REQMETHS:
+                if not hasattr(ACls, methname):
+                    meth = getattr(_Incisable, methname)
+                    setattr(ACls, methname, meth)
+                    if methname in _Incisable.__abstractmethods__:
+                        abstract.add(methname)
+            if abstract:
+                ACls.__abstractmethods__ = (abstract | ACls.__abstractmethods)
+            ACls._ptolemaic_choret_decorated_ = True
+        return ACls
+
+    @_abc.abstractmethod
+    def __incise__(self, *_, **__):
+        raise NotImplementedError
+
+    @classmethod
+    def __subclasshook__(cls, ACls, /):
+        if isinstance(cls, Choret):
+            if not isinstance(ACls, Chora):
+                return False
+            return issubclass(ACls.Choret, cls)
+        return super().__subclasshook(ACls)
 
 
 def _wrap_trivial(meth, /):
@@ -53,16 +157,16 @@ WRAPMETHS = dict(
     )
 
 
-class Chora(_Incisable, metaclass=_Essence):
+class Basic(metaclass=Choret):
 
-    MERGETUPLES = ('PREFIXES', 'REQMETHS')
+    MERGETUPLES = ('PREFIXES', 'BOUNDREQS')
     PREFIXES = (
         'handle',
         *(protocol.name.lower() for protocol in _IncisionProtocol),
         )
 
     def handle_none(self, incisor: type(None), /, *, caller):
-        return _IncisionProtocol.DEFAULT(caller)()
+        return _IncisionProtocol.GENERIC(caller)()
 
     def handle_protocol(self, incisor: _IncisionProtocol, /, *, caller):
         return incisor(caller)()
@@ -116,55 +220,24 @@ class Chora(_Incisable, metaclass=_Essence):
                     yield hint, wrap(meth)
                     seen.add(hint)
 
-    @property
-    def retrievable(self, /):
-        return bool(self.Chora.getmethnames['retrieve'])
-
-    @property
-    def slyceable(self, /):
-        return bool(self.Chora.getmethnames['slyce'])
-
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         cls.update_getmeth_names()
         cls.getmeths = _TypeMap(cls._yield_getmeths())
-        assert all(hasattr(cls, meth) for meth in cls.REQMETHS)
-        cls.Chora = cls
+
+    @property
+    def retrievable(self, /):
+        return bool(self.getmethnames['retrieve'])
+
+    @property
+    def slyceable(self, /):
+        return bool(self.getmethnames['slyce'])
 
     def __incise__(self, incisor, /, *, caller):
-        return self.Chora.getmeths[type(incisor)](
+        return self.getmeths[type(incisor)](
             self, incisor, caller=caller
             )
-
-    @classmethod
-    def compatible(cls, ACls, /):
-        return isinstance(ACls, _Essence)
-
-    @classmethod
-    def decorate(cls, ACls: _Essence, /):
-        if not cls.compatible(ACls):
-            raise TypeError(
-                f"Type {ACls} is incompatible for decoration with {cls}."
-                )
-        abstract = set()
-        with ACls.mutable:
-            ACls.Chora = cls
-            for name in cls.REQMETHS:
-                if not hasattr(ACls, name):
-                    setattr(ACls, name, getattr(cls, name))
-                    if name in ACls.__abstractmethods__:
-                        abstract.add(name)
-        if abstract:
-            ACls.__abstractmethods__ = ACls.__abstractmethods__ | abstract
-        assert issubclass(ACls, _Incisable)
-        return ACls
-
-    @classmethod
-    def __subclasshook__(cls, ACls, /):
-        if hasattr(ACls, 'Chora'):
-            return cls in ACls.Chora.__mro__
-        return super().__subclasshook__(ACls)
 
 
 class Composition(_Incisable, metaclass=_Sprite):
@@ -186,7 +259,7 @@ class Composition(_Incisable, metaclass=_Sprite):
         return self.gobj.__incise__
 
 
-class Sliceable(Chora):
+class Sliceable(Basic):
 
     def handle_slice(self, incisor: slice, /, *, caller):
         return self.Chora.slcgetmeths[
@@ -211,8 +284,206 @@ class Sliceable(Chora):
             ))
 
 
+# class MultiChora(metaclass=_Essence):
+#     '''
+#     A `MultiChora` is a collection of choras which are indexed collectively
+#     in a similar manner to a Numpy 'fancy slice' or Pandas `MultiIndex`.
+#     '''
+
+#     @property
+#     @_abc.abstractmethod
+#     def choras(self, /):
+#         raise NotImplementedError
+
+#     @property
+#     def depth(self, /):
+#         return len(self.choras)
+
+#     @property
+#     @_caching.soft_cache()
+#     def active(self, /):
+#         return tuple(not isinstance(cho, _Degenerate) for cho in self.choras)
+
+#     @property
+#     @_caching.soft_cache()
+#     def activechoras(self, /):
+#         return tuple(_itertools.compress(self.choras, self.active))
+
+#     @property
+#     def activedepth(self, /):
+#         return len(self.activechoras)
+
+#     def yield_tuple_multiincise(self, /, *incisors):
+#         ninc, ncho = len(incisors), self.activedepth
+#         nell = incisors.count(...)
+#         if nell:
+#             ninc -= nell
+#             if ninc % nell:
+#                 raise ValueError("Cannot resolve incision ellipses.")
+#             ellreps = (ncho - ninc) // nell
+#         chorait = iter(self.choras)
+#         try:
+#             for incisor in incisors:
+#                 if incisor is ...:
+#                     count = 0
+#                     while count < ellreps:
+#                         chora = next(chorait)
+#                         if not isinstance(chora, _Degenerate):
+#                             count += 1
+#                         yield chora
+#                     continue
+#                 while True:
+#                     chora = next(chorait)
+#                     if isinstance(chora, _Degenerate):
+#                         yield chora
+#                         continue
+#                     yield chora.__incise__(incisor, caller=Degenerator)
+#                     break
+#         except StopIteration:
+# #             raise ValueError("Too many incisors in tuple incision.")
+#             pass
+#         yield from chorait
+
+
+# class MultiBraceChora(MultiChora):
+
+#     def handle_tuple(self, incisor: tuple, /, *, caller):
+#         '''Captures the special behaviour implied by `self[a,b,...]`'''
+#         choras = tuple(self.Chora.yield_tuple_multiincise(*incisor))
+#         if all(isinstance(cho, _Degenerate) for cho in choras):
+#             incisor = tuple(cho.value for cho in choras)
+#             return _IncisionProtocol.RETRIEVE(caller)(incisor)
+#         return _IncisionProtocol.SLYCE(caller)(
+#             self._ptolemaic_class__(choras)
+#             )
+
+
+# @MultiBraceChora
+# class MultiBrace(metaclass=_Sprite):
+
+#     choraargs: tuple
+
+#     @classmethod
+#     def __new__(cls, arg=None, /, *args):
+#         if args:
+#             return super().__new__(cls, (arg, *args))
+#         return super().__new__(cls, tuple(arg))
+
+#     @property
+#     def choras(self, /):
+#         return self.choraargs
+
+
+# class MultiMapChora(MultiChora):
+
+#     def handle_tuple(self, incisor: tuple, /, *, caller):
+#         '''Captures the special behaviour implied by `self[a,b,...]`'''
+#         choras = tuple(self.Chora.yield_tuple_multiincise(*incisor))
+#         if all(isinstance(cho, _Degenerate) for cho in choras):
+#             incisor = _FrozenMap(zip(
+#                 self.chorakws,
+#                 (cho.value for cho in choras),
+#                 ))
+#             return _IncisionProtocol.RETRIEVE(caller)(incisor)
+#         incisor = _FrozenMap(zip(self.chorakws, choras))
+#         return _IncisionProtocol.SLYCE(caller)(
+#             self._ptolemaic_class__(incisor)
+#             )
+
+#     def yield_dict_multiincise(self, /, **incisors):
+#         chorakws = self.chorakws
+#         for name, incisor in incisors.items():
+#             chora = chorakws[name]
+#             yield name, chora.__incise__(incisor, caller=Degenerator(chora))
+
+#     def handle_dict(self, incisor: dict, /, *, caller):
+#         choras = (
+#             self.chorakws
+#             | dict(self.Chora.yield_dict_multiincise(**incisor))
+#             )
+#         if all(isinstance(chora, _Degenerate) for chora in choras.values()):
+#             incisor = _FrozenMap({
+#                 key: val.value for key, val in choras.items()
+#                 })
+#             return _IncisionProtocol.RETRIEVE(caller)(incisor)
+#         return _IncisionProtocol.SLYCE(caller)(
+#             self._ptolemaic_class__(choras)
+#             )
+
+
+# class MultiMap(Map, MultiChora, metaclass=_Sprite):
+
+#     chorakws: _FrozenMap = _FrozenMap()
+
+#     @classmethod
+#     def __new__(cls, dct=None, /, **kwargs):
+#         if dct is not None:
+#             if kwargs:
+#                 raise ValueError("Cannot input both arg and kwargs.")
+#             kwargs = dict(dct)
+#         return super().__new__(cls, _FrozenMap(kwargs))
+
+#     @property
+#     def choras(self, /):
+#         return tuple(self.chorakws.values())
+
+
 ###############################################################################
 ###############################################################################
+
+
+#     @classmethod
+#     def _yield_choricmeths(cls, /):
+#         for name in cls.attributes:
+#             if name.startswith('choric_'):
+#                 yield 'choric_'.removeprefix(pref), getattr(cls, name)
+
+#         cls.choricmeths = _FrozenMap(cls._yield_choricmeths())
+
+#     @classmethod
+#     def compatible(cls, ACls, /):
+#         if not isinstance(ACls, _Ousia):
+#             raise TypeError(
+#                 f"Only instances of `Ousia` are compatible with {cls}."
+#                 )
+#         if not all(slot in ACls._req_slots__ for slot in cls.CHORICSLOTS):
+#             raise TypeError(
+#                 f"The Chora class {cls} expects the following _req_slots__: "
+#                 f"cls.CHORICSLOTS"
+#                 )
+#         return True
+
+#     def __new__(cls, arg, /):
+#         if isinstance(arg, _Essence):
+#             return cls.decorate(arg)
+#         return super().__new__(cls, arg)
+
+#     @classmethod
+#     def decorate(cls, ACls: _Essence):
+#         if not cls.compatible(ACls):
+#             raise TypeError(
+#                 f"Type {ACls} is incompatible for decoration with {cls}."
+#                 )
+#         abstract = set()
+#         attributes = ACls.attributes
+#         with ACls.mutable:
+#             for name in _Incisable.REQMETHS:
+#                 if name not in attributes:
+#                     meth = getattr(_Incisable, name)
+#                     if name in _Incisable.__abstractmethods__:
+#                         abstract.add(name)
+#                     setattr(ACls, name, meth)
+#                     if name in ACls.__abstractmethods__:
+#                         abstract.add(name)
+#             for name, meth in cls.choricmeths.items():
+#                 if name not in attributes:
+#                     if name in cls.__abstractmethods__:
+#                         abstract.add(name)
+#                     setattr(ACls, name, meth)
+#             if abstract:
+#                 ACls.__abstractmethods__ = ACls.__abstractmethods__ | abstract
+#         assert issubclass(ACls, _Incisable)
+#         return ACls
 
 
 # class CompositionHandler(IncisionHandler, metaclass=_Eidos):

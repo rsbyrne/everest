@@ -63,12 +63,61 @@ def merge_names_all(bases, namespace, overname, /, **kwargs):
     for name in namespace[overname]:
         merge_names(bases, namespace, name, **kwargs)
 
+def expand_bases(bases):
+    '''Expands any pseudoclasses from the input list of bases.'''
+    seen = set()
+    for base in bases:
+        if not isinstance(base, Essence):
+            yield base
+        elif getattr(base, '_ptolemaic_fuserclass_', False):
+            for subbase in expand_bases(base.__bases__):
+                if subbase not in seen:
+                    yield subbase
+                    seen.add(subbase)
+        else:
+            yield base._ptolemaic_class__
+
 
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
     pure instances of itself are 'pure kinds' that cannot be instantiated.
     '''
+
+    ### Implementing mroclasses:
+
+    def _make_mroclass(cls, name: str, /):
+        adjname = f'_mroclassbase_{name}__'
+#         fusename = f'_mroclassfused_{name}__'
+        if name in cls.__dict__:
+            setattr(cls, adjname, cls.__dict__[name])
+        inhclasses = []
+        for mcls in cls.__mro__:
+            searchname = adjname if isinstance(mcls, Essence) else name
+            if searchname in mcls.__dict__:
+                if not (inhcls := mcls.__dict__[searchname]) in inhclasses:
+                    inhclasses.append(inhcls)
+        inhclasses = tuple(inhclasses)
+        if not inhclasses:
+            return NotImplemented
+        if len(inhclasses) == 1:
+            return inhclasses[0]
+        if all(issubclass(inhclasses[-1], inh) for inh in inhclasses[:-1]):
+            return inhclasses[0]
+        return type(
+            name,
+            inhclasses,
+            {'__slots__':(), '_ptolemaic_fuserclass_': True},
+            )
+
+    def _add_mroclass(cls, name: str, /):
+        out = cls._make_mroclass(name)
+        if out is not NotImplemented:
+            setattr(cls, name, out)
+
+    def _add_mroclasses(cls, /):
+        for name in cls.MROCLASSES:
+            cls._add_mroclass(name)
 
     ### Creating the object that is the class itself:
 
@@ -92,7 +141,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def process_annotations(meta, namespace):
         namespace['__annotations__'] = _types.MappingProxyType(
-#             meta.BaseTyp.__dict__.get('__annotations__', (empty := {}))
             namespace.get('__annotations__', empty := {})
             | namespace.get('__extra_annotations__', empty)
             )
@@ -100,32 +148,31 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @property
     def softcache(cls, /):
         try:
-            return cls._ptolemaic_class__.__dict__['_clssoftcache']
+            return cls.__dict__['_clssoftcache']
         except KeyError:
-            with (ptolcls := cls._ptolemaic_class__).mutable:
-                out = ptolcls._clssoftcache = {}
+            with cls.mutable:
+                out = cls._clssoftcache = {}
             return out
 
     @property
     def weakcache(cls, /):
         try:
-            return cls._ptolemaic_class__.__dict__['_clsweakcache']
+            return cls.__dict__['_clsweakcache']
         except KeyError:
-            with (ptolcls := cls._ptolemaic_class__).mutable:
-                out = ptolcls._clsweakcache = _weakref.WeakValueDictionary()
+            with cls.mutable:
+                out = cls._clsweakcache = _weakref.WeakValueDictionary()
             return out
 
     @classmethod
     def pre_create_class(meta, name, bases, namespace, /):
 
-        bases = [*bases]
+        bases = list(expand_bases(bases))
         for basetyp in meta.basetypes:
             for base in bases:
-                if issubclass(base, basetyp):
+                if basetyp in base.__mro__:
                     break
             else:
-                if basetyp not in bases:
-                    bases.append(basetyp)
+                bases.append(basetyp)
         bases = tuple(bases)
 
         if '__slots__' not in namespace:
@@ -138,11 +185,34 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return name, bases, namespace
 
     @classmethod
+    def get_meta(meta, bases):
+        return meta
+
+    @classmethod
+    def __meta_call__(meta, /, *args, **kwargs):
+        '''Called when the metaclass is called, '''
+        ''' e.g. during class statement execution with metaclass=meta.'''
+        out = meta.__class_construct__(*args, **kwargs)
+        meta.__init__(out, *args, **kwargs)
+        return out
+
+    def __new__(meta, /, *args, **kwargs):
+        '''Called when using the type constructor directly, '''
+        '''e.g. type(name, bases, namespace) -'''
+        '''__init__ is called implicitly.'''
+        return meta.__class_construct__(*args, **kwargs)
+
+    @classmethod
+    def create_class_object(meta, name, bases, namespace):
+        return _abc.ABCMeta.__new__(
+            meta.get_meta(bases), name, bases, namespace
+            )
+
+    @classmethod
     def __class_construct__(meta,
             name: str = None,
             bases: tuple = (),
             namespace: dict = None,
-            *args, **kwargs,
             ):
         if namespace is None:
             namespace = {}
@@ -153,35 +223,28 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                     "Must provide at least one "
                     "of either a class name or a tuple of bases."
                     )
-        name, bases, namespace = meta.pre_create_class(name, bases, namespace)
-        out = _abc.ABCMeta.__new__(meta, name, bases, namespace)
-        meta.__init__(out, *args, **kwargs)
-        out.__class_init__()
-        out.freezeattr.toggle(True)
-        return out
+        name, bases, namespace = \
+            meta.pre_create_class(name, bases, namespace)
+        return meta.create_class_object(name, bases, namespace)
+
+    ### Initialising the class:
+
+    def __init__(cls, /, *args, **kwargs):
+        cls.__class_pre_init__(*args, **kwargs)
+        cls.__class_deep_init__()
+        cls.__class_init__()
+        cls.freezeattr.toggle(True)
+
+    def __class_pre_init__(cls, /, *args, **kwargs):
+        _abc.ABCMeta.__init__(cls, *args, **kwargs)
+
+    def __class_deep_init__(cls, /):
+        cls._add_mroclasses()
+
+    def __class_init__(cls, /):
+        pass
 
     ### Implementing the attribute-freezing behaviour for classes:
-
-    def get_attributes(cls, /):
-        lst = list()
-        for ACls in cls.__mro__:
-            preserve = ACls.__dict__.get('PRESERVEORDER', set())
-            for name in ACls.__dict__:
-                if name.startswith('__'):
-                    continue
-                if name in lst:
-                    if name in preserve:
-                        continue
-                    else:
-                        lst.remove(name)
-                        lst.append(name)
-                else:
-                    lst.append(name)
-        return tuple(lst)
-
-    @property
-    def attributes(cls, /):
-        return cls.get_attributes()
 
     @property
     def freezeattr(cls, /):
@@ -206,61 +269,38 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 )
         super().__setattr__(key, val)
 
-    ### Implementing mroclasses:
-
-    def _add_mroclass(cls, name: str, /):
-        adjname = f'_mroclassbase_{name}__'
-        fusename = f'_mroclassfused_{name}__'
-        if name in cls.__dict__:
-            setattr(cls, adjname, cls.__dict__[name])
-        inhclasses = []
-        for mcls in cls.__mro__:
-            searchname = adjname if isinstance(mcls, Essence) else name
-            if searchname in mcls.__dict__:
-                if not (inhcls := mcls.__dict__[searchname]) in inhclasses:
-                    inhclasses.append(inhcls)
-        inhclasses = tuple(inhclasses)
-        if len(inhclasses) == 1:
-            mroclass = inhclasses[0]
-        else:
-            mroclass = type(name, inhclasses, {'__slots__':()})
-        setattr(cls, fusename, mroclass)
-        setattr(cls, name, mroclass)
-
-    def _process_mroclasses(cls, /):
-        for name in cls.MROCLASSES:
-            cls._add_mroclass(name)
-
-    ### Initialising the class:
-
-    def __init__(cls, /, *args, **kwargs):
-        _abc.ABCMeta.__init__(type(cls), cls, *args, **kwargs)
-        if hasattr(cls, 'MROCLASSES'):
-            cls._process_mroclasses()
-
-    def __class_init__(cls, /):
-        pass
-
     ### Aliases:
 
     @property
     def _ptolemaic_class__(cls, /):
         return cls
 
+    def get_attributes(cls, /):
+        lst = list()
+        for ACls in cls.__mro__:
+            preserve = ACls.__dict__.get('PRESERVEORDER', set())
+            for name in ACls.__dict__:
+                if name.startswith('__'):
+                    continue
+                if name in lst:
+                    if name in preserve:
+                        continue
+                    else:
+                        lst.remove(name)
+                        lst.append(name)
+                else:
+                    lst.append(name)
+        return tuple(lst)
+
+    @property
+    def attributes(cls, /):
+        return cls.get_attributes()
+
     ### What happens when the class is called:
 
     @property
     def __call__(cls, /):
         return cls.__class_call__
-
-    ### Methods relating to class inheritance and getitem behaviour:
-
-#     def __class_contains__(cls, arg, /):
-#         return super().__contains__(arg)
-
-#     @property
-#     def __contains__(cls, /):
-#         return cls._ptolemaic_class__.__class_contains__
 
     ### Methods relating to class serialisation:
 
@@ -288,11 +328,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __class_str__(cls, /):
         return cls.__name__
 
-#     @_caching.soft_cache('_clssoftcache')
+    @_caching.soft_cache()
     def __repr__(cls, /):
         return cls.__class_repr__()
 
-#     @_caching.soft_cache('_clssoftcache')
+    @_caching.soft_cache()
     def __str__(cls, /):
         return cls._ptolemaic_class__.__class_str__()
 
@@ -311,10 +351,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @_caching.soft_cache()
     def __hash__(cls, /):
         return _reseed.rdigits(12)
-#         return cls.hashint
 
 
 class EssenceBase(metaclass=Essence):
+
+    MERGETUPLES = ('MROCLASSES',)
 
     @classmethod
     def __class_init__(cls, /):

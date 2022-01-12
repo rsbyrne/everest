@@ -83,12 +83,8 @@ class Schema(_Ousia, _Tekton):
             })
         return name, bases, namespace
 
-    @classmethod
-    def __meta_call__(meta, /, *args, **kwargs):
-        return meta.__class_construct__(*args, **kwargs)
-
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __class_deep_init__(cls, /):
+        super().__class_deep_init__()
         if cls.CACHE:
             cls.premade = _weakref.WeakValueDictionary()
             cls.__class_incise_retrieve__ = cls.__cache_construct__
@@ -96,9 +92,12 @@ class Schema(_Ousia, _Tekton):
             cls.__class_incise_retrieve__ = cls.__construct__
 
     def __call__(cls, /, *args, **kwargs):
-        out = cls.__incise_retrieve__(_Params(cls.parameterise(
-            cache := {}, *args, **kwargs
-            )))
+        bound = cls.parameterise(cache := {}, *args, **kwargs)
+        fields = cls.sig.fields
+        for key, val in bound.arguments.items():
+            if val not in fields[key]:
+                raise ValueError(key, val, type(val))
+        out = cls.__incise_retrieve__(_Params(bound))
         out.softcache.update(cache)
         return out
 

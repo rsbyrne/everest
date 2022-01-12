@@ -15,17 +15,17 @@ from everest import epitaph as _epitaph
 
 class Pleroma(type):
 
-    def __meta_contains__(meta, _, /):
-        raise NotImplementedError
+#     def __meta_contains__(meta, _, /):
+#         raise NotImplementedError
 
-    def __contains__(meta, arg, /):
-        return meta.__meta_contains__(arg)
+#     def __contains__(meta, arg, /):
+#         return meta.__meta_contains__(arg)
 
-    def __meta_getitem__(meta, arg, /):
-        raise NotImplementedError
+#     def __meta_getitem__(meta, arg, /):
+#         raise NotImplementedError
 
-    def __getitem__(meta, arg, /):
-        return meta.__meta_getitem__(arg)
+#     def __getitem__(meta, arg, /):
+#         return meta.__meta_getitem__(arg)
 
     def __meta_init__(meta, /):
         pass
@@ -59,11 +59,8 @@ class Pleroma(type):
                 )
         super().__setattr__(key, val)
 
-    def __class_construct__(meta, /):
+    def __meta_call__(meta, /, *_, **__):
         raise NotImplementedError
-
-    def __meta_call__(meta, /, *args, **kwargs):
-        return meta.__class_construct__(*args, **kwargs)
 
     @property
     def __call__(meta, /):

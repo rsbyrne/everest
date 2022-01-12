@@ -8,8 +8,13 @@ import functools as _functools
 import types as _types
 import inspect as _inspect
 import weakref as _weakref
+import abc as _abc
 
-from everest.utilities import caching as _caching, reseed as _reseed
+from everest.utilities import (
+    caching as _caching,
+    reseed as _reseed,
+    FrozenMap as _FrozenMap,
+    )
 
 from everest.ptolemaic.essence import Essence as _Essence
 
@@ -55,7 +60,7 @@ def _sprite_weakcache(self, /):
 
 @property
 def _sprite___ptolemaic_class__(self, /):
-    return type(self)._ptolemaic_class__
+    return self._basecls
 
 @property
 @_caching.soft_cache()
@@ -103,6 +108,10 @@ def _sprite__repr_pretty_(self, p, cycle):
             p.breakable()
     p.text('>')
 
+@property
+def _sprite___getitem__(self, /):
+    return super().__getitem__
+
 SPRITENAMESPACE = dict(
     get_epitaph=_sprite_get_epitaph,
     epitaph=_sprite_epitaph,
@@ -121,47 +130,56 @@ SPRITENAMESPACE = dict(
 
 class Sprite(_Essence):
 
-    @classmethod
-    def yield_default_values(meta, fields, namespace, /):
+    def get_fields(cls, /):
+        empty = {}
+        out = {}
+        for base in reversed(cls.__mro__):
+            out.update(base.__dict__.get('__annotations__', empty))
+        return out
+
+    def get_default_values(cls, fields, /):
+        out = _collections.deque()
         for field in (fieldit := iter(fields)):
-            if field in namespace:
-                yield namespace[field]
-                break
-        else:
-            return
-        for field in fieldit:
-            try:
-                yield namespace[field]
-            except KeyError as exc:
-                raise TypeError(
-                    f"Non-default field cannot follow default: {field}"
-                    ) from exc
+            for base in reversed(cls.__mro__):
+                try:
+                    out.append(base.__dict__[field])
+                    break
+                except KeyError:
+                    pass
+            else:
+                if out:
+                    raise TypeError(
+                        f"Non-default field cannot follow default: {field}"
+                        ) from exc
+        return tuple(out)
 
-    @classmethod
-    def pre_create_class(meta, name, bases, namespace, /):
-
-        NamedTup = _collections.namedtuple(
-            f"{name}_NamedTuple",
-            (fields := namespace.get('__annotations__', {})),
-            defaults=tuple(meta.yield_default_values(fields, namespace)),
-            module=namespace['__module__'],
+    def get_concrete_class(cls, /):
+        ConcreteBase = _collections.namedtuple(
+            f"{cls}_NamedTuple",
+            fields := cls.get_fields(),
+            defaults=cls.get_default_values(fields),
+#             module=namespace['__module__'],
             )
-        for nm in fields:
-            if nm in namespace:
-                del namespace[nm]
-            
-        bases = (*bases, NamedTup)
+        out = type(cls).create_class_object(
+            f"Concrete_{cls.__name__}",
+            (cls, ConcreteBase),
+            dict(_basecls=cls) | SPRITENAMESPACE,
+            )
+        out.__class_pre_init__(out.__name__, out.__bases__, {})
+        out.freezeattr.toggle(True)
+        return out
 
-        namespace = SPRITENAMESPACE | namespace
-
-        return name, bases, namespace
-
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __class_deep_init__(cls, /):
+        super().__class_deep_init__()
         cls._instancesoftcaches = {}
         cls._instanceweakcaches = {}
-        callmeth = cls.__callmeth__ = cls.__new__.__get__(cls)
+        Concrete = cls.Concrete = cls.get_concrete_class()
+        callmeth = cls.__callmeth__ = Concrete.__new__.__get__(Concrete)
         cls.__signature__ = _inspect.signature(callmeth)
+
+    @property
+    def fields(cls, /):
+        return cls.Concrete._fields
 
     @property
     def __call__(cls, /):

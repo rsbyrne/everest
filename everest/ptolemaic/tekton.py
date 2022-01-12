@@ -51,8 +51,11 @@ class Tekton(_Bythos):
         return Tektoid(cls, sig)
 
     @classmethod
-    def __meta_call__(meta, arg, /):
-        return meta.__class_construct__(
+    def __class_construct__(cls, arg0=None, /, *argn, **kwargs):
+        if argn or kwargs:
+            args = () if arg0 is None else (arg0, *argn)
+            return super().__class_construct__(*args, **kwargs)
+        return super().__class_construct__(
             name=arg.__name__,
             namespace=dict(
                 __construct__=arg,

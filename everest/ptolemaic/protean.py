@@ -33,14 +33,12 @@ class ProteanBase(metaclass=Protean):
     reseed = _reseed.GLOBALRAND
 
     @classmethod
-    def get_concrete_slots(cls, /):
-        return tuple(sorted(set(
-            name for name in _itertools.chain(
-                super().get_concrete_slots(),
-                cls._var_slots__,
-                )
-            if not hasattr(cls, name)
-            )))
+    def pre_create_concrete(cls, /):
+        name, bases, namespace = super().pre_create_concrete()
+        namespace['__slots__'] = tuple(sorted(set(_itertools.chain(
+            namespace['__slots__'], cls._var_slots__
+            ))))
+        return name, bases, namespace
 
     @property
     def varvals(self, /):

@@ -23,10 +23,10 @@ from everest.incision import (
     Degenerate as _Degenerate,
     )
 
-from everest.ptolemaic.chora import Chora as _Chora
+from everest.ptolemaic.chora import ProxyChora as _ProxyChora
 from everest.ptolemaic.armature import (
     Armature as _Armature,
-    MultiMapp as _MultiMapp,
+    MultiMap as _MultiMap,
     )
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.fundaments.thing import Thing as _Thing
@@ -122,11 +122,15 @@ class FieldKind(metaclass=FieldMeta):
         return Field(self.kind, arg)
 
 
-class Field(_Incisable, metaclass=FieldMeta):
+class Field(_ProxyChora, metaclass=FieldMeta):
 
     kind: ParamKind
     hint: _Incisable
     value: object
+
+    @property
+    def chora(self, /):
+        return self.hint
 
     @classmethod
     def __new__(cls, /,
@@ -180,9 +184,6 @@ class Field(_Incisable, metaclass=FieldMeta):
     def __incise_slyce__(self, incisor, /):
         return self._ptolemaic_class__(self.kind, incisor, self.value)
 
-    def __incise__(self, incisor, /, *, caller):
-        return self.hint.__chain_incise__(incisor, caller=caller)
-
     def __getitem__(self, arg, /):
         if isinstance(arg, Field):
             incval = arg.value
@@ -201,11 +202,21 @@ class Field(_Incisable, metaclass=FieldMeta):
             return self.__incise_slyce__(arg)
         return super().__getitem__(arg)
 
+    @property
+    def __contains__(self, /):
+        return self.hint.__contains__
 
-class Sig(_Incisable, _Armature, metaclass=_Sprite):
 
-    chora: _Incisable = None
+class Sig(_ProxyChora, _Armature, metaclass=_Sprite):
+
     fields: _FrozenMap = _FrozenMap()
+
+    @property
+    @_caching.soft_cache()
+    def chora(self, /):
+        return _MultiMapp(**{
+            key: val.hint for key, val in fields.items()
+            })
 
     @staticmethod
     def _get_orderscore(pair):
@@ -241,14 +252,11 @@ class Sig(_Incisable, _Armature, metaclass=_Sprite):
                     for pm in signature.parameters.values()
                     }
             fields = cls._sort_fields(fields)
-            chora = _MultiMapp(**{
-                key: val.hint for key, val in fields.items()
-                })
         else:
             if kwargs:
                 raise TypeError
-            chora, fields = arg0, arg1
-        obj = super().__new__(cls, chora, _FrozenMap(fields))
+            cache['chora'], fields = arg0, arg1
+        obj = super().__new__(cls, _FrozenMap(fields))
         if cache:
             obj.softcache.update(cache)
         return obj
@@ -278,9 +286,6 @@ class Sig(_Incisable, _Armature, metaclass=_Sprite):
             if name not in self.degenerates
             )
 
-    def __incise__(self, incisor, /, *, caller):
-        return self.chora.__chain_incise__(incisor, caller=caller)
-
     def __incise_slyce__(self, chora, /):
         assert isinstance(chora, _MultiMapp)
         fields = {
@@ -301,6 +306,10 @@ class Sig(_Incisable, _Armature, metaclass=_Sprite):
         bound.arguments.update(effbound.arguments)
         bound.arguments.update(self.degenerates)
         bound.apply_defaults()
+        fields = self.fields
+        for key, val in bound.arguments.items():
+            if val not in fields[key]:
+                raise ValueError(key, val, type(val))
         return Params(bound)
 
     def __str__(self, /):

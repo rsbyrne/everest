@@ -12,6 +12,7 @@ from everest.utilities import (
     switch as _switch,
     reseed as _reseed,
     )
+from everest.incision import Incisable as _Incisable
 
 from everest.ptolemaic.essence import Essence as _Essence
 
@@ -24,23 +25,17 @@ class ConcreteMeta:
 
     @classmethod
     def __class_construct__(meta, basecls):
+        assert not hasattr(basecls, 'Construct')
         if not isinstance(basecls, type):
             raise TypeError(
                 "ConcreteMeta only accepts one argument:"
                 " the class to be concreted."
                 )
-        if issubclass(type(basecls), ConcreteMeta):
+        if isinstance(basecls, ConcreteMeta):
             raise TypeError("Cannot subclass a Concrete type.")
-        return super().__class_construct__(
-            basecls.concrete_name,
-            basecls.concrete_bases,
-            basecls.concrete_namespace,
-            )
+        return super().__class_construct__(*basecls.pre_create_concrete())
 
-    def __init__(cls, /, *args, **kwargs):
-        _abc.ABCMeta.__init__(type(cls), cls, *args, **kwargs)
-
-    def __class_init__(cls, /):
+    def __class_deep_init__(cls, /):
         pass
 
     @property
@@ -55,6 +50,10 @@ class ConcreteMeta:
     def __call__(cls, /, *_, **__):
         raise NotImplementedError
 
+    @classmethod
+    def __meta_init__(meta, /):
+        pass
+
 
 class Ousia(_Essence):
 
@@ -65,39 +64,39 @@ class Ousia(_Essence):
     @classmethod
     def __meta_init__(meta, /):
         super().__meta_init__()
-        if not issubclass(meta, ConcreteMeta):
-            meta.ConcreteMeta = type(
-                f"{meta.__name__}_ConcreteMeta",
-                (ConcreteMeta, meta),
-                meta.concretemeta_namespace(),
-                )
-
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        cls.Concrete = cls.ConcreteMeta(cls)
+        meta.ConcreteMeta = type(
+            f"{meta.__name__}_ConcreteMeta",
+            (ConcreteMeta, meta),
+            meta.concretemeta_namespace(),
+            )
 
     @property
     def __signature__(cls, /):
         return _inspect.signature(cls.Concrete.__init__)
 
     @property
-    def concrete_slots(cls, /):
-        return cls.get_concrete_slots()
-
-    @property
-    def concrete_name(cls, /):
-        return cls.get_concrete_name()
-
-    @property
-    def concrete_bases(cls, /):
-        return tuple(cls.get_concrete_bases())
-
-    @property
     def concrete_namespace(cls, /):
         return cls.get_concrete_namespace()
 
+    @property
+    def Concrete(cls, /):
+        try:
+            return cls.__dict__['_Concrete']
+        except KeyError:
+            with cls.mutable:
+                out = cls._Concrete = cls.ConcreteMeta(cls)
+            return out
+
+    @property
+    def create_object(cls, /):
+        try:
+            return cls._create_object
+        except AttributeError:
+            out = cls._create_object = object.__new__.__get__(cls.Concrete)
+            return out
+
     def __call__(cls, /, *args, **kwargs):
-        obj = object.__new__(cls.Concrete)
+        obj = cls.create_object()
         obj.__init__(*args, **kwargs)
         obj.freezeattr.toggle(True)
         return obj
@@ -117,30 +116,41 @@ class OusiaBase(metaclass=Ousia):
     def __new__(cls, /, *_, **__):
         raise TypeError
 
+    @classmethod
+    def __choret_decorate__(cls, choret, /):
+        if '_Concrete' in cls.__dict__:
+            raise TypeError(f"Too late to decorate class! {cls}, {choret}")
+        with cls.mutable:
+            cls._choret = choret
+            cls._ptolemaic_choret_decorated_ = True
+
     ### Configuring the concrete class:
 
     @classmethod
-    def get_concrete_name(cls, /):
-        return f"Concrete_{cls._ptolemaic_class__.__name__}"
+    def pre_create_concrete(cls, /):
 
-    @classmethod
-    def get_concrete_bases(cls, /):
-        yield cls
+        name = f"Concrete_{cls._ptolemaic_class__.__name__}"
 
-    @classmethod
-    def get_concrete_slots(cls, /):
-        return tuple(
+        bases = [cls,]
+        if getattr(cls, '_ptolemaic_choret_decorated_', False):
+            bases.append(_Incisable)
+        bases = tuple(bases)
+
+        slots = tuple(
             name for name in cls._req_slots__
             if not hasattr(cls, name)
             )
 
-    @classmethod
-    def get_concrete_namespace(cls, /):
-        return dict(
-            __slots__=cls.concrete_slots,
+        namespace = dict(
+            __slots__=cls._req_slots__,
             _basecls=cls,
             __class_init__=lambda: None,
             )
+        if getattr(cls, '_ptolemaic_choret_decorated_', False):
+            choret = getattr(cls, '_choret')
+            namespace['__incise__'] = choret._boundincise
+
+        return name, bases, namespace
 
     ### Managing the instance cache:
 
