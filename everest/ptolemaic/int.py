@@ -8,7 +8,7 @@ import itertools as _itertools
 from everest.utilities import caching as _caching
 from everest.incision import IncisionProtocol as _IncisionProtocol
 
-from everest.ptolemaic.fundaments.thing import Thing as _Thing
+from everest.ptolemaic.thing import Thing as _Thing, ThingLike as ThingLike
 from everest.ptolemaic.chora import (
     Sliceable as _Sliceable,
     )
@@ -27,11 +27,11 @@ def _nth(iterable, n):
 _OPINT = (type(None), int)
 
 
-class IntLike(metaclass=_Essence):
+class IntLike(ThingLike, metaclass=_Essence):
     ...
 
 
-class IntSpace(_Sliceable, IntLike, metaclass=_Sprite):
+class IntSpace(_Sliceable, IntLike, metaclass=_Essence):
 
     def retrieve_int(self, incisor: int, /):
         return incisor
@@ -58,8 +58,6 @@ class Int(IntLike, _Thing):
 
 class IntCount(IntLike, metaclass=_Schema):
 
-    _req_slots__ = ('_iterfn',)
-
     start: Int
     step: Int
 
@@ -80,7 +78,7 @@ class IntCount(IntLike, metaclass=_Schema):
 
         def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
             start, stop, step = incisor.start, incisor.stop, incisor.step
-            pstart, pstep = self.start, self.step
+            pstart, pstep = self.bound.start, self.bound.step
             if start is not None:
                 if start < 0:
                     raise ValueError(start)
@@ -93,7 +91,7 @@ class IntCount(IntLike, metaclass=_Schema):
 
         def slice_slyce_closed(self, incisor: (_OPINT, int, _OPINT), /):
             istart, istop, istep = incisor.start, incisor.stop, incisor.step
-            start, step = self.start, self.step
+            start, step = self.bound.start, self.bound.step
             if istart is not None:
                 start += istart
             stop = start + istop
@@ -101,9 +99,9 @@ class IntCount(IntLike, metaclass=_Schema):
                 step *= istep
             return IntRange(start, stop, step)
 
-        def retrieve_contains(self, incisor: int, /) -> int:
+        def retrieve_int(self, incisor: int, /) -> int:
             if incisor >= 0:
-                return _nth(self, incisor)
+                return _nth(self.bound, incisor)
             raise ValueError(incisor)
 
     @classmethod
@@ -116,17 +114,20 @@ class IntCount(IntLike, metaclass=_Schema):
             bound.arguments['step'] = 1
         return bound
 
-    def __init__(self, /):
-        super().__init__()
-        self._iterfn = _itertools.count(self.start, self.step).__iter__
-
     @property
     @_caching.soft_cache()
     def slc(self, /):
         return slice(self.start, None, self.step)
 
     def __iter__(self, /):
-        return self._iterfn()
+        return _itertools.count(self.start, self.step)
+
+    def __contains__(self, arg, /):
+        if not isinstance(arg, int):
+            return False
+        if arg < self.start:
+            return False
+        return not (arg - self.start) % self.step
 
     def __str__(self, /):
         return f"{self.start}::{self.step}"
@@ -136,31 +137,19 @@ class IntRange(IntLike, metaclass=_Schema):
 
     start: Int
     stop: Int
-    step: Int = 1
+    step: Int[1:] = 1
 
-    _req_slots__ = ('_iterfn', '_lenfn', '_rangeobj', '_tupobj',)
+    _req_slots__ = ('_rangeobj',)
 
     class Choret(_Sliceable):
 
         BOUNDREQS = ('start', 'stop', 'step')
 
-        @property
-        def start(self, /):
-            return self.bound.start
-
-        @property
-        def stop(self, /):
-            return self.bound.stop
-
-        @property
-        def step(self, /):
-            return self.bound.step
-
         def handle_intlike(self, incisor: IntLike, /, *, caller):
             if isinstance(incisor, IntRange):
                 slc = incisor.slc
             elif isinstance(incisor, IntCount):
-                slc = slice(incisor.start, self.stop, incisor.step)
+                slc = slice(incisor.start, self.bound.stop, incisor.bound.step)
             elif incisor is Int:
                 return _IncisionProtocol.TRIVIAL(caller)()
             else:
@@ -168,19 +157,23 @@ class IntRange(IntLike, metaclass=_Schema):
             incisor = self.slice_slyce_nontrivial(slc)
             return _IncisionProtocol.SLYCE(caller)(incisor)
 
+        def handle_int(self, incisor: int, /, *, caller):
+            try:
+                out = self.bound._rangeobj[incisor]
+            except IndexError:
+                return _IncisionProtocol.FAIL(caller)(incisor)
+            return _IncisionProtocol.RETRIEVE(caller)(out)
+
         def slice_slyce_nontrivial(self, incisor: (_OPINT, _OPINT, _OPINT), /):
             start, stop, step = incisor.start, incisor.stop, incisor.step
-            nrang = self._rangeobj[start:stop:step]
+            nrang = self.bound._rangeobj[start:stop:step]
             return IntRange(nrang.start, nrang.stop, nrang.step)
-
-        def retrieve_contains(self, incisor: int, /) -> int:
-            return self._tupobj[incisor]
 
     @classmethod
     def parameterise(cls, cache, arg0, /, *argn):
         if isinstance(arg0, slice):
             if argn:
-                raise Exception("Cannot pass both slc and args.")
+                raise cls.paramexc("Cannot pass both slc and args.")
             slc = arg0
         else:
             slc = slice(arg0, *argn) 
@@ -195,10 +188,7 @@ class IntRange(IntLike, metaclass=_Schema):
 
     def __init__(self, /):
         super().__init__()
-        rangeobj = self._rangeobj = range(self.start, self.stop, self.step)
-        tupobj = self._tupobj = tuple(rangeobj)
-        self._iterfn = tupobj.__iter__
-        self._lenfn = tupobj.__len__
+        self._rangeobj = range(self.start, self.stop, self.step)
 
     @property
     @_caching.soft_cache()
@@ -206,16 +196,20 @@ class IntRange(IntLike, metaclass=_Schema):
         return slice(self.start, self.stop, self.step)
 
     def __iter__(self, /):
-        return self._iterfn()
+        return iter(self._rangeobj)
 
     def __len__(self, /):
-        return self._lenfn()
+        return len(self._rangeobj)
+
+    @property
+    def __contains__(self, /):
+        return self._rangeobj.__contains__
 
     def __reversed__(self, /):
         return self[::-1]
 
-    def __str__(self, /):
-        return ':'.join(map(str, self.args))
+#     def __str__(self, /):
+#         return ':'.join(map(str, self.args))
 
 
 ###############################################################################

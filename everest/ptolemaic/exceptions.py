@@ -22,6 +22,13 @@ class PtolemaicExceptionRaisedBy(
     ...
 
 
+class PtolemaicLayoutException(PtolemaicExceptionRaisedBy):
+
+    def message(self, /):
+        yield from super().message()
+        yield "during the creation of a `ptolemaic` class"
+
+
 class ParameterisationException(
         _exceptions.ExceptionRaisedBy,
         PtolemaicException,

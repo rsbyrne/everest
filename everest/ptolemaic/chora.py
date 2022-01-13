@@ -9,6 +9,7 @@ import typing as _typing
 import types as _types
 import itertools as _itertools
 import abc as _abc
+import weakref as _weakref
 
 from everest.utilities import (
     TypeMap as _TypeMap, FrozenMap as _FrozenMap,
@@ -19,6 +20,7 @@ from everest.utilities import (
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     Incisable as _Incisable,
+    Composition as _Composition,
     )
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -37,16 +39,9 @@ class Chora(metaclass=_Essence):
             return getattr(ACls, '_ptolemaic_choret_decorated_', False)
         return NotImplemented
 
-
-class ProxyChora(_Incisable, metaclass=_Essence):
-
-    @property
-    @_abc.abstractmethod
-    def chora(self, /):
-        raise NotImplementedError
-
-    def __incise__(self, incisor, /, *, caller):
-        return self.hint.__chain_incise__(incisor, caller=caller)
+    @classmethod
+    def __init_subclass__(cls, /, *_, **__):
+        raise TypeError("This class cannot be subclassed.")
 
 
 class Choret(_Sprite):
@@ -63,7 +58,7 @@ class Choret(_Sprite):
 
 
 class ChoretBase(metaclass=Choret):
-    
+
     BOUNDREQS = ()
 
     bound: object
@@ -72,10 +67,13 @@ class ChoretBase(metaclass=Choret):
     def __class_init__(cls, /):
         super().__class_init__()
         @property
-        @_caching.soft_cache()
-        def __incise__(self, /):
-            return cls(self).__incise__
-        cls._boundincise = __incise__
+#         @_caching.soft_cache()
+        def __defer_incise__(self, /):
+            return self.Choret(self)
+        cls.decoratemeths = dict(
+            __defer_incise__=__defer_incise__,
+            __getitem__=_Incisable.__getitem__,
+            )
 
     @classmethod
     def compatible(cls, ACls, /):
@@ -100,15 +98,9 @@ class ChoretBase(metaclass=Choret):
             ACls.__choret_decorate__(cls)
             return ACls
         with ACls.mutable:
-            ACls.__incise__ = cls._boundincise
-            for methname in _Incisable.REQMETHS:
-                if not hasattr(ACls, methname):
-                    meth = getattr(_Incisable, methname)
-                    setattr(ACls, methname, meth)
-                    if methname in _Incisable.__abstractmethods__:
-                        abstract.add(methname)
-            if abstract:
-                ACls.__abstractmethods__ = (abstract | ACls.__abstractmethods)
+            ACls.Choret = cls
+            for name, obj in cls.decoratemeths.items():
+                setattr(ACls, name, obj)
             ACls._ptolemaic_choret_decorated_ = True
         return ACls
 
@@ -160,10 +152,11 @@ WRAPMETHS = dict(
 class Basic(metaclass=Choret):
 
     MERGETUPLES = ('PREFIXES', 'BOUNDREQS')
-    PREFIXES = (
-        'handle',
-        *(protocol.name.lower() for protocol in _IncisionProtocol),
-        )
+    PREFIXES = ('handle', *WRAPMETHS)
+
+    @property
+    def __getitem__(self, /):
+        raise NotImplementedError
 
     def handle_none(self, incisor: type(None), /, *, caller):
         return _IncisionProtocol.GENERIC(caller)()
@@ -177,7 +170,7 @@ class Basic(metaclass=Choret):
 
     def slyce_compose(self, incisor: _Incisable, /):
         '''Returns the composition of two choras, i.e. f(g(x)).'''
-        return Composition(self, incisor)
+        return _Composition(self, incisor)
 
     def fail_ultimate(self, incisor: object, /):
         '''The ultimate fallback for unrecognised incision types.'''
@@ -240,29 +233,34 @@ class Basic(metaclass=Choret):
             )
 
 
-class Composition(_Incisable, metaclass=_Sprite):
+# class Composition(_Incisable, metaclass=_Sprite):
 
-    fobj: _Incisable
-    gobj: _Incisable
+#     fobj: _Incisable
+#     gobj: _Incisable
 
-    def __incise_trivial__(self, /):
-        return self
+#     @property
+#     def __incise__(self, /):
+#         return self.gobj
 
-    def __incise_slyce__(self, incisor, /):
-        return Composition(self.fobj, self.gobj.__incise_slyce__(incisor))
+#     def __incise_trivial__(self, /):
+#         return self
 
-    def __incise_retrieve__(self, incisor, /):
-        return self.fobj[self.gobj.__incise_retrieve__(incisor)]
+#     def __incise_slyce__(self, incisor, /):
+#         return self._ptolemaic_class__(
+#             self.fobj,
+#             _IncisionProtocol.SLYCE(self.gobj)(incisor),
+#             )
 
-    @property
-    def __incise__(self, /):
-        return self.gobj.__incise__
+#     def __incise_retrieve__(self, incisor, /):
+#         return self.fobj[
+#             _IncisionProtocol.RETRIEVE(self.gobj)(incisor)
+#             ]
 
 
 class Sliceable(Basic):
 
     def handle_slice(self, incisor: slice, /, *, caller):
-        return self.Chora.slcgetmeths[
+        return self.slcgetmeths[
             tuple(map(type, (incisor.start, incisor.stop, incisor.step)))
             ](self, incisor, caller=caller)
 
@@ -282,150 +280,6 @@ class Sliceable(Basic):
             'slice',
             hintprocess=_functools.partial(_typing.GenericAlias, slice),
             ))
-
-
-# class MultiChora(metaclass=_Essence):
-#     '''
-#     A `MultiChora` is a collection of choras which are indexed collectively
-#     in a similar manner to a Numpy 'fancy slice' or Pandas `MultiIndex`.
-#     '''
-
-#     @property
-#     @_abc.abstractmethod
-#     def choras(self, /):
-#         raise NotImplementedError
-
-#     @property
-#     def depth(self, /):
-#         return len(self.choras)
-
-#     @property
-#     @_caching.soft_cache()
-#     def active(self, /):
-#         return tuple(not isinstance(cho, _Degenerate) for cho in self.choras)
-
-#     @property
-#     @_caching.soft_cache()
-#     def activechoras(self, /):
-#         return tuple(_itertools.compress(self.choras, self.active))
-
-#     @property
-#     def activedepth(self, /):
-#         return len(self.activechoras)
-
-#     def yield_tuple_multiincise(self, /, *incisors):
-#         ninc, ncho = len(incisors), self.activedepth
-#         nell = incisors.count(...)
-#         if nell:
-#             ninc -= nell
-#             if ninc % nell:
-#                 raise ValueError("Cannot resolve incision ellipses.")
-#             ellreps = (ncho - ninc) // nell
-#         chorait = iter(self.choras)
-#         try:
-#             for incisor in incisors:
-#                 if incisor is ...:
-#                     count = 0
-#                     while count < ellreps:
-#                         chora = next(chorait)
-#                         if not isinstance(chora, _Degenerate):
-#                             count += 1
-#                         yield chora
-#                     continue
-#                 while True:
-#                     chora = next(chorait)
-#                     if isinstance(chora, _Degenerate):
-#                         yield chora
-#                         continue
-#                     yield chora.__incise__(incisor, caller=Degenerator)
-#                     break
-#         except StopIteration:
-# #             raise ValueError("Too many incisors in tuple incision.")
-#             pass
-#         yield from chorait
-
-
-# class MultiBraceChora(MultiChora):
-
-#     def handle_tuple(self, incisor: tuple, /, *, caller):
-#         '''Captures the special behaviour implied by `self[a,b,...]`'''
-#         choras = tuple(self.Chora.yield_tuple_multiincise(*incisor))
-#         if all(isinstance(cho, _Degenerate) for cho in choras):
-#             incisor = tuple(cho.value for cho in choras)
-#             return _IncisionProtocol.RETRIEVE(caller)(incisor)
-#         return _IncisionProtocol.SLYCE(caller)(
-#             self._ptolemaic_class__(choras)
-#             )
-
-
-# @MultiBraceChora
-# class MultiBrace(metaclass=_Sprite):
-
-#     choraargs: tuple
-
-#     @classmethod
-#     def __new__(cls, arg=None, /, *args):
-#         if args:
-#             return super().__new__(cls, (arg, *args))
-#         return super().__new__(cls, tuple(arg))
-
-#     @property
-#     def choras(self, /):
-#         return self.choraargs
-
-
-# class MultiMapChora(MultiChora):
-
-#     def handle_tuple(self, incisor: tuple, /, *, caller):
-#         '''Captures the special behaviour implied by `self[a,b,...]`'''
-#         choras = tuple(self.Chora.yield_tuple_multiincise(*incisor))
-#         if all(isinstance(cho, _Degenerate) for cho in choras):
-#             incisor = _FrozenMap(zip(
-#                 self.chorakws,
-#                 (cho.value for cho in choras),
-#                 ))
-#             return _IncisionProtocol.RETRIEVE(caller)(incisor)
-#         incisor = _FrozenMap(zip(self.chorakws, choras))
-#         return _IncisionProtocol.SLYCE(caller)(
-#             self._ptolemaic_class__(incisor)
-#             )
-
-#     def yield_dict_multiincise(self, /, **incisors):
-#         chorakws = self.chorakws
-#         for name, incisor in incisors.items():
-#             chora = chorakws[name]
-#             yield name, chora.__incise__(incisor, caller=Degenerator(chora))
-
-#     def handle_dict(self, incisor: dict, /, *, caller):
-#         choras = (
-#             self.chorakws
-#             | dict(self.Chora.yield_dict_multiincise(**incisor))
-#             )
-#         if all(isinstance(chora, _Degenerate) for chora in choras.values()):
-#             incisor = _FrozenMap({
-#                 key: val.value for key, val in choras.items()
-#                 })
-#             return _IncisionProtocol.RETRIEVE(caller)(incisor)
-#         return _IncisionProtocol.SLYCE(caller)(
-#             self._ptolemaic_class__(choras)
-#             )
-
-
-# class MultiMap(Map, MultiChora, metaclass=_Sprite):
-
-#     chorakws: _FrozenMap = _FrozenMap()
-
-#     @classmethod
-#     def __new__(cls, dct=None, /, **kwargs):
-#         if dct is not None:
-#             if kwargs:
-#                 raise ValueError("Cannot input both arg and kwargs.")
-#             kwargs = dict(dct)
-#         return super().__new__(cls, _FrozenMap(kwargs))
-
-#     @property
-#     def choras(self, /):
-#         return tuple(self.chorakws.values())
 
 
 ###############################################################################

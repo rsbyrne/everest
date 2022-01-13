@@ -17,6 +17,7 @@ from everest.utilities import (
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic import exceptions as _exceptions
 
 
 def _sprite_get_epitaph(self, /):
@@ -154,16 +155,29 @@ class Sprite(_Essence):
         return tuple(out)
 
     def get_concrete_class(cls, /):
+        fields = cls.get_fields()
+        if (clashes := cls.FORBIDDENFIELDS.intersection(set(fields))):
+            raise _exceptions.PtolemaicLayoutException(
+                cls,
+                "The following names were passed to be field names\n"
+                "but they are reserved for the class:\n"
+                f"{set(clashes)}"
+                "\nYou'll have to choose different names for these fields - "
+                "sorry!"
+                )
         ConcreteBase = _collections.namedtuple(
             f"{cls}_NamedTuple",
-            fields := cls.get_fields(),
+            fields,
             defaults=cls.get_default_values(fields),
 #             module=namespace['__module__'],
             )
+        namespace = dict(
+            _basecls=cls,
+            ) | SPRITENAMESPACE
         out = type(cls).create_class_object(
             f"Concrete_{cls.__name__}",
             (cls, ConcreteBase),
-            dict(_basecls=cls) | SPRITENAMESPACE,
+            namespace,
             )
         out.__class_pre_init__(out.__name__, out.__bases__, {})
         out.freezeattr.toggle(True)
@@ -171,9 +185,19 @@ class Sprite(_Essence):
 
     def __class_deep_init__(cls, /):
         super().__class_deep_init__()
+        if not hasattr(cls, 'FORBIDDENFIELDS'):
+            cls.MERGESETS = tuple(sorted(set(
+                (*cls.__dict__.get('MERGESETS', ()), 'FORBIDDENFIELDS')
+                )))
+            cls.FORBIDDENFIELDS = frozenset(('fields',))
         cls._instancesoftcaches = {}
         cls._instanceweakcaches = {}
         Concrete = cls.Concrete = cls.get_concrete_class()
+        for field in Concrete._fields:
+            try:
+                delattr(cls, field)
+            except AttributeError:
+                pass
         callmeth = cls.__callmeth__ = Concrete.__new__.__get__(Concrete)
         cls.__signature__ = _inspect.signature(callmeth)
 

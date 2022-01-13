@@ -14,7 +14,6 @@ from everest.utilities import (
     )
 from everest.incision import (
     Incisable as _Incisable,
-    Degenerate as _Degenerate,
     IncisionHandler as _IncisionHandler,
     IncisionProtocol as _IncisionProtocol,
     )
@@ -41,14 +40,25 @@ class Map(Armature):
     ...
 
 
+class Degenerate(_Incisable, metaclass=_Sprite):
+
+    value: object
+
+    def __incise__(self, incisor, /, *, caller):
+        return _IncisionProtocol.FAIL(caller)(
+            incisor,
+            "Cannot further incise an already degenerate incisable."
+            )
+
+
 class Degenerator(metaclass=_Bythos):
 
     @classmethod
     def __class_incise_retrieve__(cls, incisor, /):
-        return _Degenerate(incisor)
+        return Degenerate(incisor)
 
 
-class MultiChora(Armature, _Chora):
+class MultiChora(Armature, _Incisable):
     '''
     A `MultiChora` is a collection of choras which are indexed collectively
     in a similar manner to a Numpy 'fancy slice' or Pandas `MultiIndex`.
@@ -79,7 +89,7 @@ class MultiChora(Armature, _Chora):
         @_caching.soft_cache()
         def active(self, /):
             return tuple(
-                not isinstance(cho, _Degenerate) for cho in self.choras
+                not isinstance(cho, Degenerate) for cho in self.choras
                 )
 
         @property
@@ -106,13 +116,13 @@ class MultiChora(Armature, _Chora):
                         count = 0
                         while count < ellreps:
                             chora = next(chorait)
-                            if not isinstance(chora, _Degenerate):
+                            if not isinstance(chora, Degenerate):
                                 count += 1
                             yield chora
                         continue
                     while True:
                         chora = next(chorait)
-                        if isinstance(chora, _Degenerate):
+                        if isinstance(chora, Degenerate):
                             yield chora
                             continue
                         yield chora.__incise__(incisor, caller=Degenerator)
@@ -129,14 +139,14 @@ class MultiBrace(Brace, MultiChora, metaclass=_Sprite):
 
     @property
     def choras(self, /):
-        return choraargs
+        return self.choraargs
 
     class Choret:
 
         def handle_tuple(self, incisor: tuple, /, *, caller):
             '''Captures the special behaviour implied by `self[a,b,...]`'''
             choras = tuple(self.yield_tuple_multiincise(*incisor))
-            if all(isinstance(cho, _Degenerate) for cho in choras):
+            if all(isinstance(cho, Degenerate) for cho in choras):
                 incisor = tuple(cho.value for cho in choras)
                 return _IncisionProtocol.RETRIEVE(caller)(incisor)
             return _IncisionProtocol.SLYCE(caller)(self(choras))
@@ -167,7 +177,7 @@ class MultiMap(Map, MultiChora, metaclass=_Sprite):
         def handle_tuple(self, incisor: tuple, /, *, caller):
             '''Captures the special behaviour implied by `self[a,b,...]`'''
             choras = tuple(self.yield_tuple_multiincise(*incisor))
-            if all(isinstance(cho, _Degenerate) for cho in choras):
+            if all(isinstance(cho, Degenerate) for cho in choras):
                 incisor = _FrozenMap(zip(
                     self.chorakws,
                     (cho.value for cho in choras),
@@ -190,7 +200,7 @@ class MultiMap(Map, MultiChora, metaclass=_Sprite):
                 | dict(self.yield_dict_multiincise(**incisor))
                 )
             if all(
-                    isinstance(chora, _Degenerate)
+                    isinstance(chora, Degenerate)
                     for chora in choras.values()
                     ):
                 incisor = _FrozenMap({

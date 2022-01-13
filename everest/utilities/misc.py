@@ -272,6 +272,7 @@ class FrozenMap(_collabc.Mapping):
         return f"{type(self).__name__}({self.content})"
 
     def _repr_pretty_(self, p, cycle):
+        p.text('<')
         root = type(self).__name__
         if cycle:
             p.text(root + '{...}')
@@ -292,6 +293,7 @@ class FrozenMap(_collabc.Mapping):
                     p.text(' = ')
                     p.pretty(val)
                 p.breakable()
+        p.text('>')
 
     def __hash__(self, /):
         try:

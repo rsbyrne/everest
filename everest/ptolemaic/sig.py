@@ -20,16 +20,16 @@ from everest.utilities import (
 from everest import epitaph as _epitaph
 from everest.incision import (
     Incisable as _Incisable,
-    Degenerate as _Degenerate,
+    ChainIncisable as _ChainIncisable,
     )
 
-from everest.ptolemaic.chora import ProxyChora as _ProxyChora
 from everest.ptolemaic.armature import (
     Armature as _Armature,
     MultiMap as _MultiMap,
+    Degenerate as _Degenerate,
     )
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.fundaments.thing import Thing as _Thing
+from everest.ptolemaic.thing import Thing as _Thing
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 
@@ -122,7 +122,7 @@ class FieldKind(metaclass=FieldMeta):
         return Field(self.kind, arg)
 
 
-class Field(_ProxyChora, metaclass=FieldMeta):
+class Field(_ChainIncisable, metaclass=FieldMeta):
 
     kind: ParamKind
     hint: _Incisable
@@ -207,15 +207,15 @@ class Field(_ProxyChora, metaclass=FieldMeta):
         return self.hint.__contains__
 
 
-class Sig(_ProxyChora, _Armature, metaclass=_Sprite):
+class Sig(_ChainIncisable, _Armature, metaclass=_Sprite):
 
-    fields: _FrozenMap = _FrozenMap()
+    infields: _FrozenMap = _FrozenMap()
 
     @property
     @_caching.soft_cache()
     def chora(self, /):
-        return _MultiMapp(**{
-            key: val.hint for key, val in fields.items()
+        return _MultiMap(**{
+            key: val.hint for key, val in self.infields.items()
             })
 
     @staticmethod
@@ -251,12 +251,11 @@ class Sig(_ProxyChora, _Armature, metaclass=_Sprite):
                     pm.name: Field(pm.kind, pm.annotation, pm.default)
                     for pm in signature.parameters.values()
                     }
-            fields = cls._sort_fields(fields)
         else:
             if kwargs:
                 raise TypeError
             cache['chora'], fields = arg0, arg1
-        obj = super().__new__(cls, _FrozenMap(fields))
+        obj = super().__new__(cls, _FrozenMap(cls._sort_fields(fields)))
         if cache:
             obj.softcache.update(cache)
         return obj
@@ -266,7 +265,7 @@ class Sig(_ProxyChora, _Armature, metaclass=_Sprite):
     def degenerates(self, /):
         return _mprox({
             name: field.hint.value
-            for name, field in self.fields.items()
+            for name, field in self.infields.items()
             if isinstance(field.hint, _Degenerate)
             })
 
@@ -275,7 +274,7 @@ class Sig(_ProxyChora, _Armature, metaclass=_Sprite):
     def signature(self, /):
         return _inspect.Signature(
             field.get_parameter(name)
-            for name, field in self.fields.items()
+            for name, field in self.infields.items()
             )
 
     @property
@@ -287,10 +286,10 @@ class Sig(_ProxyChora, _Armature, metaclass=_Sprite):
             )
 
     def __incise_slyce__(self, chora, /):
-        assert isinstance(chora, _MultiMapp)
+        assert isinstance(chora, _MultiMap)
         fields = {
             key: Field(field.kind, cho, field.value)
-            for ((key, field), cho) in zip(self.fields.items(), chora.choras)
+            for ((key, field), cho) in zip(self.infields.items(), chora.choras)
             }
         return self._ptolemaic_class__(chora, fields)
 
@@ -306,7 +305,7 @@ class Sig(_ProxyChora, _Armature, metaclass=_Sprite):
         bound.arguments.update(effbound.arguments)
         bound.arguments.update(self.degenerates)
         bound.apply_defaults()
-        fields = self.fields
+        fields = self.infields
         for key, val in bound.arguments.items():
             if val not in fields[key]:
                 raise ValueError(key, val, type(val))
@@ -320,7 +319,7 @@ class Sig(_ProxyChora, _Armature, metaclass=_Sprite):
         root = repr(self._ptolemaic_class__)
         if cycle:
             p.text(root + '{...}')
-        elif not (kwargs := self.fields):
+        elif not (kwargs := self.infields):
             p.text(root + '()')
         else:
             with p.group(4, root + '(', ')'):

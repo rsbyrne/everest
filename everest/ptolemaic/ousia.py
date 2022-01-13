@@ -12,7 +12,7 @@ from everest.utilities import (
     switch as _switch,
     reseed as _reseed,
     )
-from everest.incision import Incisable as _Incisable
+from everest.incision import IncisionHandler as _IncisionHandler
 
 from everest.ptolemaic.essence import Essence as _Essence
 
@@ -121,7 +121,7 @@ class OusiaBase(metaclass=Ousia):
         if '_Concrete' in cls.__dict__:
             raise TypeError(f"Too late to decorate class! {cls}, {choret}")
         with cls.mutable:
-            cls._choret = choret
+            cls.Choret = choret
             cls._ptolemaic_choret_decorated_ = True
 
     ### Configuring the concrete class:
@@ -133,7 +133,7 @@ class OusiaBase(metaclass=Ousia):
 
         bases = [cls,]
         if getattr(cls, '_ptolemaic_choret_decorated_', False):
-            bases.append(_Incisable)
+            bases.append(_IncisionHandler)
         bases = tuple(bases)
 
         slots = tuple(
@@ -147,8 +147,7 @@ class OusiaBase(metaclass=Ousia):
             __class_init__=lambda: None,
             )
         if getattr(cls, '_ptolemaic_choret_decorated_', False):
-            choret = getattr(cls, '_choret')
-            namespace['__incise__'] = choret._boundincise
+            namespace.update(cls.Choret.decoratemeths)
 
         return name, bases, namespace
 

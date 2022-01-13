@@ -34,7 +34,8 @@ class Tekton(_Bythos):
     @classmethod
     def pre_create_class(meta, /, *args):
         name, bases, namespace = super().pre_create_class(*args)
-        namespace['sig'] = meta.get_signature(name, bases, namespace)
+        sig = namespace['sig'] = meta.get_signature(name, bases, namespace)
+        namespace['fields'] = sig.infields
         return name, bases, namespace
 
     @property

@@ -15,6 +15,7 @@ from everest.utilities import (
     caching as _caching,
     switch as _switch,
     reseed as _reseed,
+    FrozenMap as _FrozenMap,
     )
 
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
@@ -49,13 +50,12 @@ def gather_names_dictlike(bases, namespace, name, /):
             if not key in latter:
                 yield key, mergee[key]
 
-gathernamemeths = {
-    tuple: gather_names_tuplelike,
-    _types.MappingProxyType: gather_names_dictlike,
+_GATHERMETHNAMES = {
+    _FrozenMap: gather_names_dictlike,
     }
 
 def merge_names(bases, namespace, name, /, *, mergetyp=tuple):
-    meth = gathernamemeths[mergetyp]
+    meth = _GATHERMETHNAMES.get(mergetyp, gather_names_tuplelike)
     namespace[name] = mergetyp(meth(bases, namespace, name))
 
 def merge_names_all(bases, namespace, overname, /, **kwargs):
@@ -103,7 +103,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         if len(inhclasses) == 1:
             return inhclasses[0]
         if all(issubclass(inhclasses[-1], inh) for inh in inhclasses[:-1]):
-            return inhclasses[0]
+            return inhclasses[-1]
         return type(
             name,
             inhclasses,
@@ -135,7 +135,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         merge_names_all(bases, namespace, 'MERGETUPLES')
         merge_names_all(
             bases, namespace, 'MERGEDICTS',
-            mergetyp=_types.MappingProxyType
+            mergetyp=_FrozenMap,
+            )
+        merge_names_all(
+            bases, namespace, 'MERGESETS',
+            mergetyp=frozenset,
             )
 
     @classmethod

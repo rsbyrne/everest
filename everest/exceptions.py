@@ -6,8 +6,8 @@
 class EverestException(Exception):
     '''Parent exception of all Everest exceptions.'''
 
-    def __init__(self, /, message=None):
-        self._message = message
+    def __init__(self, /, message=''):
+        self.usermessage = '' if message is None else str(message)
 
     @classmethod
     def trigger(cls, /, *args, **kwargs):
@@ -17,12 +17,31 @@ class EverestException(Exception):
         yield '\nSomething went wrong within Everest'
 
     def __str__(self, /):
-        message = self._message
-        if message is None:
-            message = ''
-        else:
-            message = ('\n' + str(message)).replace('\n', '\n    ')
-        return '\n'.join(map(str, self.message())) + ":" + message
+        out = ''
+        indent = 0
+        for message in map(str, (*self.message(), self.usermessage)):
+            if not message:
+                continue
+            for spec in (':', '.'):
+                if message.endswith(spec):
+                    specialend = spec
+                    message = message[:-1]
+                    break
+            else:
+                specialend = ''
+            if message.endswith('\\'):
+                message = message[:-1]
+            elif specialend:
+                message += specialend
+            if message:
+                out += '\n' + indent * '    ' + message
+            if specialend == ':':
+                indent += 1
+            elif specialend == '.':
+                indent = max(0, indent - 1)
+        if not out.endswith('.'):
+            out += '.'
+        return out
 
 
 class ExceptionRaisedBy(EverestException):
@@ -35,10 +54,10 @@ class ExceptionRaisedBy(EverestException):
         yield from super().message()
         raisedby = self.raisedby
         if raisedby is not None:
-            yield ' '.join((
-                f'within the object `{repr(raisedby)}`',
-                f'of type `{repr(type(raisedby))}`',
-                ))
+            yield 'within the object:'
+            yield repr(raisedby) + '\.'
+            yield 'of type:'
+            yield repr(type(raisedby)) + '\.'
 
 
 class MissingAsset(EverestException):
@@ -56,6 +75,22 @@ class IncisionException(EverestException):
         yield 'during incision'
 
 
+class IncisionProtocolException(
+        ExceptionRaisedBy, IncisionException, AttributeError
+        ):
+
+    def __init__(self, /, protocol, *args, **kwargs):
+        self.protocol = protocol
+        super().__init__(*args, **kwargs)
+
+    def message(self, /):
+        yield from super().message()
+        yield ':'
+        yield 'the protocol:'
+        yield repr(self.protocol) + '\.'
+        yield 'is not supported on this object.'
+
+
 class IncisorTypeException(ExceptionRaisedBy, IncisionException):
 
     def __init__(self, /, incisor, *args, **kwargs):
@@ -65,11 +100,11 @@ class IncisorTypeException(ExceptionRaisedBy, IncisionException):
     def message(self, /):
         incisor = self.incisor
         yield from super().message()
-        yield ' '.join((
-            f'when object `{repr(incisor)}`',
-            f'of type `{repr(type(incisor))}`',
-            f'was passed as an incisor',
-            ))
+        yield 'when object:'
+        yield repr(incisor) + '\.'
+        yield 'of type:'
+        yield repr(type(incisor)) + '\.'
+        yield 'was passed as an incisor.'
 
 
 ###############################################################################

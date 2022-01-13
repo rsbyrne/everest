@@ -21,6 +21,7 @@ from everest.ptolemaic.sig import (
     Params as _Params,
     Param as _Param,
     )
+from everest.ptolemaic import exceptions as _exceptions
 
 
 class Schema(_Ousia, _Tekton):
@@ -66,10 +67,7 @@ class Schema(_Ousia, _Tekton):
 
     @classmethod
     def get_signature(meta, name, bases, namespace, /):
-        fields = namespace['fields'] = _types.MappingProxyType(
-            meta.collect_fields(bases, namespace)
-            )
-        return _Sig(**fields)
+        return _Sig(**meta.collect_fields(bases, namespace))
 
     @property
     def __signature__(cls, /):
@@ -93,10 +91,6 @@ class Schema(_Ousia, _Tekton):
 
     def __call__(cls, /, *args, **kwargs):
         bound = cls.parameterise(cache := {}, *args, **kwargs)
-        fields = cls.sig.fields
-        for key, val in bound.arguments.items():
-            if val not in fields[key]:
-                raise ValueError(key, val, type(val))
         out = cls.__incise_retrieve__(_Params(bound))
         out.softcache.update(cache)
         return out
@@ -111,6 +105,17 @@ class SchemaBase(metaclass=Schema):
     _req_slots__ = ('params',)
 
     CACHE = False
+
+    @classmethod
+    def paramexc(cls, /, *params, message=None):
+        return _exceptions.ParameterisationException(params, cls, message)
+
+    @classmethod
+    def check_params(cls, params, /):
+        fields = cls.fields
+        for key, val in params.items():
+            if val not in fields[key]:
+                raise ValueError(key, val, type(val))
 
     @classmethod
     def __class_incise_slyce__(cls, sig, /):
@@ -131,6 +136,7 @@ class SchemaBase(metaclass=Schema):
 
     @classmethod
     def __construct__(cls, params, /):
+        cls.check_params(params)
         obj = object.__new__(cls.Concrete)
         obj.params = params
         obj.__init__()
