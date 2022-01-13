@@ -8,7 +8,11 @@ import itertools as _itertools
 from everest.utilities import caching as _caching
 from everest.incision import IncisionProtocol as _IncisionProtocol
 
-from everest.ptolemaic.thing import Thing as _Thing, ThingLike as ThingLike
+from everest.ptolemaic.thing import (
+    Thing as _Thing,
+    ThingLike as ThingLike,
+    ThingSpace as _ThingSpace,
+    )
 from everest.ptolemaic.chora import (
     Sliceable as _Sliceable,
     )
@@ -31,7 +35,7 @@ class IntLike(ThingLike, metaclass=_Essence):
     ...
 
 
-class IntSpace(_Sliceable, IntLike, metaclass=_Essence):
+class IntSpace(_Sliceable, _ThingSpace, IntLike):
 
     def retrieve_int(self, incisor: int, /):
         return incisor
@@ -49,7 +53,7 @@ class Int(IntLike, _Thing):
 
     @classmethod
     def __class_incise__(cls, incisor, /, *, caller):
-        return IntSpace.__incise__(IntSpace, incisor, caller=caller)
+        return IntSpace(cls).__incise__(incisor, caller=caller)
 
     @classmethod
     def __class_contains__(cls, arg, /):

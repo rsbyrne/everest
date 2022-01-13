@@ -3,7 +3,9 @@
 ###############################################################################
 
 
-from everest.ptolemaic.chora import Basic as _Basic
+from everest.incision import IncisionProtocol as _IncisionProtocol
+
+from everest.ptolemaic.chora import Choret as _Choret
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -15,17 +17,19 @@ class ThingLike(metaclass=_Essence):
     ...
 
 
-class ThingSpace(_Basic, ThingLike, metaclass=_Essence):
+class ThingSpace(_Choret.BaseTyp, ThingLike):
 
-    def retrieve_thing(self, incisor: object, /):
-        return incisor
+    def __incise__(self, incisor, /, *, caller):
+        if isinstance(incisor, _IncisionProtocol):
+            return incisor(caller)()
+        return _IncisionProtocol.RETRIEVE(caller)(incisor)
 
 
 class Thing(ThingLike, metaclass=_Bythos):
 
     @classmethod
     def __class_incise__(cls, incisor, /, *, caller):
-        return ThingSpace.__incise__(ThingSpace, incisor, caller=caller)
+        return ThingSpace(cls).__incise__(incisor, caller=caller)
 
     @classmethod
     def __class_contains__(cls, arg, /):

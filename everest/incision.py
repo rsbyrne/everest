@@ -60,8 +60,7 @@ class IncisionProtocol(_Enum, metaclass=_IncisionProtocolMeta_):
             return compliant[ACls]
         except KeyError:
             pass
-        fallbackname = cls.DEFER
-        if hasattr(ACls, fallbackname):
+        if hasattr(ACls, cls.DEFER):
             out = compliant[ACls] = True
             return out
         for methodname in cls.mandatory:
@@ -195,7 +194,7 @@ class Composition(
 
     @property
     def __incise__(self, /):
-        return self.gobj
+        return self.gobj.__incise__
 
     def __incise_trivial__(self, /):
         return self
@@ -203,12 +202,12 @@ class Composition(
     def __incise_slyce__(self, incisor, /):
         return type(self)(
             self.fobj,
-            _IncisionProtocol.SLYCE(self.gobj)(incisor),
+            IncisionProtocol.SLYCE(self.gobj)(incisor),
             )
 
     def __incise_retrieve__(self, incisor, /):
         return self.fobj[
-            _IncisionProtocol.RETRIEVE(self.gobj)(incisor)
+            IncisionProtocol.RETRIEVE(self.gobj)(incisor)
             ]
 
 

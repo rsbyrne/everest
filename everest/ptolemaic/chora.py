@@ -39,9 +39,9 @@ class Chora(metaclass=_Essence):
             return getattr(ACls, '_ptolemaic_choret_decorated_', False)
         return NotImplemented
 
-    @classmethod
-    def __init_subclass__(cls, /, *_, **__):
-        raise TypeError("This class cannot be subclassed.")
+#     @classmethod
+#     def __init_subclass__(cls, /, *_, **__):
+#         raise TypeError("This class cannot be subclassed.")
 
 
 class Choret(_Sprite):
@@ -50,11 +50,6 @@ class Choret(_Sprite):
         if isinstance(owner, _Essence):
             if name == 'Choret':
                 cls.decorate(owner)
-
-    def __call__(cls, arg, /):
-        if isinstance(arg, _Essence):
-            return cls.decorate(arg)
-        return cls.__callmeth__(arg)
 
 
 class ChoretBase(metaclass=Choret):
@@ -170,7 +165,7 @@ class Basic(metaclass=Choret):
 
     def slyce_compose(self, incisor: _Incisable, /):
         '''Returns the composition of two choras, i.e. f(g(x)).'''
-        return _Composition(self, incisor)
+        return _Composition(self.bound, incisor)
 
     def fail_ultimate(self, incisor: object, /):
         '''The ultimate fallback for unrecognised incision types.'''
