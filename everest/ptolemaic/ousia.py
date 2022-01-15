@@ -227,15 +227,11 @@ class OusiaBase(metaclass=Ousia):
 
     ### Representations:
 
-    @_caching.soft_cache()
-    def __hash__(self, /):
-        return _reseed.rdigits(12)
-
     def _repr(self, /):
-        return str(hash(self))
+        return f"id={id(self)}"
 
     def __repr__(self, /):
-        return f"<{type(self)}({self._repr()})>"
+        return f"<{type(self)}:{self._repr()})>"
 
     def __str__(self, /):
         return self.__repr__()

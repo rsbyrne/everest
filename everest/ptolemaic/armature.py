@@ -16,6 +16,7 @@ from everest.incision import (
     Incisable as _Incisable,
     IncisionHandler as _IncisionHandler,
     IncisionProtocol as _IncisionProtocol,
+    ChainIncisable as _ChainIncisable
     )
 
 from everest.ptolemaic.chora import Chora as _Chora, Sliceable as _Sliceable
@@ -51,27 +52,30 @@ class Degenerate(_Incisable, metaclass=_Sprite):
             )
 
 
-class Degenerator(metaclass=_Bythos):
+class Degenerator(_ChainIncisable, metaclass=_Sprite):
 
-    @classmethod
-    def __class_incise_retrieve__(cls, incisor, /):
-        return Degenerate(incisor)
+    chora: _Chora
+
+    @property
+    def __incision_manager__(self, /):
+        return self.chora
+
+    @property
+    def __incise_retrieve__(self, /):
+        return Degenerate
 
 
-class MultiChora(Armature, _Incisable):
+class MultiChora(_Chora, Armature):
     '''
     A `MultiChora` is a collection of choras which are indexed collectively
     in a similar manner to a Numpy 'fancy slice' or Pandas `MultiIndex`.
     '''
 
-    @property
-    @_abc.abstractmethod
-    def choras(self, /):
-        raise NotImplementedError
+    choras: object
 
     class Choret(_Sliceable):
 
-        BOUNDREQS = ('choras',)
+#         BOUNDREQS = ('choras',)
 
         @property
         def choras(self, /):
@@ -125,7 +129,9 @@ class MultiChora(Armature, _Incisable):
                         if isinstance(chora, Degenerate):
                             yield chora
                             continue
-                        yield chora.__incise__(incisor, caller=Degenerator)
+                        yield _IncisionProtocol.INCISE(chora)(
+                            incisor, caller=Degenerator(incisor),
+                            )
                         break
             except StopIteration:
     #             raise ValueError("Too many incisors in tuple incision.")
@@ -134,12 +140,6 @@ class MultiChora(Armature, _Incisable):
 
 
 class MultiBrace(Brace, MultiChora, metaclass=_Sprite):
-
-    choraargs: tuple
-
-    @property
-    def choras(self, /):
-        return self.choraargs
 
     class Choret:
 
@@ -151,7 +151,6 @@ class MultiBrace(Brace, MultiChora, metaclass=_Sprite):
                 return _IncisionProtocol.RETRIEVE(caller)(incisor)
             return _IncisionProtocol.SLYCE(caller)(self(choras))
 
-    @classmethod
     def __new__(cls, arg=None, /, *args):
         if args:
             return super().__new__(cls, (arg, *args))
@@ -160,15 +159,11 @@ class MultiBrace(Brace, MultiChora, metaclass=_Sprite):
 
 class MultiMap(Map, MultiChora, metaclass=_Sprite):
 
-    chorakws: _FrozenMap = _FrozenMap()
-
-    @property
-    def choras(self, /):
-        return tuple(self.chorakws.values())
-
     class Choret:
 
-        BOUNDREQS = ('chorakws',)
+        @property
+        def choras(self, /):
+            return tuple(self.choras.values())
 
         @property
         def chorakws(self, /):
@@ -184,13 +179,13 @@ class MultiMap(Map, MultiChora, metaclass=_Sprite):
                     ))
                 return _IncisionProtocol.RETRIEVE(caller)(incisor)
             incisor = _FrozenMap(zip(self.chorakws, choras))
-            return _IncisionProtocol.SLYCE(caller)(self(incisor))
+            return _IncisionProtocol.SLYCE(caller)(incisor)
 
         def yield_dict_multiincise(self, /, **incisors):
             chorakws = self.chorakws
             for name, incisor in incisors.items():
                 chora = chorakws[name]
-                yield name, chora.__incise__(
+                yield name, _IncisionProtocol.INCISE(chora)(
                     incisor, caller=Degenerator(chora)
                     )
 
@@ -207,9 +202,8 @@ class MultiMap(Map, MultiChora, metaclass=_Sprite):
                     key: val.value for key, val in choras.items()
                     })
                 return _IncisionProtocol.RETRIEVE(caller)(incisor)
-            return _IncisionProtocol.SLYCE(caller)(self(choras))
+            return _IncisionProtocol.SLYCE(caller)(choras)
 
-    @classmethod
     def __new__(cls, dct=None, /, **kwargs):
         if dct is not None:
             if kwargs:

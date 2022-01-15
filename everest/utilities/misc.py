@@ -277,7 +277,7 @@ class FrozenMap(_collabc.Mapping):
         if cycle:
             p.text(root + '{...}')
         elif not (kwargs := self.content):
-            p.text(root)
+            p.text(root + '()')
         else:
             with p.group(4, root + '(', ')'):
                 kwargit = iter(kwargs.items())

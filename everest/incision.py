@@ -29,9 +29,11 @@ class _IncisionProtocolMeta_(_EnumMeta):
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         cls._compliant = _weakref.WeakKeyDictionary()
-        cls.DEFER = '__defer_incise__'
+        cls.DEFER = '__incision_manager__'
         cls.mandatory = tuple(
-            cls[name].value for name in ('INCISE',)
+            cls[name].value for name in (
+                'INCISE', 'TRIVIAL', 'RETRIEVE', 'SLYCE', 'FAIL'
+                )
             )
 
 
@@ -48,6 +50,7 @@ class IncisionProtocol(_Enum, metaclass=_IncisionProtocolMeta_):
 
     GENERIC = '__incise_generic__'
     VARIABLE = '__incise_variable__'
+    DEGEN = '__incise_degen__'
 
     @classmethod
     def defer(cls, obj, /):
@@ -78,16 +81,7 @@ class IncisionProtocol(_Enum, metaclass=_IncisionProtocolMeta_):
         out = compliant[ACls] = True
         return out
 
-    @classmethod
-    def decorate(cls, ACls, /):
-        if not cls.complies(ACls):
-            raise TypeError(f"Class {ACls} does not comply with protocol {cls}.")
-        ACls.__getitem__ = Incisable.__getitem__
-        ACls.__chain_incise__ = Incisable.__chain_incise__
-        Incisable.register(ACls)
-        return ACls
-
-    def __call__(self, obj, /):
+    def __call__(self, obj, default = None, /):
         value = self.value
         try:
             return getattr(obj, value)
@@ -95,7 +89,9 @@ class IncisionProtocol(_Enum, metaclass=_IncisionProtocolMeta_):
             try:
                 return getattr(self.defer(obj), value)
             except AttributeError:
-                raise self.exc(obj)
+                if default is None:
+                    raise self.exc(obj)
+                return default
 
     def exc(self, obj, /):
         return IncisionProtocolException(self, obj)
@@ -146,31 +142,33 @@ class Incisable(IncisionHandler, metaclass=_abc.ABCMeta):
         return super().__subclasshook__(ACls)
 
 
-class Chain(
-        Incisable,
-        _collections.namedtuple('_ChainIncisable_', ('outer', 'inner')),
-        ):
+class IncisionChain(IncisionHandler, tuple):
 
-    @property
-    def __incise__(self, /):
-        return self.inner.__incise__
+    def __incise__(self, /, *, caller):
+        return IncisionProtocol.INCISE(self.inner)
 
     def __incise_trivial__(self, /):
-        return self[0].__incise__trivial__()
+        return IncisionProtocol.TRIVIAL(self[-1])()
 
-    def __incise_slyce__(self, chora, /):
-        for obj in reversed(self):
-            chora = obj.__incise_slyce__(chora)
-        return chora
+    def __incise_slyce__(self, incisor, /):
+        for obj in self:
+            incisor = IncisionProtocol.SLYCE(obj)(incisor)
+        return incisor
 
-    def __incise_retrieve__(self, index, /):
-        for obj in reversed(self):
-            index = obj.__incise_retrieve__(index)
-        return index
+    def __incise_retrieve__(self, incisor, /):
+        for obj in self:
+            incisor = IncisionProtocol.RETRIEVE(obj)(incisor)
+        return incisor
+
+    def __incise_degen__(self, incisor, /):
+        *members, last = self
+        for obj in members:
+            incisor = IncisionProtocol.RETRIEVE(obj)(incisor)
+        return IncisionProtocol.DEGEN(last)(incisor)
 
     @property
     def __incise_fail__(self, /):
-        return self[0].__incise_fail__
+        return IncisionProtocol.FAIL(self[-1])
 
 
 class ChainIncisable(Incisable):
@@ -179,36 +177,14 @@ class ChainIncisable(Incisable):
 
     @property
     @_abc.abstractmethod
-    def __defer_incise__(self, /) -> Incisable:
+    def __incision_manager__(self, /) -> Incisable:
         raise NotImplementedError
 
-    @property
-    def __incise__(self, /):
-        return Chain(self, self.__defer_incise__).__incise__
-
-
-class Composition(
-    Incisable,
-    _collections.namedtuple('_ChainIncisable_', ('fobj', 'gobj')),
-    ):
-
-    @property
-    def __incise__(self, /):
-        return self.gobj.__incise__
-
-    def __incise_trivial__(self, /):
-        return self
-
-    def __incise_slyce__(self, incisor, /):
-        return type(self)(
-            self.fobj,
-            IncisionProtocol.SLYCE(self.gobj)(incisor),
+    def __incise__(self, incisor, /, *, caller):
+        return IncisionProtocol.INCISE(man := self.__incision_manager__)(
+            incisor,
+            caller=IncisionChain((man, caller))
             )
-
-    def __incise_retrieve__(self, incisor, /):
-        return self.fobj[
-            IncisionProtocol.RETRIEVE(self.gobj)(incisor)
-            ]
 
 
 # class Incisable(IncisionHandler):

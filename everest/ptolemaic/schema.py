@@ -14,6 +14,7 @@ from everest.utilities import caching as _caching, reseed as _reseed
 
 from everest.ptolemaic.tekton import Tekton as _Tekton, Tektoid as _Tektoid
 from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic.chora import Chora as _Chora
 from everest.ptolemaic.sig import (
     Sig as _Sig,
     Field as _Field,
@@ -81,23 +82,21 @@ class Schema(_Ousia, _Tekton):
             })
         return name, bases, namespace
 
-    def __class_deep_init__(cls, /):
-        super().__class_deep_init__()
-        if cls.CACHE:
-            cls.premade = _weakref.WeakValueDictionary()
-            cls.__class_incise_retrieve__ = cls.__cache_construct__
-        else:
-            cls.__class_incise_retrieve__ = cls.__construct__
-
     def __call__(cls, /, *args, **kwargs):
         bound = cls.parameterise(cache := {}, *args, **kwargs)
-        out = cls.__incise_retrieve__(_Params(bound))
+        out = cls.__construct__(_Params(bound))
         out.softcache.update(cache)
         return out
 
+    def __class_get_incision_manager__(cls, /):
+        return Schemoid(cls, cls.sig)
+
 
 class Schemoid(_Tektoid):
-    ...
+
+    @property
+    def __incise_retrieve__(self, /):
+        return self.subject.__construct__
 
 
 class SchemaBase(metaclass=Schema):
@@ -171,7 +170,7 @@ class SchemaBase(metaclass=Schema):
         return self.epitaph.hashID
 
     def _repr(self, /):
-        return self.hashID
+        return f"hashID={self.hashID}"
 
     @_caching.soft_cache()
     def __hash__(self, /):

@@ -327,7 +327,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Representations:
 
     def __class_repr__(cls, /):
-        return cls.__qualname__
+        return f"<{type(cls).__name__}:{cls.__name__}>"
 
     def __class_str__(cls, /):
         return cls.__name__

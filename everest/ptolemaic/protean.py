@@ -67,6 +67,9 @@ class ProteanBase(metaclass=Protean):
     def _repr(self, /):
         return repr(self.basis)
 
+    def __repr__(self, /):
+        return f"<{type(self)}({self._repr()})>"
+
     def _repr_pretty_(self, p, cycle):
         p.text('<')
         root = repr(self._ptolemaic_class__)

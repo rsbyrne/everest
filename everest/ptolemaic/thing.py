@@ -3,7 +3,10 @@
 ###############################################################################
 
 
-from everest.incision import IncisionProtocol as _IncisionProtocol
+from everest.incision import (
+    IncisionProtocol as _IncisionProtocol,
+    Incisable as _Incisable,
+    )
 
 from everest.ptolemaic.chora import Choret as _Choret
 from everest.ptolemaic.bythos import Bythos as _Bythos
@@ -17,7 +20,7 @@ class ThingLike(metaclass=_Essence):
     ...
 
 
-class ThingSpace(_Choret.BaseTyp, ThingLike):
+class ThingSpace(_Choret, _Incisable, ThingLike):
 
     def __incise__(self, incisor, /, *, caller):
         if isinstance(incisor, _IncisionProtocol):
@@ -28,8 +31,8 @@ class ThingSpace(_Choret.BaseTyp, ThingLike):
 class Thing(ThingLike, metaclass=_Bythos):
 
     @classmethod
-    def __class_incise__(cls, incisor, /, *, caller):
-        return ThingSpace(cls).__incise__(incisor, caller=caller)
+    def __class_get_incision_manager__(cls, /):
+        return ThingSpace(cls)
 
     @classmethod
     def __class_contains__(cls, arg, /):

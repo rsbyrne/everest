@@ -6,7 +6,10 @@
 import itertools as _itertools
 
 from everest.utilities import caching as _caching
-from everest.incision import IncisionProtocol as _IncisionProtocol
+from everest.incision import (
+    IncisionProtocol as _IncisionProtocol,
+    IncisionHandler as _IncisionHandler,
+    )
 
 from everest.ptolemaic.thing import (
     Thing as _Thing,
@@ -52,15 +55,15 @@ class IntSpace(_Sliceable, _ThingSpace, IntLike):
 class Int(IntLike, _Thing):
 
     @classmethod
-    def __class_incise__(cls, incisor, /, *, caller):
-        return IntSpace(cls).__incise__(incisor, caller=caller)
+    def __class_get_incision_manager__(cls, /):
+        return IntSpace(cls)
 
     @classmethod
     def __class_contains__(cls, arg, /):
         return isinstance(arg, int)
 
 
-class IntCount(IntLike, metaclass=_Schema):
+class IntCount(IntLike, _IncisionHandler, metaclass=_Schema):
 
     start: Int
     step: Int
@@ -137,7 +140,7 @@ class IntCount(IntLike, metaclass=_Schema):
         return f"{self.start}::{self.step}"
 
 
-class IntRange(IntLike, metaclass=_Schema):
+class IntRange(IntLike, _IncisionHandler, metaclass=_Schema):
 
     start: Int
     stop: Int

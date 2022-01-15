@@ -20,31 +20,16 @@ from everest.utilities import (
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     Incisable as _Incisable,
-    Composition as _Composition,
+    IncisionHandler as _IncisionHandler,
+    ChainIncisable as _ChainIncisable,
     )
+from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
-class Chora(metaclass=_Essence):
-
-    MROCLASSES = ('Choret',)
-
-    @classmethod
-    def __subclasshook__(cls, ACls, /):
-        if cls is Chora:
-            if not isinstance(ACls, _Essence):
-                return False
-            return getattr(ACls, '_ptolemaic_choret_decorated_', False)
-        return NotImplemented
-
-#     @classmethod
-#     def __init_subclass__(cls, /, *_, **__):
-#         raise TypeError("This class cannot be subclassed.")
-
-
-class Choret(_Sprite):
+class ChoretMeta(_Sprite):
 
     def __set_name__(cls, owner, name, /):
         if isinstance(owner, _Essence):
@@ -52,7 +37,7 @@ class Choret(_Sprite):
                 cls.decorate(owner)
 
 
-class ChoretBase(metaclass=Choret):
+class Choret(metaclass=ChoretMeta):
 
     BOUNDREQS = ()
 
@@ -60,19 +45,23 @@ class ChoretBase(metaclass=Choret):
 
     @classmethod
     def __class_init__(cls, /):
+
         super().__class_init__()
+
         @property
-#         @_caching.soft_cache()
-        def __defer_incise__(self, /):
-            return self.Choret(self)
+        def __incise__(self, /):
+            return self.Choret(self).__incise__
+
         cls.decoratemeths = dict(
-            __defer_incise__=__defer_incise__,
-            __getitem__=_Incisable.__getitem__,
+            __incise__ = __incise__,
+            __getitem__ = _Incisable.__getitem__,
             )
 
     @classmethod
     def compatible(cls, ACls, /):
         if not isinstance(ACls, _Essence):
+            return False
+        if not issubclass(ACls, _IncisionHandler):
             return False
         direc = dir(ACls)
         slots = getattr(ACls, '_req_slots__', ())
@@ -95,7 +84,8 @@ class ChoretBase(metaclass=Choret):
         with ACls.mutable:
             ACls.Choret = cls
             for name, obj in cls.decoratemeths.items():
-                setattr(ACls, name, obj)
+                if not hasattr(obj, name):
+                    setattr(ACls, name, obj)
             ACls._ptolemaic_choret_decorated_ = True
         return ACls
 
@@ -103,13 +93,61 @@ class ChoretBase(metaclass=Choret):
     def __incise__(self, *_, **__):
         raise NotImplementedError
 
+#     @classmethod
+#     def __subclasshook__(cls, ACls, /):
+#         if issubclass(ACls, Chora):
+#             return issubclass(ACls.Choret, cls)
+#         return super().__subclasshook__(ACls)
+
+
+class Chora(_IncisionHandler, metaclass=_Essence):
+    '''The `Chora` type is the Ptolemaic implementation '''
+    '''of the Everest 'incision protocol'. '''
+    '''`Chora` objects can be thought of as representing 'space' '''
+    '''in both concrete and abstract ways.'''
+
+    MROCLASSES = ('Choret',)
+
+    Choret = Choret
+
     @classmethod
     def __subclasshook__(cls, ACls, /):
-        if isinstance(cls, Choret):
-            if not isinstance(ACls, Chora):
-                return False
-            return issubclass(ACls.Choret, cls)
-        return super().__subclasshook(ACls)
+        if cls is Chora:
+            if isinstance(ACls, (_Essence, _Pleroma)):
+                if issubclass(ACls, _Incisable):
+                    return True
+            return False
+        return super().__subclasshook__(ACls)
+
+#     @classmethod
+#     def __init_subclass__(cls, /, *_, **__):
+#         raise TypeError("This class cannot be subclassed.")
+
+_Incisable.register(Chora)
+
+
+class Composition(_Incisable, metaclass=_Sprite):
+
+    fobj: Chora
+    gobj: Chora
+
+    @property
+    def __incise__(self, /):
+        return _IncisionProtocol.INCISE(self.gobj)
+
+    def __incise_trivial__(self, /):
+        return self
+
+    def __incise_slyce__(self, incisor, /):
+        return type(self)(
+            self.fobj,
+            _IncisionProtocol.SLYCE(self.gobj)(incisor),
+            )
+
+    def __incise_retrieve__(self, incisor, /):
+        return self.fobj[
+            _IncisionProtocol.RETRIEVE(self.gobj)(incisor)
+            ]
 
 
 def _wrap_trivial(meth, /):
@@ -144,7 +182,7 @@ WRAPMETHS = dict(
     )
 
 
-class Basic(metaclass=Choret):
+class Basic(Choret):
 
     MERGETUPLES = ('PREFIXES', 'BOUNDREQS')
     PREFIXES = ('handle', *WRAPMETHS)
@@ -165,7 +203,7 @@ class Basic(metaclass=Choret):
 
     def slyce_compose(self, incisor: _Incisable, /):
         '''Returns the composition of two choras, i.e. f(g(x)).'''
-        return _Composition(self.bound, incisor)
+        return Composition(self.bound, incisor)
 
     def fail_ultimate(self, incisor: object, /):
         '''The ultimate fallback for unrecognised incision types.'''
@@ -228,30 +266,6 @@ class Basic(metaclass=Choret):
             )
 
 
-# class Composition(_Incisable, metaclass=_Sprite):
-
-#     fobj: _Incisable
-#     gobj: _Incisable
-
-#     @property
-#     def __incise__(self, /):
-#         return self.gobj
-
-#     def __incise_trivial__(self, /):
-#         return self
-
-#     def __incise_slyce__(self, incisor, /):
-#         return self._ptolemaic_class__(
-#             self.fobj,
-#             _IncisionProtocol.SLYCE(self.gobj)(incisor),
-#             )
-
-#     def __incise_retrieve__(self, incisor, /):
-#         return self.fobj[
-#             _IncisionProtocol.RETRIEVE(self.gobj)(incisor)
-#             ]
-
-
 class Sliceable(Basic):
 
     def handle_slice(self, incisor: slice, /, *, caller):
@@ -275,6 +289,161 @@ class Sliceable(Basic):
             'slice',
             hintprocess=_functools.partial(_typing.GenericAlias, slice),
             ))
+
+
+class Degenerate(_Incisable, metaclass=_Sprite):
+
+    value: object
+
+#     @property
+#     @_abstractmethod
+#     def value(self, /) -> object:
+#         raise NotImplementedError
+
+    def __incise__(self, incisor, /, *, caller):
+        return _IncisionProtocol.FAIL(caller)(
+            incisor,
+            "Cannot further incise an already degenerate incisable."
+            )
+
+    @property
+    def __getitem__(self, /):
+        raise ValueError("Cannot incise a degenerate.")
+
+    @property
+    def __contains__(self, /):
+        return self.value.__eq__
+
+
+class Degenerator(_ChainIncisable, metaclass=_Sprite):
+
+    chora: Chora
+
+    @property
+    def __incision_manager__(self, /):
+        return self.chora
+
+    @property
+    def __incise_retrieve__(self, /):
+        return _IncisionProtocol.DEGEN(self.chora, Degenerate)
+
+
+class MultiBrace(Sliceable):
+
+#     BOUNDREQS = ('choras',)
+
+    @property
+    def choras(self, /):
+        return self.bound.choras
+
+    @property
+    def __call__(self, /):
+        return self.bound._ptolemaic_class__
+
+    @property
+    def depth(self, /):
+        return len(self.choras)
+
+    @property
+    @_caching.soft_cache()
+    def active(self, /):
+        return tuple(
+            not isinstance(cho, Degenerate) for cho in self.choras
+            )
+
+    @property
+    @_caching.soft_cache()
+    def activechoras(self, /):
+        return tuple(_itertools.compress(self.choras, self.active))
+
+    @property
+    def activedepth(self, /):
+        return len(self.activechoras)
+
+    def yield_tuple_multiincise(self, /, *incisors):
+        ninc, ncho = len(incisors), self.activedepth
+        nell = incisors.count(...)
+        if nell:
+            ninc -= nell
+            if ninc % nell:
+                raise ValueError("Cannot resolve incision ellipses.")
+            ellreps = (ncho - ninc) // nell
+        chorait = iter(self.choras)
+        try:
+            for incisor in incisors:
+                if incisor is ...:
+                    count = 0
+                    while count < ellreps:
+                        chora = next(chorait)
+                        if not isinstance(chora, Degenerate):
+                            count += 1
+                        yield chora
+                    continue
+                while True:
+                    chora = next(chorait)
+                    if isinstance(chora, Degenerate):
+                        yield chora
+                        continue
+                    yield Degenerator(chora)[incisor]
+                    break
+        except StopIteration:
+#             raise ValueError("Too many incisors in tuple incision.")
+            pass
+        yield from chorait
+
+    def handle_tuple(self, incisor: tuple, /, *, caller):
+        '''Captures the special behaviour implied by `self[a,b,...]`'''
+        choras = tuple(self.yield_tuple_multiincise(*incisor))
+        if all(isinstance(cho, Degenerate) for cho in choras):
+            incisor = tuple(cho.value for cho in choras)
+            return _IncisionProtocol.RETRIEVE(caller)(incisor)
+        return _IncisionProtocol.SLYCE(caller)(self(choras))
+
+
+class MultiMap(MultiBrace):
+
+    @property
+    def choras(self, /):
+        return tuple(self.bound.choras.values())
+
+    @property
+    def chorakws(self, /):
+        return self.bound.choras
+
+    def handle_tuple(self, incisor: tuple, /, *, caller):
+        '''Captures the special behaviour implied by `self[a,b,...]`'''
+        choras = tuple(self.yield_tuple_multiincise(*incisor))
+        if all(isinstance(cho, Degenerate) for cho in choras):
+            incisor = _FrozenMap(zip(
+                self.chorakws,
+                (cho.value for cho in choras),
+                ))
+            return _IncisionProtocol.RETRIEVE(caller)(incisor)
+        incisor = _FrozenMap(zip(self.chorakws, choras))
+        return _IncisionProtocol.SLYCE(caller)(self(incisor))
+
+    def yield_dict_multiincise(self, /, **incisors):
+        chorakws = self.chorakws
+        for name, incisor in incisors.items():
+            chora = chorakws[name]
+            yield name, _IncisionProtocol.INCISE(chora)(
+                incisor, caller=Degenerator(chora)
+                )
+
+    def handle_dict(self, incisor: dict, /, *, caller):
+        choras = (
+            self.chorakws
+            | dict(self.yield_dict_multiincise(**incisor))
+            )
+        if all(
+                isinstance(chora, Degenerate)
+                for chora in choras.values()
+                ):
+            incisor = _FrozenMap({
+                key: val.value for key, val in choras.items()
+                })
+            return _IncisionProtocol.RETRIEVE(caller)(incisor)
+        return _IncisionProtocol.SLYCE(caller)(self(choras))
 
 
 ###############################################################################

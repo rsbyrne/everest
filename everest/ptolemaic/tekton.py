@@ -6,8 +6,13 @@
 import weakref as _weakref
 import functools as _functools
 
-from everest.incision import Incisable as _Incisable
+from everest.incision import (
+    IncisionProtocol as _IncisionProtocol,
+#     Incisable as _Incisable,
+    ChainIncisable as _ChainIncisable,
+    )
 
+from everest.ptolemaic.chora import Chora as _Chora
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.sig import Sig as _Sig
 from everest.ptolemaic.armature import Armature as _Armature
@@ -35,21 +40,8 @@ class Tekton(_Bythos):
     def pre_create_class(meta, /, *args):
         name, bases, namespace = super().pre_create_class(*args)
         sig = namespace['sig'] = meta.get_signature(name, bases, namespace)
-        namespace['fields'] = sig.infields
+        namespace['fields'] = sig.choras
         return name, bases, namespace
-
-    @property
-    def __signature__(cls, /):
-        return cls.sig.signature
-
-    def __class_incise__(cls, incisor, /, *, caller):
-        return cls.sig.__chain_incise__(incisor, caller=caller)
-
-    def __class_incise_retrieve__(cls, params, /):
-        return cls.__construct__(*params.sigargs, **params.sigkwargs)
-
-    def __class_incise_slyce__(cls, sig, /):
-        return Tektoid(cls, sig)
 
     @classmethod
     def __class_construct__(cls, arg0=None, /, *argn, **kwargs):
@@ -64,23 +56,33 @@ class Tekton(_Bythos):
                 ),
             )
 
+    @property
+    def __signature__(cls, /):
+        return cls.sig.signature
+
+    def __class_get_incision_manager__(cls, /):
+        return Tektoid(cls, cls.sig)
+
     def __call__(cls, /, *args, **kwargs):
-        return cls.__incise_retrieve__(cls.sig(*args, **kwargs))
+        return _IncisionProtocol.RETRIEVE(cls)(sig(*args, **kwargs))
 
 
-class Tektoid(_Armature, _Incisable, metaclass=_Sprite):
+class Tektoid(_Armature, _ChainIncisable, metaclass=_Sprite):
 
-    incised: _Incisable
-    incisor: _Incisable
+    subject: _Chora
+    sig: _Chora
 
-    def __incise__(self, incisor, /, *, caller):
-        return self.incisor.__chain_incise__(incisor, caller=caller)
+    @property
+    def __incision_manager__(self, /):
+        return self.sig
 
     def __incise_retrieve__(self, incisor, /):
-        return self.incised.__incise_retrieve__(incisor)
+        return self.subject.__construct__(
+            *incisor.sigargs, **incisor.sigkwargs
+            )
 
     def __incise_slyce__(self, incisor, /):
-        return self._ptolemaic_class__(self.incised, incisor)
+        return self._ptolemaic_class__(self.subject, incisor)
 
 
 ###############################################################################

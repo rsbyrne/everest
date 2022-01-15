@@ -43,20 +43,20 @@ def _sprite_hashID(self, /):
 
 @property
 def _sprite_softcache(self, /):
-    hashno = hash(self)
+    num = id(self)
     try:
-        return self._instancesoftcaches[hashno]
+        return self._instancesoftcaches[num]
     except KeyError:
-        out = self._instancesoftcaches[hashno] = {}
+        out = self._instancesoftcaches[num] = {}
         return out
 
 @property
 def _sprite_weakcache(self, /):
-    hashno = hash(self)
+    num = id(self)
     try:
-        return self._instanceweakcaches[hashno]
+        return self._instanceweakcaches[num]
     except KeyError:
-        out = self._instanceweakcaches[hashno] = {}
+        out = self._instanceweakcaches[num] = {}
         return out
 
 @property
@@ -71,10 +71,10 @@ def _sprite_params(self, /):
         })
 
 def _sprite___del__(self, /):
-    hashno = hash(self)
+    num = id(self)
     for cache in (self._instancesoftcaches, self._instanceweakcaches):
         try:
-            del cache[hashno]
+            del cache[num]
         except KeyError:
             pass
 
@@ -129,14 +129,19 @@ SPRITENAMESPACE = dict(
     )
 
 
-class Sprite(_Essence):
+def get_fields(bases: iter, seen: set, /):
+    try:
+        base = next(bases)
+    except StopIteration:
+        return
+    anno = base.__dict__.get('__annotations__', {})
+    yield from get_fields(bases, seen | set(anno))
+    for key, val in anno.items():
+        if key not in seen:
+            yield key, val
 
-    def get_fields(cls, /):
-        empty = {}
-        out = {}
-        for base in reversed(cls.__mro__):
-            out.update(base.__dict__.get('__annotations__', empty))
-        return out
+
+class Sprite(_Essence):
 
     def get_default_values(cls, fields, /):
         out = _collections.deque()
@@ -155,7 +160,7 @@ class Sprite(_Essence):
         return tuple(out)
 
     def get_concrete_class(cls, /):
-        fields = cls.get_fields()
+        fields = dict(get_fields(iter(cls.__mro__), set()))
         if (clashes := cls.FORBIDDENFIELDS.intersection(set(fields))):
             raise _exceptions.PtolemaicLayoutException(
                 cls,

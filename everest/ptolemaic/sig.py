@@ -23,8 +23,8 @@ from everest.incision import (
     ChainIncisable as _ChainIncisable,
     )
 
-from everest.ptolemaic.armature import (
-    Armature as _Armature,
+from everest.ptolemaic.chora import (
+    Chora as _Chora,
     MultiMap as _MultiMap,
     Degenerate as _Degenerate,
     )
@@ -98,19 +98,16 @@ class ParamKind(_Enum):
         return self.epitaph.hashint
 
 
-class FieldMeta(_Sprite):
-
-    for kind in ParamKind:
-        exec('\n'.join((
-            '@property',
-            f'def {kind.name}(cls, /):'
-            f"    return FieldKind(ParamKind.{kind.name})"
-            )))
-
-
-class FieldKind(metaclass=FieldMeta):
+class FieldBase(metaclass=_Essence):
 
     kind: ParamKind
+
+    @_abc.abstractmethod
+    def get_parameter(self, name: str = 'anon', /) -> _pkind:
+        raise NotImplementedError
+
+
+class FieldKind(FieldBase, metaclass=_Sprite):
 
     def __call__(self, /, *args, **kwargs):
         return Field(self.kind, *args, **kwargs)
@@ -122,44 +119,52 @@ class FieldKind(metaclass=FieldMeta):
         return Field(self.kind, arg)
 
 
-class Field(_ChainIncisable, metaclass=FieldMeta):
+with FieldBase.mutable:
+    for kind in ParamKind:
+        setattr(FieldBase, name := kind.name, FieldKind(ParamKind[name]))
 
-    kind: ParamKind
-    hint: _Incisable
-    value: object
 
-    @property
-    def chora(self, /):
-        return self.hint
+class _FullField_(FieldBase):
 
-    @classmethod
     def __new__(cls, /,
             kind=ParamKind.POSKW, hint=_Thing, value=NotImplemented
             ):
-        if isinstance(kind, _pkind):
-            kind = ParamKind.convert(kind)
-        elif not isinstance(kind, ParamKind):
-            raise TypeError(f"Kind must be `ParamKind`.")
-        if isinstance(hint, _Degenerate):
-            value = NotImplemented
-        else:
-            if hint is _pempty:
-                hint = _Thing
-            elif not isinstance(hint, _Incisable):
-                raise TypeError(
-                    f"The `Field` hint must be an instance of `Incisable`:\n"
-                    f"{hint}"
-                    )
-            if value is _pempty:
-                value = NotImplemented
-            elif value is not NotImplemented:
-                if value not in hint:
-                    raise ValueError(
-                        f"The default value must be a member "
-                        f"of the provided 'hint' `Incisable`: "
-                        f"`{value} in {hint}` must be `True`."
-                        )
+        kind = cls.process_kind(kind)
+        hint = cls.process_hint(hint)
+        value = cls.process_value(value, hint)
         return super().__new__(cls, kind, hint, value)
+
+    @classmethod
+    def process_kind(cls, kind, /):
+        if isinstance(kind, _pkind):
+            return ParamKind.convert(kind)
+        if not isinstance(kind, ParamKind):
+            raise TypeError(f"Kind must be `ParamKind`.")
+        return kind
+
+    @classmethod
+    def process_hint(cls, hint, /):
+        if hint is _pempty:
+            return _Thing
+        if not isinstance(hint, _Incisable):
+            raise TypeError(
+                f"The `Field` hint must be an instance of `Incisable`:\n"
+                f"{hint}"
+                )
+        return hint
+
+    @classmethod
+    def process_value(cls, value, hint, /):
+        if value is _pempty:
+            return NotImplemented
+        if value is not NotImplemented:
+            if value not in hint:
+                raise ValueError(
+                    f"The default value must be a member "
+                    f"of the provided 'hint' `Incisable`: "
+                    f"`{value} in {hint}` must be `True`."
+                    )
+        return value
 
     def get_parameter(self, name: str = 'anon', /):
         default = _pempty if (val:=self.value) is NotImplemented else val
@@ -168,6 +173,24 @@ class Field(_ChainIncisable, metaclass=FieldMeta):
             default=default,
             annotation=self.hint,
             )
+
+
+class Field(_ChainIncisable, _FullField_, metaclass=_Sprite):
+
+    hint: _Incisable
+    value: object
+
+    @property
+    def __incision_manager__(self, /):
+        return self.hint
+
+    def __new__(cls, /,
+            kind=ParamKind.POSKW, hint=_Thing, value=NotImplemented
+            ):
+        kind = cls.process_kind(kind)
+        hint = cls.process_hint(hint)
+        value = cls.process_value(value, hint)
+        return super().__new__(cls, kind, hint, value)
 
     def __call__(self, arg, /):
         return self._ptolemaic_class__(
@@ -178,8 +201,11 @@ class Field(_ChainIncisable, metaclass=FieldMeta):
     def __class_getitem__(cls, arg, /):
         return cls(hint=arg)
 
-    def __incise_retrieve__(self, incisor, /):
-        return self.__incise_slyce__(_Degenerate(incisor))
+#     def __incise_retrieve__(self, incisor, /):
+#         return self.__incise_slyce__(_Degenerate(incisor))
+
+    def __incise_degen__(self, incisor, /):
+        return DegenerateField(self.kind, self.hint, incisor)
 
     def __incise_slyce__(self, incisor, /):
         return self._ptolemaic_class__(self.kind, incisor, self.value)
@@ -207,16 +233,41 @@ class Field(_ChainIncisable, metaclass=FieldMeta):
         return self.hint.__contains__
 
 
-class Sig(_ChainIncisable, _Armature, metaclass=_Sprite):
+class DegenerateField(_Degenerate, _FullField_, metaclass=_Sprite):
 
-    infields: _FrozenMap = _FrozenMap()
+    hint: _Incisable
+    value: object
 
-    @property
-    @_caching.soft_cache()
-    def chora(self, /):
-        return _MultiMap(**{
-            key: val.hint for key, val in self.infields.items()
-            })
+    def __new__(cls, /,
+            kind=ParamKind.POSKW, hint=_Thing, value=NotImplemented
+            ):
+        kind = cls.process_kind(kind)
+        hint = cls.process_hint(hint)
+        value = cls.process_value(value, hint)
+        return super().__new__(cls, kind, hint, value)
+
+
+class Sig(_Chora, metaclass=_Sprite):
+
+    choras: _FrozenMap
+
+    Choret = _MultiMap
+
+#     class Choret(_MultiMap):
+
+#         @property
+#         def choras(self, /):
+#             return tuple(self.bound.choras.values())
+
+#         @property
+#         def chorakws(self, /):
+#             return {
+#                 key: field.hint
+#                 for key, field in self.bound.choras.items()
+#                 }
+
+#         def slyce_compose(self, incisor: _Chora, /):
+#             raise NotImplementedError
 
     @staticmethod
     def _get_orderscore(pair):
@@ -230,31 +281,30 @@ class Sig(_ChainIncisable, _Armature, metaclass=_Sprite):
     def _sort_fields(dct):
         return dict(sorted(dct.items(), key=Sig._get_orderscore))
 
-    @classmethod
-    def __new__(cls, arg0=None, arg1=None, /, **kwargs):
+    def __new__(cls, arg=None, /, **kwargs):
         cache = {}
-        if arg1 is None:
-            if arg0 is None:
-                fields = {
-                    key: field() if isinstance(field, FieldKind) else field
-                    for key, field in kwargs.items()
-                    }
+        if arg is None:
+            fields = {
+                key: field() if isinstance(field, FieldKind) else field
+                for key, field in kwargs.items()
+                }
+        else:
+            if kwargs:
+                raise TypeError
+            if isinstance(arg, _FrozenMap):
+                fields = arg
             else:
-                if kwargs:
-                    raise TypeError
-                if isinstance(arg0, _inspect.Signature):
-                    signature = arg0
+                if isinstance(arg, _inspect.Signature):
+                    signature = arg
                 else:
-                    signature = _inspect.signature(arg0)
+                    signature = _inspect.signature(arg)
                 cache['signature'] = signature
                 fields = {
                     pm.name: Field(pm.kind, pm.annotation, pm.default)
                     for pm in signature.parameters.values()
                     }
-        else:
-            if kwargs:
-                raise TypeError
-            cache['chora'], fields = arg0, arg1
+        if not all(isinstance(field, FieldBase) for field in fields.values()):
+            raise TypeError(fields)
         obj = super().__new__(cls, _FrozenMap(cls._sort_fields(fields)))
         if cache:
             obj.softcache.update(cache)
@@ -265,7 +315,7 @@ class Sig(_ChainIncisable, _Armature, metaclass=_Sprite):
     def degenerates(self, /):
         return _mprox({
             name: field.hint.value
-            for name, field in self.infields.items()
+            for name, field in self.choras.items()
             if isinstance(field.hint, _Degenerate)
             })
 
@@ -274,7 +324,7 @@ class Sig(_ChainIncisable, _Armature, metaclass=_Sprite):
     def signature(self, /):
         return _inspect.Signature(
             field.get_parameter(name)
-            for name, field in self.infields.items()
+            for name, field in self.choras.items()
             )
 
     @property
@@ -285,13 +335,13 @@ class Sig(_ChainIncisable, _Armature, metaclass=_Sprite):
             if name not in self.degenerates
             )
 
-    def __incise_slyce__(self, chora, /):
-        assert isinstance(chora, _MultiMap)
-        fields = {
-            key: Field(field.kind, cho, field.value)
-            for ((key, field), cho) in zip(self.infields.items(), chora.choras)
-            }
-        return self._ptolemaic_class__(chora, fields)
+#     def __incise_slyce__(self, chora, /):
+#         assert isinstance(chora, _MultiMap)
+#         fields = {
+#             key: Field(field.kind, cho, field.value)
+#             for ((key, field), cho) in zip(self.choras.items(), chora.choras)
+#             }
+#         return self._ptolemaic_class__(chora, fields)
 
     def __incise_retrieve__(self, index: dict, /):
         bound = self.signature.bind_partial()
@@ -305,7 +355,7 @@ class Sig(_ChainIncisable, _Armature, metaclass=_Sprite):
         bound.arguments.update(effbound.arguments)
         bound.arguments.update(self.degenerates)
         bound.apply_defaults()
-        fields = self.infields
+        fields = self.choras
         for key, val in bound.arguments.items():
             if val not in fields[key]:
                 raise ValueError(key, val, type(val))
@@ -319,7 +369,7 @@ class Sig(_ChainIncisable, _Armature, metaclass=_Sprite):
         root = repr(self._ptolemaic_class__)
         if cycle:
             p.text(root + '{...}')
-        elif not (kwargs := self.infields):
+        elif not (kwargs := self.choras):
             p.text(root + '()')
         else:
             with p.group(4, root + '(', ')'):
