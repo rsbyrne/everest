@@ -19,7 +19,7 @@ from string import Template as _Template
 
 from everest.utilities import (
     caching as _caching, word as _word, classtools as _classtools,
-    TypeMap as _TypeMap,
+    TypeMap as _TypeMap, FrozenMap as _FrozenMap,
     )
 from everest.primitive import Primitive as _Primitive
 
@@ -165,6 +165,9 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         pairs = zip(map(subencode, arg), map(subencode, arg.values()))
         return "{" + ','.join(map(':'.join, pairs)) + "}"
 
+    def encode_frozenmap(self, arg: _FrozenMap, /, *, subencode=_Callable):
+        return self.enfence(self.encode_dict(arg, subencode=subencode), 'f')
+
     def encode_mappingproxy(self,
             arg: _types.MappingProxyType, /, *, subencode: _Callable
             ):
@@ -221,6 +224,9 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
 
     def decode_mappingproxy(self:'d', arg: dict, /) -> _types.MappingProxyType:
         return _types.MappingProxyType(arg)
+
+    def decode_mappingproxy(self:'f', arg: dict, /) -> _FrozenMap:
+        return _FrozenMap(arg)
 
     def decode_module(self:'m', name: str, /) -> _types.ModuleType:
         return _import_module(name)

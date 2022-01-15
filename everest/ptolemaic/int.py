@@ -11,11 +11,7 @@ from everest.incision import (
     IncisionHandler as _IncisionHandler,
     )
 
-from everest.ptolemaic.thing import (
-    Thing as _Thing,
-    ThingLike as ThingLike,
-    ThingSpace as _ThingSpace,
-    )
+from everest.ptolemaic import thing as _thing
 from everest.ptolemaic.chora import (
     Sliceable as _Sliceable,
     )
@@ -34,13 +30,33 @@ def _nth(iterable, n):
 _OPINT = (type(None), int)
 
 
-class IntLike(ThingLike, metaclass=_Essence):
+class IntLike(_thing.ThingLike):
     ...
 
 
-class IntSpace(_Sliceable, _ThingSpace, IntLike):
+class IntElement(_thing.ThingElement, IntLike):
+    ...
 
-    def retrieve_int(self, incisor: int, /):
+
+class IntGeneric(_thing.ThingGeneric, IntElement):
+    ...
+
+
+class IntVar(_thing.ThingVar, IntElement):
+    ...
+
+
+class IntSpace(_Sliceable, _thing.ThingSpace, IntLike):
+
+    @property
+    def __incise_generic__(self, /):
+        return IntGeneric(self.bound)
+
+    @property
+    def __incise_variable__(self, /):
+        return IntVar(self.bound)
+
+    def retrieve_contains(self, incisor: int, /):
         return incisor
 
     def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
@@ -52,7 +68,7 @@ class IntSpace(_Sliceable, _ThingSpace, IntLike):
         return IntRange(start, stop, step)
 
 
-class Int(IntLike, _Thing):
+class Int(IntLike, _thing.Thing):
 
     @classmethod
     def __class_get_incision_manager__(cls, /):
@@ -67,6 +83,9 @@ class IntCount(IntLike, _IncisionHandler, metaclass=_Schema):
 
     start: Int
     step: Int
+
+    __incise_generic__ = property(IntGeneric)
+    __incise_variable__ = property(IntVar)
 
     class Choret(_Sliceable):
 
@@ -148,6 +167,9 @@ class IntRange(IntLike, _IncisionHandler, metaclass=_Schema):
 
     _req_slots__ = ('_rangeobj',)
 
+    __incise_generic__ = property(IntGeneric)
+    __incise_variable__ = property(IntVar)
+
     class Choret(_Sliceable):
 
         BOUNDREQS = ('start', 'stop', 'step')
@@ -214,9 +236,6 @@ class IntRange(IntLike, _IncisionHandler, metaclass=_Schema):
 
     def __reversed__(self, /):
         return self[::-1]
-
-#     def __str__(self, /):
-#         return ':'.join(map(str, self.args))
 
 
 ###############################################################################

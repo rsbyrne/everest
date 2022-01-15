@@ -17,6 +17,7 @@ from everest.utilities import (
     reseed as _reseed,
     FrozenMap as _FrozenMap,
     )
+from everest.ur import Dat as _Dat
 
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 
@@ -355,6 +356,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @_caching.soft_cache()
     def __hash__(cls, /):
         return _reseed.rdigits(12)
+
+
+_Dat.register(Essence)
 
 
 class EssenceBase(metaclass=Essence):

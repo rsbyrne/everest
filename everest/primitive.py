@@ -6,6 +6,8 @@
 import abc as _abc
 import types as _types
 
+from everest.ur import Dat as _Dat
+
 
 class PrimitiveMeta(_abc.ABCMeta):
 
@@ -59,6 +61,9 @@ class Primitive(metaclass=PrimitiveMeta):
 #         if hasattr(arg, '__module__'):
 #             return arg.__module__ == 'builtins'
 #         return False
+
+
+_Dat.register(Primitive)
 
 
 ###############################################################################

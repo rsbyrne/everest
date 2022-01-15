@@ -7,18 +7,17 @@ import itertools as _itertools
 import weakref as _weakref
 import types as _types
 
-from everest.ptolemaic.ousia import Ousia as _Ousia
-
 from everest.utilities import reseed as _reseed
+from everest.ur import Var as _Var
+
+from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
 class Protean(_Ousia):
 
-    def __call__(cls, basis=None, /):
+    def __call__(cls, basis: object, /):
         obj = object.__new__(cls.Concrete)
         obj.basis = basis
-        for name in cls._var_slots__:
-            obj._alt_setattr__(name, None)
         obj.__init__()
         obj.freezeattr.toggle(True)
         return obj
@@ -31,14 +30,6 @@ class ProteanBase(metaclass=Protean):
     _req_slots__ = ('basis',)
 
     reseed = _reseed.GLOBALRAND
-
-    @classmethod
-    def pre_create_concrete(cls, /):
-        name, bases, namespace = super().pre_create_concrete()
-        namespace['__slots__'] = tuple(sorted(set(_itertools.chain(
-            namespace['__slots__'], cls._var_slots__
-            ))))
-        return name, bases, namespace
 
     @property
     def varvals(self, /):
@@ -67,32 +58,41 @@ class ProteanBase(metaclass=Protean):
     def _repr(self, /):
         return repr(self.basis)
 
-    def __repr__(self, /):
-        return f"<{type(self)}({self._repr()})>"
-
     def _repr_pretty_(self, p, cycle):
-        p.text('<')
-        root = repr(self._ptolemaic_class__)
+#         p.text('<')
+        root = ':'.join((
+            self._ptolemaic_class__.__name__,
+            self.basis.hashID,
+            str(id(self)),
+            ))
         if cycle:
             p.text(root + '{...}')
-        elif not (kwargs := self.varvals):
-            p.text(root + '()')
+        try:
+            kwargs = self.varvals
+        except ValueError:
+            p.text(root + '(Null)')
         else:
-            with p.group(4, root + '(', ')'):
-                kwargit = iter(kwargs.items())
-                p.breakable()
-                key, val = next(kwargit)
-                p.text(key)
-                p.text(' = ')
-                p.pretty(val)
-                for key, val in kwargit:
-                    p.text(',')
+            if not kwargs:
+                p.text(root + '()')
+            else:
+                with p.group(4, root + '(', ')'):
+                    kwargit = iter(kwargs.items())
                     p.breakable()
+                    key, val = next(kwargit)
                     p.text(key)
                     p.text(' = ')
                     p.pretty(val)
-                p.breakable()
-        p.text('>')
+                    for key, val in kwargit:
+                        p.text(',')
+                        p.breakable()
+                        p.text(key)
+                        p.text(' = ')
+                        p.pretty(val)
+                    p.breakable()
+#         p.text('>')
+
+
+_Var.register(ProteanBase)
 
 
 ###############################################################################

@@ -50,7 +50,7 @@ class IncisionProtocol(_Enum, metaclass=_IncisionProtocolMeta_):
 
     GENERIC = '__incise_generic__'
     VARIABLE = '__incise_variable__'
-    DEGEN = '__incise_degen__'
+    DEGENERATE = '__incise_degenerate__'
 
     @classmethod
     def defer(cls, obj, /):

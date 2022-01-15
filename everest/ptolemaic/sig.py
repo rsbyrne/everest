@@ -19,6 +19,7 @@ from everest.utilities import (
     )
 from everest import epitaph as _epitaph
 from everest.incision import (
+    IncisionProtocol as _IncisionProtocol,
     Incisable as _Incisable,
     ChainIncisable as _ChainIncisable,
     )
@@ -204,7 +205,7 @@ class Field(_ChainIncisable, _FullField_, metaclass=_Sprite):
 #     def __incise_retrieve__(self, incisor, /):
 #         return self.__incise_slyce__(_Degenerate(incisor))
 
-    def __incise_degen__(self, incisor, /):
+    def __incise_degenerate__(self, incisor, /):
         return DegenerateField(self.kind, self.hint, incisor)
 
     def __incise_slyce__(self, incisor, /):
@@ -247,13 +248,57 @@ class DegenerateField(_Degenerate, _FullField_, metaclass=_Sprite):
         return super().__new__(cls, kind, hint, value)
 
 
+@_classtools.add_defer_meths('arguments', like=dict)
+class Params(metaclass=_Sprite):
+
+    nargs: int = 0
+    arguments: _FrozenMap = _FrozenMap()
+
+    def __new__(cls, arg0=0, arg1=None, /, **kwargs):
+        cache = {}
+        if arg1 is None:
+            if isinstance(arg0, _inspect.BoundArguments):
+                if kwargs:
+                    raise TypeError
+                cache['sigkwargs'] = arg0.kwargs
+                bndargs = cache['sigargs'] = arg0.args
+                nargs = len(bndargs)
+                arguments = arg0.arguments
+            else:
+                nargs = arg0
+                arguments = kwargs
+        else:
+            if kwargs:
+                raise TypeError
+            nargs, arguments = arg0, arg1
+        obj = super().__new__(cls, int(nargs), _FrozenMap(arguments))
+        if cache:
+            obj.softcache.update(cache)
+        return obj
+
+    @property
+    @_caching.soft_cache()
+    def sigargs(self, /):
+        return tuple(self.arguments.values())[:self.nargs]
+
+    @property
+    @_caching.soft_cache()
+    def sigkwargs(self, /):
+        dct = self.arguments
+        return {name: dct[name] for name in tuple(dct)[self.nargs:]}
+
+
 class Sig(_Chora, metaclass=_Sprite):
 
     choras: _FrozenMap
 
-    Choret = _MultiMap
+    class Choret(_MultiMap):
+        ...
 
-#     class Choret(_MultiMap):
+        def handle_tuple(self, incisor: tuple, /, *, caller):
+            if isinstance(incisor, Params):
+                return _IncisionProtocol.RETRIEVE(caller)(incisor)
+            return super().handle_tuple(incisor, caller=caller)
 
 #         @property
 #         def choras(self, /):
@@ -387,46 +432,6 @@ class Sig(_Chora, metaclass=_Sprite):
                     p.pretty(val)
                 p.breakable()
         p.text('>')
-
-
-@_classtools.add_defer_meths('arguments', like=dict)
-class Params(metaclass=_Sprite):
-
-    nargs: int = 0
-    arguments: _FrozenMap = _FrozenMap()
-
-    def __new__(cls, arg0=0, arg1=None, /, **kwargs):
-        cache = {}
-        if arg1 is None:
-            if isinstance(arg0, _inspect.BoundArguments):
-                if kwargs:
-                    raise TypeError
-                cache['sigkwargs'] = arg0.kwargs
-                bndargs = cache['sigargs'] = arg0.args
-                nargs = len(bndargs)
-                arguments = arg0.arguments
-            else:
-                nargs = arg0
-                arguments = kwargs
-        else:
-            if kwargs:
-                raise TypeError
-            nargs, arguments = arg0, arg1
-        obj = super().__new__(cls, int(nargs), _FrozenMap(arguments))
-        if cache:
-            obj.softcache.update(cache)
-        return obj
-
-    @property
-    @_caching.soft_cache()
-    def sigargs(self, /):
-        return tuple(self.arguments.values())[:self.nargs]
-
-    @property
-    @_caching.soft_cache()
-    def sigkwargs(self, /):
-        dct = self.arguments
-        return {name: dct[name] for name in tuple(dct)[self.nargs:]}
 
 
 class Param(metaclass=_Sprite):

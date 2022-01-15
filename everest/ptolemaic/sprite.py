@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-import collections as _collections
+from collections import namedtuple as _namedtuple
 import functools as _functools
 import types as _types
 import inspect as _inspect
@@ -15,6 +15,7 @@ from everest.utilities import (
     reseed as _reseed,
     FrozenMap as _FrozenMap,
     )
+from everest.ur import Dat as _Dat
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic import exceptions as _exceptions
@@ -22,7 +23,9 @@ from everest.ptolemaic import exceptions as _exceptions
 
 def _sprite_get_epitaph(self, /):
     ptolcls = self._ptolemaic_class__
-    return ptolcls.taphonomy.callsig_epitaph(ptolcls, *self.values())
+    return ptolcls.taphonomy.callsig_epitaph(
+        ptolcls, *self.params.values()
+        )
 
 @property
 @_caching.soft_cache()
@@ -83,11 +86,14 @@ def _sprite___repr__(self, /):
         (params := self.params),
         map(repr, params.values()),
         )))
-    return f"<{self._ptolemaic_class__}({valpairs})>"
+    return f"<{self._ptolemaic_class__}({valpairs})id={id(self)}>"
 
 def _sprite__repr_pretty_(self, p, cycle):
-    p.text('<')
-    root = repr(self._ptolemaic_class__)
+#     p.text('<')
+    root = ':'.join((
+        self._ptolemaic_class__.__name__,
+        str(id(self)),
+        ))
     if cycle:
         p.text(root + '{...}')
     elif not (kwargs := self.params):
@@ -107,7 +113,7 @@ def _sprite__repr_pretty_(self, p, cycle):
                 p.text(' = ')
                 p.pretty(val)
             p.breakable()
-    p.text('>')
+#     p.text('>')
 
 @property
 def _sprite___getitem__(self, /):
@@ -138,26 +144,10 @@ def get_fields(bases: iter, seen: set, /):
     yield from get_fields(bases, seen | set(anno))
     for key, val in anno.items():
         if key not in seen:
-            yield key, val
+            yield key, (val, base.__dict__.get(key, NotImplemented))
 
 
 class Sprite(_Essence):
-
-    def get_default_values(cls, fields, /):
-        out = _collections.deque()
-        for field in (fieldit := iter(fields)):
-            for base in reversed(cls.__mro__):
-                try:
-                    out.append(base.__dict__[field])
-                    break
-                except KeyError:
-                    pass
-            else:
-                if out:
-                    raise TypeError(
-                        f"Non-default field cannot follow default: {field}"
-                        ) from exc
-        return tuple(out)
 
     def get_concrete_class(cls, /):
         fields = dict(get_fields(iter(cls.__mro__), set()))
@@ -170,12 +160,13 @@ class Sprite(_Essence):
                 "\nYou'll have to choose different names for these fields - "
                 "sorry!"
                 )
-        ConcreteBase = _collections.namedtuple(
-            f"{cls}_NamedTuple",
-            fields,
-            defaults=cls.get_default_values(fields),
-#             module=namespace['__module__'],
-            )
+        hints = {}
+        defaults = {}
+        for key, (hint, val) in fields.items():
+            hints[key] = hint
+            defaults[key] = val
+        name = f"{cls}_NamedTuple"
+        ConcreteBase = _namedtuple(name, hints, defaults=defaults)
         namespace = dict(
             _basecls=cls,
             ) | SPRITENAMESPACE
@@ -190,6 +181,7 @@ class Sprite(_Essence):
 
     def __class_deep_init__(cls, /):
         super().__class_deep_init__()
+        _Dat.register(cls)
         if not hasattr(cls, 'FORBIDDENFIELDS'):
             cls.MERGESETS = tuple(sorted(set(
                 (*cls.__dict__.get('MERGESETS', ()), 'FORBIDDENFIELDS')

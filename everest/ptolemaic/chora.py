@@ -11,18 +11,19 @@ import itertools as _itertools
 import abc as _abc
 import weakref as _weakref
 
+from everest import ur as _ur
 from everest.utilities import (
     TypeMap as _TypeMap, FrozenMap as _FrozenMap,
     caching as _caching,
     NotNone, Null, NoneType, EllipsisType, NotImplementedType,
     )
-
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     Incisable as _Incisable,
     IncisionHandler as _IncisionHandler,
     ChainIncisable as _ChainIncisable,
     )
+
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -181,6 +182,11 @@ WRAPMETHS = dict(
     fail=_wrap_fail,
     )
 
+URPROTOCOLS = {
+    _ur.Var: _IncisionProtocol.VARIABLE,
+    _ur.Dat: _IncisionProtocol.GENERIC,
+    }
+
 
 class Basic(Choret):
 
@@ -194,8 +200,11 @@ class Basic(Choret):
     def handle_none(self, incisor: type(None), /, *, caller):
         return _IncisionProtocol.GENERIC(caller)()
 
-    def handle_protocol(self, incisor: _IncisionProtocol, /, *, caller):
-        return incisor(caller)()
+#     def handle_protocol(self, incisor: _IncisionProtocol, /, *, caller):
+#         return incisor(caller)()
+
+    def handle_ur(self, incisor: _ur.Ur, /, *, caller):
+        return URPROTOCOLS[incisor](caller)
 
     def trivial_ellipsis(self, incisor: EllipsisType, /):
         '''Captures the special behaviour implied by `self[...]`.'''
@@ -325,7 +334,7 @@ class Degenerator(_ChainIncisable, metaclass=_Sprite):
 
     @property
     def __incise_retrieve__(self, /):
-        return _IncisionProtocol.DEGEN(self.chora, Degenerate)
+        return _IncisionProtocol.DEGENERATE(self.chora, Degenerate)
 
 
 class MultiBrace(Sliceable):

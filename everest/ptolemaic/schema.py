@@ -11,6 +11,7 @@ import types as _types
 import inspect as _inspect
 
 from everest.utilities import caching as _caching, reseed as _reseed
+from everest.ur import Dat as _Dat
 
 from everest.ptolemaic.tekton import Tekton as _Tekton, Tektoid as _Tektoid
 from everest.ptolemaic.ousia import Ousia as _Ousia
@@ -177,8 +178,11 @@ class SchemaBase(metaclass=Schema):
         return _reseed.rdigits(12)
 
     def _repr_pretty_(self, p, cycle):
-        p.text('<')
-        root = repr(self._ptolemaic_class__)
+#         p.text('<')
+        root = ':'.join((
+            self._ptolemaic_class__.__name__,
+            str(id(self)),
+            ))
         if cycle:
             p.text(root + '{...}')
         elif not (kwargs := self.params):
@@ -198,7 +202,10 @@ class SchemaBase(metaclass=Schema):
                     p.text(' = ')
                     p.pretty(val)
                 p.breakable()
-        p.text('>')
+#         p.text('>')
+
+
+_Dat.register(Schema)
 
 
 ###############################################################################

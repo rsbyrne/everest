@@ -75,10 +75,6 @@ class Ousia(_Essence):
         return _inspect.signature(cls.Concrete.__init__)
 
     @property
-    def concrete_namespace(cls, /):
-        return cls.get_concrete_namespace()
-
-    @property
     def Concrete(cls, /):
         try:
             return cls.__dict__['_Concrete']
@@ -228,10 +224,10 @@ class OusiaBase(metaclass=Ousia):
     ### Representations:
 
     def _repr(self, /):
-        return f"id={id(self)}"
+        return ''
 
     def __repr__(self, /):
-        return f"<{type(self)}:{self._repr()})>"
+        return f"<{type(self)}:{id(self)}({self._repr()})>"
 
     def __str__(self, /):
         return self.__repr__()
@@ -250,158 +246,3 @@ class OusiaBase(metaclass=Ousia):
 
 ###############################################################################
 ###############################################################################
-
-
-#         if not issubclass(cls.ConcreteBase, ConcreteAbstract):
-#             raise TypeError(
-#                 "ConcreteBase class must inherit from ConcreteAbstract."
-#                 )
-
-
-# class ConcreteAbstractMeta(_abc.ABCMeta):
-
-#     def __new__(meta, name, bases, namespace, /):
-#         if name == 'ConcreteAbstract':
-#             return super().__new__(meta, name, bases, namespace)
-#         if '__slots__' not in namespace:
-#             namespace['__slots__'] = ()
-#         bases = tuple(base for base in bases if base is not ConcreteAbstract)
-#         out = type(name, bases, namespace)
-#         ConcreteAbstract.register(out)
-#         return out
-
-
-# class ConcreteAbstract(metaclass=ConcreteAbstractMeta):
-#     ...
-
-
-#     MERGETUPLES = ('_req_slots__', '_var_slots__')
-#     _req_slots__ = ()
-#     _var_slots__ = ()
-
-#     MROCLASSES = ('ConcreteBase', 'VarBase', 'DatBase')
-
-#     @classmethod
-#     def get_concrete_name(cls, /):
-#         return f"{'Var' if cls._var_slots__ else 'Dat'}_{cls.__name__}"
-
-#     @classmethod
-#     def get_concrete_bases(cls, /):
-#         if cls._var_slots__:
-#             yield cls.VarBase
-#             yield cls.ConcreteBase
-#             yield _ptolemaic.PtolemaicVar
-#         else:
-#             yield cls.DatBase
-#             yield cls.ConcreteBase
-#             yield _ptolemaic.PtolemaicDat
-#         yield cls
-
-#     @classmethod
-#     def get_slots(cls, /):
-#         return tuple(sorted(set(
-#             name for name in _itertools.chain(
-#                 cls._req_slots__,
-#                 cls._var_slots__,
-#                 )
-#             if not hasattr(cls, name)
-#             )))
-
-
-#         slots = tuple(sorted(set(_itertools.chain(
-#             basecls._req_slots__, basecls._var_slots__
-#             ))))
-
-#     class VarBase:
-
-#         __slots__ = ()
-
-#     class DatBase:
-
-#         __slots__ = ()
-
-#     @property
-#     def __call__(cls, /):
-#         return cls.__class_call__
-
-#     def create_ur_class(cls, name, /):
-#         return cls.ConcreteMeta.create_class(
-#             f"{cls.__name__}{name}",
-#             (getattr(cls, f"{name}Base"), cls.Concrete),
-#             {'__slots__': ()}
-#             )
-
-#         cls.Var = cls.create_ur_class('Var')
-#         cls.Dat = cls.create_ur_class('Dat')
-
-#     MERGETUPLES = ('_req_slots__', '_var_slots__')
-
-#     _var_slots__ = ()
-
-#     MROCLASSES = ('ConcreteBase', 'VarBase', 'DatBase')
-
-#     @classmethod
-#     def __class_call__(cls, /, *args, **kwargs):
-#         constructor = cls.Var if cls._var_slots__ else cls.Dat
-#         return constructor.__class_call__(*args, **kwargs)
-
-#     class VarBase(_ur.Var):
-
-#         __slots__ = ()
-
-#         def __setattr__(self, name, value, /):
-#             if name in self._var_slots__:
-#                 self._alt_setattr__(name, value)
-#             else:
-#                 super().__setattr__(name, value)
-
-#     class DatBase(_ur.Dat):
-
-#         __slots__ = ()
-
-
-# class Nullary(metaclass=Ousia):
-
-#     @classmethod
-#     def __class_call__(cls, /, *, _softcache=None):
-#         try:
-#             return cls.weakcache['instance']
-#         except KeyError:
-#             instance = super().__class_call__(_softcache=_softcache)
-#             cls.weakcache['instance'] = instance
-#             return instance
-
-#     class ConcreteBase:
-
-#         @classmethod
-#         def __class_call__(cls, /, *, _softcache=None):
-#             return cls.Concrete(_softcache=_softcache)
-
-
-# class Monument(metaclass=Ousia):
-
-#     @classmethod
-#     def __class_init__(cls, /):
-#         cls.monumentname = cls.__name__.upper()
-
-#     def __finish__(self, /):
-#         with (kls := self._ptolemaic_class__).mutable:
-#             kls.Concrete = lambda: self
-
-#     class ConcreteBase:
-
-#         __slots__ = ()
-
-#         @classmethod
-#         def construct(cls, /):
-#             return super().construct()
-
-#         def get_epitaph(self, /):
-#             ptolclass = self._ptolemaic_class__
-#             return self.taphonomy.custom_epitaph(
-#                 f"$a.{ptolclass.monumentname}",
-#                 a=ptolclass.__module__,
-#                 )
-
-#         def __repr__(self, /):
-#             return self._ptolemaic_class__.monumentname
