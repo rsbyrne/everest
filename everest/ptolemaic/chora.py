@@ -47,8 +47,6 @@ class Choret(metaclass=ChoretMeta):
     @classmethod
     def __class_init__(cls, /):
 
-        super().__class_init__()
-
         @property
         def __incise__(self, /):
             return self.Choret(self).__incise__
@@ -62,16 +60,16 @@ class Choret(metaclass=ChoretMeta):
     def compatible(cls, ACls, /):
         if not isinstance(ACls, _Essence):
             return False
-        if not issubclass(ACls, _IncisionHandler):
-            return False
-        direc = dir(ACls)
-        slots = getattr(ACls, '_req_slots__', ())
-        fields = getattr(ACls, 'fields', ())
-        for name in cls.BOUNDREQS:
-            if name not in direc:
-                if name not in slots:
-                    if name not in fields:
-                        return False
+#         if not issubclass(ACls, _IncisionHandler):
+#             return False
+#         direc = dir(ACls)
+#         slots = getattr(ACls, '_req_slots__', ())
+#         fields = getattr(ACls, 'fields', ())
+#         for name in cls.BOUNDREQS:
+#             if name not in direc:
+#                 if name not in slots:
+#                     if name not in fields:
+#                         return False
         return True
 
     @classmethod

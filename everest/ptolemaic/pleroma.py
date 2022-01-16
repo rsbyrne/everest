@@ -83,7 +83,7 @@ class Pleroma(type):
         module = _getmodule(meta)
         try:
             return eval(meta.basetypname, {}, module.__dict__)
-        except NameError:
+        except (NameError, SyntaxError):
             bases = meta.pleromabases[1:]
             if bases:
                 return Pleroma.get_basetyp(bases[0])

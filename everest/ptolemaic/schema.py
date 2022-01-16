@@ -16,88 +16,34 @@ from everest.ur import Dat as _Dat
 from everest.ptolemaic.tekton import Tekton as _Tekton, Tektoid as _Tektoid
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.chora import Chora as _Chora
-from everest.ptolemaic.sig import (
-    Sig as _Sig,
-    Field as _Field,
-    FieldKind as _FieldKind,
-    Params as _Params,
-    Param as _Param,
-    )
+from everest.ptolemaic.sig import (Params as _Params, Param as _Param)
 from everest.ptolemaic import exceptions as _exceptions
 
 
-class Schema(_Ousia, _Tekton):
-
-    @classmethod
-    def get_field_value(meta, bases, namespace, name, /):
-        if name in namespace:
-            return namespace[name]
-        for base in bases:
-            if hasattr(base, name):
-                return getattr(base, name)
-        return NotImplemented
-
-    @classmethod
-    def collect_fields(meta, bases, namespace, /):
-        fields = dict()
-        anno = namespace['__annotations__']
-        for base in reversed(bases):
-            if not isinstance(base, Schema):
-                continue
-            for name, field in base.fields.items():
-                deq = fields.setdefault(name, _collections.deque())
-                deq.append(field)
-        for name, note in anno.items():
-            deq = fields.setdefault(name, _collections.deque())
-            if note is _Field:
-                field = note()
-            elif isinstance(note, (_Field, _FieldKind)):
-                field = note
-            else:
-                field = _Field[note]
-            deq.append(field)
-        for name, deq in tuple(fields.items()):
-            if len(deq) == 1:
-                field = deq[0]
-            else:
-                field = _functools.reduce(_operator.getitem, reversed(deq))
-            value = meta.get_field_value(bases, namespace, name)
-            if value is not NotImplemented:
-                field = field(value)
-            fields[name] = field
-        return fields
-
-    @classmethod
-    def get_signature(meta, name, bases, namespace, /):
-        return _Sig(**meta.collect_fields(bases, namespace))
+class Schema(_Tekton, _Ousia):
 
     @property
-    def __signature__(cls, /):
-        return cls.sig.signature
-
-    @classmethod
-    def pre_create_class(meta, /, *args):
-        name, bases, namespace = super().pre_create_class(*args)
-        namespace.update({
-            name: _Param(name) for name in namespace['fields']
-            })
-        return name, bases, namespace
-
-    def __call__(cls, /, *args, **kwargs):
-        bound = cls.parameterise(cache := {}, *args, **kwargs)
-        out = cls.__construct__(_Params(bound))
-        out.softcache.update(cache)
-        return out
+    def __construct__(cls, /):
+        return cls
 
     def __class_get_incision_manager__(cls, /):
         return Schemoid(cls, cls.sig)
 
+    def __call__(cls, /, *args, **kwargs):
+        bound = cls.parameterise(cache := {}, *args, **kwargs)
+        obj = cls.__incise_retrieve__(_Params(bound))
+        obj.softcache.update(cache)
+        return obj
+
 
 class Schemoid(_Tektoid):
 
-    @property
-    def __incise_retrieve__(self, /):
-        return self.subject.__construct__
+    def __incise_retrieve__(self, params: _Params, /) -> 'Concrete':
+        obj = object.__new__(self.subject.Concrete)
+        obj.params = params
+        obj.__init__()
+        obj.freezeattr.toggle(True)
+        return obj
 
 
 class SchemaBase(metaclass=Schema):
@@ -107,41 +53,23 @@ class SchemaBase(metaclass=Schema):
     CACHE = False
 
     @classmethod
-    def paramexc(cls, /, *params, message=None):
-        return _exceptions.ParameterisationException(params, cls, message)
+    def pre_create_concrete(cls, /):
+        name, bases, namespace = super().pre_create_concrete()
+        namespace.update({key: _Param(key) for key in cls.fields})
+        return name, bases, namespace
 
     @classmethod
-    def check_params(cls, params, /):
-        fields = cls.fields
-        for key, val in params.items():
-            if val not in fields[key]:
-                raise ValueError(key, val, type(val))
+    def paramexc(cls, /, *params, message=None):
+        return _exceptions.ParameterisationException(params, cls, message)
 
     @classmethod
     def __class_incise_slyce__(cls, sig, /):
         return Schemoid(cls, sig)
 
     @classmethod
-    def __cache_construct__(cls, params, /):
-        try:
-            return (premade := cls.premade)[(hashID := params.hashID)]
-        except KeyError:
-            out = premade[hashID] = cls.__construct__(params)
-            return out
-
-    @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         return bound
-
-    @classmethod
-    def __construct__(cls, params, /):
-        cls.check_params(params)
-        obj = object.__new__(cls.Concrete)
-        obj.params = params
-        obj.__init__()
-        obj.freezeattr.toggle(True)
-        return obj
 
     ### Serialisation
 

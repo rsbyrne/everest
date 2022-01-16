@@ -131,8 +131,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __meta_init__(meta, /):
         pass
 
+    MERGETUPLES = ('MROCLASSES',)
+
     @classmethod
     def process_mergenames(meta, bases, namespace):
+        bases = (meta, *bases)
         merge_names_all(bases, namespace, 'MERGETUPLES')
         merge_names_all(
             bases, namespace, 'MERGEDICTS',
@@ -173,6 +176,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
         bases = list(expand_bases(bases))
         for basetyp in meta.basetypes:
+            if basetyp is object:
+                continue
             for base in bases:
                 if basetyp in base.__mro__:
                     break
@@ -361,13 +366,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 _Dat.register(Essence)
 
 
-class EssenceBase(metaclass=Essence):
+# class EssenceBase(metaclass=Essence):
 
-    MERGETUPLES = ('MROCLASSES',)
+#     MERGETUPLES = ('MROCLASSES',)
 
-    @classmethod
-    def __class_init__(cls, /):
-        pass
+#     @classmethod
+#     def __class_init__(cls, /):
+#         pass
 
 
 ###############################################################################

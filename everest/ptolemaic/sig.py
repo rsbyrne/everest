@@ -8,6 +8,8 @@ import inspect as _inspect
 import functools as _functools
 import types as _types
 import collections.abc as _collabc
+from collections import deque as _deque
+import operator as _operator
 from enum import Enum as _Enum
 
 from everest.utilities import (
@@ -288,6 +290,38 @@ class Params(metaclass=_Sprite):
         return {name: dct[name] for name in tuple(dct)[self.nargs:]}
 
 
+def gather_fields(bases: iter, fields: dict, /) -> dict:
+    try:
+        base = next(bases)
+    except StopIteration:
+        return
+    anno = base.__dict__.get('__annotations__', {})
+    gather_fields(bases, fields)
+    for name, note in anno.items():
+        default = base.__dict__.get(name, NotImplemented)
+        deq = fields.setdefault(name, _deque())
+        if note is Field:
+            field = note()
+        elif isinstance(note, (Field, FieldKind)):
+            field = note
+        else:
+            field = Field[note]
+        if name in base.__dict__:
+            field = field(base.__dict__[name])
+        deq.append(field)
+
+
+def get_typ_fields(typ):
+    gather_fields(iter(typ.__mro__), fields := {})
+    for name, deq in tuple(fields.items()):
+        if len(deq) == 1:
+            field = deq[0]
+        else:
+            field = _functools.reduce(_operator.getitem, reversed(deq))
+        fields[name] = field
+    return fields
+
+
 class Sig(_Chora, metaclass=_Sprite):
 
     choras: _FrozenMap
@@ -300,19 +334,8 @@ class Sig(_Chora, metaclass=_Sprite):
                 return _IncisionProtocol.RETRIEVE(caller)(incisor)
             return super().handle_tuple(incisor, caller=caller)
 
-#         @property
-#         def choras(self, /):
-#             return tuple(self.bound.choras.values())
-
-#         @property
-#         def chorakws(self, /):
-#             return {
-#                 key: field.hint
-#                 for key, field in self.bound.choras.items()
-#                 }
-
-#         def slyce_compose(self, incisor: _Chora, /):
-#             raise NotImplementedError
+        def slyce_compose(self, incisor: _Chora, /):
+            raise NotImplementedError
 
     @staticmethod
     def _get_orderscore(pair):
@@ -338,6 +361,8 @@ class Sig(_Chora, metaclass=_Sprite):
                 raise TypeError
             if isinstance(arg, _FrozenMap):
                 fields = arg
+            elif isinstance(arg, type):
+                fields = get_typ_fields(arg)
             else:
                 if isinstance(arg, _inspect.Signature):
                     signature = arg
@@ -388,23 +413,27 @@ class Sig(_Chora, metaclass=_Sprite):
 #             }
 #         return self._ptolemaic_class__(chora, fields)
 
-    def __incise_retrieve__(self, index: dict, /):
+    def __incise_retrieve__(self, incisor: dict, /):
         bound = self.signature.bind_partial()
-        bound.arguments.update(index)
+        bound.arguments.update(incisor)
+        bound.arguments.update(self.degenerates)
         bound.apply_defaults()
-        return Params(bound)
+        out = Params(bound)
+        if out not in self:
+            print(out, self)
+#             raise Exception
+        return out
 
     def __call__(self, /, *args, **kwargs):
         effbound = self.effsignature.bind(*args, **kwargs)
-        bound = self.signature.bind_partial()
-        bound.arguments.update(effbound.arguments)
-        bound.arguments.update(self.degenerates)
-        bound.apply_defaults()
+        return self.__incise_retrieve__(effbound.arguments)
+
+    def __contains__(self, params: Params) -> bool:
         fields = self.choras
-        for key, val in bound.arguments.items():
-            if val not in fields[key]:
-                raise ValueError(key, val, type(val))
-        return Params(bound)
+        for key, val in params.items():
+            if not val in fields[key]:
+                return False
+        return True
 
     def __str__(self, /):
         return str(self.effsignature)

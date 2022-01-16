@@ -22,39 +22,22 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 class Tekton(_Bythos):
 
     @classmethod
-    def get_signature(meta, name, bases, namespace, /):
-        try:
-            construct = namespace['__construct__']
-        except KeyError:
-            for base in bases:
-                try:
-                    getattr(base, '__construct__')
-                    break
-                except AttributeError:
-                    pass
-            else:
-                raise TypeError("No __construct__ method provided!")
-        return _Sig(construct)
-
-    @classmethod
-    def pre_create_class(meta, /, *args):
-        name, bases, namespace = super().pre_create_class(*args)
-        sig = namespace['sig'] = meta.get_signature(name, bases, namespace)
-        namespace['fields'] = sig.choras
-        return name, bases, namespace
-
-    @classmethod
-    def __class_construct__(cls, arg0=None, /, *argn, **kwargs):
+    def __class_construct__(meta, arg0=None, /, *argn, **kwargs):
         if argn or kwargs:
             args = () if arg0 is None else (arg0, *argn)
             return super().__class_construct__(*args, **kwargs)
         return super().__class_construct__(
-            name=arg.__name__,
+            name=arg0.__name__,
             namespace=dict(
-                __construct__=arg,
-                _clsepitaph=meta.taphonomy(arg)
+                __construct__=arg0,
+                _clsepitaph=meta.taphonomy(arg0)
                 ),
             )
+
+    def __class_deep_init__(cls, /, *args, **kwargs):
+        super().__class_deep_init__()
+        sig = cls.sig = _Sig(cls.__construct__)
+        cls.fields = sig.choras
 
     @property
     def __signature__(cls, /):
@@ -63,8 +46,9 @@ class Tekton(_Bythos):
     def __class_get_incision_manager__(cls, /):
         return Tektoid(cls, cls.sig)
 
-    def __call__(cls, /, *args, **kwargs):
-        return _IncisionProtocol.RETRIEVE(cls)(sig(*args, **kwargs))
+    @property
+    def __call__(cls, /):
+        return cls.__incision_manager__
 
 
 class Tektoid(_Armature, _ChainIncisable, metaclass=_Sprite):
@@ -83,6 +67,9 @@ class Tektoid(_Armature, _ChainIncisable, metaclass=_Sprite):
 
     def __incise_slyce__(self, incisor, /):
         return self._ptolemaic_class__(self.subject, incisor)
+
+    def __call__(self, /, *args, **kwargs):
+        return self.__incise_retrieve__(self.sig(*args, **kwargs))
 
 
 ###############################################################################

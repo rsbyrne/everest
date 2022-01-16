@@ -83,16 +83,8 @@ class Ousia(_Essence):
                 out = cls._Concrete = cls.ConcreteMeta(cls)
             return out
 
-    @property
-    def create_object(cls, /):
-        try:
-            return cls._create_object
-        except AttributeError:
-            out = cls._create_object = object.__new__.__get__(cls.Concrete)
-            return out
-
     def __call__(cls, /, *args, **kwargs):
-        obj = cls.create_object()
+        obj = object.__new__(cls.Concrete)
         obj.__init__(*args, **kwargs)
         obj.freezeattr.toggle(True)
         return obj

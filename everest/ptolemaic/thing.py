@@ -34,12 +34,16 @@ class ThingVar(ThingElement, metaclass=_Protean):
     _req_slots__ = ('_value',)
     _var_slots__ = ('value',)
 
+    _default = None
+
     @property
     def value(self, /):
         try:
             return self._value
-        except AttributeError as exc:
-            raise ValueError from exc
+        except AttributeError:
+            val = self._default
+            self._alt_setattr__('_value', val)
+            return val
 
     @value.setter
     def value(self, val, /):
@@ -49,7 +53,7 @@ class ThingVar(ThingElement, metaclass=_Protean):
 
     @value.deleter
     def value(self, /):
-        self._alt_delattr__('_value')
+        self._alt_setattr__('_value', self._default)
 
 
 class ThingSpace(_Basic, _Incisable, ThingLike):
