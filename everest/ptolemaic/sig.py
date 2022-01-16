@@ -28,7 +28,7 @@ from everest.incision import (
 
 from everest.ptolemaic.chora import (
     Chora as _Chora,
-    MultiMap as _MultiMap,
+    MultiMapp as _MultiMapp,
     Degenerate as _Degenerate,
     )
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -326,16 +326,12 @@ class Sig(_Chora, metaclass=_Sprite):
 
     choras: _FrozenMap
 
-    class Choret(_MultiMap):
-        ...
+    class Choret(_MultiMapp):
 
         def handle_tuple(self, incisor: tuple, /, *, caller):
             if isinstance(incisor, Params):
                 return _IncisionProtocol.RETRIEVE(caller)(incisor)
             return super().handle_tuple(incisor, caller=caller)
-
-        def slyce_compose(self, incisor: _Chora, /):
-            raise NotImplementedError
 
     @staticmethod
     def _get_orderscore(pair):
@@ -420,8 +416,7 @@ class Sig(_Chora, metaclass=_Sprite):
         bound.apply_defaults()
         out = Params(bound)
         if out not in self:
-            print(out, self)
-#             raise Exception
+            raise Exception
         return out
 
     def __call__(self, /, *args, **kwargs):

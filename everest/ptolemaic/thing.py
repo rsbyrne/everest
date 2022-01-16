@@ -30,7 +30,7 @@ class ThingGeneric(ThingElement, metaclass=_Sprite):
 
 
 class ThingVar(ThingElement, metaclass=_Protean):
-    ...
+
     _req_slots__ = ('_value',)
     _var_slots__ = ('value',)
 

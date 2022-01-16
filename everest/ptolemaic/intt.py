@@ -76,6 +76,10 @@ class Intt(InttLike, _thing.Thing):
     def __class_contains__(cls, arg, /):
         return isinstance(arg, int)
 
+    @classmethod
+    def __class_call__(cls, arg, /):
+        return int(arg)
+
 
 class InttCount(InttLike, _IncisionHandler, metaclass=_Schema):
 

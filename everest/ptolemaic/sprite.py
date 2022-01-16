@@ -6,7 +6,7 @@
 from collections import namedtuple as _namedtuple
 import functools as _functools
 import types as _types
-import inspect as _inspect
+from inspect import Signature as _Signature, Parameter as _Parameter, _empty
 import weakref as _weakref
 import abc as _abc
 
@@ -135,40 +135,42 @@ SPRITENAMESPACE = dict(
     )
 
 
-def get_fields(bases: iter, seen: set, /):
+def collect_fields_mro(bases: iter, hints: dict, defaults: dict, /):
     try:
         base = next(bases)
     except StopIteration:
         return
-    anno = base.__dict__.get('__annotations__', {})
-    yield from get_fields(bases, seen | set(anno))
-    for key, val in anno.items():
-        if key not in seen:
-            yield key, (val, base.__dict__.get(key, NotImplemented))
+    anno = (dct := base.__dict__).get('__annotations__', {})
+    collect_fields_mro(bases, hints, defaults)
+    if isinstance(base, Sprite):
+        defaults.update(base.Concrete._field_defaults)
+    hints.update(anno)
+
+
+def get_fields(ACls, /):
+    collect_fields_mro(iter(ACls.__mro__[1:]), hints := {}, defaults := {})
+    hints.update((dct := ACls.__dict__).get('__annotations__', {}))
+    for key in hints:
+        if key in dct:
+            defaults[key] = dct[key]
+            delattr(ACls, key)
+    if any(hasattr(ACls, key) for key in hints):
+        raise TypeError("Field clashes detected!")
+    return hints, defaults
 
 
 class Sprite(_Essence):
 
     def get_concrete_class(cls, /):
-        fields = dict(get_fields(iter(cls.__mro__), set()))
-        if (clashes := cls.FORBIDDENFIELDS.intersection(set(fields))):
-            raise _exceptions.PtolemaicLayoutException(
-                cls,
-                "The following names were passed to be field names\n"
-                "but they are reserved for the class:\n"
-                f"{set(clashes)}"
-                "\nYou'll have to choose different names for these fields - "
-                "sorry!"
-                )
-        hints = {}
-        defaults = {}
-        for key, (hint, val) in fields.items():
-            hints[key] = hint
-            defaults[key] = val
+        hints, defaults = get_fields(cls)
         name = f"{cls}_NamedTuple"
-        ConcreteBase = _namedtuple(name, hints, defaults=defaults)
+        ConcreteBase = _namedtuple(name, hints, defaults=defaults.values())
+        signature = _Signature(_Parameter(
+            key, 1, default=defaults.get(key, _empty), annotation=hints[key]
+            ) for key in hints)
         namespace = dict(
             _basecls=cls,
+            __signature__=signature,
             ) | SPRITENAMESPACE
         out = type(cls).create_class_object(
             f"Concrete_{cls.__name__}",
@@ -182,25 +184,11 @@ class Sprite(_Essence):
     def __class_deep_init__(cls, /):
         super().__class_deep_init__()
         _Dat.register(cls)
-        if not hasattr(cls, 'FORBIDDENFIELDS'):
-            cls.MERGESETS = tuple(sorted(set(
-                (*cls.__dict__.get('MERGESETS', ()), 'FORBIDDENFIELDS')
-                )))
-            cls.FORBIDDENFIELDS = frozenset(('fields',))
         cls._instancesoftcaches = {}
         cls._instanceweakcaches = {}
         Concrete = cls.Concrete = cls.get_concrete_class()
-        for field in Concrete._fields:
-            try:
-                delattr(cls, field)
-            except AttributeError:
-                pass
-        callmeth = cls.__callmeth__ = Concrete.__new__.__get__(Concrete)
-        cls.__signature__ = _inspect.signature(callmeth)
-
-    @property
-    def fields(cls, /):
-        return cls.Concrete._fields
+        cls.__callmeth__ = Concrete.__new__.__get__(Concrete)
+        cls.__signature__ = Concrete.__signature__
 
     @property
     def __call__(cls, /):
@@ -209,36 +197,3 @@ class Sprite(_Essence):
 
 ###############################################################################
 ###############################################################################
-
-
-# class ClassCacheProperty:
-
-#     __slots__ = ('name', 'cache', 'meth', 'cachename')
-
-#     def __init__(self, meth, cachename, /):
-#         self.meth, self.cachename = meth, cachename
-
-#     def __set_name__(self, owner, name, /):
-#         self.name = name
-#         chnm = self.cachename
-#         try:
-#             self.cache = getattr(owner, chnm, {})
-#         except AttributeError:
-#             self.cache = getattr(owner, chnm) = {}
-
-#     def __get__(self, instance, /):
-#         name, cache = self.name, self.cache
-#         hashval = hash(instance)
-#         try:
-#             icache = cache[hashval]
-#         except KeyError:
-#             icache = cache[hashval] = _weakref.WeakValueDictionary()
-#         try:
-#             return icache[name]
-#         except KeyError:
-#             val = icache[name] = self.meth(instance)
-#             return val
-
-
-# def classcache_property(cachename):
-#     return _functools.partial(ClassCacheProperty, cachename)

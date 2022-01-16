@@ -125,30 +125,6 @@ class Chora(_IncisionHandler, metaclass=_Essence):
 _Incisable.register(Chora)
 
 
-class Composition(_Incisable, metaclass=_Sprite):
-
-    fobj: Chora
-    gobj: Chora
-
-    @property
-    def __incise__(self, /):
-        return _IncisionProtocol.INCISE(self.gobj)
-
-    def __incise_trivial__(self, /):
-        return self
-
-    def __incise_slyce__(self, incisor, /):
-        return type(self)(
-            self.fobj,
-            _IncisionProtocol.SLYCE(self.gobj)(incisor),
-            )
-
-    def __incise_retrieve__(self, incisor, /):
-        return self.fobj[
-            _IncisionProtocol.RETRIEVE(self.gobj)(incisor)
-            ]
-
-
 def _wrap_trivial(meth, /):
     @_functools.wraps(meth)
     def wrapper(self, _, /, *, caller):
@@ -156,6 +132,12 @@ def _wrap_trivial(meth, /):
     return wrapper
 
 def _wrap_slyce(meth, /):
+    @_functools.wraps(meth)
+    def wrapper(self, arg, /, *, caller):
+        return _IncisionProtocol.SLYCE(caller)(meth(self, arg))
+    return wrapper
+
+def _wrap_compose(meth, /):
     @_functools.wraps(meth)
     def wrapper(self, arg, /, *, caller):
         return _IncisionProtocol.SLYCE(caller)(meth(self, arg))
@@ -207,10 +189,6 @@ class Basic(Choret):
     def trivial_ellipsis(self, incisor: EllipsisType, /):
         '''Captures the special behaviour implied by `self[...]`.'''
         pass
-
-    def slyce_compose(self, incisor: _Incisable, /):
-        '''Returns the composition of two choras, i.e. f(g(x)).'''
-        return Composition(self.bound, incisor)
 
     def fail_ultimate(self, incisor: object, /):
         '''The ultimate fallback for unrecognised incision types.'''
@@ -271,6 +249,37 @@ class Basic(Choret):
         return self.getmeths[type(incisor)](
             self, incisor, caller=caller
             )
+
+
+class Composition(_Incisable, metaclass=_Sprite):
+
+    fobj: Chora
+    gobj: Chora
+
+    @property
+    def __incise__(self, /):
+        return _IncisionProtocol.INCISE(self.gobj)
+
+    def __incise_trivial__(self, /):
+        return self
+
+    def __incise_slyce__(self, incisor, /):
+        return type(self)(
+            self.fobj,
+            _IncisionProtocol.SLYCE(self.gobj)(incisor),
+            )
+
+    def __incise_retrieve__(self, incisor, /):
+        return self.fobj[
+            _IncisionProtocol.RETRIEVE(self.gobj)(incisor)
+            ]
+
+
+class Composable(Basic):
+
+    def slyce_compose(self, incisor: _Incisable, /):
+        '''Returns the composition of two choras, i.e. f(g(x)).'''
+        return Composition(self.bound, incisor)
 
 
 class Sliceable(Basic):
@@ -407,7 +416,7 @@ class MultiBrace(Sliceable):
         return _IncisionProtocol.SLYCE(caller)(self(choras))
 
 
-class MultiMap(MultiBrace):
+class MultiMapp(MultiBrace):
 
     @property
     def choras(self, /):
