@@ -415,8 +415,8 @@ class Sig(_Chora, metaclass=_Sprite):
         bound.arguments.update(self.degenerates)
         bound.apply_defaults()
         out = Params(bound)
-        if out not in self:
-            raise Exception
+#         if out not in self:
+#             raise Exception
         return out
 
     def __call__(self, /, *args, **kwargs):
