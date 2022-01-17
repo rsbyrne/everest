@@ -16,6 +16,7 @@ from everest.ptolemaic.chora import (
     Sliceable as _Sliceable, Null as _Null
     )
 from everest.ptolemaic.schema import Schema as _Schema
+from everest.ptolemaic import tuuple as _tuuple
 
 
 def _nth(iterable, n):
@@ -32,64 +33,65 @@ class InttLike(_thing.ThingLike):
     ...
 
 
-class InttElement(_thing.ThingElement, InttLike):
+class InttGen(InttLike, _thing.ThingGen,):
     ...
 
 
-class InttGeneric(_thing.ThingGeneric, InttElement):
-    ...
-
-
-class InttVar(_thing.ThingVar, InttElement):
+class InttVar(InttLike, _thing.ThingVar):
     _default = 0
 
 
-class InttOid(InttLike, _thing.ThingOid):
+class InttSpace(_thing.ThingSpace):
 
-    def __call__(self, arg, /):
-        arg = int(arg)
-        if arg in self:
-            return arg
-        raise ValueError(arg)
+    def __contains__(self, arg, /) -> bool:
+        return isinstance(arg, int)
 
-
-class InttSpace(_Sliceable, _thing.ThingSpace, InttOid):
-
-    @property
-    def __incise_generic__(self, /):
-        return InttGeneric(self.bound)
-
-    @property
-    def __incise_variable__(self, /):
-        return InttVar(self.bound)
-
-    def retrieve_contains(self, incisor: _Null, /):
-        raise NotImplementedError
-
-    def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
-        start, step = incisor.start, incisor.step
-        if step is None:
-            return InttCount(start)
-        return InttCount(start, step)
-
-    def slice_slyce_limit(self, incisor: (type(None), int, type(None)), /):
-        return InttLimit(incisor.stop)
-
-    def slice_slyce_closed(self, incisor: (int, int, _OPINT), /):
-        start, stop, step = incisor.start, incisor.stop, incisor.step
-        if step is None:
-            return InttRange(start, stop)
-        return InttRange(start, stop, step)
-
-    def __contains__(self, arg, /):
-        return arg in self.bound
+    __incise_generic__ = property(InttGen)
+    __incise_variable__ = property(InttVar)
 
 
-class Intt(InttLike, _thing.Thing):
+class _Intt_(InttSpace, _thing._Thing_):
+
+    class Choret(_Sliceable):
+
+        def retrieve_contains(self, incisor: _Null, /):
+            raise NotImplementedError
+
+        def slyce_tuuple(self, incisor: _tuuple.TuupleMeta, /):
+            return Cell
+
+        def slyce_ntuuples(self, incisor: _tuuple.NTuuples, /):
+            return NCells(incisor.n)
+
+        def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
+            start, step = incisor.start, incisor.step
+            if step is None:
+                return InttCount(start)
+            return InttCount(start, step)
+
+        def slice_slyce_limit(self, incisor: (type(None), int, type(None)), /):
+            return InttLimit(incisor.stop)
+
+        def slice_slyce_closed(self, incisor: (int, int, _OPINT), /):
+            start, stop, step = incisor.start, incisor.stop, incisor.step
+            if step is None:
+                return InttRange(start, stop)
+            return InttRange(start, stop, step)
+
+
+class InttMeta(_thing.ThingMeta):
+
+    __incision_manager__ = _Intt_()
+
+
+InttSpace.register(InttMeta)
+
+
+class Intt(_thing.Thing, metaclass=InttMeta):
 
     @classmethod
     def __class_get_incision_manager__(cls, /):
-        return InttSpace(cls)
+        return _Intt_(cls)
 
     @classmethod
     def __class_contains__(cls, arg, /):
@@ -100,12 +102,15 @@ class Intt(InttLike, _thing.Thing):
         return int(arg)
 
 
+class InttOid(InttSpace):
+
+    __incise_generic__ = property(InttGen)
+    __incise_variable__ = property(InttVar)
+
+
 class InttLimit(InttOid, _IncisionHandler, metaclass=_Schema):
 
     stop: Intt
-
-    __incise_generic__ = property(InttGeneric)
-    __incise_variable__ = property(InttVar)
 
     class Choret(_Sliceable):
 
@@ -143,9 +148,6 @@ class InttCount(InttOid, _IncisionHandler, metaclass=_Schema):
         if bound.arguments['step'] < 1:
             raise ValueError
         return bound
-
-    __incise_generic__ = property(InttGeneric)
-    __incise_variable__ = property(InttVar)
 
     class Choret(_Sliceable):
 
@@ -224,9 +226,6 @@ class InttRange(InttOid, _IncisionHandler, metaclass=_Schema):
         super().__init__()
         self._rangeobj = range(self.start, self.stop, self.step)
 
-    __incise_generic__ = property(InttGeneric)
-    __incise_variable__ = property(InttVar)
-
     class Choret(_Sliceable):
 
         def handle_intlike(self, incisor: InttLike, /, *, caller):
@@ -268,8 +267,72 @@ class InttRange(InttOid, _IncisionHandler, metaclass=_Schema):
     def __contains__(self, /):
         return self._rangeobj.__contains__
 
-#     def __reversed__(self, /):
-#         return self[::-1]
+
+class CellLike(_tuuple.TuupleLike):
+    ...
+
+
+class CellGen(CellLike, _tuuple.TuupleGen):
+    ...
+
+
+class CellVar(CellLike, _tuuple.TuupleVar):
+    ...
+
+
+class CellSpace(_tuuple.TuupleSpace):
+
+    def __contains__(self, arg, /) -> bool:
+        if super().__contains__(arg):
+            return all(val in Intt for val in arg)
+        return False
+
+    __incise_generic__ = property(CellGen)
+    __incise_variable__ = property(CellVar)
+
+
+class _Cell_(CellSpace, _tuuple._Tuuple_):
+
+    class Choret:
+
+        def retrieve_contains(self, incisor: tuple, /):
+            return incisor
+
+    def __incise_retrieve__(self, incisor, /):
+        if incisor in self:
+            return incisor
+        raise ValueError(incisor)
+
+
+class CellMeta(_tuuple.TuupleMeta):
+
+    __incision_manager__ = _Cell_()
+
+
+CellSpace.register(CellMeta)
+
+
+class Cell(_tuuple.Tuuple, metaclass=CellMeta):
+    ...
+
+
+class NCells(CellSpace, _tuuple.NTuuples):
+
+    class Choret:
+
+        def slyce_chora(self, incisor: _Null, /):
+            raise NotImplementedError
+
+    def __contains__(self, arg, /) -> bool:
+        if super().__contains__(arg):
+            return all(val in Intt for val in arg)
+        return False
+
+
+# class CellOid(_tuuple.TuuplOid):
+
+#     __incise_generic__ = property(CellGen)
+#     __incise_variable__ = property(CellVar)
 
 
 ###############################################################################

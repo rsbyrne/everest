@@ -11,7 +11,7 @@ from everest.incision import (
     Incisable as _Incisable,
     )
 
-from everest.ptolemaic.chora import Basic as _Basic
+from everest.ptolemaic.chora import Chora as _Chora, Basic as _Basic
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -23,15 +23,11 @@ class ThingLike(metaclass=_Essence):
     ...
 
 
-class ThingElement(_armature.Element, ThingLike):
+class ThingGen(_armature.Element, ThingLike, metaclass=_Sprite):
     ...
 
 
-class ThingGeneric(ThingElement, metaclass=_Sprite):
-    ...
-
-
-class ThingVar(ThingElement, metaclass=_Protean):
+class ThingVar(_armature.Element, ThingLike, metaclass=_Protean):
 
     _req_slots__ = ('_value',)
     _var_slots__ = ('value',)
@@ -58,43 +54,50 @@ class ThingVar(ThingElement, metaclass=_Protean):
         self._alt_setattr__('_value', self._default)
 
 
-class ThingOid(ThingLike):
+class ThingSpace(metaclass=_Essence):
 
     def __call__(self, arg, /):
-        return arg
+        if arg in self:
+            return arg
+        raise ValueError(arg)
 
-    @_abc.abstractmethod
     def __contains__(self, arg, /) -> bool:
-        raise NotImplementedError
-
-
-class ThingSpace(_Basic, _Incisable, ThingOid):
-
-    @property
-    def __incise_generic__(self, /):
-        return ThingGeneric(self.bound)
-
-    @property
-    def __incise_variable__(self, /):
-        return ThingVar(self.bound)
-
-    def retrieve_contains(self, incisor: object, /):
-        return incisor
-
-    @property
-    def __contains__(self, /):
-        return self.bound.__contains__
-
-
-class Thing(ThingLike, metaclass=_Bythos):
-
-    @classmethod
-    def __class_get_incision_manager__(cls, /):
-        return ThingSpace(cls)
-
-    @classmethod
-    def __class_contains__(cls, arg, /):
         return True
+
+    __incise_generic__ = property(ThingGen)
+    __incise_variable__ = property(ThingVar)
+
+
+class _Thing_(_Chora, ThingSpace, metaclass=_Sprite):
+
+    class Choret(_Basic):
+
+        def retrieve_contains(self, incisor: object, /):
+            return incisor
+
+
+class ThingMeta(_Essence):
+
+    __incision_manager__ = _Thing_()
+
+    @property
+    def __getitem__(cls, /):
+        return cls.__incision_manager__.__getitem__
+
+    @property
+    def __contains__(cls, /):
+        return cls.__incision_manager__.__contains__
+
+    @property
+    def __call__(cls, /):
+        return cls.__incision_manager__.__call__
+
+
+ThingSpace.register(ThingMeta)
+
+
+class Thing(metaclass=ThingMeta):
+    ...
 
 
 ###############################################################################
