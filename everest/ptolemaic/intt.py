@@ -9,6 +9,7 @@ from everest.utilities import caching as _caching
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     IncisionHandler as _IncisionHandler,
+    ChainIncisable as _ChainIncisable,
     )
 
 from everest.ptolemaic import thing as _thing
@@ -54,14 +55,24 @@ class _Intt_(InttSpace, _thing._Thing_):
 
     class Choret(_Sliceable):
 
-        def retrieve_contains(self, incisor: _Null, /):
-            raise NotImplementedError
+        def handle_tuple(self, incisor: tuple, /, *, caller):
+            if all(val in self.bound for val in incisor):
+                return _IncisionProtocol.RETRIEVE(caller)(incisor)
+            return _IncisionProtocol.SLYCE(
+                Grid(len(incisor))
+                )
 
-        def slyce_tuuple(self, incisor: _tuuple.TuupleMeta, /):
-            return Cell
+        def retrieve_contains(self, incisor: int, /):
+            raise incisor
 
-        def slyce_ntuuples(self, incisor: _tuuple.NTuuples, /):
-            return NCells(incisor.n)
+        def slyce_inttspace(self, incisor: InttSpace, /):
+            return incisor
+
+#         def slyce_tuuple(self, incisor: _tuuple.TuupleMeta, /):
+#             return Cell
+
+        def slyce_depth(self, incisor: _tuuple.NTuuples, /):
+            return Grid(incisor.n)
 
         def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
             start, step = incisor.start, incisor.step
@@ -102,13 +113,7 @@ class Intt(_thing.Thing, metaclass=InttMeta):
         return int(arg)
 
 
-class InttOid(InttSpace):
-
-    __incise_generic__ = property(InttGen)
-    __incise_variable__ = property(InttVar)
-
-
-class InttLimit(InttOid, _IncisionHandler, metaclass=_Schema):
+class InttLimit(InttSpace, _IncisionHandler, metaclass=_Schema):
 
     stop: Intt
 
@@ -137,7 +142,7 @@ class InttLimit(InttOid, _IncisionHandler, metaclass=_Schema):
         return False
 
 
-class InttCount(InttOid, _IncisionHandler, metaclass=_Schema):
+class InttCount(InttSpace, _IncisionHandler, metaclass=_Schema):
 
     start: Intt
     step: Intt = 1
@@ -206,7 +211,7 @@ class InttCount(InttOid, _IncisionHandler, metaclass=_Schema):
         return not (arg - self.start) % self.step
 
 
-class InttRange(InttOid, _IncisionHandler, metaclass=_Schema):
+class InttRange(InttSpace, _IncisionHandler, metaclass=_Schema):
 
     start: Intt
     stop: Intt
@@ -316,17 +321,38 @@ class Cell(_tuuple.Tuuple, metaclass=CellMeta):
     ...
 
 
-class NCells(CellSpace, _tuuple.NTuuples):
+class Grid(CellSpace, _ChainIncisable, metaclass=_Schema):
 
-    class Choret:
+    depth: Intt[0:]
 
-        def slyce_chora(self, incisor: _Null, /):
-            raise NotImplementedError
+    def __init__(self, /):
+        super().__init__()
+        self.dimensions = _tuuple.Tuuple[self.depth][Intt]
 
-    def __contains__(self, arg, /) -> bool:
-        if super().__contains__(arg):
-            return all(val in Intt for val in arg)
-        return False
+    @property
+    def __incision_manager__(self, /):
+        return self.dimensions
+
+    @property
+    def __incise_slyce__(self, /):
+        return SubGrid
+
+    @property
+    def __contains__(self, /):
+        return self.__incision_manager__.__contains__
+
+
+class SubGrid(CellSpace, _ChainIncisable, metaclass=_Sprite):
+
+    dimensions: _tuuple.TuPlex
+
+    @property
+    def __incision_manager__(self, /):
+        return self._tuplex
+
+    @property
+    def __incise_slyce__(self, /):
+        return self._ptolemaic_class__
 
 
 # class CellOid(_tuuple.TuuplOid):

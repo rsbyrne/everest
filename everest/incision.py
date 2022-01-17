@@ -127,7 +127,7 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
             )
 
 
-class Incisable(IncisionHandler, metaclass=_abc.ABCMeta):
+class PseudoIncisable(metaclass=_abc.ABCMeta):
 
     __slots__ = ()
 
@@ -137,6 +137,11 @@ class Incisable(IncisionHandler, metaclass=_abc.ABCMeta):
 
     def __getitem__(self, arg, /):
         return IncisionProtocol.INCISE(self)(arg, caller=self)
+
+
+class Incisable(IncisionHandler, PseudoIncisable):
+
+    __slots__ = ()
 
     @classmethod
     def __subclasshook__(cls, ACls, /):

@@ -93,19 +93,19 @@ class TuuplesOf(_Chora, TuupleSpace, metaclass=_Sprite):
 
 class NTuuples(_Chora, TuupleSpace, metaclass=_Sprite):
 
-    n: int
+    depth: int
 
     class Choret(_Basic):
 
         @property
-        def n(self, /):
-            return self.bound.n
+        def depth(self, /):
+            return self.bound.depth
 
         def retrieve_tuple(self, incisor: tuple, /):
             return incisor
 
         def slyce_chora(self, incisor: _Chora, /):
-            return TuPlex(_itertools.repeat(incisor, self.n))
+            return TuPlex(_itertools.repeat(incisor, self.depth))
 
     def __incise_retrieve__(self, incisor, /):
         if incisor in self:
@@ -114,7 +114,7 @@ class NTuuples(_Chora, TuupleSpace, metaclass=_Sprite):
 
     def __contains__(self, arg, /) -> bool:
         if super().__contains__(arg):
-            return len(arg) == self.n
+            return len(arg) == self.depth
         return False
 
 
