@@ -13,7 +13,7 @@ from everest.incision import (
 
 from everest.ptolemaic import thing as _thing
 from everest.ptolemaic.chora import (
-    Sliceable as _Sliceable,
+    Sliceable as _Sliceable, Null as _Null
     )
 from everest.ptolemaic.schema import Schema as _Schema
 
@@ -44,7 +44,16 @@ class InttVar(_thing.ThingVar, InttElement):
     _default = 0
 
 
-class InttSpace(_Sliceable, _thing.ThingSpace, InttLike):
+class InttOid(InttLike, _thing.ThingOid):
+
+    def __call__(self, arg, /):
+        arg = int(arg)
+        if arg in self:
+            return arg
+        raise ValueError(arg)
+
+
+class InttSpace(_Sliceable, _thing.ThingSpace, InttOid):
 
     @property
     def __incise_generic__(self, /):
@@ -54,16 +63,26 @@ class InttSpace(_Sliceable, _thing.ThingSpace, InttLike):
     def __incise_variable__(self, /):
         return InttVar(self.bound)
 
-    def retrieve_contains(self, incisor: int, /):
-        return incisor
+    def retrieve_contains(self, incisor: _Null, /):
+        raise NotImplementedError
 
     def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
-        start, stop, step = incisor.start, incisor.stop, incisor.step
+        start, step = incisor.start, incisor.step
+        if step is None:
+            return InttCount(start)
         return InttCount(start, step)
 
-    def slice_slyce_closed(self, incisor: (_OPINT, int, _OPINT), /):
+    def slice_slyce_limit(self, incisor: (type(None), int, type(None)), /):
+        return InttLimit(incisor.stop)
+
+    def slice_slyce_closed(self, incisor: (int, int, _OPINT), /):
         start, stop, step = incisor.start, incisor.stop, incisor.step
+        if step is None:
+            return InttRange(start, stop)
         return InttRange(start, stop, step)
+
+    def __contains__(self, arg, /):
+        return arg in self.bound
 
 
 class Intt(InttLike, _thing.Thing):
@@ -81,17 +100,54 @@ class Intt(InttLike, _thing.Thing):
         return int(arg)
 
 
-class InttCount(InttLike, _IncisionHandler, metaclass=_Schema):
+class InttLimit(InttOid, _IncisionHandler, metaclass=_Schema):
 
-    start: Intt
-    step: Intt
+    stop: Intt
 
     __incise_generic__ = property(InttGeneric)
     __incise_variable__ = property(InttVar)
 
     class Choret(_Sliceable):
 
-        BOUNDREQS = ('start', 'step')
+        def slice_slyce_close(self, incisor: (int, _OPINT, _OPINT), /):
+            start, stop, step = incisor.start, incisor.stop, incisor.step
+            pstop = self.bound.stop
+            if stop is None:
+                stop = pstop
+            elif stop > pstop:
+                raise ValueError
+            if step is None:
+                return InttRange(start, stop)
+            return InttRange(start, stop, step)
+
+        def slice_slyce_open(self, incisor: (type(None), int, type(None)), /):
+            stop = incisor.stop
+            if stop > self.bound.stop:
+                raise ValueError
+            return self.bound._ptolemaic_class__(stop)
+
+    def __contains__(self, arg, /):
+        if isinstance(arg, int):
+            return arg < self.stop
+        return False
+
+
+class InttCount(InttOid, _IncisionHandler, metaclass=_Schema):
+
+    start: Intt
+    step: Intt = 1
+
+    @classmethod
+    def parameterise(cls, cache, /, *args, **kwargs):
+        bound = super().parameterise(cache, *args, **kwargs)
+        if bound.arguments['step'] < 1:
+            raise ValueError
+        return bound
+
+    __incise_generic__ = property(InttGeneric)
+    __incise_variable__ = property(InttVar)
+
+    class Choret(_Sliceable):
 
         def handle_intlike(self, incisor: InttLike, /, *, caller):
             if isinstance(incisor, InttRange):
@@ -132,16 +188,6 @@ class InttCount(InttLike, _IncisionHandler, metaclass=_Schema):
                 return _nth(self.bound, incisor)
             raise ValueError(incisor)
 
-    @classmethod
-    def parameterise(cls, cache, /, *args):
-        bound = super().parameterise(cache, *args)
-        start, step = bound.args
-        if start is None:
-            bound.arguments['start'] = 0
-        if step is None:
-            bound.arguments['step'] = 1
-        return bound
-
     @property
     @_caching.soft_cache()
     def slc(self, /):
@@ -157,11 +203,8 @@ class InttCount(InttLike, _IncisionHandler, metaclass=_Schema):
             return False
         return not (arg - self.start) % self.step
 
-    def __str__(self, /):
-        return f"{self.start}::{self.step}"
 
-
-class InttRange(InttLike, _IncisionHandler, metaclass=_Schema):
+class InttRange(InttOid, _IncisionHandler, metaclass=_Schema):
 
     start: Intt
     stop: Intt
@@ -169,12 +212,22 @@ class InttRange(InttLike, _IncisionHandler, metaclass=_Schema):
 
     _req_slots__ = ('_rangeobj',)
 
+    @classmethod
+    def parameterise(cls, cache, /, *args, **kwargs):
+        bound = super().parameterise(cache, *args, **kwargs)
+        start, stop, step = bound.args
+        if start > stop:
+            raise ValueError
+        return bound
+
+    def __init__(self, /):
+        super().__init__()
+        self._rangeobj = range(self.start, self.stop, self.step)
+
     __incise_generic__ = property(InttGeneric)
     __incise_variable__ = property(InttVar)
 
     class Choret(_Sliceable):
-
-        BOUNDREQS = ('start', 'stop', 'step')
 
         def handle_intlike(self, incisor: InttLike, /, *, caller):
             if isinstance(incisor, InttRange):
@@ -200,27 +253,6 @@ class InttRange(InttLike, _IncisionHandler, metaclass=_Schema):
             nrang = self.bound._rangeobj[start:stop:step]
             return InttRange(nrang.start, nrang.stop, nrang.step)
 
-    @classmethod
-    def parameterise(cls, cache, arg0, /, *argn):
-        if isinstance(arg0, slice):
-            if argn:
-                raise cls.paramexc("Cannot pass both slc and args.")
-            slc = arg0
-        else:
-            slc = slice(arg0, *argn) 
-        bound = super().parameterise(cache, slc.start, slc.stop, slc.step)
-        start, stop, step = bound.args
-        bound.arguments.update(
-            start=(0 if start is None else int(start)),
-            stop=int(stop),
-            step=(1 if step is None else int(step)),
-            )
-        return bound
-
-    def __init__(self, /):
-        super().__init__()
-        self._rangeobj = range(self.start, self.stop, self.step)
-
     @property
     @_caching.soft_cache()
     def slc(self, /):
@@ -236,8 +268,8 @@ class InttRange(InttLike, _IncisionHandler, metaclass=_Schema):
     def __contains__(self, /):
         return self._rangeobj.__contains__
 
-    def __reversed__(self, /):
-        return self[::-1]
+#     def __reversed__(self, /):
+#         return self[::-1]
 
 
 ###############################################################################

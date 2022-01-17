@@ -3,6 +3,8 @@
 ###############################################################################
 
 
+import abc as _abc
+
 from everest import ur as _ur
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
@@ -56,7 +58,17 @@ class ThingVar(ThingElement, metaclass=_Protean):
         self._alt_setattr__('_value', self._default)
 
 
-class ThingSpace(_Basic, _Incisable, ThingLike):
+class ThingOid(ThingLike):
+
+    def __call__(self, arg, /):
+        return arg
+
+    @_abc.abstractmethod
+    def __contains__(self, arg, /) -> bool:
+        raise NotImplementedError
+
+
+class ThingSpace(_Basic, _Incisable, ThingOid):
 
     @property
     def __incise_generic__(self, /):

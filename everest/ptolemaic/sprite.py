@@ -9,7 +9,7 @@ from inspect import Signature as _Signature, Parameter as _Parameter, _empty
 import weakref as _weakref
 
 from everest.utilities import (
-    caching as _caching,
+    caching as _caching, FrozenMap as _FrozenMap
     )
 from everest.ur import Dat as _Dat
 
@@ -74,7 +74,8 @@ class Sprite(_Essence):
         cls._instancesoftcaches = {}
         cls._instanceweakcaches = {}
         Concrete = cls.Concrete = cls.get_concrete_class()
-        cls.__callmeth__ = _functools.partial(Concrete.__new__, Concrete)
+#         cls.__callmeth__ = _functools.partial(Concrete.__new__, Concrete)
+        cls.__callmeth__ = Concrete.__new__.__get__(Concrete)
         cls.__signature__ = Concrete.__signature__
 
     @property
@@ -83,6 +84,11 @@ class Sprite(_Essence):
 
 
 class SpriteBase(metaclass=Sprite):
+
+    @property
+    @_caching.soft_cache()
+    def params(self, /):
+        return _FrozenMap({key: getattr(self, key) for key in self._fields})
 
     def get_epitaph(self, /):
         ptolcls = self._ptolemaic_class__

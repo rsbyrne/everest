@@ -47,14 +47,19 @@ class Choret(metaclass=ChoretMeta):
     @classmethod
     def __class_init__(cls, /):
 
-        @property
-        def __incise__(self, /):
-            return self.Choret(self).__incise__
-
-        cls.decoratemeths = dict(
-            __incise__ = __incise__,
+        decoratemeths = cls.decoratemeths = dict(
             __getitem__ = _Incisable.__getitem__,
             )
+
+        for methname in ('__incise__', '__contains__'):
+            if hasattr(cls, methname):
+                exec('\n'.join((
+                    f"@property",
+                    f"def {methname}(self, /):",
+                    f"    return self.Choret(self).{methname}",
+                    )))
+                decoratemeths[methname] = eval(methname)
+                
 
     @classmethod
     def compatible(cls, ACls, /):
@@ -415,6 +420,12 @@ class MultiBrace(Sliceable):
             return _IncisionProtocol.RETRIEVE(caller)(incisor)
         return _IncisionProtocol.SLYCE(caller)(self(choras))
 
+    def __contains__(self, arg: tuple, /):
+        for val, chora in zip(arg, self.choras):
+            if val not in chora:
+                return False
+        return True
+
 
 class MultiMapp(MultiBrace):
 
@@ -460,6 +471,17 @@ class MultiMapp(MultiBrace):
                 })
             return _IncisionProtocol.RETRIEVE(caller)(incisor)
         return _IncisionProtocol.SLYCE(caller)(self(choras))
+
+    def __contains__(self, arg: dict, /):
+        choras = self.chorakws
+        for key, val in arg.items():
+            try:
+                chora = choras[key]
+            except KeyError:
+                return False
+            if val not in chora:
+                return False
+        return True
 
 
 ###############################################################################

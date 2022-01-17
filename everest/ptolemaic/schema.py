@@ -13,7 +13,7 @@ import inspect as _inspect
 from everest.utilities import caching as _caching, reseed as _reseed
 from everest.ur import Dat as _Dat
 
-from everest.ptolemaic.tekton import Tekton as _Tekton, Tektoid as _Tektoid
+from everest.ptolemaic.tekton import Tekton as _Tekton, TektOid as _TektOid
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.chora import Chora as _Chora
 from everest.ptolemaic.sig import (Params as _Params, Param as _Param)
@@ -27,7 +27,7 @@ class Schema(_Tekton, _Ousia):
         return cls
 
     def __class_get_incision_manager__(cls, /):
-        return Schemoid(cls, cls.sig)
+        return SchemOid(cls, cls.sig)
 
     def __call__(cls, /, *args, **kwargs):
         bound = cls.parameterise(cache := {}, *args, **kwargs)
@@ -36,7 +36,7 @@ class Schema(_Tekton, _Ousia):
         return obj
 
 
-class Schemoid(_Tektoid):
+class SchemOid(_TektOid):
 
     def __incise_retrieve__(self, params: _Params, /) -> 'Concrete':
         obj = object.__new__(self.subject.Concrete)
@@ -69,6 +69,7 @@ class SchemaBase(metaclass=Schema):
     @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
+        bound.apply_defaults()
         return bound
 
     ### Serialisation

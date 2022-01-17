@@ -44,14 +44,14 @@ class Tekton(_Bythos):
         return cls.sig.signature
 
     def __class_get_incision_manager__(cls, /):
-        return Tektoid(cls, cls.sig)
+        return TektOid(cls, cls.sig)
 
     @property
     def __call__(cls, /):
         return cls.__incision_manager__
 
 
-class Tektoid(_Armature, _ChainIncisable, metaclass=_Sprite):
+class TektOid(_Armature, _ChainIncisable, metaclass=_Sprite):
 
     subject: _Chora
     sig: _Chora
