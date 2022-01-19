@@ -98,7 +98,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             if searchname in mcls.__dict__:
                 if not (inhcls := mcls.__dict__[searchname]) in inhclasses:
                     inhclasses.append(inhcls)
-        inhclasses = tuple(inhclasses)
+        inhclasses = tuple(
+            getattr(inh, '__mroclass_basis__', inh) for inh in inhclasses
+            )
         if not inhclasses:
             return NotImplemented
         if len(inhclasses) == 1:
@@ -115,6 +117,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         out = cls._make_mroclass(name)
         if out is not NotImplemented:
             setattr(cls, name, out)
+            if hasattr(out, '__set_name__'):
+                out.__set_name__(cls, name)
 
     def _add_mroclasses(cls, /):
         for name in cls.MROCLASSES:

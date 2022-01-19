@@ -4,15 +4,14 @@
 
 
 import abc as _abc
-from enum import EnumMeta as _EnumMeta, Enum as _Enum
 from collections import deque as _deque
 from collections import abc as _collabc
 import inspect as _inspect
-import weakref as _weakref
 import collections as _collections
 
 from everest import epitaph as _epitaph
 from everest.utilities import Null as _Null
+from everest.utilities.protocol import Protocol as _Protocol
 # from everest.utilities import reseed as _reseed
 
 # from everest.ptolemaic.eidos import Eidos as _Eidos
@@ -24,77 +23,27 @@ from everest.exceptions import (
     )
 
 
-class _IncisionProtocolMeta_(_EnumMeta):
-
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        cls._compliant = _weakref.WeakKeyDictionary()
-        cls.DEFER = '__incision_manager__'
-        cls.mandatory = tuple(
-            cls[name].value for name in (
-                'INCISE', 'TRIVIAL', 'RETRIEVE', 'SLYCE', 'FAIL'
-                )
-            )
-
-
-class IncisionProtocol(_Enum, metaclass=_IncisionProtocolMeta_):
+class IncisionProtocol(_Protocol):
 
     # Mandatory:
-    INCISE = '__incise__'
-    TRIVIAL = '__incise_trivial__'
-    RETRIEVE = '__incise_retrieve__'
-    SLYCE = '__incise_slyce__'
-    FAIL = '__incise_fail__'
+    INCISE = ('__incise__', True)
+    TRIVIAL = ('__incise_trivial__', True)
+    SLYCE = ('__incise_slyce__', True)
+    RETRIEVE = ('__incise_retrieve__', True)
+    FAIL = ('__incise_fail__', True)
 
     # Optional:
 
-    GENERIC = '__incise_generic__'
-    VARIABLE = '__incise_variable__'
-    DEGENERATE = '__incise_degenerate__'
+    GENERIC = ('__incise_generic__', False)
+    VARIABLE = ('__incise_variable__', False)
+    DEGENERATE = ('__incise_degenerate__', False)
 #     CONTAINS = '__contains__'
 #     LEN = '__len__'
 #     ITER = '__iter__'
 
     @classmethod
     def defer(cls, obj, /):
-        return getattr(obj, cls.DEFER)
-
-    @classmethod
-    def complies(cls, ACls, /):
-        compliant = cls._compliant
-        try:
-            return compliant[ACls]
-        except KeyError:
-            pass
-        if hasattr(ACls, cls.DEFER):
-            out = compliant[ACls] = True
-            return out
-        for methodname in cls.mandatory:
-            for Base in ACls.__mro__:
-                dct = Base.__dict__
-                if methodname in dct:
-                    break
-                if '__slots__' in dct:
-                    slots = dct['__slots__']
-                    if methodname in slots:
-                        break
-            else:
-                out = compliant[ACls] = False
-                return out
-        out = compliant[ACls] = True
-        return out
-
-    def __call__(self, obj, default = None, /):
-        value = self.value
-        try:
-            return getattr(obj, value)
-        except AttributeError:
-            try:
-                return getattr(self.defer(obj), value)
-            except AttributeError:
-                if default is None:
-                    raise self.exc(obj)
-                return default
+        return getattr(obj, '__incision_manager__')
 
     def exc(self, obj, /):
         return IncisionProtocolException(self, obj)
@@ -104,6 +53,7 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
 
     __slots__ = ()
 
+    @property
     def __incise_trivial__(self, /):
         return self
 
@@ -155,6 +105,7 @@ class IncisionChain(IncisionHandler, tuple):
     def __incise__(self, /, *, caller):
         return IncisionProtocol.INCISE(self.inner)
 
+    @property
     def __incise_trivial__(self, /):
         return IncisionProtocol.TRIVIAL(self[-1])()
 

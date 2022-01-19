@@ -19,6 +19,27 @@ from everest.ptolemaic.armature import Armature as _Armature
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
 
+class TektOid(_Armature, _ChainIncisable, metaclass=_Sprite):
+
+    subject: _Chora
+    sig: _Chora
+
+    @property
+    def __incision_manager__(self, /):
+        return self.sig
+
+    def __incise_retrieve__(self, incisor, /):
+        return self.subject.__construct__(
+            *incisor.sigargs, **incisor.sigkwargs
+            )
+
+    def __incise_slyce__(self, incisor, /):
+        return self._ptolemaic_class__(self.subject, incisor)
+
+    def __call__(self, /, *args, **kwargs):
+        return self.__incise_retrieve__(self.sig(*args, **kwargs))
+
+
 class Tekton(_Bythos):
 
     @classmethod
@@ -44,32 +65,13 @@ class Tekton(_Bythos):
         return cls.sig.signature
 
     def __class_get_incision_manager__(cls, /):
-        return TektOid(cls, cls.sig)
+        return cls.Oid(cls, cls.sig)
 
     @property
     def __call__(cls, /):
         return cls.__incision_manager__
 
-
-class TektOid(_Armature, _ChainIncisable, metaclass=_Sprite):
-
-    subject: _Chora
-    sig: _Chora
-
-    @property
-    def __incision_manager__(self, /):
-        return self.sig
-
-    def __incise_retrieve__(self, incisor, /):
-        return self.subject.__construct__(
-            *incisor.sigargs, **incisor.sigkwargs
-            )
-
-    def __incise_slyce__(self, incisor, /):
-        return self._ptolemaic_class__(self.subject, incisor)
-
-    def __call__(self, /, *args, **kwargs):
-        return self.__incise_retrieve__(self.sig(*args, **kwargs))
+    Oid = TektOid
 
 
 ###############################################################################

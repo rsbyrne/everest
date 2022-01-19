@@ -104,13 +104,13 @@ class OusiaBase(metaclass=Ousia):
     def __new__(cls, /, *_, **__):
         raise TypeError
 
-    @classmethod
-    def __choret_decorate__(cls, choret, /):
-        if '_Concrete' in cls.__dict__:
-            raise TypeError(f"Too late to decorate class! {cls}, {choret}")
-        with cls.mutable:
-            cls.Choret = choret
-            cls._ptolemaic_choret_decorated_ = True
+#     @classmethod
+#     def __choret_decorate__(cls, choret, /):
+#         if '_Concrete' in cls.__dict__:
+#             raise TypeError(f"Too late to decorate class! {cls}, {choret}")
+#         with cls.mutable:
+#             cls.Choret = choret
+#             cls._ptolemaic_choret_decorated_ = True
 
     ### Configuring the concrete class:
 
@@ -120,8 +120,8 @@ class OusiaBase(metaclass=Ousia):
         name = f"Concrete_{cls._ptolemaic_class__.__name__}"
 
         bases = [cls,]
-        if getattr(cls, '_ptolemaic_choret_decorated_', False):
-            bases.append(_IncisionHandler)
+#         if getattr(cls, '_ptolemaic_choret_decorated_', False):
+#             bases.append(_IncisionHandler)
         bases = tuple(bases)
 
         slots = tuple(
@@ -134,8 +134,10 @@ class OusiaBase(metaclass=Ousia):
             _basecls=cls,
             __class_init__=lambda: None,
             )
-        if getattr(cls, '_ptolemaic_choret_decorated_', False):
-            namespace.update(cls.Choret.decoratemeths)
+#         if getattr(cls, '_ptolemaic_choret_decorated_', False):
+#             namespace.update(
+#                 cls.__dict__['__incision_manager__'].decoratemeths
+#                 )
 
         return name, bases, namespace
 

@@ -228,18 +228,23 @@ class DataChannel:
             return base * 10. ** round(power)
 
         def nice_endpoints(self, step, origin = 0.):
+            lcap, ucap = self.capped
             lLim, uLim = self.lims
-            lLim = origin if (origin or (lLim > origin and uLim > 3 * lLim)) else lLim
-            uLim = origin if (origin or (uLim < origin and lLim < 3 * uLim)) else uLim
+            if not lcap:
+                lLim = origin if (origin or (lLim > origin and uLim > 3 * lLim)) else lLim
+            if not ucap:
+                uLim = origin if (origin or (uLim < origin and lLim < 3 * uLim)) else uLim
             truel, trueu = self.truelims
-            if not round(lLim % step / step, 5) in {0., 1.}:
-                lLim -= lLim % step
-                if truel < lLim + 1/3 * step:
-                    lLim -= step
-            if not round(uLim % step / step, 5) in {0., 1.}:
-                uLim += step - uLim % step
-                if trueu > uLim - 1/3 * step:
-                    uLim += step
+            if not lcap:
+                if not round(lLim % step / step, 5) in {0., 1.}:
+                    lLim -= lLim % step
+                    if truel < lLim + 1/3 * step:
+                        lLim -= step
+            if not ucap:
+                if not round(uLim % step / step, 5) in {0., 1.}:
+                    uLim += step - uLim % step
+                    if trueu > uLim - 1/3 * step:
+                        uLim += step
             lLim, uLim = [round(v, 15) for v in (lLim, uLim)]
             return lLim, uLim
 

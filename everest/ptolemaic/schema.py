@@ -20,22 +20,6 @@ from everest.ptolemaic.sig import (Params as _Params, Param as _Param)
 from everest.ptolemaic import exceptions as _exceptions
 
 
-class Schema(_Tekton, _Ousia):
-
-    @property
-    def __construct__(cls, /):
-        return cls
-
-    def __class_get_incision_manager__(cls, /):
-        return SchemOid(cls, cls.sig)
-
-    def __call__(cls, /, *args, **kwargs):
-        bound = cls.parameterise(cache := {}, *args, **kwargs)
-        obj = cls.__incise_retrieve__(_Params(bound))
-        obj.softcache.update(cache)
-        return obj
-
-
 class SchemOid(_TektOid):
 
     def __incise_retrieve__(self, params: _Params, /) -> 'Concrete':
@@ -44,6 +28,21 @@ class SchemOid(_TektOid):
         obj.__init__()
         obj.freezeattr.toggle(True)
         return obj
+
+
+class Schema(_Tekton, _Ousia):
+
+    @property
+    def __construct__(cls, /):
+        return cls
+
+    def __call__(cls, /, *args, **kwargs):
+        bound = cls.parameterise(cache := {}, *args, **kwargs)
+        obj = cls.__incise_retrieve__(_Params(bound))
+        obj.softcache.update(cache)
+        return obj
+
+    Oid = SchemOid
 
 
 class SchemaBase(metaclass=Schema):
@@ -102,9 +101,8 @@ class SchemaBase(metaclass=Schema):
     def _repr(self, /):
         return f"hashID={self.hashID}"
 
-    @_caching.soft_cache()
     def __hash__(self, /):
-        return _reseed.rdigits(12)
+        return self.hashint
 
     def _repr_pretty_(self, p, cycle):
 #         p.text('<')

@@ -23,6 +23,7 @@ from everest.incision import (
     IncisionHandler as _IncisionHandler,
     ChainIncisable as _ChainIncisable,
     )
+from everest.epitaph import Epitaph as _Epitaph
 
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
@@ -30,12 +31,31 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
+class ChoretDescriptor:
+
+    __slots__ = ('Choret',)
+
+    def __init__(self, choret, /):
+        self.Choret = choret
+
+    def __get__(self, instance, owner=None, /):
+        return self.Choret(instance)
+
+    @property
+    def __mroclass_basis__(self, /):
+        return self.Choret
+
+
 class ChoretMeta(_Sprite):
 
     def __set_name__(cls, owner, name, /):
-        if isinstance(owner, _Essence):
-            if name == 'Choret':
-                cls.decorate(owner)
+        if not isinstance(owner, _Essence):
+            return
+        if name != '__incision_manager__':
+            return
+        cls.decorate(owner)
+
+    descriptor = property(ChoretDescriptor)
 
 
 class Choret(metaclass=ChoretMeta):
@@ -46,56 +66,32 @@ class Choret(metaclass=ChoretMeta):
 
     @classmethod
     def __class_init__(cls, /):
-
-        decoratemeths = cls.decoratemeths = dict(
-            __getitem__ = _Incisable.__getitem__,
-            )
-
-        for methname in ('__incise__', '__contains__'):
-            if hasattr(cls, methname):
-                exec('\n'.join((
-                    f"@property",
-                    f"def {methname}(self, /):",
-                    f"    return self.Choret(self).{methname}",
-                    )))
-                decoratemeths[methname] = eval(methname)
-                
+        pass
 
     @classmethod
     def compatible(cls, ACls, /):
         if not isinstance(ACls, _Essence):
             return False
-#         if not issubclass(ACls, _IncisionHandler):
-#             return False
-#         direc = dir(ACls)
-#         slots = getattr(ACls, '_req_slots__', ())
-#         fields = getattr(ACls, 'fields', ())
-#         for name in cls.BOUNDREQS:
-#             if name not in direc:
-#                 if name not in slots:
-#                     if name not in fields:
-#                         return False
         return True
 
     @classmethod
     def decorate(cls, ACls, /):
         if not cls.compatible(ACls):
             raise TypeError(f"Type {ACls} incompatible with chora {cls}.")
-        abstract = set()
-        if hasattr(ACls, '__choret_decorate__'):
+        if hasattr(cls, '__choret_decorate__'):
             ACls.__choret_decorate__(cls)
             return ACls
         with ACls.mutable:
-            ACls.Choret = cls
-            for name, obj in cls.decoratemeths.items():
-                if not hasattr(obj, name):
-                    setattr(ACls, name, obj)
+            setattr(ACls, '__incision_manager__', cls.descriptor)
+            if not '__getitem__' in dir(ACls):
+                setattr(ACls, '__getitem__', _Incisable.__getitem__)
             ACls._ptolemaic_choret_decorated_ = True
         return ACls
 
     @_abc.abstractmethod
     def __incise__(self, *_, **__):
         raise NotImplementedError
+
 
 #     @classmethod
 #     def __subclasshook__(cls, ACls, /):
@@ -110,9 +106,9 @@ class Chora(_IncisionHandler, metaclass=_Essence):
     '''`Chora` objects can be thought of as representing 'space' '''
     '''in both concrete and abstract ways.'''
 
-    MROCLASSES = ('Choret',)
+    MROCLASSES = ('__incision_manager__',)
 
-    Choret = Choret
+    __incision_manager__ = Choret
 
     @classmethod
     def __subclasshook__(cls, ACls, /):
@@ -133,7 +129,7 @@ _Incisable.register(Chora)
 def _wrap_trivial(meth, /):
     @_functools.wraps(meth)
     def wrapper(self, _, /, *, caller):
-        return _IncisionProtocol.TRIVIAL(caller)()
+        return _IncisionProtocol.TRIVIAL(caller)
     return wrapper
 
 def _wrap_slyce(meth, /):
@@ -183,7 +179,7 @@ class Basic(Choret):
         raise NotImplementedError
 
     def handle_none(self, incisor: type(None), /, *, caller):
-        return _IncisionProtocol.GENERIC(caller)()
+        return _IncisionProtocol.GENERIC(caller)
 
 #     def handle_protocol(self, incisor: _IncisionProtocol, /, *, caller):
 #         return incisor(caller)()
@@ -231,7 +227,18 @@ class Basic(Choret):
             wrap = WRAPMETHS.get(prefix, defaultwrap)
             for name in deq:
                 meth = getattr(cls, name)
-                hint = hintprocess(meth.__annotations__.get('incisor', cls))
+                hint = meth.__annotations__.get('incisor', cls)
+                if isinstance(hint, str):
+                    if hint.startswith('.'):
+                        attrnames = iter(hint.strip('.').split('.'))
+                        hint = cls
+                        for attrname in attrnames:
+                            hint = getattr(hint, attrname)
+                    else:
+                        hint = eval(hint)
+                elif isinstance(hint, _Epitaph):
+                    hint = hint.decode()
+                hint = hintprocess(hint)
                 if hint not in seen:
                     yield hint, wrap(meth)
                     seen.add(hint)
@@ -349,17 +356,19 @@ class Degenerator(_ChainIncisable, metaclass=_Sprite):
         return _IncisionProtocol.DEGENERATE(self.chora, Degenerate)
 
 
-class MultiBrace(Sliceable):
-
-#     BOUNDREQS = ('choras',)
+class Multi(Basic):
 
     @property
     def choras(self, /):
         return self.bound.choras
 
     @property
-    def __call__(self, /):
-        return self.bound._ptolemaic_class__
+    def IsoForm(self, /):
+        return self.bound.IsoForm
+
+    @property
+    def AnisoForm(self, /):
+        return self.bound.AnisoForm
 
     @property
     def depth(self, /):
@@ -408,26 +417,40 @@ class MultiBrace(Sliceable):
                     yield Degenerator(chora)[incisor]
                     break
         except StopIteration:
-#             raise ValueError("Too many incisors in tuple incision.")
-            pass
+            raise ValueError("Too many incisors in tuple incision.")
         yield from chorait
+
+
+class MultiTuple(Multi):
+
+#     BOUNDREQS = ('choras',)
 
     def handle_tuple(self, incisor: tuple, /, *, caller):
         '''Captures the special behaviour implied by `self[a,b,...]`'''
+        if not incisor:
+            return _IncisionProtocol.TRIVIAL(caller)
         choras = tuple(self.yield_tuple_multiincise(*incisor))
         if all(isinstance(cho, Degenerate) for cho in choras):
             incisor = tuple(cho.value for cho in choras)
             return _IncisionProtocol.RETRIEVE(caller)(incisor)
-        return _IncisionProtocol.SLYCE(caller)(self(choras))
+        return _IncisionProtocol.SLYCE(caller)(self.slyce_tuple(choras))
+
+    def slyce_tuple(self, incisor: tuple, /):
+        # Invisible to getmeths!
+        if len(set(incisor)) == 1:
+            return self.IsoForm(incisor[0], len(incisor))
+        return self.AnisoForm(incisor)
 
     def __contains__(self, arg: tuple, /):
+        if len(arg) > len(self.choras):
+            return False
         for val, chora in zip(arg, self.choras):
             if val not in chora:
                 return False
         return True
 
 
-class MultiMapp(MultiBrace):
+class MultiDict(Multi):
 
     @property
     def choras(self, /):
@@ -439,6 +462,8 @@ class MultiMapp(MultiBrace):
 
     def handle_tuple(self, incisor: tuple, /, *, caller):
         '''Captures the special behaviour implied by `self[a,b,...]`'''
+        if not incisor:
+            return _IncisionProtocol.TRIVIAL(caller)
         choras = tuple(self.yield_tuple_multiincise(*incisor))
         if all(isinstance(cho, Degenerate) for cho in choras):
             incisor = _FrozenMap(zip(
@@ -447,7 +472,7 @@ class MultiMapp(MultiBrace):
                 ))
             return _IncisionProtocol.RETRIEVE(caller)(incisor)
         incisor = _FrozenMap(zip(self.chorakws, choras))
-        return _IncisionProtocol.SLYCE(caller)(self(incisor))
+        return _IncisionProtocol.SLYCE(caller)(self.slyce_dict(incisor))
 
     def yield_dict_multiincise(self, /, **incisors):
         chorakws = self.chorakws
@@ -458,6 +483,8 @@ class MultiMapp(MultiBrace):
                 )
 
     def handle_dict(self, incisor: dict, /, *, caller):
+        if not incisor:
+            return _IncisionProtocol.TRIVIAL(caller)
         choras = (
             self.chorakws
             | dict(self.yield_dict_multiincise(**incisor))
@@ -470,10 +497,19 @@ class MultiMapp(MultiBrace):
                 key: val.value for key, val in choras.items()
                 })
             return _IncisionProtocol.RETRIEVE(caller)(incisor)
-        return _IncisionProtocol.SLYCE(caller)(self(choras))
+        return _IncisionProtocol.SLYCE(caller)(self.slyce_dict(incisor))
+
+    def slyce_dict(self, incisor: dict, /):
+        # Invisible to getmeths!
+        choras = tuple(incisor.values())
+        if len(set(choras)) == 1:
+            return self.IsoForm(choras[0], tuple(incisor.keys()))
+        return self.AnisoForm(incisors)
 
     def __contains__(self, arg: dict, /):
         choras = self.chorakws
+        if len(arg) > len(choras):
+            return False
         for key, val in arg.items():
             try:
                 chora = choras[key]
@@ -486,6 +522,27 @@ class MultiMapp(MultiBrace):
 
 ###############################################################################
 ###############################################################################
+
+
+#         for methname in ('__incise__', '__contains__'):
+#             if hasattr(cls, methname):
+#                 exec('\n'.join((
+#                     f"@property",
+#                     f"def {methname}(self, /):",
+#                     f"    return self.Choret(self).{methname}",
+#                     )))
+#                 decoratemeths[methname] = eval(methname)
+
+#         if not issubclass(ACls, _IncisionHandler):
+#             return False
+#         direc = dir(ACls)
+#         slots = getattr(ACls, '_req_slots__', ())
+#         fields = getattr(ACls, 'fields', ())
+#         for name in cls.BOUNDREQS:
+#             if name not in direc:
+#                 if name not in slots:
+#                     if name not in fields:
+#                         return False
 
 
 #     @classmethod

@@ -6,6 +6,7 @@
 import abc as _abc
 
 from everest import ur as _ur
+from everest.primitive import Primitive as _Primitive
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     Incisable as _Incisable,
@@ -21,6 +22,9 @@ from everest.ptolemaic import armature as _armature
 
 class ThingLike(metaclass=_Essence):
     ...
+
+
+ThingLike.register(_Primitive)
 
 
 class ThingGen(_armature.Element, ThingLike, metaclass=_Sprite):
@@ -61,8 +65,10 @@ class ThingSpace(metaclass=_Essence):
             return arg
         raise ValueError(arg)
 
+    MemberType = ThingLike
+
     def __contains__(self, arg, /) -> bool:
-        return True
+        return isinstance(arg, self.MemberType)
 
     __incise_generic__ = property(ThingGen)
     __incise_variable__ = property(ThingVar)
@@ -70,27 +76,25 @@ class ThingSpace(metaclass=_Essence):
 
 class _Thing_(_Chora, ThingSpace, metaclass=_Sprite):
 
-    class Choret(_Basic):
+    class __incision_manager__(_Basic):
 
-        def retrieve_contains(self, incisor: object, /):
+        MemberType = ThingLike
+
+        def retrieve_contains(self, incisor: '.MemberType', /):
             return incisor
 
 
-class ThingMeta(_Essence):
+class ThingMeta(_Bythos):
 
-    __incision_manager__ = _Thing_()
-
-    @property
-    def __getitem__(cls, /):
-        return cls.__incision_manager__.__getitem__
+    __class_incision_manager__ = _Thing_()
 
     @property
     def __contains__(cls, /):
-        return cls.__incision_manager__.__contains__
+        return cls.__class_incision_manager__.__contains__
 
     @property
     def __call__(cls, /):
-        return cls.__incision_manager__.__call__
+        return cls.__class_incision_manager__.__call__
 
 
 ThingSpace.register(ThingMeta)

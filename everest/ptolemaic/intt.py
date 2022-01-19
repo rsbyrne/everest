@@ -14,9 +14,10 @@ from everest.incision import (
 
 from everest.ptolemaic import thing as _thing
 from everest.ptolemaic.chora import (
-    Sliceable as _Sliceable, Null as _Null
+    Chora as _Chora, Sliceable as _Sliceable, Null as _Null
     )
 from everest.ptolemaic.schema import Schema as _Schema
+from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic import tuuple as _tuuple
 
 
@@ -34,6 +35,9 @@ class InttLike(_thing.ThingLike):
     ...
 
 
+InttLike.register(int)
+
+
 class InttGen(InttLike, _thing.ThingGen,):
     ...
 
@@ -44,35 +48,41 @@ class InttVar(InttLike, _thing.ThingVar):
 
 class InttSpace(_thing.ThingSpace):
 
-    def __contains__(self, arg, /) -> bool:
-        return isinstance(arg, int)
+    CompType = InttLike
 
     __incise_generic__ = property(InttGen)
     __incise_variable__ = property(InttVar)
 
+    @property
+    def __armature_brace__(self, /):
+        return Cell
+
 
 class _Intt_(InttSpace, _thing._Thing_):
 
-    class Choret(_Sliceable):
+    class __incision_manager__(_Sliceable):
 
-        def handle_tuple(self, incisor: tuple, /, *, caller):
-            if all(val in self.bound for val in incisor):
-                return _IncisionProtocol.RETRIEVE(caller)(incisor)
-            return _IncisionProtocol.SLYCE(
-                Grid(len(incisor))
-                )
+#         def handle_tuple(self, incisor: tuple, /, *, caller):
+#             if all(val in self.bound for val in incisor):
+#                 return _IncisionProtocol.RETRIEVE(caller)(incisor)
+#             return _IncisionProtocol.SLYCE(
+#                 Grid(len(incisor))
+#                 )
 
         def retrieve_contains(self, incisor: int, /):
-            raise incisor
+            return incisor
 
         def slyce_inttspace(self, incisor: InttSpace, /):
             return incisor
 
+#         def slyce_tuuple(self, incisor: _tuuple.TuupleMeta, /, *, caller):
+#             return Cell
+
 #         def slyce_tuuple(self, incisor: _tuuple.TuupleMeta, /):
 #             return Cell
 
-        def slyce_depth(self, incisor: _tuuple.NTuuples, /):
-            return Grid(incisor.n)
+#         def slyce_depth(self, incisor: _tuuple.NTuuples, /):
+#             return Grid(incisor.n)
 
         def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
             start, step = incisor.start, incisor.step
@@ -100,9 +110,7 @@ InttSpace.register(InttMeta)
 
 class Intt(_thing.Thing, metaclass=InttMeta):
 
-    @classmethod
-    def __class_get_incision_manager__(cls, /):
-        return _Intt_(cls)
+    __class_incision_manager__ = _Intt_()
 
     @classmethod
     def __class_contains__(cls, arg, /):
@@ -117,7 +125,7 @@ class InttLimit(InttSpace, _IncisionHandler, metaclass=_Schema):
 
     stop: Intt
 
-    class Choret(_Sliceable):
+    class __incision_manager__(_Sliceable):
 
         def slice_slyce_close(self, incisor: (int, _OPINT, _OPINT), /):
             start, stop, step = incisor.start, incisor.stop, incisor.step
@@ -154,9 +162,9 @@ class InttCount(InttSpace, _IncisionHandler, metaclass=_Schema):
             raise ValueError
         return bound
 
-    class Choret(_Sliceable):
+    class __incision_manager__(_Sliceable):
 
-        def handle_intlike(self, incisor: InttLike, /, *, caller):
+        def handle_intlike(self, incisor: InttSpace, /, *, caller):
             if isinstance(incisor, InttRange):
                 incisor = self.slice_slyce_closed(incisor.slc)
             elif isinstance(incisor, InttCount):
@@ -231,9 +239,9 @@ class InttRange(InttSpace, _IncisionHandler, metaclass=_Schema):
         super().__init__()
         self._rangeobj = range(self.start, self.stop, self.step)
 
-    class Choret(_Sliceable):
+    class __incision_manager__(_Sliceable):
 
-        def handle_intlike(self, incisor: InttLike, /, *, caller):
+        def handle_intlike(self, incisor: InttSpace, /, *, caller):
             if isinstance(incisor, InttRange):
                 slc = incisor.slc
             elif isinstance(incisor, InttCount):
@@ -287,6 +295,8 @@ class CellVar(CellLike, _tuuple.TuupleVar):
 
 class CellSpace(_tuuple.TuupleSpace):
 
+    ContentSpace = InttSpace
+
     def __contains__(self, arg, /) -> bool:
         if super().__contains__(arg):
             return all(val in Intt for val in arg)
@@ -295,23 +305,32 @@ class CellSpace(_tuuple.TuupleSpace):
     __incise_generic__ = property(CellGen)
     __incise_variable__ = property(CellVar)
 
+    @property
+    def IsoForm(self, /):
+        return IsoGrid
 
-class _Cell_(CellSpace, _tuuple._Tuuple_):
+    @property
+    def AnisoForm(self, /):
+        return AnisoGrid
 
-    class Choret:
 
-        def retrieve_contains(self, incisor: tuple, /):
-            return incisor
+class IsoGrid(CellSpace, _tuuple.IsoBrace):
 
-    def __incise_retrieve__(self, incisor, /):
-        if incisor in self:
-            return incisor
-        raise ValueError(incisor)
+    chora: _Chora = Intt
+
+
+class AnisoGrid(CellSpace, _tuuple.AnisoBrace):
+    ...
+
+
+class Grid(CellSpace, _tuuple.Brace):
+
+    chora: _Chora = Intt
 
 
 class CellMeta(_tuuple.TuupleMeta):
 
-    __incision_manager__ = _Cell_()
+    __class_incision_manager__ = Grid()
 
 
 CellSpace.register(CellMeta)
@@ -321,38 +340,42 @@ class Cell(_tuuple.Tuuple, metaclass=CellMeta):
     ...
 
 
-class Grid(CellSpace, _ChainIncisable, metaclass=_Schema):
-
-    depth: Intt[0:]
-
-    def __init__(self, /):
-        super().__init__()
-        self.dimensions = _tuuple.Tuuple[self.depth][Intt]
-
-    @property
-    def __incision_manager__(self, /):
-        return self.dimensions
-
-    @property
-    def __incise_slyce__(self, /):
-        return SubGrid
-
-    @property
-    def __contains__(self, /):
-        return self.__incision_manager__.__contains__
 
 
-class SubGrid(CellSpace, _ChainIncisable, metaclass=_Sprite):
 
-    dimensions: _tuuple.TuPlex
+# class Grid(CellSpace, _ChainIncisable, metaclass=_Schema):
 
-    @property
-    def __incision_manager__(self, /):
-        return self._tuplex
+#     depth: Intt[0:]
 
-    @property
-    def __incise_slyce__(self, /):
-        return self._ptolemaic_class__
+#     @property
+#     @_caching.soft_cache()
+#     def __incision_manager__(self, /):
+#         return _tuuple.Brace((_itertools.repeat(Intt, self.depth)))
+
+#     @property
+#     def __incise_slyce__(self, /):
+#         return SubGrid
+
+#     @property
+#     def __contains__(self, /):
+#         return self.__incision_manager__.__contains__
+
+
+# class SubGrid(CellSpace, _ChainIncisable, metaclass=_Sprite):
+
+#     dimensions: _tuuple.Brace
+
+#     @property
+#     def __incision_manager__(self, /):
+#         return self.dimensions
+
+#     @property
+#     def __incise_slyce__(self, /):
+#         return self._ptolemaic_class__
+
+#     @property
+#     def __contains__(self, /):
+#         return self.__incision_manager__.__contains__
 
 
 # class CellOid(_tuuple.TuuplOid):

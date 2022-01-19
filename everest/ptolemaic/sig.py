@@ -28,7 +28,7 @@ from everest.incision import (
 
 from everest.ptolemaic.chora import (
     Chora as _Chora,
-    MultiMapp as _MultiMapp,
+    MultiDict as _MultiDict,
     Degenerate as _Degenerate,
     )
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -129,13 +129,14 @@ with FieldBase.mutable:
 
 class _FullField_(FieldBase):
 
-    def __new__(cls, /,
+    @classmethod
+    def __class_call__(cls, /,
             kind=ParamKind.POSKW, hint=_Thing, value=NotImplemented
             ):
         kind = cls.process_kind(kind)
         hint = cls.process_hint(hint)
         value = cls.process_value(value, hint)
-        return super().__new__(cls, kind, hint, value)
+        return super().__class_call__(kind, hint, value)
 
     @classmethod
     def process_kind(cls, kind, /):
@@ -187,13 +188,14 @@ class Field(_ChainIncisable, _FullField_, metaclass=_Sprite):
     def __incision_manager__(self, /):
         return self.hint
 
-    def __new__(cls, /,
+    @classmethod
+    def __class_call__(cls, /,
             kind=ParamKind.POSKW, hint=_Thing, value=NotImplemented
             ):
         kind = cls.process_kind(kind)
         hint = cls.process_hint(hint)
         value = cls.process_value(value, hint)
-        return super().__new__(cls, kind, hint, value)
+        return super().__class_call__(kind, hint, value)
 
     def __call__(self, arg, /):
         return self._ptolemaic_class__(
@@ -241,13 +243,14 @@ class DegenerateField(_Degenerate, _FullField_, metaclass=_Sprite):
     hint: _Incisable
     value: object
 
-    def __new__(cls, /,
+    @classmethod
+    def __class_call__(cls, /,
             kind=ParamKind.POSKW, hint=_Thing, value=NotImplemented
             ):
         kind = cls.process_kind(kind)
         hint = cls.process_hint(hint)
         value = cls.process_value(value, hint)
-        return super().__new__(cls, kind, hint, value)
+        return super().__class_call__(kind, hint, value)
 
 
 @_classtools.add_defer_meths('arguments', like=dict)
@@ -256,7 +259,8 @@ class Params(metaclass=_Sprite):
     nargs: int = 0
     arguments: _FrozenMap = _FrozenMap()
 
-    def __new__(cls, arg0=0, arg1=None, /, **kwargs):
+    @classmethod
+    def __class_call__(cls, arg0=0, arg1=None, /, **kwargs):
         cache = {}
         if arg1 is None:
             if isinstance(arg0, _inspect.BoundArguments):
@@ -273,7 +277,7 @@ class Params(metaclass=_Sprite):
             if kwargs:
                 raise TypeError
             nargs, arguments = arg0, arg1
-        obj = super().__new__(cls, int(nargs), _FrozenMap(arguments))
+        obj = super().__class_call__(int(nargs), _FrozenMap(arguments))
         if cache:
             obj.softcache.update(cache)
         return obj
@@ -326,7 +330,14 @@ class Sig(_Chora, metaclass=_Sprite):
 
     choras: _FrozenMap
 
-    class Choret(_MultiMapp):
+    def IsoForm(self, chora: _Chora, keys: tuple, /):
+        return _FrozenMap({key: chora for key in keys})
+
+    @property
+    def AnisoForm(self, /):
+        return self.bound._ptolemaic_class__
+
+    class __incision_manager__(_MultiDict):
 
         def handle_tuple(self, incisor: tuple, /, *, caller):
             if isinstance(incisor, Params):
@@ -345,7 +356,8 @@ class Sig(_Chora, metaclass=_Sprite):
     def _sort_fields(dct):
         return dict(sorted(dct.items(), key=Sig._get_orderscore))
 
-    def __new__(cls, arg=None, /, **kwargs):
+    @classmethod
+    def __class_call__(cls, arg=None, /, **kwargs):
         cache = {}
         if arg is None:
             fields = {
@@ -371,7 +383,7 @@ class Sig(_Chora, metaclass=_Sprite):
                     }
         if not all(isinstance(field, FieldBase) for field in fields.values()):
             raise TypeError(fields)
-        obj = super().__new__(cls, _FrozenMap(cls._sort_fields(fields)))
+        obj = super().__class_call__(_FrozenMap(cls._sort_fields(fields)))
         if cache:
             obj.softcache.update(cache)
         return obj

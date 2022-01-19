@@ -3,8 +3,19 @@
 ###############################################################################
 
 
+from everest.utilities.protocol import Protocol as _Protocol
+
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
+
+
+class ArmatureProtocol(_Protocol):
+
+    BRACE = ('__armature_brace__', True)
+
+    @classmethod
+    def defer(cls, obj, /):
+        return getattr(obj, '__incision_manager__')
 
 
 class Armature(metaclass=_Essence):
