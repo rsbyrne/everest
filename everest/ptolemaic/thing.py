@@ -78,7 +78,10 @@ class ThingSpace(metaclass=_Essence):
     def __includes__(self, arg, /) -> bool:
         if isinstance(arg, _Degenerate):
             return arg.value in self
-        return issubclass(arg.MemberType, self.MemberType)
+        try:
+            return issubclass(arg.MemberType, self.MemberType)
+        except AttributeError:
+            return False
 
     __incise_generic__ = property(ThingGen)
     __incise_variable__ = property(ThingVar)

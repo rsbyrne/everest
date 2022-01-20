@@ -63,7 +63,7 @@ class SymBrace(_Chora, TuupleSpace, metaclass=_Sprite):
     keys: tuple = None
 
     @classmethod
-    def __class_call__(cls, chora, keys=None):
+    def __class_call__(cls, chora, keys):
         if not cls.contentspace.__includes__(chora):
             raise ValueError(chora)
         if isinstance(keys, int):
@@ -138,7 +138,7 @@ class Brace(_Chora, TuupleSpace, metaclass=_Sprite):
 
         def handle_tuple(self, incisor: tuple, /, *, caller):
             if not all(map(self.bound.contentspace.__includes__, incisor)):
-                raise ValueError(incisor)
+                return _IncisionProtocol.FAIL(caller)(incisor)
             nspace = self.slyce_n(len(incisor))
             return _IncisionProtocol.INCISE(nspace)(incisor, caller=caller)
 

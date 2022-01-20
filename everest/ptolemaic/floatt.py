@@ -93,7 +93,9 @@ class _Floatt_(FloattSpace, _thing._Thing_):
 
 class FloattMeta(_thing.ThingMeta):
 
-    ...
+    @property
+    def __armature_brace__(self, /):
+        return Coord
 
 
 FloattSpace.register(FloattMeta)
@@ -181,6 +183,7 @@ class FloattLimit(_Chora, FloattSpace, metaclass=_Schema):
             lower, upper = incisor.lower, self.bound.upper
             if lower >= 0:
                 raise IndexError
+            lower = upper + lower
             return FloattClosed(lower, upper)
 
         def bounds_slyce_limit(self, incisor: (type(None), float), /):
@@ -215,9 +218,17 @@ class FloattClosed(_Chora, FloattSpace, metaclass=_Schema):
     class __incision_manager__(_Sampleable):
 
         def retrieve_float(self, incisor: float, /):
-            if self.bound.lower <= incisor < upper:
-                return incisor
-            raise IndexError
+            if incisor == 0:
+                return self.bound.lower
+            if incisor < 0:
+                out = self.bound.upper + incisor
+                if out < self.bound.lower:
+                    raise ValueError
+                return out
+            out = self.bound.lower + incisor
+            if out >= self.bound.upper:
+                raise ValueError
+            return out
 
         def bounds_slyce_open(self, incisor: (float, type(None)), /):
             ilower = incisor.lower
@@ -315,7 +326,8 @@ CoordSpace.register(CoordMeta)
 
 
 class Coord(_tuuple.Tuuple, metaclass=CoordMeta):
-    ...
+
+    __class_incision_manager__ = Plane()
 
 
 ###############################################################################

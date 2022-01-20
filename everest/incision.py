@@ -102,34 +102,44 @@ class Incisable(IncisionHandler, PseudoIncisable):
         return super().__subclasshook__(ACls)
 
 
-class IncisionChain(IncisionHandler, tuple):
+class IncisionChain(Incisable):
 
-    def __incise__(self, /, *, caller):
-        return IncisionProtocol.INCISE(self.inner)
+    __slots__ = ('incisables',)
+
+    def __init__(self, incisables: tuple, /):
+        self.incisables = tuple(incisables)
+
+    def __incise__(self, incisor, /, *, caller):
+        return IncisionProtocol.INCISE(self.incisables[0])(
+            incisor, caller=caller
+            )
 
     @property
     def __incise_trivial__(self, /):
-        return IncisionProtocol.TRIVIAL(self[-1])()
+        return IncisionProtocol.TRIVIAL(self.incisables)()
 
     def __incise_slyce__(self, incisor, /):
-        for obj in self:
+        for obj in self.incisables:
             incisor = IncisionProtocol.SLYCE(obj)(incisor)
         return incisor
 
     def __incise_retrieve__(self, incisor, /):
-        for obj in self:
+        for obj in self.incisables:
             incisor = IncisionProtocol.RETRIEVE(obj)(incisor)
         return incisor
 
     def __incise_degenerate__(self, incisor, /):
-        *members, last = self
+        *members, last = self.incisables
         for obj in members:
             incisor = IncisionProtocol.RETRIEVE(obj)(incisor)
         return IncisionProtocol.DEGENERATE(last)(incisor)
 
     @property
     def __incise_fail__(self, /):
-        return IncisionProtocol.FAIL(self[-1])
+        return IncisionProtocol.FAIL(self.incisables[-1])
+
+    def __repr__(self, /):
+        return f"{type(self)}{self.incisables}"
 
 
 class ChainIncisable(Incisable):

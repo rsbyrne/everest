@@ -33,13 +33,15 @@ _OPINT = (type(None), int)
 
 
 class InttLike(_thing.ThingLike):
+
     ...
 
 
 InttLike.register(int)
 
 
-class InttGen(InttLike, _thing.ThingGen,):
+class InttGen(InttLike, _thing.ThingGen):
+
     ...
 
 
@@ -93,7 +95,9 @@ class _Intt_(InttSpace, _thing._Thing_):
 
 class InttMeta(_thing.ThingMeta):
 
-    ...
+    @property
+    def __armature_brace__(self, /):
+        return Cell
 
 
 InttSpace.register(InttMeta)
@@ -191,12 +195,13 @@ class InttLimit(_Chora, InttSpace, metaclass=_Schema):
         def retrieve_int(self, incisor: int, /):
             if incisor < 0:
                 return self.bound.upper + incisor
-            raise IndexError('foo')
+            raise IndexError
 
         def bounds_slyce_open(self, incisor: (int, type(None)), /):
             lower, upper = incisor.lower, self.bound.upper
             if lower >= 0:
                 raise IndexError
+            lower = upper + lower
             return InttClosed(lower, upper)
 
         def bounds_slyce_limit(self, incisor: (type(None), int), /):
@@ -313,14 +318,15 @@ class Grid(CellSpace, _tuuple.Brace):
 
 class CellMeta(_tuuple.TuupleMeta):
 
-    __class_incision_manager__ = Grid()
+    ...
 
 
 CellSpace.register(CellMeta)
 
 
 class Cell(_tuuple.Tuuple, metaclass=CellMeta):
-    ...
+
+    __class_incision_manager__ = Grid()
 
 
 ###############################################################################
