@@ -17,21 +17,21 @@ from everest.ptolemaic.essence import Essence as _Essence
 
 
 def collect_fields_mro(
-        bases: iter, hints: dict, defaults: dict, inorder: _deque, /
+        bases: iter, hints: dict, defaults: dict,
+        inorder: _deque, reserved: set, /
         ):
     try:
         base = next(bases)
     except StopIteration:
         return
     anno = (dct := base.__dict__).get('__annotations__', {})
-    collect_fields_mro(bases, hints, defaults, inorder)
+    collect_fields_mro(bases, hints, defaults, inorder, reserved | set(anno))
     if isinstance(base, Sprite):
         defaults.update(base.Concrete._field_defaults)
     for key, val in anno.items():
-        if key in inorder:
-            deq = hints[key]
-        else:
-            deq = hints[key] = _deque()
+        deq = hints.setdefault(key, _deque())
+        if key not in reserved:
+            assert key not in inorder, inorder
             inorder.append(key)
         deq.append(val)
 
@@ -40,10 +40,12 @@ def get_fields(ACls, /):
     anno = (dct := ACls.__dict__).get('__annotations__', {})
     hints = {key: _deque((val,)) for key, val in anno.items()}
     bases = iter(ACls.__mro__[1:])
-    collect_fields_mro(bases, hints, defaults := {}, inorder := _deque())
+    collect_fields_mro(
+        bases, hints, defaults := {}, inorder := _deque(), set(anno)
+        )
     for key in anno:
-        if key not in inorder:
-            inorder.append(key)
+        assert key not in inorder, (key, inorder)
+        inorder.append(key)
         if key in dct:
             defaults[key] = dct[key]
             delattr(ACls, key)

@@ -12,7 +12,12 @@ from everest.incision import (
     Incisable as _Incisable,
     )
 
-from everest.ptolemaic.chora import Chora as _Chora, Basic as _Basic
+from everest.ptolemaic.chora import (
+    Chora as _Chora,
+    Basic as _Basic,
+    Degenerate as _Degenerate,
+    Null as _Null,
+    )
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -60,15 +65,20 @@ class ThingVar(_armature.Element, ThingLike, metaclass=_Protean):
 
 class ThingSpace(metaclass=_Essence):
 
+    MemberType = ThingLike
+
     def __call__(self, arg, /):
         if arg in self:
             return arg
         raise ValueError(arg)
 
-    MemberType = ThingLike
-
     def __contains__(self, arg, /) -> bool:
-        return isinstance(arg, self.MemberType)
+        return isinstance(arg, ThingLike)
+
+    def __includes__(self, arg, /) -> bool:
+        if isinstance(arg, _Degenerate):
+            return arg.value in self
+        return issubclass(arg.MemberType, self.MemberType)
 
     __incise_generic__ = property(ThingGen)
     __incise_variable__ = property(ThingVar)
@@ -80,28 +90,56 @@ class _Thing_(_Chora, ThingSpace, metaclass=_Sprite):
 
         MemberType = ThingLike
 
-        def retrieve_contains(self, incisor: '.MemberType', /):
+        def retrieve_contains(self, incisor: ThingLike, /):
             return incisor
+
+    @property
+    def __incise_trivial__(self, /):
+        return Thing
 
 
 class ThingMeta(_Bythos):
-
-    __class_incision_manager__ = _Thing_()
 
     @property
     def __contains__(cls, /):
         return cls.__class_incision_manager__.__contains__
 
     @property
+    def __includes__(cls, /):
+        return cls.__class_incision_manager__.__includes__
+
+    @property
     def __call__(cls, /):
         return cls.__class_incision_manager__.__call__
+
+    @property
+    def MemberType(cls, /):
+        return cls.__class_incision_manager__.MemberType
 
 
 ThingSpace.register(ThingMeta)
 
 
 class Thing(metaclass=ThingMeta):
-    ...
+
+    __class_incision_manager__ = _Thing_()
+
+
+class _ThingNull_(_Thing_):
+
+    class __incision_manager__:
+
+        def retrieve_contains(self, incisor: _Null):
+            pass
+
+    @property
+    def __incise_trivial__(self, /):
+        return ThingNull
+
+
+class ThingNull(Thing):
+
+    __class_incision_manager__ = _ThingNull_()
 
 
 ###############################################################################

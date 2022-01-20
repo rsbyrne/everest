@@ -310,6 +310,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def attributes(cls, /):
         return cls.get_attributes()
 
+    def __class_instancecheck__(cls, obj, /):
+        return issubclass(type(obj), cls)
+
+    @property
+    def __instancecheck__(cls, /):
+        return cls.__class_instancecheck__
+
     ### What happens when the class is called:
 
     @property

@@ -42,6 +42,10 @@ class TektOid(_Armature, _ChainIncisable, metaclass=_Sprite):
 
 class Tekton(_Bythos):
 
+    @property
+    def __class_incision_manager__(cls, /):
+        return cls.Oid(cls, cls.sig)
+
     @classmethod
     def __class_construct__(meta, arg0=None, /, *argn, **kwargs):
         if argn or kwargs:
@@ -58,14 +62,11 @@ class Tekton(_Bythos):
     def __class_deep_init__(cls, /, *args, **kwargs):
         super().__class_deep_init__()
         sig = cls.sig = _Sig(cls.__construct__)
-        cls.fields = sig.choras
+        cls.fields = sig.sigfields
 
     @property
     def __signature__(cls, /):
         return cls.sig.signature
-
-    def __class_get_incision_manager__(cls, /):
-        return cls.Oid(cls, cls.sig)
 
     @property
     def __call__(cls, /):

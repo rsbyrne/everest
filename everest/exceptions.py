@@ -7,7 +7,7 @@ class EverestException(Exception):
     '''Parent exception of all Everest exceptions.'''
 
     def __init__(self, /, message=''):
-        self.usermessage = '' if message is None else str(message)
+        self.usermessage = message
 
     @classmethod
     def trigger(cls, /, *args, **kwargs):
@@ -19,7 +19,7 @@ class EverestException(Exception):
     def __str__(self, /):
         out = ''
         indent = 0
-        for message in map(str, (*self.message(), self.usermessage)):
+        for message in map(str, self.message()):
             if not message:
                 continue
             for spec in (':', '.'):
@@ -39,6 +39,8 @@ class EverestException(Exception):
                 indent += 1
             elif specialend == '.':
                 indent = max(0, indent - 1)
+        if (usermessage := self.usermessage):
+            out += f"\n{'-'*70}\n{usermessage}\n{'-'*70}"
         if not out.endswith('.'):
             out += '.'
         return out

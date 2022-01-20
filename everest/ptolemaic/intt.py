@@ -8,13 +8,14 @@ import itertools as _itertools
 from everest.utilities import caching as _caching
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
-    IncisionHandler as _IncisionHandler,
-    ChainIncisable as _ChainIncisable,
     )
 
 from everest.ptolemaic import thing as _thing
 from everest.ptolemaic.chora import (
-    Chora as _Chora, Sliceable as _Sliceable, Null as _Null
+    Chora as _Chora,
+    Sampleable as _Sampleable,
+    Degenerate as _Degenerate,
+    TrivialException as _TrivialException,
     )
 from everest.ptolemaic.schema import Schema as _Schema
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -48,7 +49,7 @@ class InttVar(InttLike, _thing.ThingVar):
 
 class InttSpace(_thing.ThingSpace):
 
-    CompType = InttLike
+    MemberType = InttLike
 
     __incise_generic__ = property(InttGen)
     __incise_variable__ = property(InttVar)
@@ -57,52 +58,42 @@ class InttSpace(_thing.ThingSpace):
     def __armature_brace__(self, /):
         return Cell
 
+#     @property
+#     def __incise_degenerate__(self, /):
+#         return InttDegenerate
+
+
+# class InttDegenerate(InttSpace, _Degenerate):
+#     ...
+
 
 class _Intt_(InttSpace, _thing._Thing_):
 
-    class __incision_manager__(_Sliceable):
-
-#         def handle_tuple(self, incisor: tuple, /, *, caller):
-#             if all(val in self.bound for val in incisor):
-#                 return _IncisionProtocol.RETRIEVE(caller)(incisor)
-#             return _IncisionProtocol.SLYCE(
-#                 Grid(len(incisor))
-#                 )
+    class __incision_manager__(_Sampleable):
 
         def retrieve_contains(self, incisor: int, /):
             return incisor
 
-        def slyce_inttspace(self, incisor: InttSpace, /):
-            return incisor
+        def bounds_slyce_open(self, incisor: (int, type(None))):
+            return InttOpen(incisor.lower)
 
-#         def slyce_tuuple(self, incisor: _tuuple.TuupleMeta, /, *, caller):
-#             return Cell
+        def bounds_slyce_limit(self, incisor: (type(None), int)):
+            return InttLimit(incisor.upper)
 
-#         def slyce_tuuple(self, incisor: _tuuple.TuupleMeta, /):
-#             return Cell
+        def bounds_slyce_closed(self, incisor: (int, int)):
+            lower, upper = incisor
+            if upper <= lower:
+                return InttNull
+            return InttClosed(lower, upper)
 
-#         def slyce_depth(self, incisor: _tuuple.NTuuples, /):
-#             return Grid(incisor.n)
-
-        def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
-            start, step = incisor.start, incisor.step
-            if step is None:
-                return InttCount(start)
-            return InttCount(start, step)
-
-        def slice_slyce_limit(self, incisor: (type(None), int, type(None)), /):
-            return InttLimit(incisor.stop)
-
-        def slice_slyce_closed(self, incisor: (int, int, _OPINT), /):
-            start, stop, step = incisor.start, incisor.stop, incisor.step
-            if step is None:
-                return InttRange(start, stop)
-            return InttRange(start, stop, step)
+    @property
+    def __incise_trivial__(self, /):
+        return Intt
 
 
 class InttMeta(_thing.ThingMeta):
 
-    __incision_manager__ = _Intt_()
+    ...
 
 
 InttSpace.register(InttMeta)
@@ -112,47 +103,22 @@ class Intt(_thing.Thing, metaclass=InttMeta):
 
     __class_incision_manager__ = _Intt_()
 
-    @classmethod
-    def __class_contains__(cls, arg, /):
-        return isinstance(arg, int)
 
-    @classmethod
-    def __class_call__(cls, arg, /):
-        return int(arg)
+class _InttNull_(_thing._ThingNull_, _Intt_):
 
-
-class InttLimit(InttSpace, _IncisionHandler, metaclass=_Schema):
-
-    stop: Intt
-
-    class __incision_manager__(_Sliceable):
-
-        def slice_slyce_close(self, incisor: (int, _OPINT, _OPINT), /):
-            start, stop, step = incisor.start, incisor.stop, incisor.step
-            pstop = self.bound.stop
-            if stop is None:
-                stop = pstop
-            elif stop > pstop:
-                raise ValueError
-            if step is None:
-                return InttRange(start, stop)
-            return InttRange(start, stop, step)
-
-        def slice_slyce_open(self, incisor: (type(None), int, type(None)), /):
-            stop = incisor.stop
-            if stop > self.bound.stop:
-                raise ValueError
-            return self.bound._ptolemaic_class__(stop)
-
-    def __contains__(self, arg, /):
-        if isinstance(arg, int):
-            return arg < self.stop
-        return False
+    @property
+    def __incise_trivial__(self, /):
+        return InttNull
 
 
-class InttCount(InttSpace, _IncisionHandler, metaclass=_Schema):
+class InttNull(Intt):
 
-    start: Intt
+    __class_incision_manager__ = _InttNull_()
+
+
+class InttOpen(_Chora, InttSpace, metaclass=_Schema):
+
+    lower: Intt
     step: Intt = 1
 
     @classmethod
@@ -162,113 +128,129 @@ class InttCount(InttSpace, _IncisionHandler, metaclass=_Schema):
             raise ValueError
         return bound
 
-    class __incision_manager__(_Sliceable):
+    class __incision_manager__(_Sampleable):
 
-        def handle_intlike(self, incisor: InttSpace, /, *, caller):
-            if isinstance(incisor, InttRange):
-                incisor = self.slice_slyce_closed(incisor.slc)
-            elif isinstance(incisor, InttCount):
-                incisor = self.slice_slyce_open(incisor.slc)
-            elif incisor is Intt:
-                return _IncisionProtocol.TRIVIAL(caller)()
-            else:
-                raise TypeError(type(incisor))
-            return _IncisionProtocol.SLYCE(caller)(incisor)
-
-        def slice_slyce_open(self, incisor: (int, type(None), _OPINT), /):
-            start, stop, step = incisor.start, incisor.stop, incisor.step
-            pstart, pstep = self.bound.start, self.bound.step
-            if start is not None:
-                if start < 0:
-                    raise ValueError(start)
-                pstart += int(start)
-            if step is not None:
-                if step < 0:
-                    raise ValueError(step)
-                pstep *= int(step)
-            return InttCount(pstart, pstep)
-
-        def slice_slyce_closed(self, incisor: (_OPINT, int, _OPINT), /):
-            istart, istop, istep = incisor.start, incisor.stop, incisor.step
-            start, step = self.bound.start, self.bound.step
-            if istart is not None:
-                start += istart
-            stop = start + istop
-            if istep is not None:
-                step *= istep
-            return InttRange(start, stop, step)
-
-        def retrieve_int(self, incisor: int, /) -> int:
+        def retrieve_int(self, incisor: int, /):
             if incisor >= 0:
                 return _nth(self.bound, incisor)
-            raise ValueError(incisor)
+            raise IndexError
 
-    @property
-    @_caching.soft_cache()
-    def slc(self, /):
-        return slice(self.start, None, self.step)
+        def bounds_slyce_open(self, incisor: (int, type(None)), /):
+            lower = incisor.lower
+            if lower == 0:
+                raise _TrivialException
+            elif lower < 0:
+                raise IndexError
+            return self.bound._ptolemaic_class__(
+                lower + self.bound.lower,
+                self.bound.step,
+                )
+
+        def bounds_slyce_limit(self, incisor: (type(None), int), /):
+            lower = self.bound.lower
+            upper = incisor.upper
+            if upper == 0:
+                return InttNull
+            elif upper < 0:
+                raise IndexError
+            return InttClosed(lower, lower + upper, self.bound.step)
+
+        def bounds_slyce_closed(self, incisor: (int, int), /):
+            lower, upper = incisor
+            if upper <= lower:
+                return InttNull
+            if upper == 0:
+                raise _TrivialException
+            if upper < 0:
+                raise IndexError
+            oldlower = self.bound.lower
+            lower = oldlower + lower
+            upper = oldlower + upper
+            return InttClosed(lower, upper, self.bound.step)
 
     def __iter__(self, /):
-        return _itertools.count(self.start, self.step)
+        return _itertools.count(self.lower, self.step)
 
     def __contains__(self, arg, /):
-        if not isinstance(arg, int):
+        if not super().__contains__(arg):
             return False
-        if arg < self.start:
+        if arg < self.lower:
             return False
-        return not (arg - self.start) % self.step
+        return not (arg - self.lower) % self.step
+
+    def __includes__(self, arg, /):
+        raise NotImplementedError
 
 
-class InttRange(InttSpace, _IncisionHandler, metaclass=_Schema):
+class InttLimit(_Chora, InttSpace, metaclass=_Schema):
 
-    start: Intt
-    stop: Intt
+    upper: Intt
+
+    class __incision_manager__(_Sampleable):
+
+        def retrieve_int(self, incisor: int, /):
+            if incisor < 0:
+                return self.bound.upper + incisor
+            raise IndexError('foo')
+
+        def bounds_slyce_open(self, incisor: (int, type(None)), /):
+            lower, upper = incisor.lower, self.bound.upper
+            if lower >= 0:
+                raise IndexError
+            return InttClosed(lower, upper)
+
+        def bounds_slyce_limit(self, incisor: (type(None), int), /):
+            upper = incisor.upper
+            if upper >= 0:
+                raise IndexError
+            return self.bound._ptolemaic_class__(self.bound.upper + upper)
+
+        def bounds_slyce_closed(self, incisor: (int, int), /):
+            lower, upper = incisor
+            if upper >= 0:
+                raise IndexError
+            upper = self.bound.upper + upper
+            if upper <= lower:
+                return InttNull
+            return InttClosed(lower, upper)
+
+    def __contains__(self, arg, /):
+        if not super().__contains__(arg):
+            return False
+        return arg < self.upper
+
+    def __includes__(self, arg, /):
+        raise NotImplementedError
+
+
+class InttClosed(_Chora, InttSpace, metaclass=_Schema):
+
+    lower: Intt
+    upper: Intt
     step: Intt[1:] = 1
 
     _req_slots__ = ('_rangeobj',)
 
-    @classmethod
-    def parameterise(cls, cache, /, *args, **kwargs):
-        bound = super().parameterise(cache, *args, **kwargs)
-        start, stop, step = bound.args
-        if start > stop:
-            raise ValueError
-        return bound
-
     def __init__(self, /):
         super().__init__()
-        self._rangeobj = range(self.start, self.stop, self.step)
+        self._rangeobj = range(self.lower, self.upper, self.step)
 
-    class __incision_manager__(_Sliceable):
+    class __incision_manager__(_Sampleable):
 
-        def handle_intlike(self, incisor: InttSpace, /, *, caller):
-            if isinstance(incisor, InttRange):
-                slc = incisor.slc
-            elif isinstance(incisor, InttCount):
-                slc = slice(incisor.start, self.bound.stop, incisor.bound.step)
-            elif incisor is Intt:
-                return _IncisionProtocol.TRIVIAL(caller)()
-            else:
-                raise TypeError(type(incisor))
-            incisor = self.slice_slyce_nontrivial(slc)
-            return _IncisionProtocol.SLYCE(caller)(incisor)
+        def retrieve_int(self, incisor: int, /):
+            return self.bound._rangeobj[incisor]
 
-        def handle_int(self, incisor: int, /, *, caller):
-            try:
-                out = self.bound._rangeobj[incisor]
-            except IndexError:
-                return _IncisionProtocol.FAIL(caller)(incisor)
-            return _IncisionProtocol.RETRIEVE(caller)(out)
-
-        def slice_slyce_nontrivial(self, incisor: (_OPINT, _OPINT, _OPINT), /):
-            start, stop, step = incisor.start, incisor.stop, incisor.step
-            nrang = self.bound._rangeobj[start:stop:step]
-            return InttRange(nrang.start, nrang.stop, nrang.step)
-
-    @property
-    @_caching.soft_cache()
-    def slc(self, /):
-        return slice(self.start, self.stop, self.step)
+        def bounds_handle_any(self, incisor: (_OPINT, _OPINT), /, *, caller):
+            oldr = self.bound._rangeobj
+            newr = oldr[slice(*incisor)]
+            if len(newr) == 0:
+                return _IncisionProtocol.SLYCE(caller)(InttNull)
+            start, stop, step = newr.start, newr.stop, newr.step
+            if (stop, stop, step) == (oldr.start, oldr.stop, oldr.step):
+                return _IncisionProtocol.TRIVIAL(caller)
+            return _IncisionProtocol.SLYCE(caller)(
+                self.bound._ptolemaic_class__(start, stop, step)
+                )
 
     def __iter__(self, /):
         return iter(self._rangeobj)
@@ -279,6 +261,9 @@ class InttRange(InttSpace, _IncisionHandler, metaclass=_Schema):
     @property
     def __contains__(self, /):
         return self._rangeobj.__contains__
+
+    def __includes__(self, arg, /):
+        raise NotImplementedError
 
 
 class CellLike(_tuuple.TuupleLike):
@@ -295,37 +280,35 @@ class CellVar(CellLike, _tuuple.TuupleVar):
 
 class CellSpace(_tuuple.TuupleSpace):
 
-    ContentSpace = InttSpace
-
-    def __contains__(self, arg, /) -> bool:
-        if super().__contains__(arg):
-            return all(val in Intt for val in arg)
-        return False
+    contentspace = Intt
 
     __incise_generic__ = property(CellGen)
     __incise_variable__ = property(CellVar)
 
     @property
-    def IsoForm(self, /):
-        return IsoGrid
+    def SymForm(self, /):
+        return SymGrid
 
     @property
-    def AnisoForm(self, /):
-        return AnisoGrid
+    def AsymForm(self, /):
+        return AsymGrid
 
 
-class IsoGrid(CellSpace, _tuuple.IsoBrace):
+class SymGrid(CellSpace, _tuuple.SymBrace):
+    ...
 
-    chora: _Chora = Intt
 
-
-class AnisoGrid(CellSpace, _tuuple.AnisoBrace):
+class AsymGrid(CellSpace, _tuuple.AsymBrace):
     ...
 
 
 class Grid(CellSpace, _tuuple.Brace):
 
     chora: _Chora = Intt
+
+    @property
+    def __incise_trivial__(self, /):
+        return Cell if self.chora is Intt else self
 
 
 class CellMeta(_tuuple.TuupleMeta):
@@ -338,50 +321,6 @@ CellSpace.register(CellMeta)
 
 class Cell(_tuuple.Tuuple, metaclass=CellMeta):
     ...
-
-
-
-
-
-# class Grid(CellSpace, _ChainIncisable, metaclass=_Schema):
-
-#     depth: Intt[0:]
-
-#     @property
-#     @_caching.soft_cache()
-#     def __incision_manager__(self, /):
-#         return _tuuple.Brace((_itertools.repeat(Intt, self.depth)))
-
-#     @property
-#     def __incise_slyce__(self, /):
-#         return SubGrid
-
-#     @property
-#     def __contains__(self, /):
-#         return self.__incision_manager__.__contains__
-
-
-# class SubGrid(CellSpace, _ChainIncisable, metaclass=_Sprite):
-
-#     dimensions: _tuuple.Brace
-
-#     @property
-#     def __incision_manager__(self, /):
-#         return self.dimensions
-
-#     @property
-#     def __incise_slyce__(self, /):
-#         return self._ptolemaic_class__
-
-#     @property
-#     def __contains__(self, /):
-#         return self.__incision_manager__.__contains__
-
-
-# class CellOid(_tuuple.TuuplOid):
-
-#     __incise_generic__ = property(CellGen)
-#     __incise_variable__ = property(CellVar)
 
 
 ###############################################################################

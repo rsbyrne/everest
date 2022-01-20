@@ -32,13 +32,6 @@ class Bythos(_Essence):
 
     ### Incision protocol:
 
-    def __class_get_incision_manager__(cls, /):
-        raise NotImplementedError
-
-    @property
-    def __class_incision_manager__(cls, /):
-        return cls.__class_get_incision_manager__()
-
     @property
     def __incise__(cls, /):
         return _IncisionProtocol.INCISE(cls.__class_incision_manager__)

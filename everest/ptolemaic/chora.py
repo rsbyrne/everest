@@ -4,7 +4,7 @@
 
 
 import functools as _functools
-from collections import deque as _deque
+from collections import deque as _deque, abc as _collabc
 import typing as _typing
 import types as _types
 import itertools as _itertools
@@ -13,7 +13,7 @@ import weakref as _weakref
 
 from everest import ur as _ur
 from everest.utilities import (
-    TypeMap as _TypeMap, FrozenMap as _FrozenMap,
+    TypeMap as _TypeMap,
     caching as _caching,
     NotNone, Null, NoneType, EllipsisType, NotImplementedType,
     )
@@ -25,6 +25,7 @@ from everest.incision import (
     )
 from everest.epitaph import Epitaph as _Epitaph
 
+from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -126,6 +127,10 @@ class Chora(_IncisionHandler, metaclass=_Essence):
 _Incisable.register(Chora)
 
 
+class TrivialException(Exception):
+    ...
+
+
 def _wrap_trivial(meth, /):
     @_functools.wraps(meth)
     def wrapper(self, _, /, *, caller):
@@ -135,25 +140,43 @@ def _wrap_trivial(meth, /):
 def _wrap_slyce(meth, /):
     @_functools.wraps(meth)
     def wrapper(self, arg, /, *, caller):
-        return _IncisionProtocol.SLYCE(caller)(meth(self, arg))
+        try:
+            result = meth(self, arg)
+        except TrivialException:
+            return _IncisionProtocol.TRIVIAL(caller)
+        except Exception as exc:
+            return _IncisionProtocol.FAIL(caller)(arg, exc)
+        return _IncisionProtocol.SLYCE(caller)(result)
     return wrapper
 
-def _wrap_compose(meth, /):
-    @_functools.wraps(meth)
-    def wrapper(self, arg, /, *, caller):
-        return _IncisionProtocol.SLYCE(caller)(meth(self, arg))
-    return wrapper
+# def _wrap_compose(meth, /):
+#     @_functools.wraps(meth)
+#     def wrapper(self, arg, /, *, caller):
+#         return _IncisionProtocol.SLYCE(caller)(meth(self, arg))
+#     return wrapper
 
 def _wrap_retrieve(meth, /):
     @_functools.wraps(meth)
     def wrapper(self, arg, /, *, caller):
-        return _IncisionProtocol.RETRIEVE(caller)(meth(self, arg))
+        try:
+            result = meth(self, arg)
+        except TrivialException:
+            return _IncisionProtocol.TRIVIAL(caller)
+        except Exception as exc:
+            return _IncisionProtocol.FAIL(caller)(arg, exc)
+        return _IncisionProtocol.RETRIEVE(caller)(result)
     return wrapper
 
 def _wrap_fail(meth, /):
     @_functools.wraps(meth)
     def wrapper(self, arg, /, *, caller):
-        return _IncisionProtocol.FAIL(caller)(arg, meth(self, arg))
+        try:
+            result = meth(self, arg)
+        except TrivialException:
+            return _IncisionProtocol.TRIVIAL(caller)
+        except Exception as exc:
+            return _IncisionProtocol.FAIL(caller)(arg, exc)
+        return _IncisionProtocol.FAIL(caller)(arg, result)
     return wrapper
 
 WRAPMETHS = dict(
@@ -297,7 +320,7 @@ class Composable(Basic):
 class Sliceable(Basic):
 
     def handle_slice(self, incisor: slice, /, *, caller):
-        return self.slcgetmeths[
+        return self.slicegetmeths[
             tuple(map(type, (incisor.start, incisor.stop, incisor.step)))
             ](self, incisor, caller=caller)
 
@@ -313,10 +336,64 @@ class Sliceable(Basic):
     def __class_init__(cls, /):
         super().__class_init__()
         cls.update_getmeth_names('slice')
-        cls.slcgetmeths = _TypeMap(cls._yield_getmeths(
+        cls.slicegetmeths = _TypeMap(cls._yield_getmeths(
             'slice',
-            hintprocess=_functools.partial(_typing.GenericAlias, slice),
+            hintprocess=tuple.__class_getitem__,
             ))
+
+
+class Sample(metaclass=_Sprite):
+
+    content: object
+
+
+class Bounds(metaclass=_Sprite):
+
+    lower: object
+    upper: object
+
+
+class Sampleable(Basic):
+
+    def handle_slice(self, incisor: slice, /, *, caller):
+        start, stop, step = incisor.start, incisor.stop, incisor.step
+        bounds = Bounds(incisor.start, incisor.stop)
+        sample = Sample(incisor.step)
+        return caller[bounds][sample]
+
+    def handle_bounds(self, incisor: Bounds, /, *, caller):
+        return self.boundsgetmeths[type(incisor.lower), type(incisor.upper)](
+            self, incisor, caller=caller
+            )
+
+    def bounds_trivial_none(self, incisor: (type(None), type(None)), /):
+        pass
+
+    def bounds_fail_ultimate(self, incisor: (object, object), /):
+        pass
+
+    def handle_sample(self, incisor: Sample, /, *, caller):
+        incisor = incisor.content
+        return self.samplegetmeths[type(incisor)](
+            self, incisor, caller=caller
+            )
+
+    def sample_trivial_none(self, incisor: type(None), /):
+        pass
+
+    def sample_fail_ultimate(self, incisor: object, /):
+        pass
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.update_getmeth_names('bounds')
+        cls.boundsgetmeths = _TypeMap(cls._yield_getmeths(
+            'bounds',
+            hintprocess=tuple.__class_getitem__,
+            ))
+        cls.update_getmeth_names('sample')
+        cls.samplegetmeths = _TypeMap(cls._yield_getmeths('sample'))
 
 
 class Degenerate(_Incisable, metaclass=_Sprite):
@@ -359,38 +436,58 @@ class Degenerator(_ChainIncisable, metaclass=_Sprite):
 class Multi(Basic):
 
     @property
-    def choras(self, /):
-        return self.bound.choras
-
-    @property
-    def IsoForm(self, /):
-        return self.bound.IsoForm
-
-    @property
-    def AnisoForm(self, /):
-        return self.bound.AnisoForm
-
-    @property
     def depth(self, /):
-        return len(self.choras)
+        return len(self.bound.choras)
 
     @property
     @_caching.soft_cache()
     def active(self, /):
         return tuple(
-            not isinstance(cho, Degenerate) for cho in self.choras
+            not isinstance(cho, Degenerate) for cho in self.bound.choras
             )
 
     @property
     @_caching.soft_cache()
     def activechoras(self, /):
-        return tuple(_itertools.compress(self.choras, self.active))
+        return tuple(_itertools.compress(self.bound.choras, self.active))
 
     @property
     def activedepth(self, /):
         return len(self.activechoras)
 
-    def yield_tuple_multiincise(self, /, *incisors):
+    @property
+    def degenerate(self, /):
+        return self.activedepth <= 1
+
+    def _handle_generic(self, incisor, /, *, caller, meth):
+        if not incisor:
+            return _IncisionProtocol.TRIVIAL(caller)
+        choras = tuple(meth(incisor))
+        if all(isinstance(chora, Degenerate) for chora in choras):
+            return _IncisionProtocol.RETRIEVE(caller)(tuple(
+                chora.value for chora in choras
+                ))
+#             return _IncisionProtocol.RETRIEVE(caller)(_Diict({
+#                 key: chora.value
+#                 for key, chora in zip(self.bound.keys, choras)
+#                 }))
+        if len(set(choras)) == 1:
+            slyce = self.bound.SymForm(choras[0], self.bound.keys)
+        else:
+            slyce = self.bound.AsymForm(choras, self.bound.keys)
+        return _IncisionProtocol.SLYCE(caller)(slyce)
+
+    def yield_mapping_multiincise(self, incisors: _collabc.Mapping, /):
+        choras, keys = self.bound.choras, self.bound.keys
+        for key, chora in zip(keys, choras):
+            if key in incisors:
+                yield _IncisionProtocol.INCISE(chora)(
+                    incisors[key], caller=Degenerator(chora)
+                    )
+            else:
+                yield chora
+
+    def yield_sequence_multiincise(self, incisors: _collabc.Sequence, /):
         ninc, ncho = len(incisors), self.activedepth
         nell = incisors.count(...)
         if nell:
@@ -398,7 +495,7 @@ class Multi(Basic):
             if ninc % nell:
                 raise ValueError("Cannot resolve incision ellipses.")
             ellreps = (ncho - ninc) // nell
-        chorait = iter(self.choras)
+        chorait = iter(self.bound.choras)
         try:
             for incisor in incisors:
                 if incisor is ...:
@@ -420,183 +517,32 @@ class Multi(Basic):
             raise ValueError("Too many incisors in tuple incision.")
         yield from chorait
 
+    def handle_mapping(self, incisor: _collabc.Mapping, /, *, caller):
+        meth = self.yield_mapping_multiincise
+        return self._handle_generic(incisor, caller=caller, meth=meth)
 
-class MultiTuple(Multi):
+    def handle_sequence(self, incisor: _collabc.Sequence, /, *, caller):
+        meth = self.yield_sequence_multiincise
+        return self._handle_generic(incisor, caller=caller, meth=meth)
 
-#     BOUNDREQS = ('choras',)
-
-    def handle_tuple(self, incisor: tuple, /, *, caller):
-        '''Captures the special behaviour implied by `self[a,b,...]`'''
-        if not incisor:
-            return _IncisionProtocol.TRIVIAL(caller)
-        choras = tuple(self.yield_tuple_multiincise(*incisor))
-        if all(isinstance(cho, Degenerate) for cho in choras):
-            incisor = tuple(cho.value for cho in choras)
-            return _IncisionProtocol.RETRIEVE(caller)(incisor)
-        return _IncisionProtocol.SLYCE(caller)(self.slyce_tuple(choras))
-
-    def slyce_tuple(self, incisor: tuple, /):
-        # Invisible to getmeths!
-        if len(set(incisor)) == 1:
-            return self.IsoForm(incisor[0], len(incisor))
-        return self.AnisoForm(incisor)
-
-    def __contains__(self, arg: tuple, /):
-        if len(arg) > len(self.choras):
-            return False
-        for val, chora in zip(arg, self.choras):
-            if val not in chora:
-                return False
-        return True
-
-
-class MultiDict(Multi):
-
-    @property
-    def choras(self, /):
-        return tuple(self.bound.choras.values())
-
-    @property
-    def chorakws(self, /):
-        return self.bound.choras
-
-    def handle_tuple(self, incisor: tuple, /, *, caller):
-        '''Captures the special behaviour implied by `self[a,b,...]`'''
-        if not incisor:
-            return _IncisionProtocol.TRIVIAL(caller)
-        choras = tuple(self.yield_tuple_multiincise(*incisor))
-        if all(isinstance(cho, Degenerate) for cho in choras):
-            incisor = _FrozenMap(zip(
-                self.chorakws,
-                (cho.value for cho in choras),
-                ))
-            return _IncisionProtocol.RETRIEVE(caller)(incisor)
-        incisor = _FrozenMap(zip(self.chorakws, choras))
-        return _IncisionProtocol.SLYCE(caller)(self.slyce_dict(incisor))
-
-    def yield_dict_multiincise(self, /, **incisors):
-        chorakws = self.chorakws
-        for name, incisor in incisors.items():
-            chora = chorakws[name]
-            yield name, _IncisionProtocol.INCISE(chora)(
-                incisor, caller=Degenerator(chora)
-                )
-
-    def handle_dict(self, incisor: dict, /, *, caller):
-        if not incisor:
-            return _IncisionProtocol.TRIVIAL(caller)
-        choras = (
-            self.chorakws
-            | dict(self.yield_dict_multiincise(**incisor))
-            )
-        if all(
-                isinstance(chora, Degenerate)
-                for chora in choras.values()
-                ):
-            incisor = _FrozenMap({
-                key: val.value for key, val in choras.items()
-                })
-            return _IncisionProtocol.RETRIEVE(caller)(incisor)
-        return _IncisionProtocol.SLYCE(caller)(self.slyce_dict(incisor))
-
-    def slyce_dict(self, incisor: dict, /):
-        # Invisible to getmeths!
-        choras = tuple(incisor.values())
-        if len(set(choras)) == 1:
-            return self.IsoForm(choras[0], tuple(incisor.keys()))
-        return self.AnisoForm(incisors)
-
-    def __contains__(self, arg: dict, /):
-        choras = self.chorakws
+    def __contains__(self, arg, /):
+        choras = self.bound.choras
         if len(arg) > len(choras):
             return False
-        for key, val in arg.items():
-            try:
-                chora = choras[key]
-            except KeyError:
-                return False
-            if val not in chora:
-                return False
+        elif isinstance(arg, _collabc.Mapping):
+            for key, chora in zip(self.bound.keys, choras):
+                if key in arg:
+                    if arg[key] not in chora:
+                        return False
+        else:
+            for val, chora in zip(arg, self.bound.choras):
+                if val not in chora:
+                    return False
         return True
 
 
 ###############################################################################
 ###############################################################################
-
-
-#         for methname in ('__incise__', '__contains__'):
-#             if hasattr(cls, methname):
-#                 exec('\n'.join((
-#                     f"@property",
-#                     f"def {methname}(self, /):",
-#                     f"    return self.Choret(self).{methname}",
-#                     )))
-#                 decoratemeths[methname] = eval(methname)
-
-#         if not issubclass(ACls, _IncisionHandler):
-#             return False
-#         direc = dir(ACls)
-#         slots = getattr(ACls, '_req_slots__', ())
-#         fields = getattr(ACls, 'fields', ())
-#         for name in cls.BOUNDREQS:
-#             if name not in direc:
-#                 if name not in slots:
-#                     if name not in fields:
-#                         return False
-
-
-#     @classmethod
-#     def _yield_choricmeths(cls, /):
-#         for name in cls.attributes:
-#             if name.startswith('choric_'):
-#                 yield 'choric_'.removeprefix(pref), getattr(cls, name)
-
-#         cls.choricmeths = _FrozenMap(cls._yield_choricmeths())
-
-#     @classmethod
-#     def compatible(cls, ACls, /):
-#         if not isinstance(ACls, _Ousia):
-#             raise TypeError(
-#                 f"Only instances of `Ousia` are compatible with {cls}."
-#                 )
-#         if not all(slot in ACls._req_slots__ for slot in cls.CHORICSLOTS):
-#             raise TypeError(
-#                 f"The Chora class {cls} expects the following _req_slots__: "
-#                 f"cls.CHORICSLOTS"
-#                 )
-#         return True
-
-#     def __new__(cls, arg, /):
-#         if isinstance(arg, _Essence):
-#             return cls.decorate(arg)
-#         return super().__new__(cls, arg)
-
-#     @classmethod
-#     def decorate(cls, ACls: _Essence):
-#         if not cls.compatible(ACls):
-#             raise TypeError(
-#                 f"Type {ACls} is incompatible for decoration with {cls}."
-#                 )
-#         abstract = set()
-#         attributes = ACls.attributes
-#         with ACls.mutable:
-#             for name in _Incisable.REQMETHS:
-#                 if name not in attributes:
-#                     meth = getattr(_Incisable, name)
-#                     if name in _Incisable.__abstractmethods__:
-#                         abstract.add(name)
-#                     setattr(ACls, name, meth)
-#                     if name in ACls.__abstractmethods__:
-#                         abstract.add(name)
-#             for name, meth in cls.choricmeths.items():
-#                 if name not in attributes:
-#                     if name in cls.__abstractmethods__:
-#                         abstract.add(name)
-#                     setattr(ACls, name, meth)
-#             if abstract:
-#                 ACls.__abstractmethods__ = ACls.__abstractmethods__ | abstract
-#         assert issubclass(ACls, _Incisable)
-#         return ACls
 
 
 # class CompositionHandler(IncisionHandler, metaclass=_Eidos):

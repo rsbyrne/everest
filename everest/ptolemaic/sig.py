@@ -16,7 +16,6 @@ from everest.utilities import (
     caching as _caching,
     classtools as _classtools,
     format_argskwargs as _format_argskwargs,
-    FrozenMap as _FrozenMap,
     reseed as _reseed,
     )
 from everest import epitaph as _epitaph
@@ -28,10 +27,11 @@ from everest.incision import (
 
 from everest.ptolemaic.chora import (
     Chora as _Chora,
-    MultiDict as _MultiDict,
+    Multi as _Multi,
     Degenerate as _Degenerate,
     )
 from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.thing import Thing as _Thing
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
@@ -257,7 +257,7 @@ class DegenerateField(_Degenerate, _FullField_, metaclass=_Sprite):
 class Params(metaclass=_Sprite):
 
     nargs: int = 0
-    arguments: _FrozenMap = _FrozenMap()
+    arguments: _Diict = _Diict()
 
     @classmethod
     def __class_call__(cls, arg0=0, arg1=None, /, **kwargs):
@@ -277,7 +277,7 @@ class Params(metaclass=_Sprite):
             if kwargs:
                 raise TypeError
             nargs, arguments = arg0, arg1
-        obj = super().__class_call__(int(nargs), _FrozenMap(arguments))
+        obj = super().__class_call__(int(nargs), _Diict(arguments))
         if cache:
             obj.softcache.update(cache)
         return obj
@@ -328,21 +328,29 @@ def get_typ_fields(typ):
 
 class Sig(_Chora, metaclass=_Sprite):
 
-    choras: _FrozenMap
+    sigfields: _Diict
+#     choras: _Diict
 
-    def IsoForm(self, chora: _Chora, keys: tuple, /):
-        return _FrozenMap({key: chora for key in keys})
+    def SymForm(self, chora: _Chora, keys: tuple, /):
+        return self._ptolemaic_class__(_Diict({key: chora for key in keys}))
+
+    def AsymForm(self, choras: tuple, keys: tuple, /):
+        return self._ptolemaic_class__(_Diict(zip(keys, choras)))
 
     @property
-    def AnisoForm(self, /):
-        return self.bound._ptolemaic_class__
+    def choras(self, /):
+        return tuple(self.sigfields.values())
 
-    class __incision_manager__(_MultiDict):
+    @property
+    def keys(self, /):
+        return tuple(self.sigfields)
 
-        def handle_tuple(self, incisor: tuple, /, *, caller):
-            if isinstance(incisor, Params):
-                return _IncisionProtocol.RETRIEVE(caller)(incisor)
-            return super().handle_tuple(incisor, caller=caller)
+    __incision_manager__ = _Multi
+
+    def __incise__(self, incisor, /, *, caller):
+        if isinstance(incisor, Params):
+            return _IncisionProtocol.RETRIEVE(caller)(incisor)
+        return self.__incision_manager__.__incise__(incisor, caller=caller)
 
     @staticmethod
     def _get_orderscore(pair):
@@ -367,7 +375,7 @@ class Sig(_Chora, metaclass=_Sprite):
         else:
             if kwargs:
                 raise TypeError
-            if isinstance(arg, _FrozenMap):
+            if isinstance(arg, _Diict):
                 fields = arg
             elif isinstance(arg, type):
                 fields = get_typ_fields(arg)
@@ -383,7 +391,7 @@ class Sig(_Chora, metaclass=_Sprite):
                     }
         if not all(isinstance(field, FieldBase) for field in fields.values()):
             raise TypeError(fields)
-        obj = super().__class_call__(_FrozenMap(cls._sort_fields(fields)))
+        obj = super().__class_call__(_Diict(cls._sort_fields(fields)))
         if cache:
             obj.softcache.update(cache)
         return obj
@@ -393,7 +401,7 @@ class Sig(_Chora, metaclass=_Sprite):
     def degenerates(self, /):
         return _mprox({
             name: field.hint.value
-            for name, field in self.choras.items()
+            for name, field in self.sigfields.items()
             if isinstance(field.hint, _Degenerate)
             })
 
@@ -402,7 +410,7 @@ class Sig(_Chora, metaclass=_Sprite):
     def signature(self, /):
         return _inspect.Signature(
             field.get_parameter(name)
-            for name, field in self.choras.items()
+            for name, field in self.sigfields.items()
             )
 
     @property
@@ -421,9 +429,9 @@ class Sig(_Chora, metaclass=_Sprite):
 #             }
 #         return self._ptolemaic_class__(chora, fields)
 
-    def __incise_retrieve__(self, incisor: dict, /):
+    def __incise_retrieve__(self, incisor: tuple, /):
         bound = self.signature.bind_partial()
-        bound.arguments.update(incisor)
+        bound.arguments.update(zip(self.sigfields, incisor))
         bound.arguments.update(self.degenerates)
         bound.apply_defaults()
         out = Params(bound)
@@ -436,7 +444,7 @@ class Sig(_Chora, metaclass=_Sprite):
         return self.__incise_retrieve__(effbound.arguments)
 
     def __contains__(self, params: Params) -> bool:
-        fields = self.choras
+        fields = self.sigfields
         for key, val in params.items():
             if not val in fields[key]:
                 return False
@@ -450,7 +458,7 @@ class Sig(_Chora, metaclass=_Sprite):
         root = repr(self._ptolemaic_class__)
         if cycle:
             p.text(root + '{...}')
-        elif not (kwargs := self.choras):
+        elif not (kwargs := self.sigfields):
             p.text(root + '()')
         else:
             with p.group(4, root + '(', ')'):

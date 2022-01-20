@@ -64,6 +64,8 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
         return incisor
 
     def __incise_fail__(self, incisor, message=None, /):
+        if isinstance(message, Exception):
+            raise IncisorTypeException(incisor, self) from message
         raise IncisorTypeException(incisor, self, message)
 
     @classmethod
@@ -119,11 +121,11 @@ class IncisionChain(IncisionHandler, tuple):
             incisor = IncisionProtocol.RETRIEVE(obj)(incisor)
         return incisor
 
-    def __incise_degen__(self, incisor, /):
+    def __incise_degenerate__(self, incisor, /):
         *members, last = self
         for obj in members:
             incisor = IncisionProtocol.RETRIEVE(obj)(incisor)
-        return IncisionProtocol.DEGEN(last)(incisor)
+        return IncisionProtocol.DEGENERATE(last)(incisor)
 
     @property
     def __incise_fail__(self, /):
