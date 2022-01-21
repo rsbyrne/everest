@@ -116,7 +116,7 @@ class IncisionChain(Incisable):
 
     @property
     def __incise_trivial__(self, /):
-        return IncisionProtocol.TRIVIAL(self.incisables)()
+        return IncisionProtocol.TRIVIAL(self.incisables[-1])
 
     def __incise_slyce__(self, incisor, /):
         for obj in self.incisables:

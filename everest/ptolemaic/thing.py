@@ -14,13 +14,14 @@ from everest.incision import (
 
 from everest.ptolemaic.chora import (
     Chora as _Chora,
-    Basic as _Basic,
+    Sampleable as _Sampleable,
     Degenerate as _Degenerate,
     Null as _Null,
     )
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic import armature as _armature
 
@@ -30,6 +31,9 @@ class ThingLike(metaclass=_Essence):
 
 
 ThingLike.register(_Primitive)
+ThingLike.register(_Essence)
+ThingLike.register(_Ousia.BaseTyp)
+ThingLike.register(_Sprite.BaseTyp)
 
 
 class ThingGen(_armature.Element, ThingLike, metaclass=_Sprite):
@@ -89,11 +93,14 @@ class ThingSpace(metaclass=_Essence):
 
 class _Thing_(_Chora, ThingSpace, metaclass=_Sprite):
 
-    class __incision_manager__(_Basic):
+    class __incision_manager__(_Sampleable):
 
         MemberType = ThingLike
 
         def retrieve_contains(self, incisor: ThingLike, /):
+            return incisor
+
+        def sample_slyce_chora(self, incisor: _Chora, /):
             return incisor
 
     @property

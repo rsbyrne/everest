@@ -67,7 +67,7 @@ class FloattSpace(_thing.ThingSpace):
 #     ...
 
 
-class _Floatt_(FloattSpace, _thing._Thing_):
+class _Floatt_(_Chora, FloattSpace, metaclass=_Sprite):
 
     class __incision_manager__(_Sampleable):
 
@@ -81,7 +81,7 @@ class _Floatt_(FloattSpace, _thing._Thing_):
             return FloattLimit(incisor.upper)
 
         def bounds_slyce_closed(self, incisor: (float, float)):
-            lower, upper = incisor
+            lower, upper = incisor.lower, incisor.upper
             if upper <= lower:
                 return FloattNull
             return FloattClosed(lower, upper)
@@ -147,7 +147,7 @@ class FloattOpen(_Chora, FloattSpace, metaclass=_Schema):
             return FloattClosed(lower, upper)
 
         def bounds_slyce_closed(self, incisor: (float, float), /):
-            lower, upper = incisor
+            lower, upper = incisor.lower, incisor.upper
             if upper <= lower:
                 return FloattNull
             if upper == 0:
@@ -193,7 +193,7 @@ class FloattLimit(_Chora, FloattSpace, metaclass=_Schema):
             return self.bound._ptolemaic_class__(self.bound.upper + upper)
 
         def bounds_slyce_closed(self, incisor: (float, float), /):
-            lower, upper = incisor
+            lower, upper = incisor.lower, incisor.upper
             if upper >= 0:
                 raise IndexError
             upper = self.bound.upper + upper
@@ -257,7 +257,7 @@ class FloattClosed(_Chora, FloattSpace, metaclass=_Schema):
             return self.bound._ptolemaic_class__(lower, upper)
 
         def bounds_slyce_closed(self, incisor: (float, float), /):
-            ilower, iupper = incisor
+            ilower, iupper = incisor.lower, incisor.upper
             olower, oupper = self.bound.lower, self.bound.upper
             if iupper == 0:
                 return FloattNull
@@ -319,7 +319,7 @@ class Plane(CoordSpace, _tuuple.Brace):
 
 class CoordMeta(_tuuple.TuupleMeta):
 
-    __class_incision_manager__ = Plane()
+    ...
 
 
 CoordSpace.register(CoordMeta)

@@ -121,6 +121,10 @@ class FieldKind(FieldBase, metaclass=_Sprite):
             return FieldKind(kind)
         return Field(self.kind, arg)
 
+    @property
+    def get_parameter(self, /):
+        return self().get_parameter
+
 
 with FieldBase.mutable:
     for kind in ParamKind:
@@ -258,6 +262,11 @@ class Params(metaclass=_Sprite):
 
     nargs: int = 0
     arguments: _Diict = _Diict()
+
+    _req_slots__ = ('__dict__',)
+
+    def __init__(self, /):
+        self.__dict__.update(self.arguments)
 
     @classmethod
     def __class_call__(cls, arg0=0, arg1=None, /, **kwargs):

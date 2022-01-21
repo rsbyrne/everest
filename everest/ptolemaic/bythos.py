@@ -53,5 +53,10 @@ class Bythos(_Essence):
         return _IncisionProtocol.FAIL(cls.__class_incision_manager__)
 
 
+class BythosBase(metaclass=Bythos):
+
+    ...
+
+
 ###############################################################################
 ###############################################################################

@@ -47,17 +47,24 @@ class Tekton(_Bythos):
         return cls.Oid(cls, cls.sig)
 
     @classmethod
-    def __class_construct__(meta, arg0=None, /, *argn, **kwargs):
-        if argn or kwargs:
-            args = () if arg0 is None else (arg0, *argn)
-            return super().__class_construct__(*args, **kwargs)
-        return super().__class_construct__(
-            name=arg0.__name__,
-            namespace=dict(
-                __construct__=arg0,
-                _clsepitaph=meta.taphonomy(arg0)
-                ),
+    def decorate(meta, obj, /):
+        ns = dict(
+            __construct__=obj,
+            _clsepitaph=meta.taphonomy(obj)
             )
+        return meta(obj.__name__, (), ns)
+
+    @classmethod
+    def __class_construct__(meta, arg0=None, /, *argn, **kwargs):
+        if arg0 is None:
+            if argn:
+                raise ValueError("Must pass all args or none.")
+            return _functools.partial(meta.decorate, **kwargs)
+        elif kwargs:
+            raise ValueError("Cannot pass both args and kwargs.")
+        elif argn:
+            return super().__class_construct__(arg0, *argn)
+        return meta.decorate(arg0)
 
     def __class_deep_init__(cls, /, *args, **kwargs):
         super().__class_deep_init__()
@@ -73,6 +80,13 @@ class Tekton(_Bythos):
         return cls.__incision_manager__
 
     Oid = TektOid
+
+
+class TektonBase(metaclass=Tekton):
+
+    @classmethod
+    def __construct__(cls, /):
+        raise NotImplementedError
 
 
 ###############################################################################

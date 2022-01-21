@@ -15,7 +15,8 @@ from everest.ptolemaic.ousia import Ousia as _Ousia
 
 class Protean(_Ousia):
 
-    def __call__(cls, basis: object, /):
+    @classmethod
+    def __class_call__(cls, basis: object, /):
         obj = object.__new__(cls.Concrete)
         obj.basis = basis
         obj.__init__()

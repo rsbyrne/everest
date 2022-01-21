@@ -11,11 +11,11 @@ from everest.incision import IncisionProtocol as _IncisionProtocol
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic import thing as _thing
-from everest.ptolemaic import armature as _armature
+from everest.ptolemaic.armature import ArmatureProtocol as _ArmatureProtocol
 from everest.ptolemaic.chora import (
     Chora as _Chora,
     Multi as _Multi,
-    Basic as _Basic,
+    Sampleable as _Sampleable,
     Degenerate as _Degenerate,
     )
 
@@ -57,7 +57,11 @@ class TuupleSpace(_thing.ThingSpace):
         return False
 
 
-class SymBrace(_Chora, TuupleSpace, metaclass=_Sprite):
+class FiniteBrace(_Chora, TuupleSpace, metaclass=_Sprite):
+    ...
+
+
+class SymBrace(FiniteBrace):
 
     chora: _Chora = _thing.Thing
     keys: tuple = None
@@ -68,6 +72,8 @@ class SymBrace(_Chora, TuupleSpace, metaclass=_Sprite):
             raise ValueError(chora)
         if isinstance(keys, int):
             keys = tuple(range(keys))
+        if not (typ := _ArmatureProtocol.BRACE(chora, Tuuple).SymForm) is cls:
+            return typ(chora, keys)
         return super().__class_call__(chora, keys)
 
     @property
@@ -90,7 +96,7 @@ class SymBrace(_Chora, TuupleSpace, metaclass=_Sprite):
         return self.__incision_manager__.__contains__
 
 
-class AsymBrace(_Chora, TuupleSpace, metaclass=_Sprite):
+class AsymBrace(FiniteBrace):
 
     choras: tuple
     keys: tuple = None
@@ -104,6 +110,13 @@ class AsymBrace(_Chora, TuupleSpace, metaclass=_Sprite):
                 keys = tuple(range(len(choras)))
         if not all(map(cls.contentspace.__includes__, choras)):
             raise ValueError(choras)
+        if len(typset := set(
+                _ArmatureProtocol.BRACE(chora, Tuuple).AsymForm
+                for chora in choras
+                ) == 1):
+            typ = typset.pop()
+            if typ is not cls:
+                return typ(choras, keys)
         return super().__class_call__(choras, keys)
 
     @property
@@ -130,23 +143,27 @@ class Brace(_Chora, TuupleSpace, metaclass=_Sprite):
 
     chora: _Chora = _thing.Thing
 
-    class __incision_manager__(_Basic):
+    class __incision_manager__(_Sampleable):
 
         @property
         def chora(self, /):
             return self.bound.chora
 
         def handle_tuple(self, incisor: tuple, /, *, caller):
-            if not all(map(self.bound.contentspace.__includes__, incisor)):
-                return _IncisionProtocol.FAIL(caller)(incisor)
+#             if not all(map(self.bound.contentspace.__includes__, incisor)):
+#                 return _IncisionProtocol.FAIL(caller)(incisor)
             nspace = self.slyce_n(len(incisor))
             return _IncisionProtocol.INCISE(nspace)(incisor, caller=caller)
 
-        def slyce_chora(self, incisor: _Chora = _thing.Thing, /):
+        def slyce_dict(self, incisor: dict, /):
+            symform = self.bound.SymForm(self.chora, tuple(incisor))
+            return symform[tuple(incisor.values())]
+
+        def sample_slyce_chora(self, incisor: _Chora, /):
             if not self.bound.contentspace.__includes__(incisor):
                 raise TypeError(self.bound, type(incisor))
             try:
-                return _armature.ArmatureProtocol.BRACE(incisor)
+                return _ArmatureProtocol.BRACE(incisor)
             except AttributeError:
                 return self.bound._ptolemaic_class__(incisor)
 
@@ -167,11 +184,11 @@ class TuupleMeta(_thing.ThingMeta):
 
     @property
     def SymForm(cls, /):
-        return cls.__class_incision_manager__.SymBrace
+        return cls.__class_incision_manager__.SymForm
 
     @property
     def AsymForm(cls, /):
-        return cls.__class_incision_manager__.AsymBrace
+        return cls.__class_incision_manager__.AsymForm
 
 
 TuupleSpace.register(TuupleMeta)

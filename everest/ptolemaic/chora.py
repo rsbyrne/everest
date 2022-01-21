@@ -10,6 +10,7 @@ import types as _types
 import itertools as _itertools
 import abc as _abc
 import weakref as _weakref
+from dataclasses import dataclass as _dataclass
 
 from everest import ur as _ur
 from everest.utilities import (
@@ -66,10 +67,6 @@ class Choret(metaclass=ChoretMeta):
     bound: object
 
     @classmethod
-    def __class_init__(cls, /):
-        pass
-
-    @classmethod
     def compatible(cls, ACls, /):
         if not isinstance(ACls, _Essence):
             return False
@@ -89,9 +86,8 @@ class Choret(metaclass=ChoretMeta):
             ACls._ptolemaic_choret_decorated_ = True
         return ACls
 
-    @_abc.abstractmethod
-    def __incise__(self, *_, **__):
-        raise NotImplementedError
+    def __incise__(self, incisor, /, *, caller):
+        return _IncisionProtocol.FAIL(caller)(incisor)
 
 
 #     @classmethod
@@ -201,8 +197,8 @@ class Basic(Choret):
     def __getitem__(self, /):
         raise NotImplementedError
 
-    def handle_none(self, incisor: type(None), /, *, caller):
-        return _IncisionProtocol.GENERIC(caller)
+#     def handle_none(self, incisor: type(None), /, *, caller):
+#         return _IncisionProtocol.GENERIC(caller)
 
 #     def handle_protocol(self, incisor: _IncisionProtocol, /, *, caller):
 #         return incisor(caller)()
@@ -342,24 +338,29 @@ class Sliceable(Basic):
             ))
 
 
-class Sample(metaclass=_Sprite):
+# class Sample(metaclass=_Sprite):
+@_dataclass
+class Sample:
 
-    content: object
+    content: object = None
 
 
-class Bounds(metaclass=_Sprite):
+# class Bounds(metaclass=_Sprite):
+@_dataclass
+class Bounds:
 
-    lower: object
-    upper: object
+    lower: object = None
+    upper: object = None
 
 
 class Sampleable(Basic):
 
     def handle_slice(self, incisor: slice, /, *, caller):
-        start, stop, step = incisor.start, incisor.stop, incisor.step
-        bounds = Bounds(incisor.start, incisor.stop)
-        sample = Sample(incisor.step)
-        return caller[bounds][sample]
+        return (
+            caller
+            [Bounds(incisor.start, incisor.stop)]
+            [Sample(incisor.step)]
+            )
 
     def handle_bounds(self, incisor: Bounds, /, *, caller):
         return self.boundsgetmeths[type(incisor.lower), type(incisor.upper)](

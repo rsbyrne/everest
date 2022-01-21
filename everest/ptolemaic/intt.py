@@ -69,7 +69,7 @@ class InttSpace(_thing.ThingSpace):
 #     ...
 
 
-class _Intt_(InttSpace, _thing._Thing_):
+class _Intt_(_Chora, InttSpace, metaclass=_Sprite):
 
     class __incision_manager__(_Sampleable):
 
@@ -160,7 +160,7 @@ class InttOpen(_Chora, InttSpace, metaclass=_Schema):
             return InttClosed(lower, lower + upper, self.bound.step)
 
         def bounds_slyce_closed(self, incisor: (int, int), /):
-            lower, upper = incisor
+            lower, upper = incisor.lower, incisor.upper
             if upper <= lower:
                 return InttNull
             if upper == 0:
@@ -211,7 +211,7 @@ class InttLimit(_Chora, InttSpace, metaclass=_Schema):
             return self.bound._ptolemaic_class__(self.bound.upper + upper)
 
         def bounds_slyce_closed(self, incisor: (int, int), /):
-            lower, upper = incisor
+            lower, upper = incisor.lower, incisor.upper
             if upper >= 0:
                 raise IndexError
             upper = self.bound.upper + upper

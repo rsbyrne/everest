@@ -135,10 +135,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __meta_init__(meta, /):
         pass
 
-    MERGETUPLES = ('MROCLASSES',)
+#     MERGETUPLES = ('MROCLASSES',)
 
     @classmethod
-    def process_mergenames(meta, bases, namespace):
+    def process_mergenames(meta, name, bases, namespace, /):
         bases = (meta, *bases)
         merge_names_all(bases, namespace, 'MERGETUPLES')
         merge_names_all(
@@ -151,11 +151,24 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             )
 
     @classmethod
-    def process_annotations(meta, namespace):
+    def process_annotations(meta, name, bases, namespace, /):
         namespace['__annotations__'] = _types.MappingProxyType(
             namespace.get('__annotations__', empty := {})
             | namespace.get('__extra_annotations__', empty)
             )
+
+    @classmethod
+    def process_bases(meta, name, bases, namespace, /):
+        bases = list(expand_bases(bases))
+        for basetyp in meta.basetypes:
+            if basetyp is object:
+                continue
+            for base in bases:
+                if basetyp in base.__mro__:
+                    break
+            else:
+                bases.append(basetyp)
+        return tuple(bases)
 
     @property
     def softcache(cls, /):
@@ -177,24 +190,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def pre_create_class(meta, name, bases, namespace, /):
-
-        bases = list(expand_bases(bases))
-        for basetyp in meta.basetypes:
-            if basetyp is object:
-                continue
-            for base in bases:
-                if basetyp in base.__mro__:
-                    break
-            else:
-                bases.append(basetyp)
-        bases = tuple(bases)
-
+        bases = meta.process_bases(name, bases, namespace)
         if '__slots__' not in namespace:
             namespace['__slots__'] = ()
-        meta.process_mergenames(bases, namespace)
+        meta.process_mergenames(name, bases, namespace)
         namespace['_clssoftcache'] = {}
         namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
-        meta.process_annotations(namespace)
+        meta.process_annotations(name, bases, namespace)
 
         return name, bases, namespace
 
@@ -244,10 +246,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Initialising the class:
 
     def __init__(cls, /, *args, **kwargs):
-        cls.__class_pre_init__(*args, **kwargs)
-        cls.__class_deep_init__()
-        cls.__class_init__()
-        cls.freezeattr.toggle(True)
+        with cls.mutable:
+            cls.__class_pre_init__(*args, **kwargs)
+            cls.__class_deep_init__()
+            cls.__class_init__()
 
     def __class_pre_init__(cls, /, *args, **kwargs):
         _abc.ABCMeta.__init__(cls, *args, **kwargs)
@@ -334,7 +336,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.metacls.taphonomy
 
     def get_clsepitaph(cls, /):
-        return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
+        try:
+            return cls.__dict__['_clsepitaph']
+        except KeyError:
+            return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
 
     @property
     @_caching.soft_cache()
@@ -377,13 +382,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 _Dat.register(Essence)
 
 
-# class EssenceBase(metaclass=Essence):
+class EssenceBase(metaclass=Essence):
 
-#     MERGETUPLES = ('MROCLASSES',)
+    MERGETUPLES = ('MROCLASSES',)
 
-#     @classmethod
-#     def __class_init__(cls, /):
-#         pass
+    @classmethod
+    def __class_init__(cls, /):
+        pass
 
 
 ###############################################################################

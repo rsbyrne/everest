@@ -37,8 +37,9 @@ class Schema(_Tekton, _Ousia):
         return cls
 
     def __call__(cls, /, *args, **kwargs):
-        bound = cls.parameterise(cache := {}, *args, **kwargs)
-        obj = cls.__incise_retrieve__(_Params(bound))
+        params = _Params(cls.parameterise(cache := {}, *args, **kwargs))
+        cls.check_params(params)
+        obj = cls.__incise_retrieve__(params)
         obj.softcache.update(cache)
         return obj
 
@@ -70,6 +71,10 @@ class SchemaBase(metaclass=Schema):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
         return bound
+
+    @classmethod
+    def check_params(cls, params: _Params, /):
+        pass
 
     ### Serialisation
 
