@@ -93,14 +93,12 @@ class _Intt_(_Chora, InttSpace, metaclass=_Sprite):
         return Intt
 
 
+@InttSpace.register
 class InttMeta(_thing.ThingMeta):
 
     @property
     def __armature_brace__(self, /):
         return Cell
-
-
-InttSpace.register(InttMeta)
 
 
 class Intt(_thing.Thing, metaclass=InttMeta):
@@ -316,12 +314,10 @@ class Grid(CellSpace, _tuuple.Brace):
         return Cell if self.chora is Intt else self
 
 
+@CellSpace.register
 class CellMeta(_tuuple.TuupleMeta):
 
     ...
-
-
-CellSpace.register(CellMeta)
 
 
 class Cell(_tuuple.Tuuple, metaclass=CellMeta):

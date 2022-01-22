@@ -91,14 +91,12 @@ class _Floatt_(_Chora, FloattSpace, metaclass=_Sprite):
         return Floatt
 
 
+@FloattSpace.register
 class FloattMeta(_thing.ThingMeta):
 
     @property
     def __armature_brace__(self, /):
         return Coord
-
-
-FloattSpace.register(FloattMeta)
 
 
 class Floatt(_thing.Thing, metaclass=FloattMeta):
@@ -317,12 +315,10 @@ class Plane(CoordSpace, _tuuple.Brace):
     chora: _Chora = Floatt
 
 
+@CoordSpace.register
 class CoordMeta(_tuuple.TuupleMeta):
 
     ...
-
-
-CoordSpace.register(CoordMeta)
 
 
 class Coord(_tuuple.Tuuple, metaclass=CoordMeta):

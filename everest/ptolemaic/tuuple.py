@@ -180,6 +180,7 @@ class Brace(_Chora, TuupleSpace, metaclass=_Sprite):
         return Tuuple if self.chora is _thing.Thing else self
 
 
+@TuupleSpace.register
 class TuupleMeta(_thing.ThingMeta):
 
     @property
@@ -189,9 +190,6 @@ class TuupleMeta(_thing.ThingMeta):
     @property
     def AsymForm(cls, /):
         return cls.__class_incision_manager__.AsymForm
-
-
-TuupleSpace.register(TuupleMeta)
 
 
 class Tuuple(_thing.Thing, metaclass=TuupleMeta):

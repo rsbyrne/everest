@@ -165,13 +165,6 @@ class _FullField_(FieldBase):
     def process_value(cls, value, hint, /):
         if value is _pempty:
             return NotImplemented
-        if value is not NotImplemented:
-            if value not in hint:
-                raise ValueError(
-                    f"The default value must be a member "
-                    f"of the provided 'hint' `Incisable`: "
-                    f"`{value} in {hint}` must be `True`."
-                    )
         return value
 
     def get_parameter(self, name: str = 'anon', /):

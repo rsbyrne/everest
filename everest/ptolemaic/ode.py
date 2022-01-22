@@ -11,11 +11,20 @@ import types as _types
 from scipy.integrate import solve_ivp as _solve_ivp
 import numpy as _np
 
+from everest.incision import ChainIncisable as _ChainIncisable
+
 from everest.ptolemaic.schema import Schema as _Schema
+from everest.ptolemaic.sig import Field as _Field
 from everest.ptolemaic.thing import Thing as _Thing
 from everest.ptolemaic.tuuple import Tuuple as _Tuuple
-from everest.ptolemaic.floatt import Floatt as _Floatt
-from everest.ptolemaic.chora import Sampleable
+from everest.ptolemaic.floatt import (
+    Floatt as _Floatt,
+    FloattClosed as _FloattClosed,
+    )
+from everest.ptolemaic.chora import (
+    Chora as _Chora,
+    Sampleable as _Sampleable,
+    )
 
 
 class ODEModel(_Schema):
@@ -50,7 +59,7 @@ class ODEModel(_Schema):
         return meta(obj.__name__, (), ns)
 
 
-class ODEModelBase(metaclass=ODEModel):
+class ODEModelBase(_Chora, metaclass=ODEModel):
 
     @property
     def __contains__(self, /):
@@ -60,11 +69,26 @@ class ODEModelBase(metaclass=ODEModel):
     def __call__(self, t, state: _Thing, /):
         raise NotImplementedError
 
+    @property
+    def line(self):
+        return _functools.partial(ODELine, self)
 
-class ODELine(metaclass=_Schema):
+    def traverse(self, initial, interval, /):
+        return self.line(initial).traverse(interval)
 
-    basis: ODEModelBase
-    initial: _Thing
+    class __incision_manager__(_Sampleable):
+
+        def bounds_slyce_open(self, incisor: (object, type(None)), /):
+            return self.bound.line(incisor.lower)
+
+        def bounds_slyce_closed(self, incisor: (object, object), /):
+            return self.bound.traverse(incisor.lower, (0., incisor.upper))
+
+
+class ODELine(_Chora, metaclass=_Schema):
+
+    basis: _Field.POS[ODEModelBase]
+    initial: _Field.POS[_Thing]
 
     @classmethod
     def check_params(cls, params, /):
@@ -72,34 +96,54 @@ class ODELine(metaclass=_Schema):
         if params.initial not in params.basis:
             raise cls.paramexc(params.initial)
 
+    @property
+    def traverse(self, /):
+        return _functools.partial(ODETraverse, self)
 
-class ODETraverse(metaclass=_Schema):
+    class __incision_manager__(_Sampleable):
 
-    line: ODELine
-    t0: _Floatt[0.:]
-    tf: _Floatt[1e-12:]
-    freq: _Floatt[1e-12:] = 0.1
+        def bounds_slyce_closed(self, incisor: (object, object), /):
+            return self.traverse(incisor.lower, incisor.upper)
+
+
+class ODETraverse(_ChainIncisable, metaclass=_Schema):
+
+    line: _Field.POS[ODELine]
+    interval: _Field.POS[_FloattClosed]
+    freq: _Field.KW[_Floatt[1e-12:]] = 0.01
 
     @classmethod
-    def check_params(cls, params, /):
-        super().check_params(params)
-        if params.tf <= params.t0:
-            raise cls.paramexc(params.tf, params.t0)
+    def parameterise(cls, cache, /, *args, **kwargs):
+        bound = super().parameterise(cache, *args, **kwargs)
+        if isinstance((val := bound.arguments['interval']), tuple):
+            bound.arguments['interval'] = _FloattClosed(*val)
+        return bound
+
+    @property
+    def initial(self, /):
+        return self.line.initial
+
+    @property
+    def basis(self, /):
+        return self.line.basis
 
     def solve(self, /):
-        basis = self.line.basis
-        func = basis.__call__
-        args = tuple(getattr(basis, name) for name in basis.odeparams)
-        print(args)
-        t0, tf = self.t0, self.tf
-        duration = tf - t0
+        basis, interval = self.basis, self.interval
+        ts = t0, tf = interval.lower, interval.upper
         return _solve_ivp(
-            func,
-            (self.t0, self.tf),
-            self.line.initial,
-            t_eval=_np.linspace(t0, tf, round(duration / self.freq)),
-            args=args,
+            basis.__call__,
+            ts,
+            self.initial,
+            t_eval=_np.linspace(t0, tf, round((tf - t0) / self.freq)),
+            args=tuple(getattr(basis, name) for name in basis.odeparams),
             )
+
+    @property
+    def __incision_manager__(self, /):
+        return self.interval
+
+    def __incise_slyce__(self, incisor, /):
+        return self.remake(interval=incisor)
 
 
 ###############################################################################

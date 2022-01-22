@@ -169,6 +169,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             else:
                 bases.append(basetyp)
         return tuple(bases)
+#         out = []
+#         for base in bases:
+#             if base not in out:
+#                 out.append(bases)
+#         return tuple(out)
 
     @property
     def softcache(cls, /):
@@ -197,7 +202,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         namespace['_clssoftcache'] = {}
         namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
         meta.process_annotations(name, bases, namespace)
-
         return name, bases, namespace
 
     @classmethod
@@ -205,9 +209,20 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return meta
 
     @classmethod
-    def __meta_call__(meta, /, *args, **kwargs):
-        '''Called when the metaclass is called, '''
-        ''' e.g. during class statement execution with metaclass=meta.'''
+    def decorate(meta, obj, /):
+        raise NotImplementedError(
+            f"Metaclass {meta} cannot be used as a decorator"
+            )
+
+    @classmethod
+    def __meta_call__(meta, arg0=None, /, *argn, **kwargs):
+        if arg0 is None:
+            if argn:
+                raise ValueError("Must pass all args or none.")
+            return _functools.partial(meta.decorate, **kwargs)
+        elif not argn:
+            return meta.decorate(arg0, **kwargs)
+        args = (arg0, *argn)
         out = meta.__class_construct__(*args, **kwargs)
         meta.__init__(out, *args, **kwargs)
         return out
@@ -226,22 +241,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def __class_construct__(meta,
-            name: str = None,
-            bases: tuple = (),
-            namespace: dict = None,
+            name: str, bases: tuple, namespace: dict, /
             ):
-        if namespace is None:
-            namespace = {}
-        if name is None:
-            name = ''.join(base.__name__ for base in bases)
-            if not name:
-                raise ValueError(
-                    "Must provide at least one "
-                    "of either a class name or a tuple of bases."
-                    )
-        name, bases, namespace = \
-            meta.pre_create_class(name, bases, namespace)
-        return meta.create_class_object(name, bases, namespace)
+        return meta.create_class_object(*meta.pre_create_class(
+            name, bases, namespace
+            ))
 
     ### Initialising the class:
 

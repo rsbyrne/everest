@@ -108,6 +108,7 @@ class _Thing_(_Chora, ThingSpace, metaclass=_Sprite):
         return Thing
 
 
+@ThingSpace.register
 class ThingMeta(_Bythos):
 
     @property
@@ -125,9 +126,6 @@ class ThingMeta(_Bythos):
     @property
     def MemberType(cls, /):
         return cls.__class_incision_manager__.MemberType
-
-
-ThingSpace.register(ThingMeta)
 
 
 class Thing(metaclass=ThingMeta):

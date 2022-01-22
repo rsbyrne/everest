@@ -76,6 +76,13 @@ class SchemaBase(metaclass=Schema):
     def check_params(cls, params: _Params, /):
         pass
 
+    def remake(self, /, **kwargs):
+        ptolcls = self._ptolemaic_class__
+        bound = ptolcls.__signature__.bind_partial()
+        bound.arguments.update(self.params)
+        bound.arguments.update(kwargs)
+        return ptolcls(*bound.args, **bound.kwargs)
+
     ### Serialisation
 
     def get_epitaph(self, /):

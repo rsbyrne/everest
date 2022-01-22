@@ -54,18 +54,6 @@ class Tekton(_Bythos):
             )
         return meta(obj.__name__, (), ns)
 
-    @classmethod
-    def __class_construct__(meta, arg0=None, /, *argn, **kwargs):
-        if arg0 is None:
-            if argn:
-                raise ValueError("Must pass all args or none.")
-            return _functools.partial(meta.decorate, **kwargs)
-        elif kwargs:
-            raise ValueError("Cannot pass both args and kwargs.")
-        elif argn:
-            return super().__class_construct__(arg0, *argn)
-        return meta.decorate(arg0)
-
     def __class_deep_init__(cls, /, *args, **kwargs):
         super().__class_deep_init__()
         sig = cls.sig = _Sig(cls.__construct__)

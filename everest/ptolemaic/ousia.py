@@ -24,7 +24,7 @@ class ConcreteMeta:
         return name, bases, namespace
 
     @classmethod
-    def __class_construct__(meta, basecls):
+    def __meta_call__(meta, basecls, /):
         assert not hasattr(basecls, 'Construct')
         if not isinstance(basecls, type):
             raise TypeError(
