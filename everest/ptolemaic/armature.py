@@ -12,6 +12,8 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 class ArmatureProtocol(_Protocol):
 
     BRACE = ('__armature_brace__', True)
+    GENERIC = ('__armature_generic__', True)
+    VARIABLE = ('__armature_variable__', True)
 
     @classmethod
     def defer(cls, obj, /):

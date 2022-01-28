@@ -87,6 +87,20 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Implementing mroclasses:
 
+    def _process_mrobases(cls, bases, /):
+        for base in bases:
+            if isinstance(base, str):
+                if base.startswith('.'):
+                    attrnames = iter(base.strip('.').split('.'))
+                    base = cls
+                    for attrname in attrnames:
+                        base = getattr(base, attrname)
+                else:
+                    base = eval(base)
+            else:
+                base = getattr(base, '__mroclass_basis__', base)
+            yield base
+
     def _make_mroclass(cls, name: str, /):
         adjname = f'_mroclassbase_{name}__'
 #         fusename = f'_mroclassfused_{name}__'
@@ -98,19 +112,21 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             if searchname in mcls.__dict__:
                 if not (inhcls := mcls.__dict__[searchname]) in inhclasses:
                     inhclasses.append(inhcls)
-        inhclasses = tuple(
-            getattr(inh, '__mroclass_basis__', inh) for inh in inhclasses
-            )
+        inhclasses = tuple(cls._process_mrobases(inhclasses))
         if not inhclasses:
             return NotImplemented
-        if len(inhclasses) == 1:
-            return inhclasses[0]
-        if all(issubclass(inhclasses[-1], inh) for inh in inhclasses[:-1]):
-            return inhclasses[-1]
+#         if len(inhclasses) == 1:
+#             return inhclasses[0]
+#         if all(issubclass(inhclasses[-1], inh) for inh in inhclasses[:-1]):
+#             return inhclasses[-1]
         return type(
-            name,
+            f"{cls.__name__}{name}",
             inhclasses,
-            {'__slots__':(), '_ptolemaic_fuserclass_': True},
+            dict(
+                __slots__=(),
+                _ptolemaic_fuserclass_=True,
+                owner=cls,
+                ),
             )
 
     def _add_mroclass(cls, name: str, /):

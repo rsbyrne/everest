@@ -34,8 +34,8 @@ class IncisionProtocol(_Protocol):
 
     # Optional:
 
-    GENERIC = ('__incise_generic__', False)
-    VARIABLE = ('__incise_variable__', False)
+#     GENERIC = ('__incise_generic__', False)
+#     VARIABLE = ('__incise_variable__', False)
     DEGENERATE = ('__incise_degenerate__', False)
 #     CONTAINS = '__contains__'
 #     LEN = '__len__'
@@ -53,7 +53,6 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
 
     __slots__ = ()
 
-    @property
     def __incise_trivial__(self, /):
         return self
 
@@ -114,7 +113,6 @@ class IncisionChain(Incisable):
             incisor, caller=caller
             )
 
-    @property
     def __incise_trivial__(self, /):
         return IncisionProtocol.TRIVIAL(self.incisables[-1])
 

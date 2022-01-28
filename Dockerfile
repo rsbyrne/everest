@@ -156,11 +156,16 @@ RUN pip3 install -U --no-cache-dir \
 #  pyls-flake8
 #RUN jupyter labextension install jupyterlab-flake8
 
+# Cryptography
+
+RUN pip3 install -U --no-cache-dir \
+  cryptography
+
 # Finish
 RUN apt update -y && apt upgrade -y
 
-ENV EVERESTDIR $MASTERUSERHOME/everest
-ADD . $EVERESTDIR
-RUN chown -R $MASTERUSER $EVERESTDIR
+# ENV EVERESTDIR $MASTERUSERHOME/everest
+# ADD . $EVERESTDIR
+# RUN chown -R $MASTERUSER $EVERESTDIR
 
 USER $MASTERUSER

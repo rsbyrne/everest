@@ -29,13 +29,6 @@ from everest.ptolemaic.chora import (
 
 class ODEModel(_Schema):
 
-    def __class_deep_init__(cls, /, *args, **kwargs):
-        super().__class_deep_init__(*args, **kwargs)
-        cls.statespace = (
-            getattr(cls.__call__, '__annotations__', {})
-            .get('return', _Tuuple)
-            )
-
     @classmethod
     def decorate(meta, obj, /):
         if isinstance(obj, type):
@@ -47,10 +40,15 @@ class ODEModel(_Schema):
             odeparams[name] = parameter
             odehints[name] = parameter.annotation
             odedefaults[name] = parameter.default
+        statespace = (
+            getattr(obj, '__annotations__', {})
+            .get('state', _Tuuple)
+            )
         ns = dict(
             odeparams=_types.MappingProxyType(odeparams),
             odehints=_types.MappingProxyType(odehints),
             odedefaults=_types.MappingProxyType(odedefaults),
+            statespace=statespace,
             __call__=staticmethod(obj),
             __extra_annotations__=odehints,
             _clsepitaph=meta.taphonomy(obj),

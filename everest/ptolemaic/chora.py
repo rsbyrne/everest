@@ -26,6 +26,7 @@ from everest.incision import (
     )
 from everest.epitaph import Epitaph as _Epitaph
 
+from everest.ptolemaic.armature import ArmatureProtocol as _ArmatureProtocol
 from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
@@ -97,7 +98,7 @@ class Choret(metaclass=ChoretMeta):
 #         return super().__subclasshook__(ACls)
 
 
-class Chora(_IncisionHandler, metaclass=_Essence):
+class Chora(_Incisable, metaclass=_Essence):
     '''The `Chora` type is the Ptolemaic implementation '''
     '''of the Everest 'incision protocol'. '''
     '''`Chora` objects can be thought of as representing 'space' '''
@@ -106,6 +107,10 @@ class Chora(_IncisionHandler, metaclass=_Essence):
     MROCLASSES = ('__incision_manager__',)
 
     __incision_manager__ = Choret
+
+    @property
+    def __incise__(self, /):
+        return self.__incision_manager__.__incise__
 
     @classmethod
     def __subclasshook__(cls, ACls, /):
@@ -130,7 +135,7 @@ class TrivialException(Exception):
 def _wrap_trivial(meth, /):
     @_functools.wraps(meth)
     def wrapper(self, _, /, *, caller):
-        return _IncisionProtocol.TRIVIAL(caller)
+        return _IncisionProtocol.TRIVIAL(caller)()
     return wrapper
 
 def _wrap_slyce(meth, /):
@@ -139,7 +144,7 @@ def _wrap_slyce(meth, /):
         try:
             result = meth(self, arg)
         except TrivialException:
-            return _IncisionProtocol.TRIVIAL(caller)
+            return _IncisionProtocol.TRIVIAL(caller)()
         except Exception as exc:
             return _IncisionProtocol.FAIL(caller)(arg, exc)
         return _IncisionProtocol.SLYCE(caller)(result)
@@ -157,7 +162,7 @@ def _wrap_retrieve(meth, /):
         try:
             result = meth(self, arg)
         except TrivialException:
-            return _IncisionProtocol.TRIVIAL(caller)
+            return _IncisionProtocol.TRIVIAL(caller)()
         except Exception as exc:
             return _IncisionProtocol.FAIL(caller)(arg, exc)
         return _IncisionProtocol.RETRIEVE(caller)(result)
@@ -169,7 +174,7 @@ def _wrap_fail(meth, /):
         try:
             result = meth(self, arg)
         except TrivialException:
-            return _IncisionProtocol.TRIVIAL(caller)
+            return _IncisionProtocol.TRIVIAL(caller)()
         except Exception as exc:
             return _IncisionProtocol.FAIL(caller)(arg, exc)
         return _IncisionProtocol.FAIL(caller)(arg, result)
@@ -183,8 +188,8 @@ WRAPMETHS = dict(
     )
 
 URPROTOCOLS = {
-    _ur.Var: _IncisionProtocol.VARIABLE,
-    _ur.Dat: _IncisionProtocol.GENERIC,
+    _ur.Var: _ArmatureProtocol.VARIABLE,
+    _ur.Dat: _ArmatureProtocol.GENERIC,
     }
 
 
@@ -462,7 +467,7 @@ class Multi(Basic):
 
     def _handle_generic(self, incisor, /, *, caller, meth):
         if not incisor:
-            return _IncisionProtocol.TRIVIAL(caller)
+            return _IncisionProtocol.TRIVIAL(caller)()
         choras = tuple(meth(incisor))
         if all(isinstance(chora, Degenerate) for chora in choras):
             return _IncisionProtocol.RETRIEVE(caller)(tuple(

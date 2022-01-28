@@ -296,6 +296,10 @@ class CellSpace(_tuuple.TuupleSpace):
     def AsymForm(self, /):
         return AsymGrid
 
+    @property
+    def __incise_retrieve__(self, /):
+        return Cell
+
 
 class SymGrid(CellSpace, _tuuple.SymBrace):
     ...
@@ -315,7 +319,7 @@ class Grid(CellSpace, _tuuple.Brace):
 
 
 @CellSpace.register
-class CellMeta(_tuuple.TuupleMeta):
+class CellMeta(_Sprite, _tuuple.TuupleMeta):
 
     ...
 
@@ -323,6 +327,24 @@ class CellMeta(_tuuple.TuupleMeta):
 class Cell(_tuuple.Tuuple, metaclass=CellMeta):
 
     __class_incision_manager__ = Grid()
+
+    content: tuple
+
+    @property
+    def __getitem__(self, /):
+        return self.content.__getitem__
+
+    @property
+    def __len__(self, /):
+        return self.content.__len__
+
+    @property
+    def __contains__(self, /):
+        return self.content.__contains__
+
+    @property
+    def __iter__(self, /):
+        return self.content.__iter__
 
 
 ###############################################################################

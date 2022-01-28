@@ -113,7 +113,7 @@ class AsymBrace(FiniteBrace):
         if len(typset := set(
                 _ArmatureProtocol.BRACE(chora, Tuuple).AsymForm
                 for chora in choras
-                ) == 1):
+                )) == 1:
             typ = typset.pop()
             if typ is not cls:
                 return typ(choras, keys)

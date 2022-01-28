@@ -301,6 +301,10 @@ class CoordSpace(_tuuple.TuupleSpace):
     def AsymForm(self, /):
         return AsymPlane
 
+    @property
+    def __incise_retrieve__(self, /):
+        return Coord
+
 
 class SymPlane(CoordSpace, _tuuple.SymBrace):
     ...
@@ -316,7 +320,7 @@ class Plane(CoordSpace, _tuuple.Brace):
 
 
 @CoordSpace.register
-class CoordMeta(_tuuple.TuupleMeta):
+class CoordMeta(_Sprite, _tuuple.TuupleMeta):
 
     ...
 
@@ -324,6 +328,24 @@ class CoordMeta(_tuuple.TuupleMeta):
 class Coord(_tuuple.Tuuple, metaclass=CoordMeta):
 
     __class_incision_manager__ = Plane()
+
+    content: tuple
+
+    @property
+    def __getitem__(self, /):
+        return self.content.__getitem__
+
+    @property
+    def __len__(self, /):
+        return self.content.__len__
+
+    @property
+    def __contains__(self, /):
+        return self.content.__contains__
+
+    @property
+    def __iter__(self, /):
+        return self.content.__iter__
 
 
 ###############################################################################

@@ -101,11 +101,11 @@ class Epitaph(_classtools.Freezable):
         return _word.get_random_proper(2, seed=self.hexcode)
 
 
-class Taphonomic(_abc.ABC):
+class Epitaphable(_abc.ABC):
 
     @classmethod
     def __subclasshook__(cls, C, /):
-        if cls is Taphonomic:
+        if cls is Epitaphable:
             if hasattr(C, 'epitaph'):
                 return True
         return NotImplemented
@@ -317,7 +317,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
 
     def __call__(self, content, deps=None, hexcode=None, /) -> Epitaph:
         if deps is None:
-            if isinstance(content, Taphonomic):
+            if isinstance(content, Epitaphable):
                 return content.epitaph
             return self.auto_epitaph(content)
         if hexnone := (hexcode is None):

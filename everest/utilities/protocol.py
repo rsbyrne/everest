@@ -64,7 +64,7 @@ class Protocol(_Enum, metaclass=_ProtocolMeta_):
             return getattr(obj, methname)
         except AttributeError:
             try:
-                return getattr(self.defer(obj), methname)
+                return self(self.defer(obj))
             except AttributeError:
                 if default is None:
                     raise self.exc(obj)

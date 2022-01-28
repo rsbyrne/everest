@@ -30,6 +30,7 @@ class SchemOid(_TektOid):
         return obj
 
 
+@_Dat.register
 class Schema(_Tekton, _Ousia):
 
     @property
@@ -142,9 +143,6 @@ class SchemaBase(metaclass=Schema):
                     p.pretty(val)
                 p.breakable()
 #         p.text('>')
-
-
-_Dat.register(Schema)
 
 
 ###############################################################################
