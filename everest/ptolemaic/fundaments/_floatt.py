@@ -69,7 +69,7 @@ class FloattSpace(_thing.ThingSpace):
 
 class _Floatt_(_Chora, FloattSpace, metaclass=_Sprite):
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         def retrieve_contains(self, incisor: float, /):
             return incisor
@@ -118,7 +118,7 @@ class FloattOpen(_Chora, FloattSpace, metaclass=_Schema):
 
     lower: Floatt
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         def retrieve_float(self, incisor: float, /):
             if incisor >= 0:
@@ -170,7 +170,7 @@ class FloattLimit(_Chora, FloattSpace, metaclass=_Schema):
 
     upper: Floatt
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         def retrieve_float(self, incisor: float, /):
             if incisor < 0:
@@ -213,7 +213,7 @@ class FloattClosed(_Chora, FloattSpace, metaclass=_Schema):
     lower: Floatt
     upper: Floatt
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         def retrieve_float(self, incisor: float, /):
             if incisor == 0:

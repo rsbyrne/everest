@@ -30,62 +30,65 @@ from everest.ptolemaic.armature import ArmatureProtocol as _ArmatureProtocol
 from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
-class ChoretDescriptor:
+# class ChoretDescriptor:
 
-    __slots__ = ('Choret',)
+#     __slots__ = ('Choret',)
 
-    def __init__(self, choret, /):
-        self.Choret = choret
+#     def __init__(self, choret, /):
+#         self.Choret = choret
 
-    def __get__(self, instance, owner=None, /):
-        return self.Choret(instance)
+#     def __get__(self, instance, owner=None, /):
+#         return self.Choret(instance)
 
-    @property
-    def __mroclass_basis__(self, /):
-        return self.Choret
-
-
-class ChoretMeta(_Sprite):
-
-    def __set_name__(cls, owner, name, /):
-        if not isinstance(owner, _Essence):
-            return
-        if name != '__incision_manager__':
-            return
-        cls.decorate(owner)
-
-    descriptor = property(ChoretDescriptor)
+#     @property
+#     def __mroclass_basis__(self, /):
+#         return self.Choret
 
 
-class Choret(metaclass=ChoretMeta):
+# class ChoretMeta(_Sprite):
+
+#     ...
+
+#     def __set_name__(cls, owner, name, /):
+#         if not isinstance(owner, _Essence):
+#             return
+#         if name != '__incision_manager__':
+#             return
+#         cls.decorate(owner)
+
+#     descriptor = property(ChoretDescriptor)
+
+
+class Choret(metaclass=_Sprite):
 
     BOUNDREQS = ()
 
     bound: object
 
-    @classmethod
-    def compatible(cls, ACls, /):
-        if not isinstance(ACls, _Essence):
-            return False
-        return True
+#     @classmethod
+#     def compatible(cls, ACls, /):
+#         if not isinstance(ACls, _Essence):
+#             return False
+#         return True
 
-    @classmethod
-    def decorate(cls, ACls, /):
-        if not cls.compatible(ACls):
-            raise TypeError(f"Type {ACls} incompatible with chora {cls}.")
-        if hasattr(cls, '__choret_decorate__'):
-            ACls.__choret_decorate__(cls)
-            return ACls
-        with ACls.mutable:
-            setattr(ACls, '__incision_manager__', cls.descriptor)
-            if not '__getitem__' in dir(ACls):
-                setattr(ACls, '__getitem__', _Incisable.__getitem__)
-            ACls._ptolemaic_choret_decorated_ = True
-        return ACls
+#     @classmethod
+#     def decorate(cls, ACls, /):
+#         if not cls.compatible(ACls):
+#             raise TypeError(f"Type {ACls} incompatible with chora {cls}.")
+#         if hasattr(cls, '__choret_decorate__'):
+#             ACls.__choret_decorate__(cls)
+#             return ACls
+#         with ACls.mutable:
+#             setattr(ACls, '__incision_manager__', cls.descriptor)
+#             if not '__getitem__' in dir(ACls):
+#                 setattr(ACls, '__getitem__', _Incisable.__getitem__)
+#             ACls._ptolemaic_choret_decorated_ = True
+#         return ACls
 
     def __incise__(self, incisor, /, *, caller):
         return _IncisionProtocol.FAIL(caller)(incisor)
@@ -98,15 +101,20 @@ class Choret(metaclass=ChoretMeta):
 #         return super().__subclasshook__(ACls)
 
 
+# @_Incisable.register
 class Chora(_Incisable, metaclass=_Essence):
     '''The `Chora` type is the Ptolemaic implementation '''
     '''of the Everest 'incision protocol'. '''
     '''`Chora` objects can be thought of as representing 'space' '''
     '''in both concrete and abstract ways.'''
 
-    MROCLASSES = ('__incision_manager__',)
+    MROCLASSES = ('__choret__',)
 
-    __incision_manager__ = Choret
+    __choret__ = Choret
+
+    @property
+    def __incision_manager__(self, /):
+        return self.__choret__(self)
 
     @property
     def __incise__(self, /):
@@ -124,8 +132,6 @@ class Chora(_Incisable, metaclass=_Essence):
 #     @classmethod
 #     def __init_subclass__(cls, /, *_, **__):
 #         raise TypeError("This class cannot be subclassed.")
-
-_Incisable.register(Chora)
 
 
 class TrivialException(Exception):
@@ -356,6 +362,10 @@ class Bounds:
 
     lower: object = None
     upper: object = None
+
+    def __iter__(self, /):
+        yield self.lower
+        yield self.upper
 
 
 class Sampleable(Basic):

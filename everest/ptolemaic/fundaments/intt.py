@@ -5,21 +5,19 @@
 
 import itertools as _itertools
 
-from everest.utilities import caching as _caching
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     )
 
-from everest.ptolemaic import thing as _thing
+from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.schema import Schema as _Schema
 from everest.ptolemaic.chora import (
     Chora as _Chora,
     Sampleable as _Sampleable,
-    Degenerate as _Degenerate,
     TrivialException as _TrivialException,
     )
-from everest.ptolemaic.schema import Schema as _Schema
-from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic import tuuple as _tuuple
+
+from everest.ptolemaic.fundaments.thing import Thing as _Thing
 
 
 def _nth(iterable, n):
@@ -32,93 +30,37 @@ def _nth(iterable, n):
 _OPINT = (type(None), int)
 
 
-class InttLike(_thing.ThingLike):
-
-    ...
+class Intt(_Thing):
 
 
-InttLike.register(int)
+    class Var(metaclass=_Essence):
+        _default = 0
 
 
-class InttGen(InttLike, _thing.ThingGen):
+    class Space(metaclass=_Essence):
 
-    ...
+        class __choret__(metaclass=_Essence):
 
+            def retrieve_contains(self, incisor: int, /):
+                return incisor
 
-class InttVar(InttLike, _thing.ThingVar):
-    _default = 0
+            def bounds_slyce_open(self, incisor: (int, type(None))):
+                return InttOpen(incisor.lower)
 
+            def bounds_slyce_limit(self, incisor: (type(None), int)):
+                return InttLimit(incisor.upper)
 
-class InttSpace(_thing.ThingSpace):
-
-    MemberType = InttLike
-
-    __incise_generic__ = property(InttGen)
-    __incise_variable__ = property(InttVar)
-
-    @property
-    def __armature_brace__(self, /):
-        return Cell
-
-#     @property
-#     def __incise_degenerate__(self, /):
-#         return InttDegenerate
+            def bounds_slyce_closed(self, incisor: (int, int)):
+                lower, upper = incisor
+                if upper <= lower:
+                    return InttNull
+                return InttClosed(lower, upper)
 
 
-# class InttDegenerate(InttSpace, _Degenerate):
-#     ...
+_ = Intt.register(int)
 
 
-class _Intt_(_Chora, InttSpace, metaclass=_Sprite):
-
-    class __incision_manager__(_Sampleable):
-
-        def retrieve_contains(self, incisor: int, /):
-            return incisor
-
-        def bounds_slyce_open(self, incisor: (int, type(None))):
-            return InttOpen(incisor.lower)
-
-        def bounds_slyce_limit(self, incisor: (type(None), int)):
-            return InttLimit(incisor.upper)
-
-        def bounds_slyce_closed(self, incisor: (int, int)):
-            lower, upper = incisor
-            if upper <= lower:
-                return InttNull
-            return InttClosed(lower, upper)
-
-    @property
-    def __incise_trivial__(self, /):
-        return Intt
-
-
-@InttSpace.register
-class InttMeta(_thing.ThingMeta):
-
-    @property
-    def __armature_brace__(self, /):
-        return Cell
-
-
-class Intt(_thing.Thing, metaclass=InttMeta):
-
-    __class_incision_manager__ = _Intt_()
-
-
-class _InttNull_(_thing._ThingNull_, _Intt_):
-
-    @property
-    def __incise_trivial__(self, /):
-        return InttNull
-
-
-class InttNull(Intt):
-
-    __class_incision_manager__ = _InttNull_()
-
-
-class InttOpen(_Chora, InttSpace, metaclass=_Schema):
+class InttOpen(_Chora, Intt.Oid, metaclass=_Schema):
 
     lower: Intt
     step: Intt = 1
@@ -130,7 +72,7 @@ class InttOpen(_Chora, InttSpace, metaclass=_Schema):
             raise ValueError
         return bound
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         def retrieve_int(self, incisor: int, /):
             if incisor >= 0:
@@ -170,25 +112,25 @@ class InttOpen(_Chora, InttSpace, metaclass=_Schema):
             upper = oldlower + upper
             return InttClosed(lower, upper, self.bound.step)
 
-    def __iter__(self, /):
+    def __incise_iter__(self, /):
         return _itertools.count(self.lower, self.step)
 
-    def __contains__(self, arg, /):
+    def __incise_contains__(self, arg, /):
         if not super().__contains__(arg):
             return False
         if arg < self.lower:
             return False
         return not (arg - self.lower) % self.step
 
-    def __includes__(self, arg, /):
+    def __incise_includes__(self, arg, /):
         raise NotImplementedError
 
 
-class InttLimit(_Chora, InttSpace, metaclass=_Schema):
+class InttLimit(_Chora, Intt.Oid, metaclass=_Schema):
 
     upper: Intt
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         def retrieve_int(self, incisor: int, /):
             if incisor < 0:
@@ -217,16 +159,16 @@ class InttLimit(_Chora, InttSpace, metaclass=_Schema):
                 return InttNull
             return InttClosed(lower, upper)
 
-    def __contains__(self, arg, /):
+    def __incise_contains__(self, arg, /):
         if not super().__contains__(arg):
             return False
         return arg < self.upper
 
-    def __includes__(self, arg, /):
+    def __incise_includes__(self, arg, /):
         raise NotImplementedError
 
 
-class InttClosed(_Chora, InttSpace, metaclass=_Schema):
+class InttClosed(_Chora, Intt.Oid, metaclass=_Schema):
 
     lower: Intt
     upper: Intt
@@ -238,7 +180,7 @@ class InttClosed(_Chora, InttSpace, metaclass=_Schema):
         super().__init__()
         self._rangeobj = range(self.lower, self.upper, self.step)
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         def retrieve_int(self, incisor: int, /):
             return self.bound._rangeobj[incisor]
@@ -255,96 +197,18 @@ class InttClosed(_Chora, InttSpace, metaclass=_Schema):
                 self.bound._ptolemaic_class__(start, stop, step)
                 )
 
-    def __iter__(self, /):
+    def __incise_iter__(self, /):
         return iter(self._rangeobj)
 
-    def __len__(self, /):
+    def __incise_length__(self, /):
         return len(self._rangeobj)
 
     @property
-    def __contains__(self, /):
+    def __incise_contains__(self, /):
         return self._rangeobj.__contains__
 
-    def __includes__(self, arg, /):
+    def __incise_includes__(self, arg, /):
         raise NotImplementedError
-
-
-class CellLike(_tuuple.TuupleLike):
-    ...
-
-
-class CellGen(CellLike, _tuuple.TuupleGen):
-    ...
-
-
-class CellVar(CellLike, _tuuple.TuupleVar):
-    ...
-
-
-class CellSpace(_tuuple.TuupleSpace):
-
-    contentspace = Intt
-
-    __incise_generic__ = property(CellGen)
-    __incise_variable__ = property(CellVar)
-
-    @property
-    def SymForm(self, /):
-        return SymGrid
-
-    @property
-    def AsymForm(self, /):
-        return AsymGrid
-
-    @property
-    def __incise_retrieve__(self, /):
-        return Cell
-
-
-class SymGrid(CellSpace, _tuuple.SymBrace):
-    ...
-
-
-class AsymGrid(CellSpace, _tuuple.AsymBrace):
-    ...
-
-
-class Grid(CellSpace, _tuuple.Brace):
-
-    chora: _Chora = Intt
-
-    @property
-    def __incise_trivial__(self, /):
-        return Cell if self.chora is Intt else self
-
-
-@CellSpace.register
-class CellMeta(_Sprite, _tuuple.TuupleMeta):
-
-    ...
-
-
-class Cell(_tuuple.Tuuple, metaclass=CellMeta):
-
-    __class_incision_manager__ = Grid()
-
-    content: tuple
-
-    @property
-    def __getitem__(self, /):
-        return self.content.__getitem__
-
-    @property
-    def __len__(self, /):
-        return self.content.__len__
-
-    @property
-    def __contains__(self, /):
-        return self.content.__contains__
-
-    @property
-    def __iter__(self, /):
-        return self.content.__iter__
 
 
 ###############################################################################

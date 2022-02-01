@@ -4,7 +4,10 @@
 
 
 from everest.primitive import Primitive as _Primitive
-from everest.incision import IncisionProtocol as _IncisionProtocol
+from everest.incision import (
+    IncisionProtocol as _IncisionProtocol,
+    IncisionHandler as _IncisionHandler,
+    )
 
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
@@ -24,19 +27,27 @@ from everest.ptolemaic.chora import (
 class Thing(metaclass=_Bythos):
 
 
-    MROCLASSES = (
-        'Var', 'Gen', 'Oid', 'Null', 'Space'
-        )
-
-
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
+        cls.MemberType = cls
+        cls._add_mroclass('Null')
+        cls._add_mroclass('Gen')
+        cls._add_mroclass('Var')
+        cls.__class_armature_generic__ = cls.Gen(cls)
+        cls.__class_armature_variable__ = cls.Var(cls)
+        Oid = cls._add_mroclass('Oid')
+        cls._add_mroclass('Space', (Oid,))
         cls.__class_incision_manager__ = cls.Space()
 
-    @classmethod
-    def __class_call__(cls, arg, /):
-        return arg
+
+    class Null(metaclass=_Bythos):
+
+        @classmethod
+        def __class_incise__(cls, incisor, /, *, caller):
+            if incisor is Ellipsis:
+                return _IncisionProtocol.TRIVIAL(caller)()
+            return _IncisionProtocol.FAIL(caller)(incisor)
 
 
     class Gen(_armature.Element, metaclass=_Sprite):
@@ -70,25 +81,25 @@ class Thing(metaclass=_Bythos):
             self._alt_setattr__('_value', self._default)
 
 
-    class Oid(metaclass=_Essence):
+    class Oid(_IncisionHandler, metaclass=_Essence):
 
         @classmethod
         def __class_init__(cls, /):
-            super().__class_init__()
             if 'owner' in cls.__dict__:
-                cls.MemberType = cls.owner
+                cls.MemberType = cls.owner.MemberType
                 cls.__armature_generic__ = property(cls.owner.Gen)
                 cls.__armature_variable__ = property(cls.owner.Var)
+            super().__class_init__()
 
         def __call__(self, arg, /):
             if arg in self:
                 return arg
             raise ValueError(arg)
 
-        def __contains__(self, arg, /) -> bool:
+        def __incise_contains__(self, arg, /) -> bool:
             return isinstance(arg, self.MemberType)
 
-        def __includes__(self, arg, /) -> bool:
+        def __incise_includes__(self, arg, /) -> bool:
             if isinstance(arg, _Degenerate):
                 return arg.value in self
             try:
@@ -105,31 +116,18 @@ class Thing(metaclass=_Bythos):
             return super().__instancecheck__(other)
 
 
-    class Null(metaclass=_Bythos):
-
-        @classmethod
-        def __class_incise__(cls, incisor, /, *, caller):
-            if incisor is Ellipsis:
-                return _IncisionProtocol.TRIVIAL(caller)()
-            return _IncisionProtocol.FAIL(caller)(incisor)
-
-
     class Space(_Chora, metaclass=_Sprite):
 
-        @classmethod
-        def __class_init__(cls, /):
-            if 'owner' in cls.__dict__:
-                cls.MemberType = cls.owner
-            super().__class_init__()
-
-        class __incision_manager__(_Sampleable):
+        class __choret__(_Sampleable):
 
             MemberType = _Null
 
             @classmethod
             def __class_init__(cls, /):
-                if 'owner' in cls.__dict__:
-                    cls.MemberType = cls.owner
+                try:
+                    cls.MemberType = cls.owner.MemberType
+                except AttributeError:
+                    pass
                 super().__class_init__()
 
             def retrieve_contains(self, incisor: '.MemberType', /):
@@ -140,6 +138,11 @@ class Thing(metaclass=_Bythos):
 
         def __incise_trivial__(self, /):
             return self.owner
+
+
+    @classmethod
+    def __class_call__(cls, arg, /):
+        return cls.__incision_manager__(arg)
 
 
 _ = Thing.register(_Primitive)

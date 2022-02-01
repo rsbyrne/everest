@@ -68,15 +68,11 @@ def expand_bases(bases):
     '''Expands any pseudoclasses from the input list of bases.'''
     seen = set()
     for base in bases:
-        if not isinstance(base, Essence):
+        if isinstance(base, Essence):
+            base = base._ptolemaic_class__
+        if base not in seen:
+            seen.add(base)
             yield base
-        elif getattr(base, '_ptolemaic_fuserclass_', False):
-            for subbase in expand_bases(base.__bases__):
-                if subbase not in seen:
-                    yield subbase
-                    seen.add(subbase)
-        else:
-            yield base._ptolemaic_class__
 
 
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
@@ -87,54 +83,61 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Implementing mroclasses:
 
-    def _process_mrobases(cls, bases, /):
-        for base in bases:
-            if isinstance(base, str):
-                if base.startswith('.'):
-                    attrnames = iter(base.strip('.').split('.'))
-                    base = cls
-                    for attrname in attrnames:
-                        base = getattr(base, attrname)
-                else:
-                    base = eval(base)
+    def _process_mrobase(cls, inh, /):
+        if isinstance(inh, str):
+            if inh.startswith('.'):
+                attrnames = iter(inh.strip('.').split('.'))
+                inh = cls
+                for attrname in attrnames:
+                    inh = getattr(inh, attrname)
             else:
-                base = getattr(base, '__mroclass_basis__', base)
-            yield base
+                inh = eval(inh)
+        else:
+            inh = getattr(inh, '__mroclass_basis__', inh)
+        if not isinstance(inh, Essence):
+            raise TypeError(inh)
+        return inh
 
-    def _make_mroclass(cls, name: str, /):
-        adjname = f'_mroclassbase_{name}__'
-#         fusename = f'_mroclassfused_{name}__'
-        if name in cls.__dict__:
-            setattr(cls, adjname, cls.__dict__[name])
+    def _make_mroclass(cls, name: str, bases = (), /):
         inhclasses = []
-        for mcls in cls.__mro__:
-            searchname = adjname if isinstance(mcls, Essence) else name
-            if searchname in mcls.__dict__:
-                if not (inhcls := mcls.__dict__[searchname]) in inhclasses:
-                    inhclasses.append(inhcls)
-        inhclasses = tuple(cls._process_mrobases(inhclasses))
+        try:
+            inh = cls.__dict__[name]
+        except KeyError:
+            pass
+        else:
+            inhclasses.append(cls._process_mrobase(inh))
+        for base in cls.__bases__:
+            if not isinstance(base, Essence):
+                continue
+            try:
+                inh = getattr(base, name)
+            except AttributeError:
+                continue
+            inh = cls._process_mrobase(inh)
+            if inh.__dict__.get('__mrofuserclass__', False):
+                inhs = inh.__bases__
+            else:
+                inhs = (inh,)
+            for inh in inhs:
+                if inh not in inhclasses:
+                    inhclasses.append(inh)
+        for base in bases:
+            if base not in inhclasses:
+                inhclasses.append(base)
         if not inhclasses:
-            return NotImplemented
-#         if len(inhclasses) == 1:
-#             return inhclasses[0]
-#         if all(issubclass(inhclasses[-1], inh) for inh in inhclasses[:-1]):
-#             return inhclasses[-1]
+            inhclasses.append(EssenceBase)
         return type(
             f"{cls.__name__}{name}",
-            inhclasses,
-            dict(
-                __slots__=(),
-                _ptolemaic_fuserclass_=True,
-                owner=cls,
-                ),
+            tuple(inhclasses),
+            dict(owner=cls, __mrofuserclass__=True),
             )
 
-    def _add_mroclass(cls, name: str, /):
-        out = cls._make_mroclass(name)
-        if out is not NotImplemented:
-            setattr(cls, name, out)
-            if hasattr(out, '__set_name__'):
-                out.__set_name__(cls, name)
+    def _add_mroclass(cls, name: str, /, *args, **kwargs):
+        out = cls._make_mroclass(name, *args, **kwargs)
+        setattr(cls, name, out)
+        if hasattr(out, '__set_name__'):
+            out.__set_name__(cls, name)
+        return out
 
     def _add_mroclasses(cls, /):
         for name in cls.MROCLASSES:
@@ -215,6 +218,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         if '__slots__' not in namespace:
             namespace['__slots__'] = ()
         meta.process_mergenames(name, bases, namespace)
+        for key, val in tuple(namespace['ADJNAMES'].items()):
+            try:
+                namespace[val] = namespace[key]
+            except KeyError:
+                pass
+            else:
+                del namespace[key]
         namespace['_clssoftcache'] = {}
         namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
         meta.process_annotations(name, bases, namespace)
@@ -267,18 +277,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __init__(cls, /, *args, **kwargs):
         with cls.mutable:
-            cls.__class_pre_init__(*args, **kwargs)
-            cls.__class_deep_init__()
+            _abc.ABCMeta.__init__(cls, *args, **kwargs)
             cls.__class_init__()
-
-    def __class_pre_init__(cls, /, *args, **kwargs):
-        _abc.ABCMeta.__init__(cls, *args, **kwargs)
-
-    def __class_deep_init__(cls, /):
-        cls._add_mroclasses()
-
-    def __class_init__(cls, /):
-        pass
+        assert not hasattr(cls, '__class_pre_init__'), cls
+        assert not hasattr(cls, '__class_deep_init__'), cls
 
     ### Implementing the attribute-freezing behaviour for classes:
 
@@ -405,10 +407,11 @@ _Dat.register(Essence)
 class EssenceBase(metaclass=Essence):
 
     MERGETUPLES = ('MROCLASSES',)
+    MERGEDICTS = ('ADJNAMES',)
 
     @classmethod
     def __class_init__(cls, /):
-        pass
+        cls._add_mroclasses()
 
 
 ###############################################################################

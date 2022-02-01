@@ -15,15 +15,22 @@ class Bythos(_Essence):
 
     @property
     def __contains__(cls, /):
-        return cls.__class_contains__
+        return _IncisionProtocol.CONTAINS(cls)
 
     @property
     def __includes__(cls, /):
-        return cls.__class_includes__
+        return _IncisionProtocol.INCLUDES(cls)
+
+    @property
+    def __len__(cls, /):
+        return _IncisionProtocol.LENGTH(cls)
+
+    def __bool__(cls, /):
+        return True
 
     @property
     def __iter__(cls, /):
-        return cls.__class_iter__
+        return _IncisionProtocol.ITER(cls)
 
     ### Incision protocol:
 
@@ -51,6 +58,26 @@ class Bythos(_Essence):
     def __incise_fail__(cls, /):
         return cls.__class_incise_fail__
 
+    @property
+    def __incise_degenerate__(cls, /):
+        return cls.__class_incise_degenerate__
+
+    @property
+    def __incise_contains__(cls, /):
+        return cls.__class_incise_contains__
+
+    @property
+    def __incise_includes__(cls, /):
+        return cls.__class_incise_includes__
+
+    @property
+    def __incise_length__(cls, /):
+        return cls.__class_incise_length__
+
+    @property
+    def __incise_iter__(cls, /):
+        return cls.__class_incise_iter__
+
     ### Armature protocol:
 
     @property
@@ -65,25 +92,17 @@ class Bythos(_Essence):
     def __armature_variable__(cls, /):
         return cls.__class_armature_variable__
 
-    ### Class init:
-
-    def __class_deep_init__(cls, /, *args, **kwargs):
-        super().__class_deep_init__(*args, **kwargs)
-        cls.__class_incise_trivial__ = lambda: cls
-
 
 class BythosBase(metaclass=Bythos):
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.__class_incise_trivial__ = lambda: cls
 
     # Doesn't need to be decorated with classmethod for some reason:
     def __class_getitem__(cls, arg, /):
         return _IncisionProtocol.INCISE(cls)(arg, caller=cls)
-
-    __class_incise_retrieve__ = \
-        classmethod(_IncisionHandler.__incise_retrieve__)
-    __class_incise_slyce__ = \
-        classmethod(_IncisionHandler.__incise_slyce__)
-    __class_incise_fail__ = \
-        classmethod(_IncisionHandler.__incise_fail__)        
 
 
 ###############################################################################

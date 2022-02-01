@@ -32,7 +32,7 @@ from everest.ptolemaic.chora import (
     )
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.diict import Diict as _Diict
-from everest.ptolemaic.thing import Thing as _Thing
+from everest.ptolemaic.fundaments.thing import Thing as _Thing
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 
@@ -347,7 +347,7 @@ class Sig(_Chora, metaclass=_Sprite):
     def keys(self, /):
         return tuple(self.sigfields)
 
-    __incision_manager__ = _Multi
+    __choret__ = _Multi
 
     def __incise__(self, incisor, /, *, caller):
         if isinstance(incisor, Params):
@@ -423,27 +423,15 @@ class Sig(_Chora, metaclass=_Sprite):
             if name not in self.degenerates
             )
 
-#     def __incise_slyce__(self, chora, /):
-#         assert isinstance(chora, _MultiMap)
-#         fields = {
-#             key: Field(field.kind, cho, field.value)
-#             for ((key, field), cho) in zip(self.choras.items(), chora.choras)
-#             }
-#         return self._ptolemaic_class__(chora, fields)
-
     def __incise_retrieve__(self, incisor: tuple, /):
         bound = self.signature.bind_partial()
         bound.arguments.update(zip(self.sigfields, incisor))
         bound.arguments.update(self.degenerates)
         bound.apply_defaults()
-        out = Params(bound)
-#         if out not in self:
-#             raise Exception
-        return out
+        return Params(bound)
 
     def __call__(self, /, *args, **kwargs):
-        effbound = self.effsignature.bind(*args, **kwargs)
-        return self.__incise_retrieve__(effbound.arguments)
+        return Params(self.effsignature.bind(*args, **kwargs))
 
     def __contains__(self, params: Params) -> bool:
         fields = self.sigfields

@@ -58,7 +58,7 @@ def get_fields(ACls, /):
         except IndexError:
             out[key] = _empty
     if any(hasattr(ACls, key) for key in out):
-        raise TypeError("Field clashes detected!")
+        raise TypeError("Field clashes detected!", out)
     return out, defaults
 
 
@@ -68,21 +68,18 @@ class Sprite(_Ousia):
     def __signature__(cls, /):
         return cls._signature_
 
-    def __class_deep_init__(cls, /, *args, **kwargs):
-        super().__class_deep_init__(*args, **kwargs)
-        hints, defaults = cls.hints, cls.defaults = get_fields(cls)
-        cls._signature_ = _Signature(_Parameter(
-            key, 1, default=defaults.get(key, _empty), annotation=hints[key]
-            ) for key in hints)
-
-    @property
-    def __call__(cls, /):
-        return cls.__class_call__
-
 
 class SpriteBase(metaclass=Sprite):
 
     _req_slots__ = ('params',)
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        hints, defaults = cls.hints, cls.defaults = get_fields(cls)
+        cls._signature_ = _Signature(_Parameter(
+            key, 1, default=defaults.get(key, _empty), annotation=hints[key]
+            ) for key in hints)
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):

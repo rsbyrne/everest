@@ -12,39 +12,26 @@ import inspect as _inspect
 
 from everest.utilities import caching as _caching, reseed as _reseed
 from everest.ur import Dat as _Dat
+from everest.incision import IncisionProtocol as _IncisionProtocol
 
-from everest.ptolemaic.tekton import Tekton as _Tekton, TektOid as _TektOid
+from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.tekton import Tekton as _Tekton
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.chora import Chora as _Chora
 from everest.ptolemaic.sig import (Params as _Params, Param as _Param)
 from everest.ptolemaic import exceptions as _exceptions
 
 
-class SchemOid(_TektOid):
-
-    def __incise_retrieve__(self, params: _Params, /) -> 'Concrete':
-        obj = object.__new__(self.subject.Concrete)
-        obj.params = params
-        obj.__init__()
-        obj.freezeattr.toggle(True)
-        return obj
-
-
 @_Dat.register
 class Schema(_Tekton, _Ousia):
 
     @property
+    def __call__(cls, /):
+        return cls.__class_call__
+
+    @property
     def __construct__(cls, /):
         return cls
-
-    def __call__(cls, /, *args, **kwargs):
-        params = _Params(cls.parameterise(cache := {}, *args, **kwargs))
-        cls.check_params(params)
-        obj = cls.__incise_retrieve__(params)
-        obj.softcache.update(cache)
-        return obj
-
-    Oid = SchemOid
 
 
 class SchemaBase(metaclass=Schema):
@@ -52,6 +39,28 @@ class SchemaBase(metaclass=Schema):
     _req_slots__ = ('params',)
 
     CACHE = False
+
+    class Oid(metaclass=_Essence):
+
+        @property
+        def __incise_retrieve__(self, /):
+            return self.subject.instantiate
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        params = _Params(cls.parameterise(cache := {}, *args, **kwargs))
+        cls.check_params(params)
+        obj = cls.instantiate(params)
+        obj.softcache.update(cache)
+        return obj
+
+    @classmethod
+    def instantiate(cls, params, /):
+        obj = object.__new__(cls.Concrete)
+        obj.params = params
+        obj.__init__()
+        obj.freezeattr.toggle(True)
+        return obj
 
     @classmethod
     def pre_create_concrete(cls, /):
@@ -65,7 +74,7 @@ class SchemaBase(metaclass=Schema):
 
     @classmethod
     def __class_incise_slyce__(cls, sig, /):
-        return Schemoid(cls, sig)
+        return cls.Oid(cls, sig)
 
     @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):

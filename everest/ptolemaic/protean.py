@@ -15,8 +15,7 @@ from everest.ptolemaic.ousia import Ousia as _Ousia
 
 class Protean(_Ousia):
 
-    @classmethod
-    def __class_call__(cls, basis: object, /):
+    def __call__(cls, basis: object, /):
         obj = object.__new__(cls.Concrete)
         obj.basis = basis
         obj.__init__()
@@ -24,6 +23,7 @@ class Protean(_Ousia):
         return obj
 
 
+@_Var.register
 class ProteanBase(metaclass=Protean):
 
     MERGETUPLES = ('_var_slots__',)
@@ -91,9 +91,6 @@ class ProteanBase(metaclass=Protean):
                         p.pretty(val)
                     p.breakable()
 #         p.text('>')
-
-
-_Var.register(ProteanBase)
 
 
 ###############################################################################

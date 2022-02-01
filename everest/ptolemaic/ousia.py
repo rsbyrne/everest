@@ -35,9 +35,6 @@ class ConcreteMeta:
             raise TypeError("Cannot subclass a Concrete type.")
         return super().__class_construct__(*basecls.pre_create_concrete())
 
-    def __class_deep_init__(cls, /):
-        pass
-
     @property
     def _ptolemaic_class__(cls, /):
         return cls._basecls
@@ -83,12 +80,6 @@ class Ousia(_Essence):
                 out = cls._Concrete = cls.ConcreteMeta(cls)
             return out
 
-    def __call__(cls, /, *args, **kwargs):
-        obj = object.__new__(cls.Concrete)
-        obj.__init__(*args, **kwargs)
-        obj.freezeattr.toggle(True)
-        return obj
-
 #     ConcreteAbstract = ConcreteAbstract
 
 
@@ -104,41 +95,24 @@ class OusiaBase(metaclass=Ousia):
     def __new__(cls, /, *_, **__):
         raise TypeError
 
-#     @classmethod
-#     def __choret_decorate__(cls, choret, /):
-#         if '_Concrete' in cls.__dict__:
-#             raise TypeError(f"Too late to decorate class! {cls}, {choret}")
-#         with cls.mutable:
-#             cls.Choret = choret
-#             cls._ptolemaic_choret_decorated_ = True
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        obj = object.__new__(cls.Concrete)
+        obj.__init__(*args, **kwargs)
+        obj.freezeattr.toggle(True)
+        return obj
 
     ### Configuring the concrete class:
 
     @classmethod
     def pre_create_concrete(cls, /):
-
         name = f"Concrete_{cls._ptolemaic_class__.__name__}"
-
-        bases = [cls,]
-#         if getattr(cls, '_ptolemaic_choret_decorated_', False):
-#             bases.append(_IncisionHandler)
-        bases = tuple(bases)
-
-        slots = tuple(
-            name for name in cls._req_slots__
-            if not hasattr(cls, name)
-            )
-
+        bases = (cls,)
         namespace = dict(
             __slots__=cls._req_slots__,
             _basecls=cls,
             __class_init__=lambda: None,
             )
-#         if getattr(cls, '_ptolemaic_choret_decorated_', False):
-#             namespace.update(
-#                 cls.__dict__['__incision_manager__'].decoratemeths
-#                 )
-
         return name, bases, namespace
 
     ### Managing the instance cache:

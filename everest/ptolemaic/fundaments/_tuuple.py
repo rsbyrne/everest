@@ -6,7 +6,6 @@
 import itertools as _itertools
 from collections import abc as _collabc
 
-from everest.utilities import caching as _caching
 from everest.incision import IncisionProtocol as _IncisionProtocol
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -16,7 +15,6 @@ from everest.ptolemaic.chora import (
     Chora as _Chora,
     Multi as _Multi,
     Sampleable as _Sampleable,
-    Degenerate as _Degenerate,
     )
 
 
@@ -89,7 +87,7 @@ class SymBrace(FiniteBrace):
     def choras(self, /):
         return tuple(_itertools.repeat(self.chora, self.depth))
 
-    __incision_manager__ = _Multi
+    __choret__ = _Multi
 
     @property
     def __contains__(self, /):
@@ -128,7 +126,7 @@ class AsymBrace(FiniteBrace):
         if not all(map(self.contentspace.__includes__, self.choras)):
             raise TypeError(self.choras)
 
-    __incision_manager__ = _Multi
+    __choret__ = _Multi
 
     @property
     def depth(self, /):
@@ -143,7 +141,7 @@ class Brace(_Chora, TuupleSpace, metaclass=_Sprite):
 
     chora: _Chora = _thing.Thing
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         @property
         def chora(self, /):

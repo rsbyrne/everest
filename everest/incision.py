@@ -34,12 +34,11 @@ class IncisionProtocol(_Protocol):
 
     # Optional:
 
-#     GENERIC = ('__incise_generic__', False)
-#     VARIABLE = ('__incise_variable__', False)
     DEGENERATE = ('__incise_degenerate__', False)
-#     CONTAINS = '__contains__'
-#     LEN = '__len__'
-#     ITER = '__iter__'
+    CONTAINS = ('__incise_contains__', False)
+    INCLUDES = ('__incise_includes__', False)
+    LENGTH = ('__incise_length__', False)
+    ITER = ('__incise_iter__', False)
 
     @classmethod
     def defer(cls, obj, /):
@@ -66,6 +65,18 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
         if isinstance(message, Exception):
             raise IncisorTypeException(incisor, self) from message
         raise IncisorTypeException(incisor, self, message)
+
+    @property
+    def __contains__(self, /):
+        return self.__incise_contains__
+
+    @property
+    def __len__(self, /):
+        return self.__incise_length__
+
+    @property
+    def __iter__(self, /):
+        return self.__incise_iter__
 
     @classmethod
     def __subclasshook__(cls, ACls):
@@ -114,7 +125,7 @@ class IncisionChain(Incisable):
             )
 
     def __incise_trivial__(self, /):
-        return IncisionProtocol.TRIVIAL(self.incisables[-1])
+        return IncisionProtocol.TRIVIAL(self.incisables[-1])()
 
     def __incise_slyce__(self, incisor, /):
         for obj in self.incisables:

@@ -93,7 +93,7 @@ class ThingSpace(metaclass=_Essence):
 
 class _Thing_(_Chora, ThingSpace, metaclass=_Sprite):
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         MemberType = ThingLike
 
@@ -135,7 +135,7 @@ class Thing(metaclass=ThingMeta):
 
 class _ThingNull_(_Thing_):
 
-    class __incision_manager__:
+    class __choret__:
 
         def retrieve_contains(self, incisor: _Null):
             pass
