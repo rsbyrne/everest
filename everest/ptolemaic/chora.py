@@ -245,10 +245,36 @@ class Basic(Choret):
            )
 
     @classmethod
+    def process_hint(cls, hint, /):
+        if isinstance(hint, str):
+            if hint.startswith('.'):
+                attrnames = iter(hint.strip('.').split('.'))
+                hint = cls
+                for attrname in attrnames:
+                    try:
+                        hint = getattr(hint, attrname)
+                    except AttributeError:
+                        return Null
+                return hint
+            else:
+                raise TypeError(hint)
+        elif isinstance(hint, tuple):
+            return tuple(map(cls.process_hint, hint))
+        elif isinstance(hint, _Epitaph):
+            return cls.process_hint(hint.decode())
+        return hint
+
+    @classmethod
+    def process_multihint(cls, hint, /):
+        return tuple[cls.process_hint(hint)]
+
+    @classmethod
     def _yield_getmeths(cls, /,
             preprefix='', defaultwrap=(lambda x: x),
-            hintprocess=(lambda x: x), 
+            hintprocess=None, 
             ):
+        if hintprocess is None:
+            hintprocess = cls.process_hint
         methnames = getattr(cls, preprefix + 'getmethnames')
         seen = set()
         for prefix, deq in methnames.items():
@@ -257,18 +283,7 @@ class Basic(Choret):
             wrap = WRAPMETHS.get(prefix, defaultwrap)
             for name in deq:
                 meth = getattr(cls, name)
-                hint = meth.__annotations__.get('incisor', cls)
-                if isinstance(hint, str):
-                    if hint.startswith('.'):
-                        attrnames = iter(hint.strip('.').split('.'))
-                        hint = cls
-                        for attrname in attrnames:
-                            hint = getattr(hint, attrname)
-                    else:
-                        hint = eval(hint)
-                elif isinstance(hint, _Epitaph):
-                    hint = hint.decode()
-                hint = hintprocess(hint)
+                hint = hintprocess(meth.__annotations__.get('incisor', cls))
                 if hint not in seen:
                     yield hint, wrap(meth)
                     seen.add(hint)
@@ -345,7 +360,7 @@ class Sliceable(Basic):
         cls.update_getmeth_names('slice')
         cls.slicegetmeths = _TypeMap(cls._yield_getmeths(
             'slice',
-            hintprocess=tuple.__class_getitem__,
+            hintprocess=cls.process_multihint,
             ))
 
 
@@ -406,7 +421,7 @@ class Sampleable(Basic):
         cls.update_getmeth_names('bounds')
         cls.boundsgetmeths = _TypeMap(cls._yield_getmeths(
             'bounds',
-            hintprocess=tuple.__class_getitem__,
+            hintprocess=cls.process_multihint,
             ))
         cls.update_getmeth_names('sample')
         cls.samplegetmeths = _TypeMap(cls._yield_getmeths('sample'))

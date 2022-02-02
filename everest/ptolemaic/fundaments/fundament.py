@@ -105,14 +105,6 @@ class Fundament(metaclass=_Essence):
         def __incise_retrieve__(self, /):
             return self.MemberType.__incise_retrieve__
 
-        @classmethod
-        def __instancecheck__(cls, other, /):
-            owner = cls.owner
-            if cls is owner.Oid:
-                if other is owner:
-                    return True
-            return super().__instancecheck__(other)
-
         def __call__(self, arg, /):
             if arg in self:
                 return self.__incise_retrieve__(arg)
@@ -123,20 +115,10 @@ class Fundament(metaclass=_Essence):
 
         class __choret__(_Sampleable):
 
-            @classmethod
-            def __class_init__(cls, /):
-                try:
-                    typ = cls.owner.MemberType
-                except AttributeError:
-                    typ = _Null
-                cls.MemberType = typ
-                super().__class_init__()
-
-            def retrieve_contains(self, incisor: '.MemberType', /):
-                return incisor
-
-            def sample_slyce_chora(self, incisor: _Chora, /):
-                return incisor
+            def retrieve_contains(self, incisor: '.owner.MemberType', /):
+                if incisor in self.bound:
+                    return incisor
+                raise ValueError(incisor)
 
         def __incise_trivial__(self, /):
             return self.owner

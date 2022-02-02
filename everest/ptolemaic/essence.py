@@ -124,21 +124,27 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             inh = cls._process_mrobase(inh)
             if inh not in inhclasses:
                 inhclasses.append(inh)
-        if not inhclasses:
-            inhclasses.append(EssenceBase)
         outname = f"{cls.__name__}{name}"
-        if len(inhclasses) == 1:
-            basis = inhclasses[0]
-        else:
-            basis = type(
-                f"{name}_FusedUnder_{cls.__name__}",
-                tuple(inhclasses),
-                {},
+        if inhclasses:
+            if len(inhclasses) == 1:
+                basis = inhclasses[0]
+            else:
+                basis = type(
+                    f"{name}_FusedUnder_{cls.__name__}",
+                    tuple(inhclasses),
+                    {},
+                    )
+            return type(
+                f"{cls.__name__}{name}",
+                (basis, *bases),
+                dict(owner=cls, __mroclass_basis__=basis),
                 )
+        if not any(isinstance(base, Essence) for base in bases):
+            bases = (*bases, EssenceBase)
         return type(
             f"{cls.__name__}{name}",
-            (basis, *bases),
-            dict(owner=cls, __mroclass_basis__=basis),
+            bases,
+            dict(owner=cls),
             )
 
     def _add_mroclass(cls, name: str, /, *args, **kwargs):
@@ -287,9 +293,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __init__(cls, /, *args, **kwargs):
         with cls.mutable:
             _abc.ABCMeta.__init__(cls, *args, **kwargs)
+            ns = _types.SimpleNamespace()
+            ns.cls = cls
+            cls.delayed_eval(ns)
+            for name, val in ns.__dict__.items():
+                if val is not ns:
+                    setattr(cls, name, val)
             cls.__class_init__()
-        assert not hasattr(cls, '__class_pre_init__'), cls
-        assert not hasattr(cls, '__class_deep_init__'), cls
 
     ### Implementing the attribute-freezing behaviour for classes:
 
@@ -421,6 +431,10 @@ class EssenceBase(metaclass=Essence):
     @classmethod
     def __class_init__(cls, /):
         cls._add_mroclasses()
+
+    @classmethod
+    def delayed_eval(cls, namespace: _types.SimpleNamespace, /):
+        pass
 
 
 ###############################################################################

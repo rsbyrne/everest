@@ -11,20 +11,20 @@ import types as _types
 from scipy.integrate import solve_ivp as _solve_ivp
 import numpy as _np
 
-from everest.incision import ChainIncisable as _ChainIncisable
+from everest.incision import (
+    IncisionProtocol as _IncisionProtocol,
+    ChainIncisable as _ChainIncisable,
+    )
 
 from everest.ptolemaic.schema import Schema as _Schema
 from everest.ptolemaic.sig import Field as _Field
-from everest.ptolemaic.thing import Thing as _Thing
-from everest.ptolemaic.tuuple import Tuuple as _Tuuple
-from everest.ptolemaic.floatt import (
-    Floatt as _Floatt,
-    FloattClosed as _FloattClosed,
-    )
 from everest.ptolemaic.chora import (
     Chora as _Chora,
     Sampleable as _Sampleable,
     )
+
+from everest.ptolemaic.fundaments.floatt import Floatt as _Floatt
+from everest.ptolemaic.fundaments.thing import Thing as _Thing
 
 
 class ODEModel(_Schema):
@@ -42,7 +42,7 @@ class ODEModel(_Schema):
             odedefaults[name] = parameter.default
         statespace = (
             getattr(obj, '__annotations__', {})
-            .get('state', _Tuuple)
+            .get('state', _Thing.Brace)
             )
         ns = dict(
             odeparams=_types.MappingProxyType(odeparams),
@@ -60,8 +60,8 @@ class ODEModel(_Schema):
 class ODEModelBase(_Chora, metaclass=ODEModel):
 
     @property
-    def __contains__(self, /):
-        return self.statespace.__contains__
+    def __incise_contains__(self, /):
+        return _IncisionProtocol.CONTAINS(self.statespace)
 
     @_abc.abstractmethod
     def __call__(self, t, state: _Thing, /):
@@ -74,7 +74,7 @@ class ODEModelBase(_Chora, metaclass=ODEModel):
     def traverse(self, initial, interval, /):
         return self.line(initial).traverse(interval)
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         def bounds_slyce_open(self, incisor: (object, type(None)), /):
             return self.bound.line(incisor.lower)
@@ -89,16 +89,19 @@ class ODELine(_Chora, metaclass=_Schema):
     initial: _Field.POS[_Thing]
 
     @classmethod
-    def check_params(cls, params, /):
-        super().check_params(params)
-        if params.initial not in params.basis:
-            raise cls.paramexc(params.initial)
+    def parameterise(cls, cache, /, *args, **kwargs):
+        bound = super().parameterise(cache, *args, **kwargs)
+        basis, initial = bound.arguments['basis'], bound.arguments['initial']
+        statespace = basis.statespace
+        if not isinstance(initial, statespace.MemberType):
+            bound.arguments['initial'] = statespace[initial]
+        return bound
 
     @property
     def traverse(self, /):
         return _functools.partial(ODETraverse, self)
 
-    class __incision_manager__(_Sampleable):
+    class __choret__(_Sampleable):
 
         def bounds_slyce_closed(self, incisor: (object, object), /):
             return self.traverse(incisor.lower, incisor.upper)
@@ -107,14 +110,14 @@ class ODELine(_Chora, metaclass=_Schema):
 class ODETraverse(_ChainIncisable, metaclass=_Schema):
 
     line: _Field.POS[ODELine]
-    interval: _Field.POS[_FloattClosed]
+    interval: _Field.POS[_Floatt.Closed]
     freq: _Field.KW[_Floatt[1e-12:]] = 0.01
 
     @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):
         bound = super().parameterise(cache, *args, **kwargs)
         if isinstance((val := bound.arguments['interval']), tuple):
-            bound.arguments['interval'] = _FloattClosed(*val)
+            bound.arguments['interval'] = _Floatt.Closed(*val)
         return bound
 
     @property

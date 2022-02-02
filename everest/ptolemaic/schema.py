@@ -69,8 +69,8 @@ class SchemaBase(metaclass=Schema):
         return name, bases, namespace
 
     @classmethod
-    def paramexc(cls, /, *params, message=None):
-        return _exceptions.ParameterisationException(params, cls, message)
+    def paramexc(cls, /, *args, message=None, **kwargs):
+        return _exceptions.ParameterisationException((args, kwargs), cls, message)
 
     @classmethod
     def __class_incise_slyce__(cls, sig, /):

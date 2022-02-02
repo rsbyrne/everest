@@ -113,7 +113,7 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
 
         @property
         def validate_contents(self, /):
-            return _IncisionProtocol.CONTAINS(self.incision_manager)
+            return _IncisionProtocol.CONTAINS(self.__incision_manager__)
 
 
     class AsymForm(_Chora, metaclass=_Sprite):
@@ -156,7 +156,7 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
 
         @property
         def validate_contents(self, /):
-            return _IncisionProtocol.CONTAINS(self.incision_manager)
+            return _IncisionProtocol.CONTAINS(self.__incision_manager__)
 
 
     class Space(metaclass=_Sprite):

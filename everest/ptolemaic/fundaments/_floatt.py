@@ -22,13 +22,6 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic import tuuple as _tuuple
 
 
-def _nth(iterable, n):
-    try:
-        return next(_itertools.islice(iterable, n, None))
-    except StopIteration:
-        raise IndexError(n)
-
-
 _OPINT = (type(None), float)
 
 
