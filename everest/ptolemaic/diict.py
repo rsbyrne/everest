@@ -5,15 +5,23 @@
 
 import types as _types
 
-from everest.utilities import classtools as _classtools
-
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
 
-@_classtools.add_defer_meths('content', like=dict)
 class Diict(metaclass=_Sprite):
 
     content: dict = {}
+
+    for name in (
+            '__getitem__', '__len__', '__iter__', '__contains__',
+            'keys', 'values', 'items',
+            ):
+        exec('\n'.join((
+            f'@property',
+            f'def {name}(self, /):',
+            f'    return self.content.{name}',
+            )))
+    del name
 
     @classmethod
     def __class_call__(cls, arg=None, /, **kwargs):

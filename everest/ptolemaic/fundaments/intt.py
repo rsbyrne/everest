@@ -10,6 +10,7 @@ from everest.incision import (
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.schema import Schema as _Schema
 from everest.ptolemaic.chora import (
     Chora as _Chora,
@@ -37,6 +38,10 @@ class Intt(_Thing):
         _default = 0
 
 
+    class Oid(metaclass=_Essence):
+        ...
+
+
     class Space(metaclass=_Essence):
 
         class __choret__(metaclass=_Essence):
@@ -55,6 +60,21 @@ class Intt(_Thing):
                 if upper <= lower:
                     return InttNull
                 return InttClosed(lower, upper)
+
+
+    class Brace(metaclass=_Sprite):
+
+        content: tuple = ()
+
+        for name in ('__getitem__', '__len__', '__iter__', '__contains__'):
+            exec('\n'.join((
+                f'@property',
+                f'def {name}(self, /):',
+                f'    return self.content.{name}',
+                )))
+        del name
+
+        __class_incise_retrieve__ = classmethod(_Sprite.BaseTyp.__class_call__.__func__)
 
 
 _ = Intt.register(int)

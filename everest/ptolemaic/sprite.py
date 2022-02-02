@@ -16,6 +16,7 @@ from everest.utilities import (
 from everest.ur import Dat as _Dat
 
 from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic.bythos import Bythos as _Bythos
 
 
 def collect_fields_mro(
@@ -62,7 +63,7 @@ def get_fields(ACls, /):
     return out, defaults
 
 
-class Sprite(_Ousia):
+class Sprite(_Ousia, _Bythos):
 
     @property
     def __signature__(cls, /):

@@ -92,20 +92,25 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                     inh = getattr(inh, attrname)
             else:
                 inh = eval(inh)
+        if isinstance(inh, type):
+            inh = inh.__dict__.get('__mroclass_basis__', inh)
         else:
-            inh = getattr(inh, '__mroclass_basis__', inh)
+            try:
+                inh = getattr(inh, '__mroclass_basis__')
+            except AttributeError:
+                raise TypeError
         if not isinstance(inh, Essence):
-            raise TypeError(inh)
+            raise TypeError
         return inh
 
-    def _make_mroclass(cls, name: str, bases = (), /):
-        inhclasses = []
+    def _make_mroclass(cls, name: str, bases=(), /):
+        candidates = []
         try:
             inh = cls.__dict__[name]
         except KeyError:
             pass
         else:
-            inhclasses.append(cls._process_mrobase(inh))
+            candidates.append(cls._process_mrobase(inh))
         for base in cls.__bases__:
             if not isinstance(base, Essence):
                 continue
@@ -113,23 +118,27 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 inh = getattr(base, name)
             except AttributeError:
                 continue
+            candidates.append(inh)
+        inhclasses = []
+        for inh in candidates:
             inh = cls._process_mrobase(inh)
-            if inh.__dict__.get('__mrofuserclass__', False):
-                inhs = inh.__bases__
-            else:
-                inhs = (inh,)
-            for inh in inhs:
-                if inh not in inhclasses:
-                    inhclasses.append(inh)
-        for base in bases:
-            if base not in inhclasses:
-                inhclasses.append(base)
+            if inh not in inhclasses:
+                inhclasses.append(inh)
         if not inhclasses:
             inhclasses.append(EssenceBase)
+        outname = f"{cls.__name__}{name}"
+        if len(inhclasses) == 1:
+            basis = inhclasses[0]
+        else:
+            basis = type(
+                f"{name}_FusedUnder_{cls.__name__}",
+                tuple(inhclasses),
+                {},
+                )
         return type(
             f"{cls.__name__}{name}",
-            tuple(inhclasses),
-            dict(owner=cls, __mrofuserclass__=True),
+            (basis, *bases),
+            dict(owner=cls, __mroclass_basis__=basis),
             )
 
     def _add_mroclass(cls, name: str, /, *args, **kwargs):
@@ -371,7 +380,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Representations:
 
     def __class_repr__(cls, /):
-        return f"<{type(cls).__name__}:{cls.__name__}>"
+        return f"<{type(cls).__name__}:{cls.__qualname__}>"
 
     def __class_str__(cls, /):
         return cls.__name__

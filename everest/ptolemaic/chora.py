@@ -541,7 +541,7 @@ class Multi(Basic):
         meth = self.yield_sequence_multiincise
         return self._handle_generic(incisor, caller=caller, meth=meth)
 
-    def __contains__(self, arg, /):
+    def __incise_contains__(self, arg, /):
         choras = self.bound.choras
         if len(arg) > len(choras):
             return False

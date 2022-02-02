@@ -250,13 +250,23 @@ class DegenerateField(_Degenerate, _FullField_, metaclass=_Sprite):
         return super().__class_call__(kind, hint, value)
 
 
-@_classtools.add_defer_meths('arguments', like=dict)
 class Params(metaclass=_Sprite):
 
     nargs: int = 0
     arguments: _Diict = _Diict()
 
     _req_slots__ = ('__dict__',)
+
+    for name in (
+            '__getitem__', '__len__', '__iter__', '__contains__',
+            'keys', 'values', 'items',
+            ):
+        exec('\n'.join((
+            f'@property',
+            f'def {name}(self, /):',
+            f'    return self.arguments.content.{name}',
+            )))
+    del name
 
     def __init__(self, /):
         self.__dict__.update(self.arguments)

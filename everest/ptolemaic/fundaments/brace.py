@@ -9,37 +9,50 @@ from collections import abc as _collabc
 from everest.incision import IncisionProtocol as _IncisionProtocol
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.fundaments.thing import Thing as _Thing
-from everest.ptolemaic.armature import ArmatureProtocol as _ArmatureProtocol
+from everest.ptolemaic.armature import (
+    ArmatureProtocol as _ArmatureProtocol,
+    Brace as _Brace,
+    )
 from everest.ptolemaic.chora import (
     Chora as _Chora,
     Multi as _Multi,
     Sampleable as _Sampleable,
     )
 
+from everest.ptolemaic.fundaments.fundament import Fundament as _Fundament
 
-class Brace(_Thing):
 
+class Brace(_Fundament, _Brace, metaclass=_Bythos):
+
+
+#     SubmemberType = None
 
     @classmethod
     def __class_init__(cls, /):
+        try:
+            owner = cls.owner
+        except AttributeError:
+            owner = None
+        cls.SubmemberType = owner
         super().__class_init__()
         cls._add_mroclass('SymForm', (cls.Oid,))
         cls._add_mroclass('AsymForm', (cls.Oid,))
+        with (Oid := cls.Oid).mutable:
+            Oid.SubmemberType = cls.SubmemberType
+
+
+    @classmethod
+    def make_class_incision_manager(cls, /):
+        return cls.Space(cls.SubmemberType)
 
 
     class Oid(metaclass=_Essence):
 
-        SubmemberType = _Thing
-
-        def __incise_contains__(self, arg, /):
-            if super().__incise_contains__(arg):
-                return all(map(
-                    _IncisionProtocol.CONTAINS(self.SubmemberType),  # Should this be 'includes'?
-                    arg,
-                    ))
-            return False
+        @property
+        def __incise_retrieve__(self, /):
+            return _IncisionProtocol.RETRIEVE(self.MemberType)
 
         @property
         def SymForm(self, /):
@@ -49,10 +62,27 @@ class Brace(_Thing):
         def AsymForm(self, /):
             return self.MemberType.AsymForm
 
+        def validate_contents(self, arg, /):
+            try:
+                it = iter(arg)
+            except TypeError:
+                return False
+            return all(isinstance(subarg, self.SubmemberType) for subarg in it)
+
+        def __incise_contains__(self, arg, /):
+            if super().__incise_contains__(arg):
+                return self.validate_contents(arg)
+            return False
+
+        def __call__(self, arg, /):
+            if not self.validate_contents(arg):
+                raise ValueError
+            return _IncisionProtocol.RETRIEVE(self)(arg)
+
 
     class SymForm(_Chora, metaclass=_Sprite):
 
-        chora: _Chora = _Thing
+        chora: _Chora
         keys: tuple = None
 
         @classmethod
@@ -61,9 +91,10 @@ class Brace(_Thing):
                 raise ValueError(chora)
             if isinstance(keys, int):
                 keys = tuple(range(keys))
-            if not (typ := _ArmatureProtocol.BRACE(chora, cls.owner).SymForm) is cls:
-                return typ(chora, keys)
-            return super().__class_call__(chora, keys)
+            typ = _ArmatureProtocol.BRACE(chora, cls.MemberType).SymForm
+            if typ is cls:
+                return super().__class_call__(chora, keys)
+            return typ(chora, keys)
 
         @property
         def depth(self, /):
@@ -79,6 +110,10 @@ class Brace(_Thing):
             return tuple(_itertools.repeat(self.chora, self.depth))
 
         __choret__ = _Multi
+
+        @property
+        def validate_contents(self, /):
+            return _IncisionProtocol.CONTAINS(self.incision_manager)
 
 
     class AsymForm(_Chora, metaclass=_Sprite):
@@ -96,7 +131,7 @@ class Brace(_Thing):
             if not all(map(cls.SubmemberType.__includes__, choras)):
                 raise ValueError(choras)
             if len(typset := set(
-                    _ArmatureProtocol.BRACE(chora, cls.owner).AsymForm
+                    _ArmatureProtocol.BRACE(chora, cls.MemberType).AsymForm
                     for chora in choras
                     )) == 1:
                 typ = typset.pop()
@@ -119,10 +154,14 @@ class Brace(_Thing):
         def depth(self, /):
             return len(self.choras)
 
+        @property
+        def validate_contents(self, /):
+            return _IncisionProtocol.CONTAINS(self.incision_manager)
+
 
     class Space(metaclass=_Sprite):
 
-        chora: _Chora = _Thing
+        chora: _Chora
 
         class __choret__(_Sampleable):
 
@@ -149,13 +188,10 @@ class Brace(_Thing):
             def slyce_n(self, incisor: int, /):
                 return self.bound.SymForm(self.chora, incisor)
 
-        def __incise_contains__(self, arg, /) -> bool:
-            if super().__incise_contains__(arg):
-                return all(val in self.chora for val in arg)
-            return False
-
         def __incise_trivial__(self, /):
-            return self.owner if self.chora is _Thing else self
+            if self.chora is self.SubmemberType:
+                return self.MemberType
+            return self
 
 
 _ = Brace.register(tuple)
