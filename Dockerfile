@@ -1,4 +1,4 @@
-FROM ubuntu:hirsute-20210514
+FROM ubuntu:focal-20220113
 MAINTAINER https://github.com/rsbyrne/
 
 ENV MASTERUSER morpheus
@@ -48,13 +48,25 @@ RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   wget \
   && rm -rf /var/lib/apt/lists/*
 
+# Upgrade Python
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && \
+  add-apt-repository ppa:deadsnakes/ppa && \
+  apt update && \
+  apt install -y python3.10 && \
+  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 && \
+  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 2 && \
+  apt remove -y python3.8 && \
+  apt autoremove -y && \
+  apt install -y python3.10-distutils && \
+  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+  python3.10 get-pip.py && \
+  apt install -y python3.10-venv && \
+  apt remove -y --purge python3-apt && \
+  apt autoremove -y && \
+  update-alternatives --config python3
+
 # COPY requirements.txt /tmp/
 # RUN pip install -y -r requirements.txt
-
-# install Python3.10
-#RUN add-apt-repository -y ppa:deadsnakes/ppa
-#RUN apt install -y python3.10
-#RUN add-apt-repository -y --remove ppa:deadsnakes/ppa
 
 # install Python stuff
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
@@ -126,12 +138,13 @@ RUN pip3 install -U --no-cache-dir \
 
 # Data
 RUN pip3 install -U --no-cache-dir \
+  numpy \
+  scipy \
   dask[complete] \
   diversipy \
   h5py \
   numba \
   pandas \
-  scipy \
   xarray[complete]
 
 # Machine Learning
@@ -149,22 +162,6 @@ RUN pip3 install -U --no-cache-dir \
   mpmath \
   sympy \
   more-itertools
-
-# Upgrade Python
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && \
-  add-apt-repository ppa:deadsnakes/ppa && \
-  apt update && \
-  apt install -y python3.10 && \
-  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 && \
-  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 2 && \
-  apt remove python3.8 && \
-  apt autoremove && \
-  apt install python3.10-distutils && \
-  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-  python3.10 get-pip.py && \
-  apt install python3.10-venv && \
-  apt remove --purge python3-apt && \
-  apt autoremove
 
 # Productivity
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
