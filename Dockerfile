@@ -150,6 +150,22 @@ RUN pip3 install -U --no-cache-dir \
   sympy \
   more-itertools
 
+# Upgrade Python
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && \
+  add-apt-repository ppa:deadsnakes/ppa && \
+  apt update && \
+  apt install -y python3.10 && \
+  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 && \
+  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 2 && \
+  apt remove python3.8 && \
+  apt autoremove && \
+  apt install python3.10-distutils && \
+  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+  python3.10 get-pip.py && \
+  apt install python3.10-venv && \
+  apt remove --purge python3-apt && \
+  apt autoremove
+
 # Productivity
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   nodejs \

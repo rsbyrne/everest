@@ -175,7 +175,7 @@ class OusiaBase(metaclass=Ousia):
                 "is forbidden at this time; "
                 f"toggle switch `.freezeattr` to override."
                 )
-        super().__setattr__(name, val)
+        self._alt_setattr__(name, val)
 
     def _alt_delattr__(self, name, /):
         super().__delattr__(name)
@@ -187,7 +187,7 @@ class OusiaBase(metaclass=Ousia):
                 "is forbidden at this time; "
                 f"toggle switch `.freezeattr` to override."
                 )
-        super().__delattr__(name)
+        self._alt_delattr__(name, val)
 
     ### Representations:
 
