@@ -24,18 +24,24 @@ from everest.ptolemaic.chora import (
 from everest.ptolemaic.fundaments.fundament import Fundament as _Fundament
 
 
+class Length(metaclass=_Sprite):
+
+    n: int = 0
+
+
 class Brace(_Fundament, _Brace, metaclass=_Bythos):
 
 
-#     SubmemberType = None
+    SubmemberType = _Fundament
 
     @classmethod
     def __class_init__(cls, /):
         try:
             owner = cls.owner
         except AttributeError:
-            owner = None
-        cls.SubmemberType = owner
+            pass
+        else:
+            cls.SubmemberType = owner
         super().__class_init__()
         cls._add_mroclass('SymForm', (cls.Oid,))
         cls._add_mroclass('AsymForm', (cls.Oid,))
@@ -76,7 +82,7 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
 
         def __call__(self, arg, /):
             if not self.validate_contents(arg):
-                raise ValueError
+                raise ValueError(arg)
             return _IncisionProtocol.RETRIEVE(self)(arg)
 
 
@@ -170,7 +176,7 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
                 return self.bound.chora
 
             def handle_tuple(self, incisor: tuple, /, *, caller):
-                nspace = self.slyce_n(len(incisor))
+                nspace = self.slyce_n(Length(len(incisor)))
                 return _IncisionProtocol.INCISE(nspace)(incisor, caller=caller)
 
             def slyce_dict(self, incisor: dict, /):
@@ -185,8 +191,8 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
                 except AttributeError:
                     return self.bound._ptolemaic_class__(incisor)
 
-            def slyce_n(self, incisor: int, /):
-                return self.bound.SymForm(self.chora, incisor)
+            def slyce_n(self, incisor: Length, /):
+                return self.bound.SymForm(self.chora, incisor.n)
 
         def __incise_trivial__(self, /):
             if self.chora is self.SubmemberType:

@@ -78,9 +78,9 @@ USER root
 ENV PYTHONPATH "$EVERESTDIR:${PYTHONPATH}"
 
 # Production
-RUN pip3 install -U --no-cache-dir \
-  mypy \
-  pytest
+# RUN pip3 install -U --no-cache-dir \
+#   mypy \
+#   pytest
 
 # CLI
 RUN pip3 install -U --no-cache-dir click
@@ -108,14 +108,21 @@ RUN pip3 install -U --no-cache-dir \
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   cm-super \
   dvipng \
-  ffmpeg \
   imagemagick \
   texlive-latex-extra \
+  ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 RUN pip3 install -U --no-cache-dir \
   matplotlib \
-  Pillow \
-  graphviz
+  Pillow
+
+# LavaVu
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
+  build-essential libgl1-mesa-dev libx11-dev zlib1g-dev \
+  && rm -rf /var/lib/apt/lists/*
+RUN pip3 install -U --no-cache-dir \
+  lavavu-osmesa
 
 # Data
 RUN pip3 install -U --no-cache-dir \
@@ -157,7 +164,6 @@ RUN pip3 install -U --no-cache-dir \
 #RUN jupyter labextension install jupyterlab-flake8
 
 # Cryptography
-
 RUN pip3 install -U --no-cache-dir \
   cryptography
 

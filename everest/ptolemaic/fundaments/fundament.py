@@ -12,17 +12,15 @@ from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic import armature as _armature
+from everest.ptolemaic.armature import Element as _Element
 from everest.ptolemaic.chora import (
     Degenerate as _Degenerate,
     Chora as _Chora,
-    Basic as _Basic,
     Sampleable as _Sampleable,
-    Null as _Null,
     )
 
 
-class Fundament(metaclass=_Essence):
+class Fundament(metaclass=_Bythos):
 
 
     @classmethod
@@ -57,11 +55,11 @@ class Fundament(metaclass=_Essence):
             return _IncisionProtocol.FAIL(caller)(incisor)
 
 
-    class Gen(_armature.Element, metaclass=_Sprite):
+    class Gen(_Element, metaclass=_Sprite):
         ...
 
 
-    class Var(_armature.Element, metaclass=_Protean):
+    class Var(_Element, metaclass=_Protean):
 
         _req_slots__ = ('_value',)
         _var_slots__ = ('value',)
@@ -101,9 +99,9 @@ class Fundament(metaclass=_Essence):
             except AttributeError:
                 return False
 
-        @property
-        def __incise_retrieve__(self, /):
-            return self.MemberType.__incise_retrieve__
+#         @property
+#         def __incise_retrieve__(self, /):
+#             return self.MemberType.__incise_retrieve__
 
         def __call__(self, arg, /):
             if arg in self:
@@ -119,6 +117,9 @@ class Fundament(metaclass=_Essence):
                 if incisor in self.bound:
                     return incisor
                 raise ValueError(incisor)
+
+            def sample_slyce_chora(self, incisor: _Chora, /):
+                return incisor
 
         def __incise_trivial__(self, /):
             return self.owner
