@@ -4,6 +4,7 @@
 
 
 import functools as _functools
+import operator as _operator
 from collections import deque as _deque, abc as _collabc
 import typing as _typing
 import types as _types
@@ -247,20 +248,13 @@ class Basic(Choret):
     @classmethod
     def process_hint(cls, hint, /):
         if isinstance(hint, str):
-            if hint.startswith('.'):
-                attrnames = iter(hint.strip('.').split('.'))
-                hint = cls
-                for attrname in attrnames:
-                    try:
-                        hint = getattr(hint, attrname)
-                    except AttributeError:
-                        return Null
-                return hint
-            else:
-                raise TypeError(hint)
-        elif isinstance(hint, tuple):
+            try:
+                return _operator.attrgetter(hint)(cls)
+            except AttributeError:
+                return Null
+        if isinstance(hint, tuple):
             return tuple(map(cls.process_hint, hint))
-        elif isinstance(hint, _Epitaph):
+        if isinstance(hint, _Epitaph):
             return cls.process_hint(hint.decode())
         return hint
 
@@ -555,6 +549,9 @@ class Multi(Basic):
     def handle_sequence(self, incisor: _collabc.Sequence, /, *, caller):
         meth = self.yield_sequence_multiincise
         return self._handle_generic(incisor, caller=caller, meth=meth)
+
+    def handle_other(self, incisor: object, /, *, caller):
+        return self.handle_sequence((incisor,), caller=caller)
 
     def __incise_contains__(self, arg, /):
         choras = self.bound.choras

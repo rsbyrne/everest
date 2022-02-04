@@ -43,10 +43,10 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
         else:
             cls.SubmemberType = owner
         super().__class_init__()
-        cls._add_mroclass('SymForm', (cls.Oid,))
-        cls._add_mroclass('AsymForm', (cls.Oid,))
-        with (Oid := cls.Oid).mutable:
-            Oid.SubmemberType = cls.SubmemberType
+        cls._add_mroclass('SymForm', (cls.Slyce,))
+        cls._add_mroclass('AsymForm', (cls.Slyce,))
+        with (Slyce := cls.Slyce).mutable:
+            Slyce.SubmemberType = cls.SubmemberType
 
 
     @classmethod
@@ -54,7 +54,7 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
         return cls.Space(cls.SubmemberType)
 
 
-    class Oid(metaclass=_Essence):
+    class Slyce(metaclass=_Essence):
 
         @property
         def __incise_retrieve__(self, /):

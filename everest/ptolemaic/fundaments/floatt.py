@@ -5,7 +5,7 @@
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.schema import Schema as _Schema
+from everest.ptolemaic.eidos import Eidos as _Eidos
 from everest.ptolemaic.chora import (
     Chora as _Chora,
     Sampleable as _Sampleable,
@@ -32,7 +32,7 @@ class Floatt(_Real, _Thing):
 with Floatt.mutable:
 
 
-    class FloattOpen(_Chora, Floatt.Oid, metaclass=_Schema):
+    class FloattOpen(_Chora, Floatt.Slyce, metaclass=_Eidos):
 
         lower: Floatt
 
@@ -87,7 +87,7 @@ with Floatt.mutable:
     Floatt.Open = FloattOpen
 
 
-    class FloattLimit(_Chora, Floatt.Oid, metaclass=_Schema):
+    class FloattLimit(_Chora, Floatt.Slyce, metaclass=_Eidos):
 
         upper: Floatt
 
@@ -132,7 +132,7 @@ with Floatt.mutable:
     Floatt.Limit = FloattLimit
 
 
-    class FloattClosed(_Chora, Floatt.Oid, metaclass=_Schema):
+    class FloattClosed(_Chora, Floatt.Slyce, metaclass=_Eidos):
 
         lower: Floatt
         upper: Floatt

@@ -23,7 +23,7 @@ class Tekton(_Bythos):
 
     @property
     def __class_incision_manager__(cls, /):
-        return cls.Oid(cls, cls.sig)
+        return cls.Slyce(cls, cls.sig)
 
     @classmethod
     def decorate(meta, obj, /):
@@ -44,9 +44,9 @@ class Tekton(_Bythos):
 
 class TektonBase(metaclass=Tekton):
 
-    MROCLASSES = ('Oid',)
+    MROCLASSES = ('Slyce',)
 
-    class Oid(_Armature, _ChainIncisable, metaclass=_Sprite):
+    class Slyce(_Armature, _ChainIncisable, metaclass=_Sprite):
 
         subject: _Chora
         sig: _Chora

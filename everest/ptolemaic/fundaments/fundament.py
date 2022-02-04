@@ -32,12 +32,12 @@ class Fundament(metaclass=_Bythos):
         Var = cls._add_mroclass('Var')
         cls.__class_armature_generic__ = cls.Gen(cls)
         cls.__class_armature_variable__ = cls.Var(cls)
-        Oid = cls._add_mroclass('Oid')
-        with Oid.mutable:
-            Oid.MemberType = cls
-            Oid.__armature_generic__ = property(Gen)
-            Oid.__armature_variable__ = property(Var)
-        cls._add_mroclass('Space', (Oid,))
+        Slyce = cls._add_mroclass('Slyce')
+        with Slyce.mutable:
+            Slyce.MemberType = cls
+            Slyce.__armature_generic__ = property(Gen)
+            Slyce.__armature_variable__ = property(Var)
+        cls._add_mroclass('Space', (Slyce,))
         cls.__class_incision_manager__ = cls.make_class_incision_manager()
 
 
@@ -86,7 +86,7 @@ class Fundament(metaclass=_Bythos):
             self._alt_setattr__('_value', self._default)
 
 
-    class Oid(_IncisionHandler, metaclass=_Essence):
+    class Slyce(_IncisionHandler, metaclass=_Essence):
 
         def __incise_contains__(self, arg, /) -> bool:
             return isinstance(arg, self.MemberType)
@@ -113,7 +113,7 @@ class Fundament(metaclass=_Bythos):
 
         class __choret__(_Sampleable):
 
-            def retrieve_contains(self, incisor: '.owner.MemberType', /):
+            def retrieve_contains(self, incisor: 'owner.MemberType', /):
                 if incisor in self.bound:
                     return incisor
                 raise ValueError(incisor)

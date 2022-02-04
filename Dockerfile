@@ -1,4 +1,4 @@
-FROM ubuntu:focal-20220113
+FROM ubuntu:hirsute-20220113
 MAINTAINER https://github.com/rsbyrne/
 
 ENV MASTERUSER morpheus
@@ -49,21 +49,21 @@ RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   && rm -rf /var/lib/apt/lists/*
 
 # Upgrade Python
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && \
-  add-apt-repository ppa:deadsnakes/ppa && \
-  apt update && \
-  apt install -y python3.10 && \
-  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 && \
-  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 2 && \
-  apt remove -y python3.8 && \
-  apt autoremove -y && \
-  apt install -y python3.10-distutils && \
-  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-  python3.10 get-pip.py && \
-  apt install -y python3.10-venv && \
-  apt remove -y --purge python3-apt && \
-  apt autoremove -y && \
-  update-alternatives --config python3
+#RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && \
+#  add-apt-repository ppa:deadsnakes/ppa && \
+#  apt update && \
+#  apt install -y python3.10 && \
+#  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 && \
+#  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 2 && \
+#  apt remove -y python3.8 && \
+#  apt autoremove -y && \
+#  apt install -y python3.10-distutils && \
+#  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+#  python3.10 get-pip.py && \
+#  apt install -y python3.10-venv && \
+#  apt remove -y --purge python3-apt && \
+#  apt autoremove -y && \
+#  update-alternatives --config python3
 
 # COPY requirements.txt /tmp/
 # RUN pip install -y -r requirements.txt

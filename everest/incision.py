@@ -39,10 +39,7 @@ class IncisionProtocol(_Protocol):
     INCLUDES = ('__incise_includes__', False)
     LENGTH = ('__incise_length__', False)
     ITER = ('__incise_iter__', False)
-
-    @classmethod
-    def defer(cls, obj, /):
-        return getattr(obj, '__incision_manager__')
+    DEFER = ('__incision_manager__', False)
 
     def exc(self, obj, /):
         return IncisionProtocolException(self, obj)
@@ -68,15 +65,19 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
 
     @property
     def __contains__(self, /):
-        return self.__incise_contains__
+        return IncisionProtocol.CONTAINS(self)
 
     @property
     def __len__(self, /):
-        return self.__incise_length__
+        return IncisionProtocol.LENGTH(self)
 
     @property
     def __iter__(self, /):
-        return self.__incise_iter__
+        return IncisionProtocol.ITER(self)
+
+    @property
+    def __includes__(self, /):
+        return IncisionProtocol.INCLUDES(self)
 
     @classmethod
     def __subclasshook__(cls, ACls):

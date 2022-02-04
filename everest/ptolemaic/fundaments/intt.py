@@ -10,7 +10,7 @@ from everest.incision import (
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.schema import Schema as _Schema
+from everest.ptolemaic.eidos import Eidos as _Eidos
 from everest.ptolemaic.chora import (
     Chora as _Chora,
     Sampleable as _Sampleable,
@@ -47,7 +47,7 @@ class Intt(_Real, _Thing):
 with Intt.mutable:
 
 
-    class InttOpen(_Chora, Intt.Oid, metaclass=_Schema):
+    class InttOpen(_Chora, Intt.Slyce, metaclass=_Eidos):
 
         lower: Intt
         step: Intt = 1
@@ -116,7 +116,7 @@ with Intt.mutable:
     Intt.Open = InttOpen
 
 
-    class InttLimit(_Chora, Intt.Oid, metaclass=_Schema):
+    class InttLimit(_Chora, Intt.Slyce, metaclass=_Eidos):
 
         upper: Intt
 
@@ -163,7 +163,7 @@ with Intt.mutable:
     Intt.Limit = InttLimit
 
 
-    class InttClosed(_Chora, Intt.Oid, metaclass=_Schema):
+    class InttClosed(_Chora, Intt.Slyce, metaclass=_Eidos):
 
         lower: Intt
         upper: Intt

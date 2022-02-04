@@ -27,6 +27,13 @@ class Thing(_Fundament):
         return arg
 
 
+    class Slyce(metaclass=_Essence):
+
+        @property
+        def __armature_brace__(self, /):
+            return self.MemberType.__class_armature_brace__
+
+
     class Brace(_Brace):
 
         @classmethod

@@ -11,7 +11,7 @@ import itertools as _itertools
 import types as _types
 
 from everest.utilities import (
-    caching as _caching, FrozenMap as _FrozenMap
+    caching as _caching, FrozenMap as _FrozenMap, pretty as _pretty
     )
 from everest.ur import Dat as _Dat
 
@@ -135,35 +135,11 @@ class SpriteBase(metaclass=Sprite):
         return f"<{self._ptolemaic_class__}({valpairs})id={id(self)}>"
 
     def _repr_pretty_(self, p, cycle):
-    #     p.text('<')
         root = ':'.join((
             self._ptolemaic_class__.__name__,
             str(id(self)),
             ))
-        if cycle:
-            p.text(root + '{...}')
-        elif not (kwargs := self.params):
-            p.text(root + '()')
-        else:
-            with p.group(4, root + '(', ')'):
-                kwargit = iter(kwargs.items())
-                p.breakable()
-                key, val = next(kwargit)
-                p.text(key)
-                p.text(' = ')
-                p.pretty(val)
-                for key, val in kwargit:
-                    p.text(',')
-                    p.breakable()
-                    p.text(key)
-                    p.text(' = ')
-                    p.pretty(val)
-                p.breakable()
-    #     p.text('>')
-
-    @property
-    def __getitem__(self, /):
-        return super().__getitem__
+        _pretty.pretty_kwargs(self.params, p, cycle, root=root)
 
     def __hash__(self, /):
         return self.hashint

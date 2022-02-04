@@ -7,7 +7,7 @@ import itertools as _itertools
 import weakref as _weakref
 import types as _types
 
-from everest.utilities import reseed as _reseed
+from everest.utilities import reseed as _reseed, pretty as _pretty
 from everest.ur import Var as _Var
 
 from everest.ptolemaic.ousia import Ousia as _Ousia
@@ -60,37 +60,16 @@ class ProteanBase(metaclass=Protean):
         return repr(self.basis)
 
     def _repr_pretty_(self, p, cycle):
-#         p.text('<')
         root = ':'.join((
             self._ptolemaic_class__.__name__,
             self.basis.hashID,
             str(id(self)),
             ))
-        if cycle:
-            p.text(root + '{...}')
         try:
             kwargs = self.varvals
         except ValueError:
             p.text(root + '(Null)')
-        else:
-            if not kwargs:
-                p.text(root + '()')
-            else:
-                with p.group(4, root + '(', ')'):
-                    kwargit = iter(kwargs.items())
-                    p.breakable()
-                    key, val = next(kwargit)
-                    p.text(key)
-                    p.text(' = ')
-                    p.pretty(val)
-                    for key, val in kwargit:
-                        p.text(',')
-                        p.breakable()
-                        p.text(key)
-                        p.text(' = ')
-                        p.pretty(val)
-                    p.breakable()
-#         p.text('>')
+        _pretty.pretty_kwargs(kwargs, p, cycle, root=root)
 
 
 ###############################################################################

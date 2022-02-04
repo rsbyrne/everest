@@ -23,7 +23,22 @@ class Protocol(_Enum, metaclass=_ProtocolMeta_):
 
     @classmethod
     def defer(cls, obj, /):
+        return getattr(obj, cls.DEFER.methname)
+
+    @classmethod
+    def _alt_defer(cls, obj, /):
         raise AttributeError
+
+    @classmethod
+    def defer_complies(cls, ACls, /):
+        try:
+            defername = cls.DEFER.methname
+        except AttributeError:
+            return False
+        for Base in ACls.__mro__:
+            if defername in Base.__dict__:
+                return True
+        return False
 
     @classmethod
     def complies(cls, ACls, /):
@@ -32,11 +47,7 @@ class Protocol(_Enum, metaclass=_ProtocolMeta_):
             return compliant[ACls]
         except KeyError:
             pass
-        try:
-            _ = cls.defer(ACls)
-        except AttributeError:
-            pass
-        else:
+        if cls.defer_complies(ACls):
             out = compliant[ACls] = True
             return out
         for methodname in cls.mandatory:
@@ -44,10 +55,6 @@ class Protocol(_Enum, metaclass=_ProtocolMeta_):
                 dct = Base.__dict__
                 if methodname in dct:
                     break
-                if '__slots__' in dct:
-                    slots = dct['__slots__']
-                    if methodname in slots:
-                        break
             else:
                 out = compliant[ACls] = False
                 return out
@@ -56,6 +63,8 @@ class Protocol(_Enum, metaclass=_ProtocolMeta_):
 
     def __init__(self, methname, mandatory, /):
         super().__init__()
+        if methname == 'DEFER':
+            self.defer = self._alt_defer
         self.methname, self.mandatory = methname, mandatory
 
     def __call__(self, obj, default = None, /):
@@ -64,11 +73,13 @@ class Protocol(_Enum, metaclass=_ProtocolMeta_):
             return getattr(obj, methname)
         except AttributeError:
             try:
-                return self(self.defer(obj))
+                deferto = self.defer(obj)
             except AttributeError:
                 if default is None:
                     raise self.exc(obj)
                 return default
+            else:
+                return self(deferto)
 
     def exc(self, obj, /):
         return AttributeError(obj, self.methname)
