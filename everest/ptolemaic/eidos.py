@@ -42,11 +42,17 @@ class EidosBase(metaclass=Eidos):
 
     CACHE = False
 
-    class Slyce(metaclass=_Essence):
+    class ClassSlyce(metaclass=_Essence):
 
         @property
         def __incise_retrieve__(self, /):
             return self.subject.instantiate
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        if cls._var_slots__:
+            raise TypeError(f"Types metatype {type(cls)} cannot have var slots.")
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
@@ -122,18 +128,19 @@ class EidosBase(metaclass=Eidos):
     def hashID(self, /):
         return self.epitaph.hashID
 
-    def _repr(self, /):
-        return f"hashID={self.hashID}"
+    # def _root_repr(self, /):
+    #     return f"hashID={self.hashID}"
+
+    def _content_repr(self, /):
+        return ', '.join(
+            f"{key}={repr(val)}" for key, val in self.params.items()
+            )
+
+    def _repr_pretty_(self, p, cycle):
+        _pretty.pretty_kwargs(self.params, p, cycle, root=self.rootrepr)
 
     def __hash__(self, /):
         return self.hashint
-
-    def _repr_pretty_(self, p, cycle):
-        root = ':'.join((
-            self._ptolemaic_class__.__name__,
-            str(id(self)),
-            ))
-        _pretty.pretty_kwargs(self.params, p, cycle, root=root)
 
 
 ###############################################################################

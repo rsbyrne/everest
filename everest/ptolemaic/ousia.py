@@ -10,7 +10,6 @@ import types as _types
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
-    reseed as _reseed,
     )
 from everest.incision import IncisionHandler as _IncisionHandler
 
@@ -85,12 +84,13 @@ class Ousia(_Essence):
 
 class OusiaBase(metaclass=Ousia):
 
-    MERGETUPLES = ('_req_slots__',)
+    MERGETUPLES = ('_req_slots__', '_var_slots__')
 
     _req_slots__ = (
         '_softcache', '_weakcache', '__weakref__', '_freezeattr',
         'finalised',
         )
+    _var_slots__ = ()
 
     def __new__(cls, /, *_, **__):
         raise TypeError
@@ -101,6 +101,12 @@ class OusiaBase(metaclass=Ousia):
         obj.__init__(*args, **kwargs)
         obj.freezeattr.toggle(True)
         return obj
+
+    @property
+    def varvals(self, /):
+        return _types.MappingProxyType({
+            key: getattr(self, key) for key in self._var_slots__
+            })
 
     ### Configuring the concrete class:
 
@@ -169,33 +175,66 @@ class OusiaBase(metaclass=Ousia):
         super().__setattr__(name, val)
 
     def __setattr__(self, name, val, /):
-        if self.freezeattr:
+        if name in self._var_slots__:
+            super().__setattr__(name, value)
+        elif self.freezeattr:
             raise AttributeError(
                 f"Setting attributes on an object of type {type(self)} "
                 "is forbidden at this time; "
                 f"toggle switch `.freezeattr` to override."
                 )
-        self._alt_setattr__(name, val)
+        else:
+            super().__setattr__(name, val)
 
     def _alt_delattr__(self, name, /):
         super().__delattr__(name)
 
     def __delattr__(self, name, /):
-        if self.freezeattr:
+        if name in self._var_slots__:
+            super().__delattr__(name)
+        elif self.freezeattr:
             raise AttributeError(
                 f"Deleting attributes on an object of type {type(self)} "
                 "is forbidden at this time; "
                 f"toggle switch `.freezeattr` to override."
                 )
-        self._alt_delattr__(name, val)
+        else:
+            super().__delattr__(name)
 
     ### Representations:
 
-    def _repr(self, /):
+    def _root_repr(self, /):
+        return ':'.join((
+            self._ptolemaic_class__.__name__,
+            str(id(self)),
+            ))
+
+    @property
+    @_caching.soft_cache()
+    def rootrepr(self, /):
+        return self._root_repr()
+
+    def _content_repr(self, /):
         return ''
 
+    @property
+    @_caching.soft_cache()
+    def contentrepr(self, /):
+        return self._content_repr()
+
+    def _var_repr(self, /):
+        return ', '.join(
+            f"{key}:{getattr(self, key)}" for key in self._var_slots
+            )
+
+    @property
+    def varrepr(self, /):
+        return self._var_repr()
+
     def __repr__(self, /):
-        return f"<{type(self)}:{id(self)}({self._repr()})>"
+        if (varrepr := self.varrepr):
+            return f"<{self.rootrepr}({self.contentrepr}){{{self.varrepr}}}>"
+        return f"<{self.rootrepr}({self.contentrepr})>"
 
     def __str__(self, /):
         return self.__repr__()

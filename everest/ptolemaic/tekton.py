@@ -41,12 +41,16 @@ class Tekton(_Bythos):
     def __call__(cls, /):
         return cls.__incision_manager__
 
+    @property
+    def Slyce(cls, /):
+        return cls.ClassSlyce
+
 
 class TektonBase(metaclass=Tekton):
 
-    MROCLASSES = ('Slyce',)
+    MROCLASSES = ('ClassSlyce',)
 
-    class Slyce(_Armature, _ChainIncisable, metaclass=_Sprite):
+    class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Sprite):
 
         subject: _Chora
         sig: _Chora

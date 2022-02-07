@@ -169,6 +169,10 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
 
         chora: _Chora
 
+        # @property
+        # def __armature_brace__(self, /):
+        #     return self.owner
+
         class __choret__(_Sampleable):
 
             @property
@@ -198,6 +202,11 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
             if self.chora is self.SubmemberType:
                 return self.MemberType
             return self
+
+
+    @classmethod
+    def __class_incise_retrieve__(self, incisor, /):
+        return incisor
 
 
 _ = Brace.register(tuple)

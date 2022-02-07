@@ -77,6 +77,8 @@ class SpriteBase(metaclass=Sprite):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
+        if cls._var_slots__:
+            raise TypeError(f"Types metatype {type(cls)} cannot have var slots.")
         hints, defaults = cls.hints, cls.defaults = get_fields(cls)
         cls._signature_ = _Signature(_Parameter(
             key, 1, default=defaults.get(key, _empty), annotation=hints[key]
@@ -127,19 +129,13 @@ class SpriteBase(metaclass=Sprite):
     def hashID(self, /):
         return self.epitaph.hashID
 
-    def __repr__(self, /):
-        valpairs = ', '.join(map('='.join, zip(
-            (params := self.params),
-            map(repr, params.values()),
-            )))
-        return f"<{self._ptolemaic_class__}({valpairs})id={id(self)}>"
+    def _content_repr(self, /):
+        return ', '.join(
+            f"{key}={repr(val)}" for key, val in self.params.items()
+            )
 
     def _repr_pretty_(self, p, cycle):
-        root = ':'.join((
-            self._ptolemaic_class__.__name__,
-            str(id(self)),
-            ))
-        _pretty.pretty_kwargs(self.params, p, cycle, root=root)
+        _pretty.pretty_kwargs(self.params, p, cycle, root=self.rootrepr)
 
     def __hash__(self, /):
         return self.hashint

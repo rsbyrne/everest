@@ -78,8 +78,7 @@ class Protocol(_Enum, metaclass=_ProtocolMeta_):
                 if default is None:
                     raise self.exc(obj)
                 return default
-            else:
-                return self(deferto)
+            return self(deferto, default)
 
     def exc(self, obj, /):
         return AttributeError(obj, self.methname)
