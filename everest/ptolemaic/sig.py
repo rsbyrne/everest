@@ -35,6 +35,7 @@ from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.fundaments.thing import Thing as _Thing
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.fundaments.brace import Brace as _Brace
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
@@ -338,31 +339,9 @@ def get_typ_fields(typ):
     return fields
 
 
-class Sig(_Chora, metaclass=_Sprite):
+class Sig(_ChainIncisable, metaclass=_Sprite):
 
     sigfields: _Diict
-#     choras: _Diict
-
-    def SymForm(self, chora: _Chora, keys: tuple, /):
-        return self._ptolemaic_class__(_Diict({key: chora for key in keys}))
-
-    def AsymForm(self, choras: tuple, keys: tuple, /):
-        return self._ptolemaic_class__(_Diict(zip(keys, choras)))
-
-    @property
-    def choras(self, /):
-        return tuple(self.sigfields.values())
-
-    @property
-    def keys(self, /):
-        return tuple(self.sigfields)
-
-    __choret__ = _Multi
-
-    def __incise__(self, incisor, /, *, caller):
-        if isinstance(incisor, Params):
-            return _IncisionProtocol.RETRIEVE(caller)(incisor)
-        return self.__incision_manager__.__incise__(incisor, caller=caller)
 
     @staticmethod
     def _get_orderscore(pair):
@@ -410,6 +389,14 @@ class Sig(_Chora, metaclass=_Sprite):
 
     @property
     @_caching.soft_cache()
+    def __incision_manager__(self, /):
+        return _Brace[{
+            key: slice(None, None, field.__incision_manager__)
+            for key, field in self.sigfields.items()
+            }]
+
+    @property
+    @_caching.soft_cache()
     def degenerates(self, /):
         return _mprox({
             name: field.hint.value
@@ -440,6 +427,17 @@ class Sig(_Chora, metaclass=_Sprite):
         bound.apply_defaults()
         return Params(bound)
 
+    def __incise_slyce__(self, incisor: _Chora, /):
+        obj = self._ptolemaic_class__(**{
+            key: Field(field.kind, chora, field.value)
+            for (key, field), chora in zip(self.sigfields.items(), incisor.choras)
+            })
+        obj.softcache.update(
+            __incision_manager__=incisor,
+            signature=self.signature
+            )
+        return obj
+
     def __call__(self, /, *args, **kwargs):
         return Params(self.effsignature.bind(*args, **kwargs))
 
@@ -453,29 +451,13 @@ class Sig(_Chora, metaclass=_Sprite):
     def __str__(self, /):
         return str(self.effsignature)
 
-    def _repr_pretty_(self, p, cycle):
-        p.text('<')
-        root = repr(self._ptolemaic_class__)
-        if cycle:
-            p.text(root + '{...}')
-        elif not (kwargs := self.sigfields):
-            p.text(root + '()')
-        else:
-            with p.group(4, root + '(', ')'):
-                kwargit = iter(kwargs.items())
-                p.breakable()
-                key, val = next(kwargit)
-                p.text(key)
-                p.text(' = ')
-                p.pretty(val)
-                for key, val in kwargit:
-                    p.text(',')
-                    p.breakable()
-                    p.text(key)
-                    p.text(' = ')
-                    p.pretty(val)
-                p.breakable()
-        p.text('>')
+    for name in ('keys', 'values', 'items'):
+        exec('\n'.join((
+            f'@property',
+            f'def {name}(self, /):',
+            f'    return self.content.{name}',
+            )))
+    del name
 
 
 class Param(metaclass=_Sprite):

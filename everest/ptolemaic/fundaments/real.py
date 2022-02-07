@@ -12,7 +12,7 @@ from everest.ptolemaic.fundaments.fundament import Fundament as _Fundament
 class Real(_Fundament):
 
 
-    # Necessary to straighten out inheritance:
+    # Needed to straighten out inheritance
     class Slyce(metaclass=_Essence):
         ...
 
@@ -43,6 +43,7 @@ class Real(_Fundament):
     class Brace(metaclass=_Sprite):
 
         content: tuple = ()
+        keys: tuple = ()
 
         for name in ('__getitem__', '__len__', '__iter__', '__contains__'):
             exec('\n'.join((
@@ -52,9 +53,10 @@ class Real(_Fundament):
                 )))
         del name
 
-        __class_incise_retrieve__ = \
-            classmethod(_Sprite.BaseTyp.__class_call__.__func__)
+        class Slyce(metaclass=_Essence):
 
+            def __incise_retrieve__(self, incisor, /):
+                return self.owner(incisor, getattr(self, 'keys', ()))
 
 
 ###############################################################################
