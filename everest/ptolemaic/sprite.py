@@ -134,8 +134,10 @@ class SpriteBase(metaclass=Sprite):
             f"{key}={repr(val)}" for key, val in self.params.items()
             )
 
-    def _repr_pretty_(self, p, cycle):
-        _pretty.pretty_kwargs(self.params, p, cycle, root=self.rootrepr)
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.rootrepr
+        _pretty.pretty_kwargs(self.params, p, cycle, root=root)
 
     def __hash__(self, /):
         return self.hashint

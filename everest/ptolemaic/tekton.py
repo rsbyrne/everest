@@ -6,13 +6,21 @@
 import weakref as _weakref
 import functools as _functools
 
+from everest.utilities import caching as _caching, Slc as _Slc
+
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
 #     Incisable as _Incisable,
     ChainIncisable as _ChainIncisable,
     )
 
-from everest.ptolemaic.chora import Chora as _Chora
+from everest.ptolemaic.fundaments.brace import Brace as _Brace
+
+from everest.ptolemaic.diict import Diict as _Diict
+from everest.ptolemaic.chora import (
+    Chora as _Chora,
+    Degenerate as _Degenerate,
+    )
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.sig import Sig as _Sig
 from everest.ptolemaic.armature import Armature as _Armature
@@ -22,8 +30,9 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 class Tekton(_Bythos):
 
     @property
+    @_caching.soft_cache()
     def __class_incision_manager__(cls, /):
-        return cls.Slyce(cls, cls.sig)
+        return cls.Oid(cls, cls.sig,)
 
     @classmethod
     def decorate(meta, obj, /):
@@ -41,16 +50,14 @@ class Tekton(_Bythos):
     def __call__(cls, /):
         return cls.__incision_manager__
 
-    @property
-    def Slyce(cls, /):
-        return cls.ClassSlyce
-
 
 class TektonBase(metaclass=Tekton):
 
-    MROCLASSES = ('ClassSlyce',)
 
-    class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Sprite):
+    MROCLASSES = ('Oid',)
+
+
+    class Oid(_Armature, _ChainIncisable, metaclass=_Sprite):
 
         subject: _Chora
         sig: _Chora
@@ -59,16 +66,16 @@ class TektonBase(metaclass=Tekton):
         def __incision_manager__(self, /):
             return self.sig
 
-        def __incise_retrieve__(self, incisor, /):
-            return self.subject.__construct__(
-                *incisor.sigargs, **incisor.sigkwargs
-                )
+        @property
+        def __incise_retrieve__(self, /):
+            return self.subject.instantiate
 
-        def __incise_slyce__(self, incisor, /):
+        def __incise_slyce__(self, incisor: _Sig, /):
             return self._ptolemaic_class__(self.subject, incisor)
 
         def __call__(self, /, *args, **kwargs):
-            return self.__incise_retrieve__(self.sig(*args, **kwargs))
+            return self.subject.instantiate(self.sig(*args, **kwargs))
+
 
     @classmethod
     def __class_init__(cls, /):
@@ -82,10 +89,81 @@ class TektonBase(metaclass=Tekton):
         cls.sig = sig
         cls.fields = sig.sigfields
 
-#     @classmethod
-#     def __construct__(cls, /):
-#         raise NotImplementedError
+    @classmethod
+    def instantiate(cls, params, /):
+        return cls.__construct__(*params.sigargs, **params.sigkwargs)
 
 
 ###############################################################################
 ###############################################################################
+
+
+#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Sprite):
+
+#         subject: _Chora
+#         sig: _Sig
+#         subs: _Diict = _Diict()
+
+#         @property
+#         @_caching.soft_cache()
+#         def __incision_manager__(self, /):
+#             return _Brace[dict(
+#                 sig=_Slc[::self.sig],
+#                 **{key: _Slc[::sub] for key, sub in self.subs.items()},
+#                 )]
+
+#         def __incise_retrieve__(self, incisor, /):
+#             return self.subject.__construct__(
+#                 *incisor.sigargs, **incisor.sigkwargs
+#                 )
+
+#         def __incise_slyce__(self, incisor, /):
+#             return self._ptolemaic_class__(self.subject, incisor)
+
+#         def __call__(self, /, *args, **kwargs):
+#             return self.__incise_retrieve__(self.sig(*args, **kwargs))
+
+
+
+#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Sprite):
+
+#         subject: _Chora
+#         chora: _Chora
+
+#         @classmethod
+#         def __class_call__(cls, subject, chora, subs=None, /):
+#             if subs is not None:
+#                 chora = _Brace[dict(
+#                     sig=_Slc[::chora],
+#                     **{key: _Slc[::sub] for key, sub in subs.items()},
+#                     )]
+#             inc0, *incn = chora.values()
+#             if isinstance(inc0, _Degenerate):
+#                 return subject.instantiate(inc0.value, incn)
+#             return super().__class_call__(subject, chora)
+
+#         @property
+#         def sig(self, /):
+#             return next(self.chora.values())
+
+#         def __incision_manager__(self, /):
+#             return self.chora
+
+#         def __incise_retrieve__(self, incisor, /):
+#             inc0, *incn = incisor
+#             if incn:
+#                 return self.subject.instantiate_retrieve(inc0, incn)
+#             return self.subject.instantiate(inc0)
+
+#         def __incise_slyce__(self, incisor, /):
+#             inc0, *incn = incisor.values()
+#             if isinstance(inc0, _Degenerate):
+#                 return self.instantiate_slyce(inc0.value, incn)
+#             return self._ptolemaic_class__(self.subject, incisor)
+
+#         def __call__(self, /, *args, **kwargs):
+#             inc0, *incn = self.chora.values()
+#             params = inc0(*args, **kwargs)  # assuming inc0 is Sig type
+#             if incn:
+#                 return self.subject.instantiate_slyce(params, incn)
+#             return self.subject.instantiate(params)

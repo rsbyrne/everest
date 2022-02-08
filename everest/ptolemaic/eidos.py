@@ -42,12 +42,6 @@ class EidosBase(metaclass=Eidos):
 
     CACHE = False
 
-    class ClassSlyce(metaclass=_Essence):
-
-        @property
-        def __incise_retrieve__(self, /):
-            return self.subject.instantiate
-
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
@@ -79,10 +73,6 @@ class EidosBase(metaclass=Eidos):
     @classmethod
     def paramexc(cls, /, *args, message=None, **kwargs):
         return _exceptions.ParameterisationException((args, kwargs), cls, message)
-
-    @classmethod
-    def __class_incise_slyce__(cls, sig, /):
-        return cls.Slyce(cls, sig)
 
     @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):
@@ -136,8 +126,10 @@ class EidosBase(metaclass=Eidos):
             f"{key}={repr(val)}" for key, val in self.params.items()
             )
 
-    def _repr_pretty_(self, p, cycle):
-        _pretty.pretty_kwargs(self.params, p, cycle, root=self.rootrepr)
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.rootrepr
+        _pretty.pretty_kwargs(self.params, p, cycle, root=root)
 
     def __hash__(self, /):
         return self.hashint

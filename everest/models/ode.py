@@ -16,6 +16,7 @@ from everest.incision import (
     ChainIncisable as _ChainIncisable,
     )
 
+from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.schema import Schema as _Schema
 from everest.ptolemaic.sig import Field as _Field
 from everest.ptolemaic.chora import (
@@ -55,6 +56,10 @@ class ODEModel(_Schema):
             **odedefaults,
             )
         return meta(obj.__name__, (), ns)
+
+    # @property
+    # def clsinnerspace(cls, /):
+    #     return _Diict(state=cls.statespace)
 
 
 class ODEModelBase(_Chora, metaclass=ODEModel):
@@ -110,8 +115,8 @@ class ODELine(_Chora, metaclass=_Schema):
 class ODETraverse(_ChainIncisable, metaclass=_Schema):
 
     line: _Field.POS[ODELine]
-    interval: _Field.POS[_Floatt.Closed]
-    freq: _Field.KW[_Floatt[1e-12:]] = 0.01
+    interval: _Field.POS[_Floatt.Closed[0.:]]
+    freq: _Field.KW[_Floatt[1e-12:]] = 0.005
 
     @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):

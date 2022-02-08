@@ -3,6 +3,8 @@
 ###############################################################################
 
 
+from everest.utilities import pretty as _pretty
+
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
@@ -43,7 +45,7 @@ class Real(_Fundament):
     class Brace(metaclass=_Sprite):
 
         content: tuple = ()
-        keys: tuple = ()
+        labels: tuple = ()
 
         for name in ('__getitem__', '__len__', '__iter__', '__contains__'):
             exec('\n'.join((
@@ -56,7 +58,15 @@ class Real(_Fundament):
         class Slyce(metaclass=_Essence):
 
             def __incise_retrieve__(self, incisor, /):
-                return self.owner(incisor, getattr(self, 'keys', ()))
+                return self.owner(incisor, getattr(self, 'labels', ()))
+
+        def asdict(self, /):
+            return dict(zip(self.labels, self.content))
+
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self.rootrepr
+            return _pretty.pretty_dict(self.asdict(), p, cycle, root)
 
 
 ###############################################################################

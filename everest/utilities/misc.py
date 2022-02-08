@@ -33,6 +33,20 @@ SEQOPS = ('concat', 'contains', 'countOf', 'indexOf', )
 ALLOPS = (*RICHOPS, *BOOLOPS, *ARITHMOPS, *SEQOPS)
 
 
+class Slc:
+
+    __slots__ = ()
+
+    def __class_getitem__(cls, arg, /):
+        if not isinstance(arg, slice):
+            raise TypeError(type(arg))
+        return arg
+
+    @classmethod
+    def __new__(cls, /, *args):
+        return slice(*args)
+
+
 def unpackable(obj):
     return all(
         isinstance(obj, _collabc.Iterable),

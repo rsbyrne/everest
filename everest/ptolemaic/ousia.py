@@ -224,7 +224,7 @@ class OusiaBase(metaclass=Ousia):
 
     def _var_repr(self, /):
         return ', '.join(
-            f"{key}:{getattr(self, key)}" for key in self._var_slots
+            f"{key}:{getattr(self, key)}" for key in self._var_slots__
             )
 
     @property

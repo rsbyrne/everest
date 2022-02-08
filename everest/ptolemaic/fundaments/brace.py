@@ -7,6 +7,7 @@ import itertools as _itertools
 from collections import abc as _collabc
 
 from everest.incision import IncisionProtocol as _IncisionProtocol
+from everest.utilities import pretty as _pretty
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.bythos import Bythos as _Bythos
@@ -85,31 +86,37 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
     class SymForm(_Chora, metaclass=_Sprite):
 
         chora: _Chora
-        keys: tuple = None
+        labels: (tuple, int)
 
         @classmethod
-        def __class_call__(cls, chora, keys):
+        def __class_call__(cls, chora, labels):
             if not cls.SubmemberType.__includes__(chora):
                 raise ValueError(chora)
-            if isinstance(keys, int):
-                keys = tuple(range(keys))
+            if isinstance(labels, int):
+                labels = tuple(range(labels))
             typ = _ArmatureProtocol.BRACE(chora, cls.MemberType).SymForm
             if typ is cls:
-                return super().__class_call__(chora, keys)
-            return typ(chora, keys)
+                return super().__class_call__(chora, labels)
+            return typ(chora, labels)
+
+        @property
+        def choras(self, /):
+            return tuple(_itertools.repeat(self.chora, self.depth))
 
         @property
         def depth(self, /):
-            return len(self.keys)
+            return len(self.labels)
+
+        def keys(self, /):
+            return self.labels
+
+        def values(self, /):
+            return self.choras
 
         def __init__(self, /):
             super().__init__()
             if not self.SubmemberType.__includes__(self.chora):
                 raise TypeError(self.chora, type(self.chora))
-
-        @property
-        def choras(self, /):
-            return tuple(_itertools.repeat(self.chora, self.depth))
 
         __choret__ = _Multi
 
@@ -121,15 +128,15 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
     class AsymForm(_Chora, metaclass=_Sprite):
 
         choras: tuple
-        keys: tuple = None
+        labels: tuple = None
 
         @classmethod
-        def __class_call__(cls, choras, keys=None):
-            if keys is None:
+        def __class_call__(cls, choras, labels=None):
+            if labels is None:
                 if isinstance(choras, _collabc.Mapping):
-                    choras, keys = tuple(choras.values()), tuple(choras)
+                    choras, labels = tuple(choras.values()), tuple(choras)
                 else:
-                    keys = tuple(range(len(choras)))
+                    labels = tuple(range(len(choras)))
             if not all(map(cls.SubmemberType.__includes__, choras)):
                 raise ValueError(choras)
             if len(typset := set(
@@ -138,8 +145,8 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
                     )) == 1:
                 typ = typset.pop()
                 if typ is not cls:
-                    return typ(choras, keys)
-            return super().__class_call__(choras, keys)
+                    return typ(choras, labels)
+            return super().__class_call__(choras, labels)
 
         @property
         def depth(self, /):
@@ -156,9 +163,23 @@ class Brace(_Fundament, _Brace, metaclass=_Bythos):
         def depth(self, /):
             return len(self.choras)
 
+        def keys(self, /):
+            return self.labels
+
+        def values(self, /):
+            return self.choras
+
+        def asdict(self, /):
+            return dict(zip(self.keys(), self.values()))
+
         @property
         def validate_contents(self, /):
             return _IncisionProtocol.CONTAINS(self.__incision_manager__)
+
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self.rootrepr
+            _pretty.pretty_dict(self.asdict(), p, cycle, root=root)
 
 
     class Space(metaclass=_Sprite):

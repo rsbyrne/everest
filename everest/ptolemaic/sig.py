@@ -17,6 +17,7 @@ from everest.utilities import (
     classtools as _classtools,
     format_argskwargs as _format_argskwargs,
     reseed as _reseed,
+    pretty as _pretty,
     )
 from everest import epitaph as _epitaph
 from everest.incision import (
@@ -448,9 +449,6 @@ class Sig(_ChainIncisable, metaclass=_Sprite):
                 return False
         return True
 
-    def __str__(self, /):
-        return str(self.effsignature)
-
     for name in ('keys', 'values', 'items'):
         exec('\n'.join((
             f'@property',
@@ -458,6 +456,14 @@ class Sig(_ChainIncisable, metaclass=_Sprite):
             f'    return self.content.{name}',
             )))
     del name
+
+    def __str__(self, /):
+        return str(self.effsignature)
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.rootrepr
+        _pretty.pretty_dict(self.sigfields, p, cycle, root=root)
 
 
 class Param(metaclass=_Sprite):

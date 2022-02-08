@@ -461,20 +461,28 @@ class Degenerator(_ChainIncisable, metaclass=_Sprite):
 class Multi(Basic):
 
     @property
+    def labels(self, /):
+        return self.bound.keys()
+
+    @property
+    def choras(self, /):
+        return self.bound.values()
+
+    @property
     def depth(self, /):
-        return len(self.bound.choras)
+        return len(self.choras)
 
     @property
     @_caching.soft_cache()
     def active(self, /):
         return tuple(
-            not isinstance(cho, Degenerate) for cho in self.bound.choras
+            not isinstance(cho, Degenerate) for cho in self.choras
             )
 
     @property
     @_caching.soft_cache()
     def activechoras(self, /):
-        return tuple(_itertools.compress(self.bound.choras, self.active))
+        return tuple(_itertools.compress(self.choras, self.active))
 
     @property
     def activedepth(self, /):
@@ -497,13 +505,13 @@ class Multi(Basic):
 #                 for key, chora in zip(self.bound.keys, choras)
 #                 }))
         if len(set(choras)) == 1:
-            slyce = self.bound.SymForm(choras[0], self.bound.keys)
+            slyce = self.bound.SymForm(choras[0], self.labels)
         else:
-            slyce = self.bound.AsymForm(choras, self.bound.keys)
+            slyce = self.bound.AsymForm(choras, self.labels)
         return _IncisionProtocol.SLYCE(caller)(slyce)
 
     def yield_mapping_multiincise(self, incisors: _collabc.Mapping, /):
-        choras, keys = self.bound.choras, self.bound.keys
+        choras, keys = self.choras, self.labels
         for key, chora in zip(keys, choras):
             if key in incisors:
                 yield _IncisionProtocol.INCISE(chora)(
@@ -520,7 +528,7 @@ class Multi(Basic):
             if ninc % nell:
                 raise ValueError("Cannot resolve incision ellipses.")
             ellreps = (ncho - ninc) // nell
-        chorait = iter(self.bound.choras)
+        chorait = iter(self.choras)
         try:
             for incisor in incisors:
                 if incisor is ...:
@@ -554,16 +562,16 @@ class Multi(Basic):
         return self.handle_sequence((incisor,), caller=caller)
 
     def __incise_contains__(self, arg, /):
-        choras = self.bound.choras
+        choras = self.choras
         if len(arg) > len(choras):
             return False
         elif isinstance(arg, _collabc.Mapping):
-            for key, chora in zip(self.bound.keys, choras):
+            for key, chora in zip(self.labels, choras):
                 if key in arg:
                     if arg[key] not in chora:
                         return False
         else:
-            for val, chora in zip(arg, self.bound.choras):
+            for val, chora in zip(arg, self.choras):
                 if val not in chora:
                     return False
         return True
