@@ -421,14 +421,14 @@ class Sig(_ChainIncisable, metaclass=_Sprite):
             if name not in self.degenerates
             )
 
-    def __incise_retrieve__(self, incisor: tuple, /):
+    def __incise_retrieve__(self, incisor: _Brace, /):
         bound = self.signature.bind_partial()
         bound.arguments.update(zip(self.sigfields, incisor))
         bound.arguments.update(self.degenerates)
         bound.apply_defaults()
         return Params(bound)
 
-    def __incise_slyce__(self, incisor: _Chora, /):
+    def __incise_slyce__(self, incisor: _Brace.Oid, /):
         obj = self._ptolemaic_class__(**{
             key: Field(field.kind, chora, field.value)
             for (key, field), chora in zip(self.sigfields.items(), incisor.choras)

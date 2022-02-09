@@ -32,7 +32,7 @@ class Floatt(_Real, _Thing):
 with Floatt.mutable:
 
 
-    class FloattOpen(_Chora, Floatt.Slyce, metaclass=_Eidos):
+    class FloattOpen(_Chora, Floatt.Oid, metaclass=_Eidos):
 
         lower: Floatt
 
@@ -87,7 +87,7 @@ with Floatt.mutable:
     Floatt.Open = FloattOpen
 
 
-    class FloattLimit(_Chora, Floatt.Slyce, metaclass=_Eidos):
+    class FloattLimit(_Chora, Floatt.Oid, metaclass=_Eidos):
 
         upper: Floatt
 
@@ -132,7 +132,7 @@ with Floatt.mutable:
     Floatt.Limit = FloattLimit
 
 
-    class FloattClosed(_Chora, Floatt.Slyce, metaclass=_Eidos):
+    class FloattClosed(_Chora, Floatt.Oid, metaclass=_Eidos):
 
         lower: Floatt
         upper: Floatt

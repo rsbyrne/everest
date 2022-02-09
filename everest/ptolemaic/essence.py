@@ -293,12 +293,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __init__(cls, /, *args, **kwargs):
         with cls.mutable:
             _abc.ABCMeta.__init__(cls, *args, **kwargs)
-            ns = _types.SimpleNamespace()
-            ns.cls = cls
-            cls.delayed_eval(ns)
-            for name, val in ns.__dict__.items():
-                if val is not ns:
-                    setattr(cls, name, val)
+            # ns = _types.SimpleNamespace()
+            # # ns.cls = cls
+            # cls.delayed_eval(ns)
+            # for name, val in ns.__dict__.items():
+            #     if val is not ns:
+            #         setattr(cls, name, val)
             cls.__class_init__()
 
     ### Implementing the attribute-freezing behaviour for classes:
@@ -432,9 +432,9 @@ class EssenceBase(metaclass=Essence):
     def __class_init__(cls, /):
         cls._add_mroclasses()
 
-    @classmethod
-    def delayed_eval(cls, namespace: _types.SimpleNamespace, /):
-        pass
+    # @classmethod
+    # def delayed_eval(cls, namespace: _types.SimpleNamespace, /):
+    #     pass
 
 
 ###############################################################################

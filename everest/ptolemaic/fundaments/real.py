@@ -15,7 +15,7 @@ class Real(_Fundament):
 
 
     # Needed to straighten out inheritance
-    class Slyce(metaclass=_Essence):
+    class Oid(metaclass=_Essence):
         ...
 
 
@@ -40,33 +40,6 @@ class Real(_Fundament):
                 if upper <= lower:
                     return self.bound.MemberType.Null
                 return self.bound.MemberType.Closed(lower, upper)
-
-
-    class Brace(metaclass=_Sprite):
-
-        content: tuple = ()
-        labels: tuple = ()
-
-        for name in ('__getitem__', '__len__', '__iter__', '__contains__'):
-            exec('\n'.join((
-                f'@property',
-                f'def {name}(self, /):',
-                f'    return self.content.{name}',
-                )))
-        del name
-
-        class Slyce(metaclass=_Essence):
-
-            def __incise_retrieve__(self, incisor, /):
-                return self.owner(incisor, getattr(self, 'labels', ()))
-
-        def asdict(self, /):
-            return dict(zip(self.labels, self.content))
-
-        def _repr_pretty_(self, p, cycle, root=None):
-            if root is None:
-                root = self.rootrepr
-            return _pretty.pretty_dict(self.asdict(), p, cycle, root)
 
 
 ###############################################################################

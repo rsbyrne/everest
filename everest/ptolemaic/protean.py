@@ -33,9 +33,8 @@ class ProteanBase(metaclass=Protean):
        
     ### Representations:
 
-    @property
     def _content_repr(self, /):
-        return self.basis.__repr__
+        return repr(self.basis)
 
     def _repr_pretty_base(self, p, cycle, /):
         _pretty.pretty_tuple((self.basis,), p, cycle, root=self.rootrepr)

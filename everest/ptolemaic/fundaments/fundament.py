@@ -12,7 +12,6 @@ from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.armature import Element as _Element
 from everest.ptolemaic.chora import (
     Degenerate as _Degenerate,
     Chora as _Chora,
@@ -30,14 +29,12 @@ class Fundament(metaclass=_Bythos):
         cls._add_mroclass('Null')
         Gen = cls._add_mroclass('Gen')
         Var = cls._add_mroclass('Var')
-        cls.__class_armature_generic__ = cls.Gen(cls)
-        cls.__class_armature_variable__ = cls.Var(cls)
-        Slyce = cls._add_mroclass('Slyce')
-        with Slyce.mutable:
-            Slyce.MemberType = cls
-            Slyce.__armature_generic__ = property(Gen)
-            Slyce.__armature_variable__ = property(Var)
-        cls._add_mroclass('Space', (Slyce,))
+        cls.__class_armature_generic__ = Gen
+        cls.__class_armature_variable__ = Var
+        Oid = cls._add_mroclass('Oid')
+        with Oid.mutable:
+            Oid.MemberType = cls
+        cls._add_mroclass('Space', (Oid,))
         cls.__class_incision_manager__ = cls.make_class_incision_manager()
 
 
@@ -55,11 +52,11 @@ class Fundament(metaclass=_Bythos):
             return _IncisionProtocol.FAIL(caller)(incisor)
 
 
-    class Gen(_Element, metaclass=_Sprite):
+    class Gen(metaclass=_Sprite):
         ...
 
 
-    class Var(_Element, metaclass=_Protean):
+    class Var(metaclass=_Protean):
 
         _req_slots__ = ('_value',)
         _var_slots__ = ('value',)
@@ -86,7 +83,15 @@ class Fundament(metaclass=_Bythos):
             self._alt_setattr__('_value', self._default)
 
 
-    class Slyce(_IncisionHandler, metaclass=_Essence):
+    class Oid(_IncisionHandler, metaclass=_Essence):
+
+        @property
+        def __armature_generic__(self, /):
+            return self.MemberType.__armature_generic__
+
+        @property
+        def __armature_variable__(self, /):
+            return self.MemberType.__armature_variable__
 
         def __incise_contains__(self, arg, /) -> bool:
             return isinstance(arg, self.MemberType)
@@ -123,11 +128,6 @@ class Fundament(metaclass=_Bythos):
 
         def __incise_trivial__(self, /):
             return self.owner
-
-
-    @classmethod
-    def __class_call__(cls, arg, /):
-        return cls.__incision_manager__(arg)
 
 
 ###############################################################################

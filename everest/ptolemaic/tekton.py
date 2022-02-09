@@ -23,16 +23,14 @@ from everest.ptolemaic.chora import (
     )
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.sig import Sig as _Sig
-from everest.ptolemaic.armature import Armature as _Armature
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
 
 class Tekton(_Bythos):
 
     @property
-    @_caching.soft_cache()
-    def __class_incision_manager__(cls, /):
-        return cls.Oid(cls, cls.sig,)
+    def __incision_manager__(cls, /):
+        return cls.oid
 
     @classmethod
     def decorate(meta, obj, /):
@@ -57,14 +55,14 @@ class TektonBase(metaclass=Tekton):
     MROCLASSES = ('Oid',)
 
 
-    class Oid(_Armature, _ChainIncisable, metaclass=_Sprite):
+    class Oid(_ChainIncisable, metaclass=_Sprite):
 
         subject: _Chora
-        sig: _Chora
+        chora: _Chora
 
         @property
         def __incision_manager__(self, /):
-            return self.sig
+            return self.chora
 
         @property
         def __incise_retrieve__(self, /):
@@ -74,20 +72,29 @@ class TektonBase(metaclass=Tekton):
             return self._ptolemaic_class__(self.subject, incisor)
 
         def __call__(self, /, *args, **kwargs):
-            return self.subject.instantiate(self.sig(*args, **kwargs))
+            return self.subject.instantiate(self.chora(*args, **kwargs))
 
 
     @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
+    def _make_sig(cls, /):
         try:
             construct = cls.__construct__
         except AttributeError:
             sig = _Sig()
         else:
             sig = _Sig(construct)
-        cls.sig = sig
+        return sig
+
+    @classmethod
+    def _make_oid(cls, /):
+        return cls.Oid(cls, cls.sig)
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        sig = cls.sig = cls._make_sig()
         cls.fields = sig.sigfields
+        cls.oid = cls._make_oid()
 
     @classmethod
     def instantiate(cls, params, /):

@@ -39,6 +39,7 @@ class IncisionProtocol(_Protocol):
     INCLUDES = ('__incise_includes__', False)
     LENGTH = ('__incise_length__', False)
     ITER = ('__incise_iter__', False)
+    INDEX = ('__incise_index__', False)
     DEFER = ('__incision_manager__', False)
 
     def exc(self, obj, /):
@@ -143,6 +144,10 @@ class IncisionChain(Incisable):
         for obj in members:
             incisor = IncisionProtocol.RETRIEVE(obj)(incisor)
         return IncisionProtocol.DEGENERATE(last)(incisor)
+
+    @property
+    def __incision_manager__(self, /):
+        return self.incisables[-1]
 
     @property
     def __incise_fail__(self, /):

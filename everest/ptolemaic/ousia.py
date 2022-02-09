@@ -171,12 +171,15 @@ class OusiaBase(metaclass=Ousia):
     def mutable(self, /):
         return self.freezeattr.as_(False)
 
+    def __getattr__(self, name, /):
+        return super().__getattribute__(name)
+
     def _alt_setattr__(self, name, val, /):
         super().__setattr__(name, val)
 
     def __setattr__(self, name, val, /):
         if name in self._var_slots__:
-            super().__setattr__(name, value)
+            super().__setattr__(name, val)
         elif self.freezeattr:
             raise AttributeError(
                 f"Setting attributes on an object of type {type(self)} "
@@ -238,6 +241,9 @@ class OusiaBase(metaclass=Ousia):
 
     def __str__(self, /):
         return self.__repr__()
+
+    def __hash__(self, /):
+        return id(self)
 
     ### Rich comparisons to support ordering of objects:
 

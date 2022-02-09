@@ -26,8 +26,12 @@ class Thing(_Fundament):
     def __class_incise_retrieve__(cls, arg, /):
         return arg
 
+    @classmethod
+    def __class_call__(cls, arg, /):
+        return arg
 
-    class Slyce(metaclass=_Essence):
+
+    class Oid(metaclass=_Essence):
 
         @property
         def __armature_brace__(self, /):
@@ -45,10 +49,6 @@ class Thing(_Fundament):
             else:
                 super().__class_init__()
                 cls.SubmemberType = owner
-
-        @classmethod
-        def __class_incise_retrieve__(cls, arg, /):
-            return arg
 
 
 _ = Thing.register(_Primitive)

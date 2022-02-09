@@ -25,29 +25,18 @@ class ArmatureProtocol(_Protocol):
         return IncisionProtocolException(self, obj)
 
 
-class Armature(metaclass=_Essence):
-    '''
-    An `Armature` is the ptolemaic system's equivalent
-    of a generic Python collection, like `tuple` or `dict`.
-    '''
+class Gen(metaclass=_Essence):
+
+    @classmethod
+    def __class_call__(cls, arg, /):
+        return ArmatureProtocol.GENERIC(arg)(arg)
 
 
-class Element(Armature):
+class Var(metaclass=_Essence):
 
-    basis: _Essence
-
-
-class Brace(Armature):
-    ...
-
-
-# class BraceShape(metaclass=_Sprite):
-
-#     n
-
-
-class Mapp(Armature):
-    ...
+    @classmethod
+    def __class_call__(cls, arg, /):
+        return ArmatureProtocol.VARIABLE(arg)(arg)
 
 
 ###############################################################################

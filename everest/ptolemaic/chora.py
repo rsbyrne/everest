@@ -13,7 +13,7 @@ import abc as _abc
 import weakref as _weakref
 from dataclasses import dataclass as _dataclass
 
-from everest import ur as _ur
+# from everest import ur as _ur
 from everest.utilities import (
     TypeMap as _TypeMap,
     caching as _caching,
@@ -194,10 +194,10 @@ WRAPMETHS = dict(
     fail=_wrap_fail,
     )
 
-URPROTOCOLS = {
-    _ur.Var: _ArmatureProtocol.VARIABLE,
-    _ur.Dat: _ArmatureProtocol.GENERIC,
-    }
+# URPROTOCOLS = {
+#     _ur.Var: _ArmatureProtocol.VARIABLE,
+#     _ur.Dat: _ArmatureProtocol.GENERIC,
+#     }
 
 
 class Basic(Choret):
@@ -215,8 +215,8 @@ class Basic(Choret):
 #     def handle_protocol(self, incisor: _IncisionProtocol, /, *, caller):
 #         return incisor(caller)()
 
-    def handle_ur(self, incisor: _ur.Ur, /, *, caller):
-        return URPROTOCOLS[incisor](caller)
+    # def handle_ur(self, incisor: _ur.Ur, /, *, caller):
+    #     return URPROTOCOLS[incisor](caller)
 
     def trivial_ellipsis(self, incisor: EllipsisType, /):
         '''Captures the special behaviour implied by `self[...]`.'''
@@ -521,7 +521,10 @@ class Multi(Basic):
                 yield chora
 
     def yield_sequence_multiincise(self, incisors: _collabc.Sequence, /):
-        ninc, ncho = len(incisors), self.activedepth
+        ncho = self.activedepth
+        if ncho == 1:
+            incisors = (incisors,)
+        ninc = len(incisors)
         nell = incisors.count(...)
         if nell:
             ninc -= nell
@@ -559,6 +562,8 @@ class Multi(Basic):
         return self._handle_generic(incisor, caller=caller, meth=meth)
 
     def handle_other(self, incisor: object, /, *, caller):
+        if self.activedepth == 1:
+            return self.handle_sequence(incisor, caller=caller)
         return self.handle_sequence((incisor,), caller=caller)
 
     def __incise_contains__(self, arg, /):
