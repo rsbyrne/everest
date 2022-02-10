@@ -57,7 +57,6 @@ class TektonBase(metaclass=Tekton):
 
     class Oid(_ChainIncisable, metaclass=_Sprite):
 
-        subject: _Chora
         chora: _Chora
 
         @property
@@ -87,7 +86,7 @@ class TektonBase(metaclass=Tekton):
 
     @classmethod
     def _make_oid(cls, /):
-        return cls.Oid(cls, cls.sig)
+        return cls.Oid(cls.sig)
 
     @classmethod
     def __class_init__(cls, /):

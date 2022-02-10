@@ -18,6 +18,7 @@ from everest.utilities import (
     format_argskwargs as _format_argskwargs,
     reseed as _reseed,
     pretty as _pretty,
+    Slc as _Slc,
     )
 from everest import epitaph as _epitaph
 from everest.incision import (
@@ -336,6 +337,8 @@ def get_typ_fields(typ):
             field = deq[0]
         else:
             field = _functools.reduce(_operator.getitem, reversed(deq))
+        if isinstance(field, FieldKind):
+            field = field[_Thing]
         fields[name] = field
     return fields
 
@@ -392,7 +395,7 @@ class Sig(_ChainIncisable, metaclass=_Sprite):
     @_caching.soft_cache()
     def __incision_manager__(self, /):
         return _Brace[{
-            key: slice(None, None, field.__incision_manager__)
+            key: _Slc[::field.hint]
             for key, field in self.sigfields.items()
             }]
 

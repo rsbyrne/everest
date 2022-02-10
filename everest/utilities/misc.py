@@ -47,6 +47,53 @@ class Slc:
         return slice(*args)
 
 
+class RestrictedNamespace(dict):
+
+    def __init__(self, badnames=frozenset(), badvals=frozenset()):
+        self.__dict__.update(
+            badnames=(badnames | {'badnames', 'badvals'}),
+            badvals=(badvals | {self,}),
+            )
+        super().__init__()
+
+    def __setitem__(self, name, val):
+        if not isinstance(name, str):
+            raise TypeError(name)
+        if name in self.badnames:
+            raise KeyError(name)
+        if val in self.badvals:
+            raise ValueError(val)
+        super().__setitem__(name, val)
+
+    @property
+    def __setattr__(self, /):
+        return self.__setitem__
+
+    def __getattr__(self, name, /):
+        try:
+            return self.__dict__[name]
+        except KeyError:
+            try:
+                return self[name]
+            except KeyError:
+                raise AttributeError(name)
+
+    def update(self, dct, /):
+        super().update({
+            key: val for key, val in dct.items()
+            if not (key in self.badnames or val in self.badvals)
+            })
+
+    def __hash__(self, /):
+        return id(self)
+
+    def __repr__(self, /):
+        content = ', '.join(
+            map('='.join, zip(self.keys(), map(repr, self.values())))
+            )
+        return f"{type(self).__name__}({content})"
+
+
 def unpackable(obj):
     return all(
         isinstance(obj, _collabc.Iterable),

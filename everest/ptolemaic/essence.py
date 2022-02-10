@@ -16,10 +16,42 @@ from everest.utilities import (
     switch as _switch,
     reseed as _reseed,
     FrozenMap as _FrozenMap,
+    RestrictedNamespace as _RestrictedNamespace,
     )
 from everest.ur import Dat as _Dat
 
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
+from everest.ptolemaic import exceptions as _exceptions
+
+
+class MROClassNotFound(
+        _exceptions.PtolemaicLayoutException,
+        _exceptions.PtolemaicExceptionRaisedBy,
+        AttributeError,
+        ):
+
+    def __init__(self, /, mroname, *args, **kwargs):
+        self.mroname = mroname
+        super().__init__(*args, **kwargs)
+
+    def message(self, /):
+        yield from super().message()
+        yield f"when no bases could be found for mro name {self.mroname}"
+
+
+class MROSubClassRecursion(
+        _exceptions.PtolemaicLayoutException,
+        _exceptions.PtolemaicExceptionRaisedBy,
+        TypeError,
+        ):
+
+    def __init__(self, /, mroname, *args, **kwargs):
+        self.mroname = mroname
+        super().__init__(*args, **kwargs)
+
+    def message(self, /):
+        yield from super().message()
+        yield f"when attempting to recursively subclass {self.mroname}"
 
 
 def ordered_set(itr):
@@ -103,7 +135,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             raise TypeError
         return inh
 
-    def _make_mroclass(cls, name: str, bases=(), /):
+    def _make_mroclass(cls, name: str, /, mixin=None):
         candidates = []
         try:
             inh = cls.__dict__[name]
@@ -124,39 +156,69 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             inh = cls._process_mrobase(inh)
             if inh not in inhclasses:
                 inhclasses.append(inh)
-        outname = f"{cls.__name__}{name}"
-        if inhclasses:
-            if len(inhclasses) == 1:
-                basis = inhclasses[0]
-            else:
-                basis = type(
-                    f"{name}_FusedUnder_{cls.__name__}",
-                    tuple(inhclasses),
-                    {},
-                    )
-            return type(
-                f"{cls.__name__}{name}",
-                (basis, *bases),
-                dict(owner=cls, __mroclass_basis__=basis),
+        if not inhclasses:
+            raise MROClassNotFound(name, cls)
+        if len(inhclasses) == 1:
+            basis = inhclasses[0]
+        else:
+            basis = type(
+                f"{name}_FusedUnder_{cls.__name__}",
+                tuple(inhclasses),
+                {},
                 )
-        if not any(isinstance(base, Essence) for base in bases):
-            bases = (*bases, EssenceBase)
-        return type(
-            f"{cls.__name__}{name}",
-            bases,
-            dict(owner=cls),
+        ns = dict(
+            owner=cls,
+            __mroclass_basis__=basis,
             )
+        if mixin is None:
+            typname = f"{cls.__name__}{name}"
+            bases = (basis,)
+        else:
+            typname = f"{name}_{cls.__name__}"
+            bases = (basis, mixin)
+            ns['__mroclass_mixin__'] = mixin
+        out = type(typname, bases, ns)
+        return out
 
-    def _add_mroclass(cls, name: str, /, *args, **kwargs):
-        out = cls._make_mroclass(name, *args, **kwargs)
+    def _add_mroclass(cls, arg: (str, type), /, mixin=None):
+        if not isinstance(arg, str):
+            if not isinstance(arg, type):
+                raise TypeError(arg)
+            setattr(cls, arg.__name__, arg)
+        name = arg
+        try:
+            out = cls._make_mroclass(name, mixin=mixin)
+        except TypeError as exc:
+            raise TypeError(cls, name, mixin) from exc
         setattr(cls, name, out)
         if hasattr(out, '__set_name__'):
             out.__set_name__(cls, name)
         return out
 
+    def _try_add_mroclass(cls, arg: (str, type), /, mixin=None):
+        try:
+            cls._add_mroclass(arg, mixin=mixin)
+        except MROClassNotFound:
+            pass
+
     def _add_mroclasses(cls, /):
         for name in cls.MROCLASSES:
-            cls._add_mroclass(name)
+            cls._try_add_mroclass(name)
+
+    def _add_subclass(cls, arg: (str, type), /):
+        if '__mroclass_mixin__' in cls.__dict__:
+            raise MROSubClassRecursion(arg, cls)
+        return cls._add_mroclass(arg, mixin=cls)
+
+    def _try_add_subclass(cls, arg: (str, type), /):
+        try:
+            cls._add_subclass(arg)
+        except (MROSubClassRecursion, MROClassNotFound):
+            pass
+
+    def _add_subclasses(cls, /):
+        for name in cls.SUBCLASSES:
+            cls._try_add_subclass(name)
 
     ### Creating the object that is the class itself:
 
@@ -293,13 +355,23 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __init__(cls, /, *args, **kwargs):
         with cls.mutable:
             _abc.ABCMeta.__init__(cls, *args, **kwargs)
-            # ns = _types.SimpleNamespace()
-            # # ns.cls = cls
-            # cls.delayed_eval(ns)
-            # for name, val in ns.__dict__.items():
-            #     if val is not ns:
-            #         setattr(cls, name, val)
-            cls.__class_init__()
+            try:
+                func = cls.__dict__['__class_delayed_eval__']
+            except KeyError:
+                pass
+            else:
+                func(ns := _RestrictedNamespace(badvals={cls,}))
+                cls.incorporate_namespace(ns)
+            try:
+                owner = cls.__dict__['owner']
+            except KeyError:
+                cls.__class_init__()
+            else:
+                cls.__mroclass_init__(owner)
+
+    def incorporate_namespace(cls, ns, /):
+        for key, val in ns.items():
+            setattr(cls, key, val)
 
     ### Implementing the attribute-freezing behaviour for classes:
 
@@ -425,16 +497,17 @@ _Dat.register(Essence)
 
 class EssenceBase(metaclass=Essence):
 
-    MERGETUPLES = ('MROCLASSES',)
+    MERGETUPLES = ('MROCLASSES', 'SUBCLASSES')
     MERGEDICTS = ('ADJNAMES',)
 
     @classmethod
     def __class_init__(cls, /):
         cls._add_mroclasses()
+        cls._add_subclasses()
 
-    # @classmethod
-    # def delayed_eval(cls, namespace: _types.SimpleNamespace, /):
-    #     pass
+    @classmethod
+    def __mroclass_init__(cls, owner, /):
+        cls.__class_init__()
 
 
 ###############################################################################

@@ -5,6 +5,7 @@
 
 import itertools as _itertools
 
+from everest.utilities import RestrictedNamespace as _RestrictedNamespace
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     )
@@ -31,23 +32,10 @@ def _nth(iterable, n):
 _OPINT = (type(None), int)
 
 
-class Intt(_Real, _Thing):
+def _build_oids(Intt, ns, /):
 
 
-    @classmethod
-    def __class_init__(cls, /):
-        _ = cls.register(int)
-        super().__class_init__()
-
-
-    class Var(metaclass=_Essence):
-        _default = 0
-
-
-with Intt.mutable:
-
-
-    class InttOpen(_Chora, Intt.Oid, metaclass=_Eidos):
+    class Open(_Chora, metaclass=_Eidos):
 
         lower: Intt
         step: Intt = 1
@@ -81,10 +69,12 @@ with Intt.mutable:
                 lower = self.bound.lower
                 upper = incisor.upper
                 if upper == 0:
-                    return InttNull
+                    return self.bound.owner.owner.Null
                 elif upper < 0:
                     raise IndexError
-                return InttClosed(lower, lower + upper, self.bound.step)
+                return self.bound.owner.Closed(
+                    lower, lower + upper, self.bound.step
+                    )
 
             def bounds_slyce_closed(self, incisor: (int, int), /):
                 lower, upper = incisor.lower, incisor.upper
@@ -97,7 +87,9 @@ with Intt.mutable:
                 oldlower = self.bound.lower
                 lower = oldlower + lower
                 upper = oldlower + upper
-                return InttClosed(lower, upper, self.bound.step)
+                return self.bound.owner.Closed(
+                    lower, upper, self.bound.step
+                    )
 
         def __incise_iter__(self, /):
             return _itertools.count(self.lower, self.step)
@@ -113,10 +105,7 @@ with Intt.mutable:
             raise NotImplementedError
 
 
-    Intt.Open = InttOpen
-
-
-    class InttLimit(_Chora, Intt.Oid, metaclass=_Eidos):
+    class Limit(_Chora, metaclass=_Eidos):
 
         upper: Intt
 
@@ -132,7 +121,7 @@ with Intt.mutable:
                 if lower >= 0:
                     raise IndexError
                 lower = upper + lower
-                return InttClosed(lower, upper)
+                return self.bound.owner.Closed(lower, upper)
 
             def bounds_slyce_limit(self, incisor: (type(None), int), /):
                 upper = incisor.upper
@@ -148,8 +137,8 @@ with Intt.mutable:
                     raise IndexError
                 upper = self.bound.upper + upper
                 if upper <= lower:
-                    return InttNull
-                return InttClosed(lower, upper)
+                    return self.bound.owner.owner.Null
+                return self.bound.owner.Closed(lower, upper)
 
         def __incise_contains__(self, arg, /):
             if not super().__contains__(arg):
@@ -160,14 +149,12 @@ with Intt.mutable:
             raise NotImplementedError
 
 
-    Intt.Limit = InttLimit
-
-
-    class InttClosed(_Chora, Intt.Oid, metaclass=_Eidos):
+    class Closed(_Chora, metaclass=_Eidos):
 
         lower: Intt
         upper: Intt
-        step: Intt[1:] = 1
+        # step: Intt[1:] = 1
+        step: Intt
 
         _req_slots__ = ('_rangeobj',)
 
@@ -186,7 +173,9 @@ with Intt.mutable:
                 oldr = self.bound._rangeobj
                 newr = oldr[slice(*incisor)]
                 if len(newr) == 0:
-                    return _IncisionProtocol.SLYCE(caller)(InttNull)
+                    return _IncisionProtocol.SLYCE(caller)(
+                        self.bound.owner.owner.Null
+                        )
                 start, stop, step = newr.start, newr.stop, newr.step
                 if (stop, stop, step) == (oldr.start, oldr.stop, oldr.step):
                     return _IncisionProtocol.TRIVIAL(caller)
@@ -208,7 +197,31 @@ with Intt.mutable:
             raise NotImplementedError
 
 
-    Intt.Closed = InttClosed
+    ns.update(locals())
+
+
+class Intt(_Real, _Thing):
+
+
+    @classmethod
+    def __class_init__(cls, /):
+        _ = cls.register(int)
+        super().__class_init__()
+
+
+    class Var(metaclass=_Essence):
+        _default = 0
+
+
+    class Oid(metaclass=_Essence):
+
+        @classmethod
+        def __mroclass_init__(cls, owner, /):
+            if owner.__name__ == 'Intt':
+                ns = _RestrictedNamespace(badvals={owner,})
+                _build_oids(owner, ns)
+                cls.incorporate_namespace(ns)
+            cls.__class_init__()
 
 
 ###############################################################################

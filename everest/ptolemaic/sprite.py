@@ -59,7 +59,8 @@ def get_fields(ACls, /):
         except IndexError:
             out[key] = _empty
     if any(hasattr(ACls, key) for key in out):
-        raise TypeError("Field clashes detected!", out)
+        clashes = set(key for key in out if hasattr(ACls, key))
+        raise TypeError("Field clashes detected!", ACls, clashes)
     return out, defaults
 
 

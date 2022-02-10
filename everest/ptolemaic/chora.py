@@ -500,12 +500,8 @@ class Multi(Basic):
             return _IncisionProtocol.RETRIEVE(caller)(tuple(
                 chora.value for chora in choras
                 ))
-#             return _IncisionProtocol.RETRIEVE(caller)(_Diict({
-#                 key: chora.value
-#                 for key, chora in zip(self.bound.keys, choras)
-#                 }))
         if len(set(choras)) == 1:
-            slyce = self.bound.SymForm(choras[0], self.labels)
+            slyce = self.bound.SymForm(choras[0], self.labels, self.depth)
         else:
             slyce = self.bound.AsymForm(choras, self.labels)
         return _IncisionProtocol.SLYCE(caller)(slyce)
@@ -554,12 +550,18 @@ class Multi(Basic):
         yield from chorait
 
     def handle_mapping(self, incisor: _collabc.Mapping, /, *, caller):
-        meth = self.yield_mapping_multiincise
-        return self._handle_generic(incisor, caller=caller, meth=meth)
+        return self._handle_generic(
+            incisor,
+            caller=caller,
+            meth=self.yield_mapping_multiincise,
+            )
 
     def handle_sequence(self, incisor: _collabc.Sequence, /, *, caller):
-        meth = self.yield_sequence_multiincise
-        return self._handle_generic(incisor, caller=caller, meth=meth)
+        return self._handle_generic(
+            incisor,
+            caller=caller,
+            meth=self.yield_sequence_multiincise,
+            )
 
     def handle_other(self, incisor: object, /, *, caller):
         if self.activedepth == 1:

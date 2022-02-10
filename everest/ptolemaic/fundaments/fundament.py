@@ -3,6 +3,9 @@
 ###############################################################################
 
 
+import sys as _sys
+
+from everest.primitive import Primitive as _Primitive
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     IncisionHandler as _IncisionHandler,
@@ -10,6 +13,7 @@ from everest.incision import (
 
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.chora import (
@@ -22,25 +26,12 @@ from everest.ptolemaic.chora import (
 class Fundament(metaclass=_Bythos):
 
 
+    MROCLASSES = ('Null', 'Gen', 'Var', 'Oid')
+
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.MemberType = cls
-        cls._add_mroclass('Null')
-        Gen = cls._add_mroclass('Gen')
-        Var = cls._add_mroclass('Var')
-        cls.__class_armature_generic__ = Gen
-        cls.__class_armature_variable__ = Var
-        Oid = cls._add_mroclass('Oid')
-        with Oid.mutable:
-            Oid.MemberType = cls
-        cls._add_mroclass('Space', (Oid,))
-        cls.__class_incision_manager__ = cls.make_class_incision_manager()
-
-
-    @classmethod
-    def make_class_incision_manager(cls, /):
-        return cls.Space()
+        cls.__class_incision_manager__ = cls.Oid.Space()
 
 
     class Null(metaclass=_Bythos):
@@ -85,28 +76,24 @@ class Fundament(metaclass=_Bythos):
 
     class Oid(_IncisionHandler, metaclass=_Essence):
 
+
+        SUBCLASSES = ('Space',)
+
         @property
         def __armature_generic__(self, /):
-            return self.MemberType.__armature_generic__
+            return self.owner.Gen
 
         @property
         def __armature_variable__(self, /):
-            return self.MemberType.__armature_variable__
+            return self.owner.Var
 
         def __incise_contains__(self, arg, /) -> bool:
-            return isinstance(arg, self.MemberType)
+            return arg in self.owner
 
         def __incise_includes__(self, arg, /) -> bool:
             if isinstance(arg, _Degenerate):
                 return arg.value in self
-            try:
-                return issubclass(arg.MemberType, self.MemberType)
-            except AttributeError:
-                return False
-
-#         @property
-#         def __incise_retrieve__(self, /):
-#             return self.MemberType.__incise_retrieve__
+            return _IncisionProtocol.INCLUDES(self.owner)(arg)
 
         def __call__(self, arg, /):
             if arg in self:
@@ -114,20 +101,28 @@ class Fundament(metaclass=_Bythos):
             raise ValueError(arg)
 
 
-    class Space(_Chora, metaclass=_Sprite):
+        class Space(_Chora, metaclass=_Sprite):
 
-        class __choret__(_Sampleable):
+            class __choret__(_Sampleable):
 
-            def retrieve_contains(self, incisor: 'owner.MemberType', /):
-                if incisor in self.bound:
-                    return incisor
-                raise ValueError(incisor)
+                def sample_slyce_chora(self, incisor: _Chora, /):
+                    if _IncisionProtocol.INCLUDES(self.bound)(incisor):
+                        return incisor
+                    raise ValueError(incisor)
 
-            def sample_slyce_chora(self, incisor: _Chora, /):
-                return incisor
+            def __incise_trivial__(self, /):
+                return self.owner
 
-        def __incise_trivial__(self, /):
-            return self.owner
+            def __incise_includes__(self, arg, /):
+                if arg is (owner := self.owner):
+                    return True
+                return isinstance(arg, owner)
+
+            def __incise_contains__(self, arg, /):
+                return False
+
+
+_ = Fundament.Oid.register(_Chora)
 
 
 ###############################################################################

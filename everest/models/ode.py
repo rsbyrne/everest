@@ -17,6 +17,7 @@ from everest.incision import (
     )
 
 from everest.ptolemaic.diict import Diict as _Diict
+from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.schema import Schema as _Schema
 from everest.ptolemaic.sig import Field as _Field
 from everest.ptolemaic.chora import (
@@ -90,7 +91,8 @@ class ODEModelBase(_Chora, metaclass=ODEModel):
 
 class ODELine(_Chora, metaclass=_Schema):
 
-    basis: _Field.POS[ODEModelBase]
+    # basis: _Field.POS[ODEModelBase]
+    basis: _Field.POS
     initial: _Field.POS[_Thing]
 
     @classmethod
@@ -112,44 +114,45 @@ class ODELine(_Chora, metaclass=_Schema):
             return self.traverse(incisor.lower, incisor.upper)
 
 
-class ODETraverse(_ChainIncisable, metaclass=_Schema):
+# class ODETraverse(_ChainIncisable, metaclass=_Schema):
 
-    line: _Field.POS[ODELine]
-    interval: _Field.POS[_Floatt.Closed[0.:]]
-    freq: _Field.KW[_Floatt[1e-12:]] = 0.005
+#     # line: _Field.POS[ODELine]
+#     line: _Field.POS
+#     interval: _Field.POS[_Floatt.Closed[0.:]]
+#     freq: _Field.KW[_Floatt[1e-12:]] = 0.005
 
-    @classmethod
-    def parameterise(cls, cache, /, *args, **kwargs):
-        bound = super().parameterise(cache, *args, **kwargs)
-        if isinstance((val := bound.arguments['interval']), tuple):
-            bound.arguments['interval'] = _Floatt.Closed(*val)
-        return bound
+#     @classmethod
+#     def parameterise(cls, cache, /, *args, **kwargs):
+#         bound = super().parameterise(cache, *args, **kwargs)
+#         if isinstance((val := bound.arguments['interval']), tuple):
+#             bound.arguments['interval'] = _Floatt.Closed(*val)
+#         return bound
 
-    @property
-    def initial(self, /):
-        return self.line.initial
+#     @property
+#     def initial(self, /):
+#         return self.line.initial
 
-    @property
-    def basis(self, /):
-        return self.line.basis
+#     @property
+#     def basis(self, /):
+#         return self.line.basis
 
-    def solve(self, /):
-        basis, interval = self.basis, self.interval
-        ts = t0, tf = interval.lower, interval.upper
-        return _solve_ivp(
-            basis.__call__,
-            ts,
-            self.initial,
-            t_eval=_np.linspace(t0, tf, round((tf - t0) / self.freq)),
-            args=tuple(getattr(basis, name) for name in basis.odeparams),
-            )
+#     def solve(self, /):
+#         basis, interval = self.basis, self.interval
+#         ts = t0, tf = interval.lower, interval.upper
+#         return _solve_ivp(
+#             basis.__call__,
+#             ts,
+#             self.initial,
+#             t_eval=_np.linspace(t0, tf, round((tf - t0) / self.freq)),
+#             args=tuple(getattr(basis, name) for name in basis.odeparams),
+#             )
 
-    @property
-    def __incision_manager__(self, /):
-        return self.interval
+#     @property
+#     def __incision_manager__(self, /):
+#         return self.interval
 
-    def __incise_slyce__(self, incisor, /):
-        return self.remake(interval=incisor)
+#     def __incise_slyce__(self, incisor, /):
+#         return self.remake(interval=incisor)
 
 
 ###############################################################################
