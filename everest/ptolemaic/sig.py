@@ -24,11 +24,10 @@ from everest import epitaph as _epitaph
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     Incisable as _Incisable,
-    ChainIncisable as _ChainIncisable,
     )
 
 from everest.ptolemaic.chora import (
-    Chora as _Chora,
+    ChainChora as _ChainChora,
     Multi as _Multi,
     Degenerate as _Degenerate,
     )
@@ -106,14 +105,19 @@ class ParamKind(_Enum):
 
 class FieldBase(metaclass=_Essence):
 
-    kind: ParamKind
-
     @_abc.abstractmethod
     def get_parameter(self, name: str = 'anon', /) -> _pkind:
         raise NotImplementedError
 
 
 class FieldKind(FieldBase, metaclass=_Sprite):
+
+    kind: ParamKind
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        
 
     def __call__(self, /, *args, **kwargs):
         return Field(self.kind, *args, **kwargs)
@@ -134,7 +138,11 @@ with FieldBase.mutable:
         setattr(FieldBase, name := kind.name, FieldKind(ParamKind[name]))
 
 
-class _FullField_(FieldBase):
+class Field(_ChainChora, FieldBase, metaclass=_Sprite):
+
+    kind: ParamKind
+    hint: _Incisable
+    value: object
 
     @classmethod
     def __class_call__(cls, /,
@@ -178,24 +186,9 @@ class _FullField_(FieldBase):
             annotation=self.hint,
             )
 
-
-class Field(_ChainIncisable, _FullField_, metaclass=_Sprite):
-
-    hint: _Incisable
-    value: object
-
     @property
     def __incision_manager__(self, /):
         return self.hint
-
-    @classmethod
-    def __class_call__(cls, /,
-            kind=ParamKind.POSKW, hint=_Thing, value=NotImplemented
-            ):
-        kind = cls.process_kind(kind)
-        hint = cls.process_hint(hint)
-        value = cls.process_value(value, hint)
-        return super().__class_call__(kind, hint, value)
 
     def __call__(self, arg, /):
         return self._ptolemaic_class__(
@@ -206,11 +199,12 @@ class Field(_ChainIncisable, _FullField_, metaclass=_Sprite):
     def __class_getitem__(cls, arg, /):
         return cls(hint=arg)
 
-#     def __incise_retrieve__(self, incisor, /):
-#         return self.__incise_slyce__(_Degenerate(incisor))
+    def degenerate(self, /):
+        return DegenerateField(self.kind, self.hint, self.value)
 
     def __incise_degenerate__(self, incisor, /):
-        return DegenerateField(self.kind, self.hint, incisor)
+        assert isinstance(incisor, Field)
+        return incisor.degenerate()
 
     def __incise_slyce__(self, incisor, /):
         return self._ptolemaic_class__(self.kind, incisor, self.value)
@@ -238,19 +232,16 @@ class Field(_ChainIncisable, _FullField_, metaclass=_Sprite):
         return self.hint.__contains__
 
 
-class DegenerateField(_Degenerate, _FullField_, metaclass=_Sprite):
+    class Degenerate(FieldBase, metaclass=_Essence):
 
-    hint: _Incisable
-    value: object
+        @property
+        def kind(self, /):
+            return self.value.kind
 
-    @classmethod
-    def __class_call__(cls, /,
-            kind=ParamKind.POSKW, hint=_Thing, value=NotImplemented
-            ):
-        kind = cls.process_kind(kind)
-        hint = cls.process_hint(hint)
-        value = cls.process_value(value, hint)
-        return super().__class_call__(kind, hint, value)
+# class DegenerateField(_Degenerate, _FullField_, metaclass=_Sprite):
+
+#     hint: _Incisable
+#     value: object
 
 
 class Params(metaclass=_Sprite):
@@ -343,7 +334,7 @@ def get_typ_fields(typ):
     return fields
 
 
-class Sig(_ChainIncisable, metaclass=_Sprite):
+class Sig(_ChainChora, metaclass=_Sprite):
 
     sigfields: _Diict
 
@@ -403,7 +394,7 @@ class Sig(_ChainIncisable, metaclass=_Sprite):
     @_caching.soft_cache()
     def degenerates(self, /):
         return _mprox({
-            name: field.hint.value
+            name: field.hint.retrieve()
             for name, field in self.sigfields.items()
             if isinstance(field.hint, _Degenerate)
             })
@@ -434,7 +425,8 @@ class Sig(_ChainIncisable, metaclass=_Sprite):
     def __incise_slyce__(self, incisor: _Brace.Oid, /):
         obj = self._ptolemaic_class__(**{
             key: Field(field.kind, chora, field.value)
-            for (key, field), chora in zip(self.sigfields.items(), incisor.choras)
+            for (key, field), chora
+            in zip(self.sigfields.items(), incisor.choras)
             })
         obj.softcache.update(
             __incision_manager__=incisor,

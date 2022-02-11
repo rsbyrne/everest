@@ -94,6 +94,26 @@ class RestrictedNamespace(dict):
         return f"{type(self).__name__}({content})"
 
 
+class FrozenNamespace(dict):
+
+    def __setattr__(self, _, __, /):
+        raise AttributeError
+
+    def __getattr__(self, name, /):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __repr__(self, /):
+        keys = super().__getattribute__('keys')()
+        vals = super().__getattribute__('values')()
+        content = ', '.join(
+            map('='.join, zip(keys, map(repr, vals)))
+            )
+        return f"{type(self).__name__}({content})"
+
+
 def unpackable(obj):
     return all(
         isinstance(obj, _collabc.Iterable),

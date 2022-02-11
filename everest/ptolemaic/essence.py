@@ -167,16 +167,22 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 {},
                 )
         ns = dict(
-            owner=cls,
             __mroclass_basis__=basis,
             )
         if mixin is None:
             typname = f"{cls.__name__}{name}"
             bases = (basis,)
+            owners = (*cls.owners, cls)
         else:
+            if mixin is cls:
+                owners = cls.owners
+                ns['_ptolemaic_overclass'] = cls
+            else:
+                owners = (*cls.owners, cls)
             typname = f"{name}_{cls.__name__}"
             bases = (basis, mixin)
             ns['__mroclass_mixin__'] = mixin
+        ns['_ptolemaic_owners'] = owners
         out = type(typname, bases, ns)
         return out
 
@@ -219,6 +225,28 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def _add_subclasses(cls, /):
         for name in cls.SUBCLASSES:
             cls._try_add_subclass(name)
+
+    @property
+    def owners(cls, _default=(), /):
+        return cls.__dict__.get('_ptolemaic_owners', _default)
+
+    @property
+    def owner(cls, /):
+        try:
+            return cls.owners[-1]
+        except IndexError:
+            return None
+
+    @property
+    def trueowner(cls, /):
+        try:
+            return cls.owners[0]
+        except IndexError:
+            return None
+
+    @property
+    def overclass(cls, /):
+        return cls.__dict__.get('_ptolemaic_overclass', None)
 
     ### Creating the object that is the class itself:
 
@@ -362,12 +390,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             else:
                 func(ns := _RestrictedNamespace(badvals={cls,}))
                 cls.incorporate_namespace(ns)
-            try:
-                owner = cls.__dict__['owner']
-            except KeyError:
-                cls.__class_init__()
+            if cls.owners:
+                cls.__mroclass_init__()
             else:
-                cls.__mroclass_init__(owner)
+                cls.__class_init__()
+
 
     def incorporate_namespace(cls, ns, /):
         for key, val in ns.items():
@@ -406,7 +433,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def get_attributes(cls, /):
         lst = list()
-        for ACls in cls.__mro__:
+        for ACls in reversed(cls.__mro__):
             preserve = ACls.__dict__.get('PRESERVEORDER', set())
             for name in ACls.__dict__:
                 if name.startswith('__'):
@@ -506,7 +533,7 @@ class EssenceBase(metaclass=Essence):
         cls._add_subclasses()
 
     @classmethod
-    def __mroclass_init__(cls, owner, /):
+    def __mroclass_init__(cls, /):
         cls.__class_init__()
 
 

@@ -11,7 +11,6 @@ from everest.utilities import caching as _caching, Slc as _Slc
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
 #     Incisable as _Incisable,
-    ChainIncisable as _ChainIncisable,
     )
 
 from everest.ptolemaic.fundaments.brace import Brace as _Brace
@@ -19,6 +18,7 @@ from everest.ptolemaic.fundaments.brace import Brace as _Brace
 from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.chora import (
     Chora as _Chora,
+    ChainChora as _ChainChora,
     Degenerate as _Degenerate,
     )
 from everest.ptolemaic.bythos import Bythos as _Bythos
@@ -55,7 +55,7 @@ class TektonBase(metaclass=Tekton):
     MROCLASSES = ('Oid',)
 
 
-    class Oid(_ChainIncisable, metaclass=_Sprite):
+    class Oid(_ChainChora, metaclass=_Sprite):
 
         chora: _Chora
 
@@ -65,13 +65,13 @@ class TektonBase(metaclass=Tekton):
 
         @property
         def __incise_retrieve__(self, /):
-            return self.subject.instantiate
+            return self._ptolemaic_class__.owner.instantiate
 
-        def __incise_slyce__(self, incisor: _Sig, /):
-            return self._ptolemaic_class__(self.subject, incisor)
+        def __incise_slyce__(self, incisor, /):
+            return self._ptolemaic_class__(incisor)
 
         def __call__(self, /, *args, **kwargs):
-            return self.subject.instantiate(self.chora(*args, **kwargs))
+            return self.__incise_retrieve__(self.chora(*args, **kwargs))
 
 
     @classmethod

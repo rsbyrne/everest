@@ -46,7 +46,9 @@ class EidosBase(metaclass=Eidos):
     def __class_init__(cls, /):
         super().__class_init__()
         if cls._var_slots__:
-            raise TypeError(f"Types metatype {type(cls)} cannot have var slots.")
+            raise TypeError(
+                f"Types metatype {type(cls)} cannot have var slots."
+                )
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
@@ -72,7 +74,9 @@ class EidosBase(metaclass=Eidos):
 
     @classmethod
     def paramexc(cls, /, *args, message=None, **kwargs):
-        return _exceptions.ParameterisationException((args, kwargs), cls, message)
+        return _exceptions.ParameterisationException(
+            (args, kwargs), cls, message
+            )
 
     @classmethod
     def parameterise(cls, cache, /, *args, **kwargs):

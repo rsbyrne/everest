@@ -24,10 +24,6 @@ class Thing(_Fundament):
         super().__class_init__()
 
     @classmethod
-    def __class_incise_retrieve__(cls, arg, /):
-        return arg
-
-    @classmethod
     def __class_call__(cls, arg, /):
         return arg
 
@@ -36,17 +32,7 @@ class Thing(_Fundament):
 
         @property
         def __armature_brace__(self, /):
-            return self.owner.Brace
-
-        class Space(metaclass=_Essence):
-
-            class __choret__(metaclass=_Essence):
-
-                def retrieve_isinstance(self, incisor: 'owner.owner.owner', /):
-                    return incisor
-
-            def __incise_contains__(self, arg, /):
-                return isinstance(arg, self.owner.owner)
+            return self._ptolemaic_class__.owner.Brace
 
 
     Brace = _Brace
@@ -55,7 +41,7 @@ class Thing(_Fundament):
 _ = Thing.register(_Primitive)
 _ = Thing.register(_Essence)
 _ = Thing.register(_Ousia.BaseTyp)
-_ = Thing.Oid.register(_Chora)
+# _ = Thing.Oid.register(_Chora)
 
 
 ###############################################################################

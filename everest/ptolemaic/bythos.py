@@ -63,6 +63,10 @@ class Bythos(_Essence):
         return cls.__class_incise_degenerate__
 
     @property
+    def __incise_empty__(cls, /):
+        return cls.__class_incise_empty__
+
+    @property
     def __incise_contains__(cls, /):
         return cls.__class_incise_contains__
 

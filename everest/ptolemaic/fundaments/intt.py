@@ -13,7 +13,7 @@ from everest.incision import (
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.eidos import Eidos as _Eidos
 from everest.ptolemaic.chora import (
-    Chora as _Chora,
+    Choric as _Choric,
     Sampleable as _Sampleable,
     TrivialException as _TrivialException,
     )
@@ -35,7 +35,7 @@ _OPINT = (type(None), int)
 def _build_oids(Intt, ns, /):
 
 
-    class Open(_Chora, metaclass=_Eidos):
+    class Open(_Choric, metaclass=_Eidos):
 
         lower: Intt
         step: Intt = 1
@@ -69,17 +69,17 @@ def _build_oids(Intt, ns, /):
                 lower = self.bound.lower
                 upper = incisor.upper
                 if upper == 0:
-                    return self.bound.owner.owner.Null
+                    return self.bound._ptolemaic_class__.owner.Empty
                 elif upper < 0:
                     raise IndexError
-                return self.bound.owner.Closed(
+                return self.bound.Closed(
                     lower, lower + upper, self.bound.step
                     )
 
             def bounds_slyce_closed(self, incisor: (int, int), /):
                 lower, upper = incisor.lower, incisor.upper
                 if upper <= lower:
-                    return InttNull
+                    return self.bound._ptolemaic_class__.owner.Empty
                 if upper == 0:
                     raise _TrivialException
                 if upper < 0:
@@ -87,7 +87,7 @@ def _build_oids(Intt, ns, /):
                 oldlower = self.bound.lower
                 lower = oldlower + lower
                 upper = oldlower + upper
-                return self.bound.owner.Closed(
+                return self.bound.Closed(
                     lower, upper, self.bound.step
                     )
 
@@ -105,7 +105,7 @@ def _build_oids(Intt, ns, /):
             raise NotImplementedError
 
 
-    class Limit(_Chora, metaclass=_Eidos):
+    class Limit(_Choric, metaclass=_Eidos):
 
         upper: Intt
 
@@ -121,7 +121,7 @@ def _build_oids(Intt, ns, /):
                 if lower >= 0:
                     raise IndexError
                 lower = upper + lower
-                return self.bound.owner.Closed(lower, upper)
+                return self.bound.Closed(lower, upper)
 
             def bounds_slyce_limit(self, incisor: (type(None), int), /):
                 upper = incisor.upper
@@ -137,8 +137,8 @@ def _build_oids(Intt, ns, /):
                     raise IndexError
                 upper = self.bound.upper + upper
                 if upper <= lower:
-                    return self.bound.owner.owner.Null
-                return self.bound.owner.Closed(lower, upper)
+                    return self.bound._ptolemaic_class__.owner.Empty
+                return self.bound.Closed(lower, upper)
 
         def __incise_contains__(self, arg, /):
             if not super().__contains__(arg):
@@ -149,12 +149,12 @@ def _build_oids(Intt, ns, /):
             raise NotImplementedError
 
 
-    class Closed(_Chora, metaclass=_Eidos):
+    class Closed(_Choric, metaclass=_Eidos):
 
         lower: Intt
         upper: Intt
         # step: Intt[1:] = 1
-        step: Intt
+        step: Intt = 1
 
         _req_slots__ = ('_rangeobj',)
 
@@ -174,7 +174,7 @@ def _build_oids(Intt, ns, /):
                 newr = oldr[slice(*incisor)]
                 if len(newr) == 0:
                     return _IncisionProtocol.SLYCE(caller)(
-                        self.bound.owner.owner.Null
+                        self.bound._ptolemaic_class__.owner.Empty
                         )
                 start, stop, step = newr.start, newr.stop, newr.step
                 if (stop, stop, step) == (oldr.start, oldr.stop, oldr.step):
@@ -216,12 +216,13 @@ class Intt(_Real, _Thing):
     class Oid(metaclass=_Essence):
 
         @classmethod
-        def __mroclass_init__(cls, owner, /):
-            if owner.__name__ == 'Intt':
+        def __mroclass_init__(cls, /):
+            if cls.overclass is None:
+                owner = cls.owner
                 ns = _RestrictedNamespace(badvals={owner,})
                 _build_oids(owner, ns)
                 cls.incorporate_namespace(ns)
-            cls.__class_init__()
+            super().__mroclass_init__()
 
 
 ###############################################################################

@@ -10,7 +10,9 @@ import inspect as _inspect
 import collections as _collections
 
 from everest import epitaph as _epitaph
-from everest.utilities import Null as _Null
+from everest.utilities import (
+    Null as _Null, FrozenNamespace as _FrozenNamespace
+    )
 from everest.utilities.protocol import Protocol as _Protocol
 # from everest.utilities import reseed as _reseed
 
@@ -31,10 +33,11 @@ class IncisionProtocol(_Protocol):
     SLYCE = ('__incise_slyce__', True)
     RETRIEVE = ('__incise_retrieve__', True)
     FAIL = ('__incise_fail__', True)
+    DEGENERATE = ('__incise_degenerate__', True)
+    EMPTY = ('__incise_empty__', True)
 
     # Optional:
 
-    DEGENERATE = ('__incise_degenerate__', False)
     CONTAINS = ('__incise_contains__', False)
     INCLUDES = ('__incise_includes__', False)
     LENGTH = ('__incise_length__', False)
@@ -116,34 +119,86 @@ class Incisable(IncisionHandler, PseudoIncisable):
 
 class IncisionChain(Incisable):
 
-    __slots__ = ('incisables',)
+    __slots__ = (
+        'incisables', '_incise_meth', '_retrievemeths', '_slycemeths',
+        '_degenretrievemeths',
+        )
 
-    def __init__(self, incisables: tuple, /):
-        self.incisables = tuple(incisables)
+    def __init__(self, /, *incisables, **methods):
+        super().__init__()
+        if methods:
+            incisables = (_FrozenNamespace(**methods), *incisables)
+        self.incisables = incisables
 
-    def __incise__(self, incisor, /, *, caller):
-        return IncisionProtocol.INCISE(self.incisables[0])(
-            incisor, caller=caller
-            )
+    @property
+    def __incise__(self, /):
+        try:
+            return self._incise_meth
+        except AttributeError:
+            protocol = IncisionProtocol.INCISE
+            for inc in self.incisables:
+                try:
+                    meth = protocol(inc)
+                except IncisionProtocolException:
+                    continue
+                break
+            else:
+                protocol.exc(self)
+            self._incise_meth = meth
+            return meth
 
     def __incise_trivial__(self, /):
         return IncisionProtocol.TRIVIAL(self.incisables[-1])()
 
+    def __incise_empty__(self, /):
+        return IncisionProtocol.EMPTY(self.incisables[-1])()
+
+    @property
+    def slycemeths(self, /):
+        try:
+            return self._slycemeths
+        except AttributeError:
+            out = _deque()
+            protocol = IncisionProtocol.SLYCE
+            for obj in self.incisables:
+                try:
+                    meth = protocol(obj)
+                except IncisionProtocolException:
+                    continue
+                out.append(meth)
+            out = self._slycemeths = tuple(out)
+            return out
+
     def __incise_slyce__(self, incisor, /):
-        for obj in self.incisables:
-            incisor = IncisionProtocol.SLYCE(obj)(incisor)
+        for meth in self.slycemeths:
+            incisor = meth(incisor)
         return incisor
 
+    @property
+    def retrievemeths(self, /):
+        try:
+            return self._retrievemeths
+        except AttributeError:
+            out = _deque()
+            protocol = IncisionProtocol.RETRIEVE
+            for obj in self.incisables:
+                try:
+                    meth = protocol(obj)
+                except IncisionProtocolException:
+                    continue
+                out.append(meth)
+            out = self._retrievemeths = tuple(out)
+            return out
+
     def __incise_retrieve__(self, incisor, /):
-        for obj in self.incisables:
-            incisor = IncisionProtocol.RETRIEVE(obj)(incisor)
+        for meth in self.retrievemeths:
+            incisor = meth(incisor)
         return incisor
 
     def __incise_degenerate__(self, incisor, /):
-        *members, last = self.incisables
-        for obj in members:
-            incisor = IncisionProtocol.RETRIEVE(obj)(incisor)
-        return IncisionProtocol.DEGENERATE(last)(incisor)
+        return IncisionProtocol.DEGENERATE(self.incisables[-1])(
+            self.__incise_retrieve__(incisor)
+            )
 
     @property
     def __incision_manager__(self, /):
@@ -169,7 +224,7 @@ class ChainIncisable(Incisable):
     def __incise__(self, incisor, /, *, caller):
         return IncisionProtocol.INCISE(man := self.__incision_manager__)(
             incisor,
-            caller=IncisionChain((man, caller))
+            caller=IncisionChain(man, caller),
             )
 
 

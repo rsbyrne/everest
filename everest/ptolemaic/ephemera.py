@@ -11,13 +11,16 @@ import itertools as _itertools
 
 import numpy as _np
 
-from everest.incision import ChainIncisable as _ChainIncisable
 from everest.utilities import pretty as _pretty, caching as _caching
 
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.chora import Chora as _Chora, Basic as _Basic
+from everest.ptolemaic.chora import (
+    Choric as _Choric,
+    ChainChora as _ChainChora,
+    Basic as _Basic,
+    )
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.eidos import Eidos as _Eidos
 from everest.ptolemaic.fundaments.intt import Intt as _Intt
@@ -48,7 +51,7 @@ class Ephemera(metaclass=_Essence):
                 raise AttributeError from exc
 
 
-class Table(_ChainIncisable, Ephemera, metaclass=_Protean):
+class Table(_ChainChora, Ephemera, metaclass=_Protean):
 
 
     MROCLASSES = ('Basis', 'Slyce')
@@ -149,7 +152,7 @@ class Table(_ChainIncisable, Ephemera, metaclass=_Protean):
         dtype: (type, str)
 
 
-    class Slyce(_ChainIncisable, metaclass=_Sprite):
+    class Slyce(_ChainChora, metaclass=_Sprite):
 
         basis: object
         incisor: object
@@ -174,7 +177,7 @@ class Table(_ChainIncisable, Ephemera, metaclass=_Protean):
                 p.breakable()
 
 
-class Folio(_Chora, Ephemera, metaclass=_Ousia):
+class Folio(_Choric, Ephemera, metaclass=_Ousia):
 
     _req_slots__ = (
         'content', '_content'

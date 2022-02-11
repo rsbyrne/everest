@@ -3,11 +3,13 @@
 ###############################################################################
 
 
+from everest.utilities import RestrictedNamespace as _RestrictedNamespace
+
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.eidos import Eidos as _Eidos
 from everest.ptolemaic.chora import (
-    Chora as _Chora,
+    Choric as _Choric,
     Sampleable as _Sampleable,
     TrivialException as _TrivialException,
     )
@@ -16,23 +18,10 @@ from everest.ptolemaic.fundaments.thing import Thing as _Thing
 from everest.ptolemaic.fundaments.real import Real as _Real
 
 
-class Floatt(_Real, _Thing):
+def _build_oids(Floatt, ns, /):
 
 
-    @classmethod
-    def __class_init__(cls, /):
-        _ = cls.register(float)
-        super().__class_init__()
-
-
-    class Var(metaclass=_Essence):
-        _default = 0.
-
-
-with Floatt.mutable:
-
-
-    class FloattOpen(_Chora, Floatt.Oid, metaclass=_Eidos):
+    class Open(_Choric, metaclass=_Eidos):
 
         lower: Floatt
 
@@ -59,13 +48,13 @@ with Floatt.mutable:
                 if upper <= 0:
                     raise IndexError
                 if upper <= lower:
-                    return FloattNull
-                return FloattClosed(lower, upper)
+                    return self.bound._ptolemaic_class__.owner.Empty
+                return self.bound.Closed(lower, upper)
 
             def bounds_slyce_closed(self, incisor: (float, float), /):
                 lower, upper = incisor.lower, incisor.upper
                 if upper <= lower:
-                    return FloattNull
+                    return self.bound._ptolemaic_class__.owner.Empty
                 if upper == 0:
                     raise _TrivialException
                 if upper < 0:
@@ -73,7 +62,7 @@ with Floatt.mutable:
                 oldlower = self.bound.lower
                 lower = oldlower + lower
                 upper = oldlower + upper
-                return FloattClosed(lower, upper)
+                return self.bound._ptolemaic_class__.Closed(lower, upper)
 
         def __contains__(self, arg, /):
             if not super().__contains__(arg):
@@ -84,10 +73,7 @@ with Floatt.mutable:
             raise NotImplementedError
 
 
-    Floatt.Open = FloattOpen
-
-
-    class FloattLimit(_Chora, Floatt.Oid, metaclass=_Eidos):
+    class Limit(_Choric, metaclass=_Eidos):
 
         upper: Floatt
 
@@ -103,7 +89,7 @@ with Floatt.mutable:
                 if lower >= 0:
                     raise IndexError
                 lower = upper + lower
-                return FloattClosed(lower, upper)
+                return self.bound._ptolemaic_class__.Closed(lower, upper)
 
             def bounds_slyce_limit(self, incisor: (type(None), float), /):
                 upper = incisor.upper
@@ -117,8 +103,8 @@ with Floatt.mutable:
                     raise IndexError
                 upper = self.bound.upper + upper
                 if upper <= lower:
-                    return FloattNull
-                return FloattClosed(lower, upper)
+                    return self.bound._ptolemaic_class__.owner.Empty
+                return self.bound.Closed(lower, upper)
 
         def __contains__(self, arg, /):
             if not super().__contains__(arg):
@@ -129,10 +115,7 @@ with Floatt.mutable:
             raise NotImplementedError
 
 
-    Floatt.Limit = FloattLimit
-
-
-    class FloattClosed(_Chora, Floatt.Oid, metaclass=_Eidos):
+    class Closed(_Choric, metaclass=_Eidos):
 
         lower: Floatt
         upper: Floatt
@@ -162,27 +145,27 @@ with Floatt.mutable:
                 else:
                     lower = lower + ilower
                 if upper <= lower:
-                    return FloatNull
+                    return self.bound._ptolemaic_class__.owner.Empty
                 return self.bound._ptolemaic_class__(lower, upper)
 
             def bounds_slyce_limit(self, incisor: (type(None), float), /):
                 iupper = incisor.upper
                 lower, upper = self.bound.lower, self.bound.upper
                 if iupper == 0:
-                    return FloattNull
+                    return self.bound._ptolemaic_class__.owner.Empty
                 if iupper < 0:
                     upper = upper + iupper
                 else:
                     upper = lower + iupper
                 if upper <= lower:
-                    return FloatNull
+                    return self.bound._ptolemaic_class__.owner.Empty
                 return self.bound._ptolemaic_class__(lower, upper)
 
             def bounds_slyce_closed(self, incisor: (float, float), /):
                 ilower, iupper = incisor.lower, incisor.upper
                 olower, oupper = self.bound.lower, self.bound.upper
                 if iupper == 0:
-                    return FloattNull
+                    return self.bound._ptolemaic_class__.owner.Empty
                 if iupper < 0:
                     upper = oupper + iupper
                 else:
@@ -192,13 +175,38 @@ with Floatt.mutable:
                 else:
                     lower = olower + ilower
                 if upper <= lower:
-                    return FloattNull
+                    return self.bound._ptolemaic_class__.owner.Empty
                 if (lower, upper) == (olower, oupper):
                     raise _TrivialException
-                return self.bounds._ptolemaic_class__(lower, upper)
+                return self.bound._ptolemaic_class__(lower, upper)
 
 
-    Floatt.Closed = FloattClosed
+    ns.update(locals())
+
+
+class Floatt(_Real, _Thing):
+
+
+    @classmethod
+    def __class_init__(cls, /):
+        _ = cls.register(float)
+        super().__class_init__()
+
+
+    class Var(metaclass=_Essence):
+        _default = 0.
+
+
+    class Oid(metaclass=_Essence):
+
+        @classmethod
+        def __mroclass_init__(cls, /):
+            if cls.overclass is None:
+                owner = cls.owner
+                ns = _RestrictedNamespace(badvals={owner,})
+                _build_oids(owner, ns)
+                cls.incorporate_namespace(ns)
+            super().__mroclass_init__()
 
 
 ###############################################################################

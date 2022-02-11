@@ -79,7 +79,9 @@ class SpriteBase(metaclass=Sprite):
     def __class_init__(cls, /):
         super().__class_init__()
         if cls._var_slots__:
-            raise TypeError(f"Types metatype {type(cls)} cannot have var slots.")
+            raise TypeError(
+                f"Types metatype {type(cls)} cannot have var slots."
+                )
         hints, defaults = cls.hints, cls.defaults = get_fields(cls)
         cls._signature_ = _Signature(_Parameter(
             key, 1, default=defaults.get(key, _empty), annotation=hints[key]

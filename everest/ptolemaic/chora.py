@@ -22,6 +22,7 @@ from everest.utilities import (
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     Incisable as _Incisable,
+    PseudoIncisable as _PseudoIncisable,
     IncisionHandler as _IncisionHandler,
     ChainIncisable as _ChainIncisable,
     )
@@ -31,38 +32,154 @@ from everest.ptolemaic.armature import ArmatureProtocol as _ArmatureProtocol
 from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.bythos import Bythos as _Bythos
+from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
 
-# class ChoretDescriptor:
+class Gen(metaclass=_Sprite):
+    ...
 
-#     __slots__ = ('Choret',)
 
-#     def __init__(self, choret, /):
-#         self.Choret = choret
+class Var(metaclass=_Protean):
 
-#     def __get__(self, instance, owner=None, /):
-#         return self.Choret(instance)
+    _req_slots__ = ('_value',)
+    _var_slots__ = ('value',)
+
+    _default = None
+
+    @property
+    def value(self, /):
+        try:
+            return self._value
+        except AttributeError:
+            val = self._default
+            self._alt_setattr__('_value', val)
+            return val
+
+    @value.setter
+    def value(self, val, /):
+        if val not in self.basis:
+            raise ValueError(val)
+        self._alt_setattr__('_value', val)
+
+    @value.deleter
+    def value(self, /):
+        self._alt_setattr__('_value', self._default)
+
+
+class Empty(_Incisable, metaclass=_Sprite):
+
+    chora: _Incisable
+
+    def __incise__(self, incisor, /, *, caller):
+        return _IncisionProtocol.FAIL(caller)(
+            incisor,
+            "Cannot further incise an empty incisable."
+            )
+
+    @property
+    def __getitem__(self, /):
+        raise ValueError("Cannot incise a degenerate.")
+
+    def __contains__(self, _, /):
+        return False
+
+
+class Degenerate(_Incisable, metaclass=_Sprite):
+
+    arg: object
+
+    def retrieve(self, /):
+        return self.arg
 
 #     @property
-#     def __mroclass_basis__(self, /):
-#         return self.Choret
+#     @_abstractmethod
+#     def value(self, /) -> object:
+#         raise NotImplementedError
+
+    def __incise__(self, incisor, /, *, caller):
+        return _IncisionProtocol.FAIL(caller)(
+            incisor,
+            "Cannot further incise an already degenerate incisable."
+            )
+
+    @property
+    def __getitem__(self, /):
+        raise ValueError("Cannot incise a degenerate.")
+
+    @property
+    def __contains__(self, /):
+        return self.retrieve().__eq__
 
 
-# class ChoretMeta(_Sprite):
+# @_Incisable.register
+class Chora(_PseudoIncisable, metaclass=_Essence):
+    '''The `Chora` type is the Ptolemaic implementation '''
+    '''of the Everest 'incision protocol'. '''
+    '''`Chora` objects can be thought of as representing 'space' '''
+    '''in both concrete and abstract ways.'''
 
-#     ...
+    MROCLASSES = ('Gen', 'Var', 'Empty', 'Degenerate')
 
-#     def __set_name__(cls, owner, name, /):
-#         if not isinstance(owner, _Essence):
-#             return
-#         if name != '__incision_manager__':
-#             return
-#         cls.decorate(owner)
+    Gen, Var, Empty, Degenerate = Gen, Var, Empty, Degenerate
 
-#     descriptor = property(ChoretDescriptor)
+    def __incise_empty__(self, /):
+        return Empty(self)
+
+    @property
+    def __incise_degenerate__(self, /):
+        return self.Degenerate
+
+    @property
+    def __armature_generic__(self, /):
+        return self.Gen
+
+    @property
+    def __armature_variable__(self, /):
+        return self.Var
+
+    @property
+    def __contains__(self, /):
+        return _IncisionProtocol.CONTAINS(self)
+
+    @property
+    def __len__(self, /):
+        return _IncisionProtocol.LENGTH(self)
+
+    @property
+    def __iter__(self, /):
+        return _IncisionProtocol.ITER(self)
+
+    @property
+    def __includes__(self, /):
+        return _IncisionProtocol.INCLUDES(self)
+
+    @classmethod
+    def __subclasshook__(cls, ACls, /):
+        if cls is Chora:
+            if isinstance(ACls, (_Essence, _Pleroma)):
+                if issubclass(ACls, _Incisable):
+                    return True
+            return False
+        return super().__subclasshook__(ACls)
+
+
+class Degenerator(_ChainIncisable, metaclass=_Sprite):
+
+    chora: Chora
+
+    @property
+    def __incision_manager__(self, /):
+        return self.chora
+
+    @property
+    def __incise_retrieve__(self, /):
+        return _IncisionProtocol.DEGENERATE(self.chora)
+
+
+class ChainChora(Chora, _ChainIncisable):
+    ...
 
 
 class Choret(metaclass=_Sprite):
@@ -71,43 +188,11 @@ class Choret(metaclass=_Sprite):
 
     bound: object
 
-#     @classmethod
-#     def compatible(cls, ACls, /):
-#         if not isinstance(ACls, _Essence):
-#             return False
-#         return True
-
-#     @classmethod
-#     def decorate(cls, ACls, /):
-#         if not cls.compatible(ACls):
-#             raise TypeError(f"Type {ACls} incompatible with chora {cls}.")
-#         if hasattr(cls, '__choret_decorate__'):
-#             ACls.__choret_decorate__(cls)
-#             return ACls
-#         with ACls.mutable:
-#             setattr(ACls, '__incision_manager__', cls.descriptor)
-#             if not '__getitem__' in dir(ACls):
-#                 setattr(ACls, '__getitem__', _Incisable.__getitem__)
-#             ACls._ptolemaic_choret_decorated_ = True
-#         return ACls
-
     def __incise__(self, incisor, /, *, caller):
         return _IncisionProtocol.FAIL(caller)(incisor)
 
 
-#     @classmethod
-#     def __subclasshook__(cls, ACls, /):
-#         if issubclass(ACls, Chora):
-#             return issubclass(ACls.Choret, cls)
-#         return super().__subclasshook__(ACls)
-
-
-# @_Incisable.register
-class Chora(_Incisable, metaclass=_Essence):
-    '''The `Chora` type is the Ptolemaic implementation '''
-    '''of the Everest 'incision protocol'. '''
-    '''`Chora` objects can be thought of as representing 'space' '''
-    '''in both concrete and abstract ways.'''
+class Choric(Chora, _Incisable, metaclass=_Essence):
 
     MROCLASSES = ('__choret__',)
 
@@ -120,19 +205,6 @@ class Chora(_Incisable, metaclass=_Essence):
     @property
     def __incise__(self, /):
         return self.__incision_manager__.__incise__
-
-    @classmethod
-    def __subclasshook__(cls, ACls, /):
-        if cls is Chora:
-            if isinstance(ACls, (_Essence, _Pleroma)):
-                if issubclass(ACls, _Incisable):
-                    return True
-            return False
-        return super().__subclasshook__(ACls)
-
-#     @classmethod
-#     def __init_subclass__(cls, /, *_, **__):
-#         raise TypeError("This class cannot be subclassed.")
 
 
 class TrivialException(Exception):
@@ -421,43 +493,6 @@ class Sampleable(Basic):
         cls.samplegetmeths = _TypeMap(cls._yield_getmeths('sample'))
 
 
-class Degenerate(_Incisable, metaclass=_Sprite):
-
-    value: object
-
-#     @property
-#     @_abstractmethod
-#     def value(self, /) -> object:
-#         raise NotImplementedError
-
-    def __incise__(self, incisor, /, *, caller):
-        return _IncisionProtocol.FAIL(caller)(
-            incisor,
-            "Cannot further incise an already degenerate incisable."
-            )
-
-    @property
-    def __getitem__(self, /):
-        raise ValueError("Cannot incise a degenerate.")
-
-    @property
-    def __contains__(self, /):
-        return self.value.__eq__
-
-
-class Degenerator(_ChainIncisable, metaclass=_Sprite):
-
-    chora: Chora
-
-    @property
-    def __incision_manager__(self, /):
-        return self.chora
-
-    @property
-    def __incise_retrieve__(self, /):
-        return _IncisionProtocol.DEGENERATE(self.chora, Degenerate)
-
-
 class Multi(Basic):
 
     @property
@@ -498,7 +533,7 @@ class Multi(Basic):
         choras = tuple(meth(incisor))
         if all(isinstance(chora, Degenerate) for chora in choras):
             return _IncisionProtocol.RETRIEVE(caller)(tuple(
-                chora.value for chora in choras
+                chora.retrieve() for chora in choras
                 ))
         if len(set(choras)) == 1:
             slyce = self.bound.SymForm(choras[0], self.labels, self.depth)

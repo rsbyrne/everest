@@ -9,10 +9,11 @@ from collections import abc as _collabc
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     IncisionChain as _IncisionChain,
-    Incisable as _Incisable,
-    ChainIncisable as _ChainIncisable,
     )
-from everest.utilities import pretty as _pretty, caching as _caching
+from everest.utilities import (
+    pretty as _pretty,
+    caching as _caching,
+    )
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.essence import Essence as _Essence
@@ -21,6 +22,8 @@ from everest.ptolemaic.armature import (
     )
 from everest.ptolemaic.chora import (
     Chora as _Chora,
+    Choric as _Choric,
+    ChainChora as _ChainChora,
     Multi as _Multi,
     Sampleable as _Sampleable,
     )
@@ -33,19 +36,23 @@ class Length(metaclass=_Sprite):
     n: int = 0
 
 
-class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
+class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
 
     content: tuple
     labels: tuple = ()
 
     _req_slots__ = ('ilabels',)
-  
+
+
+    @classmethod
+    def __mroclass_init__(cls, /):
+        super().__mroclass_init__()
+        with (Oid := cls.Oid).mutable:
+            Oid.basememberspace = cls.owner
 
     @classmethod
     def __class_init__(cls, /):
-        with (Oid := cls.Oid).mutable:
-            Oid.basememberspace = cls.__dict__.get('owner', _Fundament)
         super().__class_init__()
         cls._add_mroclass('Slyce')
 
@@ -109,32 +116,19 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
 
         SUBCLASSES = ('OpenForm', 'SymForm', 'AsymForm')
 
+        basememberspace = _Fundament
+
         @property
         def memberspace(self, /):
             return self.basememberspace
 
-        def validate_contents(self, arg, /):
-            try:
-                it = iter(arg)
-            except TypeError:
-                return False
-            return all(isinstance(subarg, self.memberspace) for subarg in it)
-
-        def __incise_contains__(self, arg, /):
-            if super().__incise_contains__(arg):
-                return self.validate_contents(arg)
-            return False
-
         def __incise_retrieve__(self, incisor, /):
-            return self.owner(incisor, getattr(self, 'labels', ()))
-
-        def __call__(self, arg, /):
-            if not self.validate_contents(arg):
-                raise ValueError(arg)
-            return _IncisionProtocol.RETRIEVE(self)(arg)
+            return self._ptolemaic_class__.owner(
+                incisor, getattr(self, 'labels', ())
+                )
 
 
-        class OpenForm(_Chora, metaclass=_Sprite):
+        class OpenForm(_Choric, metaclass=_Sprite):
 
             chora: _Chora = None
 
@@ -153,9 +147,8 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
             def memberspace(self, /):
                 return self.chora
 
-            @property
-            def __incise_slyce__(self, /):
-                return self._ptolemaic_class__
+            def _retrieve_repeatlike(self, incisor, /):
+                raise NotImplementedError
 
             class __choret__(_Sampleable):
 
@@ -170,6 +163,11 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
                         ))(incisor, caller=caller)
 
                 def handle_other(self, incisor: object, /, *, caller):
+                    caller = _IncisionChain(
+                        caller,
+                        __incise_slyce__=self.bound._ptolemaic_class__,
+                        __incise_retrieve__=self.bound._retrieve_repeatlike,
+                        )
                     return _IncisionProtocol.INCISE(self.bound.memberspace)(
                         incisor, caller=caller
                         )
@@ -185,16 +183,19 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
                                 _IncisionProtocol.INCLUDES(memberspace)
                                 (bracetyp)
                                 ):
-                            raise TypeError(self.bound, type(incisor))
+                            raise ValueError(self.bound, type(incisor))
                         return bracetyp
 
-                def slyce_n(self, incisor: Length, /):
-                    return self.bound.SymForm(
-                        self.bound.memberspace, (), incisor.n
-                        )
+            def __incise_contains__(self, arg, /):
+                if not super().__incise_contains__(arg):
+                    return False
+                return all(
+                    isinstance(sub, self.memberspace)
+                    for sub in arg
+                    )
 
 
-        class SymForm(_Chora, metaclass=_Sprite):
+        class SymForm(_Choric, metaclass=_Sprite):
 
             chora: _Chora
             labels: tuple = ()
@@ -203,10 +204,13 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
             @classmethod
             def __class_call__(cls, chora, labels, depth=None, /):
                 if not cls.basememberspace.__includes__(chora):
-                    raise ValueError(chora)
+                    raise ValueError(cls, cls.basememberspace, chora)
                 if depth is None:
                     depth = len(labels)
-                typ = _ArmatureProtocol.BRACE(chora, cls.owner.owner).SymForm
+                typ = (
+                    _ArmatureProtocol.BRACE(chora, cls.owner)
+                    .Oid.SymForm
+                    )
                 if typ is cls:
                     return super().__class_call__(chora, labels, depth)
                 return typ(chora, labels, depth)
@@ -223,12 +227,13 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
 
             __choret__ = _Multi
 
-            @property
-            def validate_contents(self, /):
-                return _IncisionProtocol.CONTAINS(self.__incision_manager__)
+            def __incise_contains__(self, arg, /):
+                if not super().__incise_contains__(arg):
+                    return False
+                return self.__incision_manager__.__incise_contains__(arg)
 
 
-        class AsymForm(_Chora, metaclass=_Sprite):
+        class AsymForm(_Choric, metaclass=_Sprite):
 
             choras: tuple
             labels: tuple = ()
@@ -240,12 +245,12 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
                         choras, labels = tuple(choras.values()), tuple(choras)
                     else:
                         labels = ()
-                owner = cls.owner
-                checker = _IncisionProtocol.INCLUDES(owner.owner)
+                checker = _IncisionProtocol.INCLUDES(cls.owner)
                 if not all(map(checker, choras)):
                     raise ValueError(choras)
                 if len(typset := set(
-                        _ArmatureProtocol.BRACE(chora, owner.owner).AsymForm
+                        _ArmatureProtocol.BRACE(chora, cls.owner)
+                        .Oid.AsymForm
                         for chora in choras
                         )) == 1:
                     typ = typset.pop()
@@ -258,6 +263,11 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
                 return len(self.choras)
 
             __choret__ = _Multi
+
+            def __incise_contains__(self, arg, /):
+                if not super().__incise_contains__(arg):
+                    return False
+                return self.__incision_manager__.__incise_contains__(arg)
 
             @property
             def depth(self, /):
@@ -272,17 +282,13 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
             def asdict(self, /):
                 return dict(zip(self.keys(), self.values()))
 
-            @property
-            def validate_contents(self, /):
-                return _IncisionProtocol.CONTAINS(self.__incision_manager__)
-
             def _repr_pretty_(self, p, cycle, root=None):
                 if root is None:
                     root = self.rootrepr
                 _pretty.pretty_dict(self.asdict(), p, cycle, root=root)
 
 
-        class Space(_ChainIncisable, metaclass=_Essence):
+        class Space(metaclass=_Essence):
 
             @property
             @_caching.soft_cache()
@@ -290,7 +296,7 @@ class Brace(_Fundament, _ChainIncisable, metaclass=_Sprite):
                 return self.OpenForm(self.memberspace)
 
 
-    class Slyce(_ChainIncisable, metaclass=_Sprite):
+    class Slyce(_ChainChora, metaclass=_Sprite):
 
         source: 'Brace'
         ilabels: _Chora
