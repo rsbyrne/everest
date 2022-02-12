@@ -528,8 +528,6 @@ class Multi(Basic):
         return self.activedepth <= 1
 
     def _handle_generic(self, incisor, /, *, caller, meth):
-        if not incisor:
-            return _IncisionProtocol.TRIVIAL(caller)()
         choras = tuple(meth(incisor))
         if all(isinstance(chora, Degenerate) for chora in choras):
             return _IncisionProtocol.RETRIEVE(caller)(tuple(
@@ -551,10 +549,24 @@ class Multi(Basic):
             else:
                 yield chora
 
+    def yield_sequence_single(self, incisor, /):
+        chorait = iter(self.choras)
+        while True:
+            chora = next(chorait)
+            if isinstance(chora, Degenerate):
+                yield chora
+            else:
+                yield Degenerator(chora)[incisor]
+                break
+        else:
+            assert False
+        yield from chorait
+
     def yield_sequence_multiincise(self, incisors: _collabc.Sequence, /):
         ncho = self.activedepth
         if ncho == 1:
-            incisors = (incisors,)
+            yield from self.yield_sequence_single(incisor)
+            return
         ninc = len(incisors)
         nell = incisors.count(...)
         if nell:
@@ -585,6 +597,8 @@ class Multi(Basic):
         yield from chorait
 
     def handle_mapping(self, incisor: _collabc.Mapping, /, *, caller):
+        if not incisor:
+            return _IncisionProtocol.TRIVIAL(caller)()
         return self._handle_generic(
             incisor,
             caller=caller,
@@ -592,6 +606,8 @@ class Multi(Basic):
             )
 
     def handle_sequence(self, incisor: _collabc.Sequence, /, *, caller):
+        if not incisor:
+            return _IncisionProtocol.TRIVIAL(caller)()
         return self._handle_generic(
             incisor,
             caller=caller,
@@ -599,9 +615,11 @@ class Multi(Basic):
             )
 
     def handle_other(self, incisor: object, /, *, caller):
-        if self.activedepth == 1:
-            return self.handle_sequence(incisor, caller=caller)
-        return self.handle_sequence((incisor,), caller=caller)
+        return self._handle_generic(
+            incisor,
+            caller=caller,
+            meth=self.yield_sequence_single,
+            )
 
     def __incise_contains__(self, arg, /):
         choras = self.choras

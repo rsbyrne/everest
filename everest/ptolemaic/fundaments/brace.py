@@ -245,9 +245,9 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
                         choras, labels = tuple(choras.values()), tuple(choras)
                     else:
                         labels = ()
-                checker = _IncisionProtocol.INCLUDES(cls.owner)
+                checker = _IncisionProtocol.INCLUDES(cls.basememberspace)
                 if not all(map(checker, choras)):
-                    raise ValueError(choras)
+                    raise ValueError(cls.owner, cls.basememberspace, choras)
                 if len(typset := set(
                         _ArmatureProtocol.BRACE(chora, cls.owner)
                         .Oid.AsymForm
@@ -285,7 +285,10 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
             def _repr_pretty_(self, p, cycle, root=None):
                 if root is None:
                     root = self.rootrepr
-                _pretty.pretty_dict(self.asdict(), p, cycle, root=root)
+                if self.labels:
+                    _pretty.pretty_kwargs(self.asdict(), p, cycle, root=root)
+                else:
+                    super()._repr_pretty_(p, cycle, root=root)
 
 
         class Space(metaclass=_Essence):

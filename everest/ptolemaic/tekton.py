@@ -60,18 +60,32 @@ class TektonBase(metaclass=Tekton):
         chora: _Chora
 
         @property
+        def subject(self, /):
+            return self._ptolemaic_class__.owner
+
+        @property
+        def sig(self, /):
+            return self.chora
+
+        @property
         def __incision_manager__(self, /):
             return self.chora
 
         @property
         def __incise_retrieve__(self, /):
-            return self._ptolemaic_class__.owner.instantiate
+            return self.subject.instantiate
 
-        def __incise_slyce__(self, incisor, /):
-            return self._ptolemaic_class__(incisor)
+        @property
+        def __incise_slyce__(self, /):
+            return self._ptolemaic_class__
 
         def __call__(self, /, *args, **kwargs):
-            return self.__incise_retrieve__(self.chora(*args, **kwargs))
+            return self.__incise_retrieve__(self.sig(*args, **kwargs))
+
+        # def _repr_pretty_(self, p, cycle, root=None):
+        #     if root is None:
+        #         root = self.rootrepr
+        #     self.chora.__incision_manager__._repr_pretty_(p, cycle, root)
 
 
     @classmethod

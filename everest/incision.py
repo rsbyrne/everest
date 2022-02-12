@@ -113,6 +113,8 @@ class Incisable(IncisionHandler, PseudoIncisable):
     @classmethod
     def __subclasshook__(cls, ACls, /):
         if cls is Incisable:
+            if super().__subclasshook__(ACls):
+                return True
             return IncisionProtocol.complies(ACls)
         return super().__subclasshook__(ACls)
 

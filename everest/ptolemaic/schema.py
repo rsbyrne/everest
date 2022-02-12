@@ -45,7 +45,7 @@ class SchemaBase(metaclass=Schema):
 
     @classmethod
     def _make_oid(cls, /):
-        return cls.Oid(cls, _Brace[{
+        return cls.Oid(_Brace[{
             key: _Slc[::val] for key, val in cls._class_choras().items()
             }])
 
