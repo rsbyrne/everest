@@ -19,8 +19,10 @@ from everest.incision import IncisionProtocol as _IncisionProtocol
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.tekton import Tekton as _Tekton
 from everest.ptolemaic.ousia import Ousia as _Ousia
-from everest.ptolemaic.chora import Chora as _Chora
+from everest.ptolemaic.chora import Chora as _Chora, Degenerate as _Degenerate
 from everest.ptolemaic.sig import (Params as _Params, Param as _Param)
+from everest.ptolemaic.fundaments.brace import Brace as _Brace
+from everest.ptolemaic.diict import Kwargs as _Kwargs
 from everest.ptolemaic import exceptions as _exceptions
 
 
@@ -34,6 +36,16 @@ class Eidos(_Tekton, _Ousia):
     @property
     def __construct__(cls, /):
         return cls
+
+    @property
+    @_caching.soft_cache()
+    def _classchoras(cls, /):
+        return _types.MappingProxyType(cls._get_classchoras())
+
+    @property
+    @_caching.soft_cache()
+    def _classconstructors(cls, /):
+        return _types.MappingProxyType(cls._get_classconstructors())
 
 
 class EidosBase(metaclass=Eidos):
@@ -94,6 +106,56 @@ class EidosBase(metaclass=Eidos):
         bound.arguments.update(self.params)
         bound.arguments.update(kwargs)
         return ptolcls(*bound.args, **bound.kwargs)
+
+    ### Incision protocol
+
+    class Oid(metaclass=_Essence):
+
+        @classmethod
+        def __class_call__(cls, chora):
+            try:
+                meth = cls.owner._classconstructors[chora.active]
+            except KeyError:
+                return super().__class_call__(chora)
+            else:
+                return meth(chora)
+
+        @property
+        def active(self, /):
+            return self.chora.active
+
+        @property
+        def choras(self, /):
+            return self.chora.choras
+
+        @property
+        @_caching.soft_cache()
+        def sig(self, /):
+            return self.subject.sig.__incise_slyce__(self.choras[0])
+
+        def __incise_retrieve__(self, incisor, /):
+            itinc = iter(incisor)
+            out = self.subject.instantiate(
+                self.sig.__incise_retrieve__(next(itinc))
+                )
+            for inc in itinc:
+                out = _IncisionProtocol.RETRIEVE(out)(inc)
+            return out
+
+    @classmethod
+    def _get_classchoras(cls, /):
+        return dict()
+
+    @classmethod
+    def _get_classconstructors(cls, /):
+        return dict()
+
+    @classmethod
+    def _make_classspace(cls, /):
+        return cls.Oid(_Brace[_Kwargs(
+            fields=cls.sig.__incision_manager__,
+            **cls._classchoras,
+            )])
 
     ### Serialisation
 

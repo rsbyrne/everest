@@ -201,6 +201,7 @@ def _build_oids(Intt, ns, /):
 
 
 class Intt(_Real, _Thing):
+    ...
 
 
     @classmethod

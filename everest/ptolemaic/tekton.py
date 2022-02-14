@@ -28,10 +28,6 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 
 class Tekton(_Bythos):
 
-    @property
-    def __incision_manager__(cls, /):
-        return cls.oid
-
     @classmethod
     def decorate(meta, obj, /):
         ns = dict(
@@ -82,10 +78,10 @@ class TektonBase(metaclass=Tekton):
         def __call__(self, /, *args, **kwargs):
             return self.__incise_retrieve__(self.sig(*args, **kwargs))
 
-        # def _repr_pretty_(self, p, cycle, root=None):
-        #     if root is None:
-        #         root = self.rootrepr
-        #     self.chora.__incision_manager__._repr_pretty_(p, cycle, root)
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self.rootrepr
+            self.__incision_manager__._repr_pretty_(p, cycle, root)
 
 
     @classmethod
@@ -99,7 +95,7 @@ class TektonBase(metaclass=Tekton):
         return sig
 
     @classmethod
-    def _make_oid(cls, /):
+    def _make_classspace(cls, /):
         return cls.Oid(cls.sig)
 
     @classmethod
@@ -107,7 +103,7 @@ class TektonBase(metaclass=Tekton):
         super().__class_init__()
         sig = cls.sig = cls._make_sig()
         cls.fields = sig.sigfields
-        cls.oid = cls._make_oid()
+        cls.__class_incision_manager__ = cls._make_classspace()
 
     @classmethod
     def instantiate(cls, params, /):

@@ -29,12 +29,13 @@ from everest.incision import (
 from everest.epitaph import Epitaph as _Epitaph
 
 from everest.ptolemaic.armature import ArmatureProtocol as _ArmatureProtocol
-from everest.ptolemaic.diict import Diict as _Diict
+from everest.ptolemaic.diict import Kwargs as _Kwargs
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic import query as _query
 
 
 class Gen(metaclass=_Sprite):
@@ -199,6 +200,7 @@ class Choric(Chora, _Incisable, metaclass=_Essence):
     __choret__ = Choret
 
     @property
+    @_caching.soft_cache()  # Will create a circular reference!
     def __incision_manager__(self, /):
         return self.__choret__(self)
 
@@ -430,35 +432,16 @@ class Sliceable(Basic):
             ))
 
 
-# class Sample(metaclass=_Sprite):
-@_dataclass
-class Sample:
-
-    content: object = None
-
-
-# class Bounds(metaclass=_Sprite):
-@_dataclass
-class Bounds:
-
-    lower: object = None
-    upper: object = None
-
-    def __iter__(self, /):
-        yield self.lower
-        yield self.upper
-
-
 class Sampleable(Basic):
 
     def handle_slice(self, incisor: slice, /, *, caller):
         return (
             caller
-            [Bounds(incisor.start, incisor.stop)]
-            [Sample(incisor.step)]
+            [_query.Bounds(incisor.start, incisor.stop)]
+            [_query.Sample(incisor.step)]
             )
 
-    def handle_bounds(self, incisor: Bounds, /, *, caller):
+    def handle_bounds(self, incisor: _query.Bounds, /, *, caller):
         return self.boundsgetmeths[type(incisor.lower), type(incisor.upper)](
             self, incisor, caller=caller
             )
@@ -469,7 +452,7 @@ class Sampleable(Basic):
     def bounds_fail_ultimate(self, incisor: (object, object), /):
         pass
 
-    def handle_sample(self, incisor: Sample, /, *, caller):
+    def handle_sample(self, incisor: _query.Sample, /, *, caller):
         incisor = incisor.content
         return self.samplegetmeths[type(incisor)](
             self, incisor, caller=caller
@@ -549,7 +532,7 @@ class Multi(Basic):
             else:
                 yield chora
 
-    def yield_sequence_single(self, incisor, /):
+    def yield_single_multiincise(self, incisor, /):
         chorait = iter(self.choras)
         while True:
             chora = next(chorait)
@@ -564,9 +547,6 @@ class Multi(Basic):
 
     def yield_sequence_multiincise(self, incisors: _collabc.Sequence, /):
         ncho = self.activedepth
-        if ncho == 1:
-            yield from self.yield_sequence_single(incisor)
-            return
         ninc = len(incisors)
         nell = incisors.count(...)
         if nell:
@@ -596,30 +576,37 @@ class Multi(Basic):
             raise ValueError("Too many incisors in tuple incision.")
         yield from chorait
 
-    def handle_mapping(self, incisor: _collabc.Mapping, /, *, caller):
+    def handle_mapping(self, incisor: _Kwargs, /, *, caller, shallow=False):
         if not incisor:
             return _IncisionProtocol.TRIVIAL(caller)()
-        return self._handle_generic(
-            incisor,
-            caller=caller,
-            meth=self.yield_mapping_multiincise,
-            )
+        if shallow:
+            meth = self.yield_mapping_multiincise
+        elif self.activedepth == 1:
+            meth = self.yield_single_multiincise
+        else:
+            meth = self.yield_mapping_multiincise
+        return self._handle_generic(incisor, caller=caller, meth=meth)
 
-    def handle_sequence(self, incisor: _collabc.Sequence, /, *, caller):
+    def handle_sequence(self, incisor: tuple, /, *, caller, shallow=False):
         if not incisor:
             return _IncisionProtocol.TRIVIAL(caller)()
-        return self._handle_generic(
-            incisor,
-            caller=caller,
-            meth=self.yield_sequence_multiincise,
+        if shallow:
+            meth = self.yield_sequence_multiincise
+        elif self.activedepth == 1:
+            meth = self.yield_single_multiincise
+        else:
+            meth = self.yield_sequence_multiincise
+        return self._handle_generic(incisor, caller=caller, meth=meth)
+
+    def handle_shallow(self, incisor: _query.Shallow, /, *, caller):
+        incisor = incisor.query
+        return self.getmeths[type(incisor)](self,
+            incisor, caller=caller, shallow=True
             )
 
     def handle_other(self, incisor: object, /, *, caller):
-        return self._handle_generic(
-            incisor,
-            caller=caller,
-            meth=self.yield_sequence_single,
-            )
+        meth = self.yield_single_multiincise
+        return self._handle_generic(incisor, caller=caller, meth=meth)
 
     def __incise_contains__(self, arg, /):
         choras = self.choras

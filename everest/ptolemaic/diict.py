@@ -24,15 +24,10 @@ class Diict(metaclass=_Sprite):
     del name
 
     @classmethod
-    def __class_call__(cls, arg=None, /, **kwargs):
-        if arg is None:
-            arg = kwargs
-        elif kwargs:
-            raise ValueError(
-                f"Cannot pass both args and kwargs "
-                f"to {self._ptolemaic_class__}"
-                )
-        return super().__class_call__(_types.MappingProxyType(dict(arg)))
+    def __class_call__(cls, arg=_types.MappingProxyType({}), /, **kwargs):
+        return super().__class_call__(
+            _types.MappingProxyType(dict(arg) | kwargs)
+            )
 
     def get_epitaph(self, /):
         ptolcls = self._ptolemaic_class__
@@ -71,6 +66,16 @@ class Diict(metaclass=_Sprite):
                     p.text(' : ')
                     p.pretty(val)
                 p.breakable()
+
+
+class Kwargs(Diict):
+
+    @classmethod
+    def __class_call__(cls, /, arg=_types.MappingProxyType({}), **kwargs):
+        out = super().__class_call__(arg, **kwargs)
+        if not all(map(str.__instancecheck__, out)):
+            raise TypeError("All keys of Kwargs must be str type.")
+        return out
 
 
 ###############################################################################

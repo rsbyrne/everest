@@ -7,6 +7,7 @@ from everest.utilities import pretty as _pretty
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.chora import Sampleable as _Sampleable
 
 from everest.ptolemaic.fundaments.fundament import Fundament as _Fundament
 
@@ -19,7 +20,7 @@ class Real(_Fundament):
 
         class Space(metaclass=_Essence):
 
-            class __choret__(metaclass=_Essence):
+            class __choret__(_Sampleable):
 
                 def bounds_slyce_open(self,
                         incisor: ('owner.owner', type(None)), /

@@ -32,7 +32,7 @@ from everest.ptolemaic.chora import (
     Degenerate as _Degenerate,
     )
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.diict import Diict as _Diict
+from everest.ptolemaic.diict import Kwargs as _Kwargs
 from everest.ptolemaic.fundaments.thing import Thing as _Thing
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.essence import Essence as _Essence
@@ -247,7 +247,7 @@ class Field(_ChainChora, FieldBase, metaclass=_Sprite):
 class Params(metaclass=_Sprite):
 
     nargs: int = 0
-    arguments: _Diict = _Diict()
+    arguments: _Kwargs = _Kwargs()
 
     _req_slots__ = ('__dict__',)
 
@@ -283,7 +283,7 @@ class Params(metaclass=_Sprite):
             if kwargs:
                 raise TypeError
             nargs, arguments = arg0, arg1
-        obj = super().__class_call__(int(nargs), _Diict(arguments))
+        obj = super().__class_call__(int(nargs), _Kwargs(arguments))
         if cache:
             obj.softcache.update(cache)
         return obj
@@ -336,7 +336,7 @@ def get_typ_fields(typ):
 
 class Sig(_ChainChora, metaclass=_Sprite):
 
-    sigfields: _Diict
+    sigfields: _Kwargs
 
     @staticmethod
     def _get_orderscore(pair):
@@ -361,7 +361,7 @@ class Sig(_ChainChora, metaclass=_Sprite):
         else:
             if kwargs:
                 raise TypeError
-            if isinstance(arg, _Diict):
+            if isinstance(arg, _Kwargs):
                 fields = arg
             elif isinstance(arg, type):
                 fields = get_typ_fields(arg)
@@ -377,7 +377,7 @@ class Sig(_ChainChora, metaclass=_Sprite):
                     }
         if not all(isinstance(field, FieldBase) for field in fields.values()):
             raise TypeError(fields)
-        obj = super().__class_call__(_Diict(cls._sort_fields(fields)))
+        obj = super().__class_call__(_Kwargs(cls._sort_fields(fields)))
         if cache:
             obj.softcache.update(cache)
         return obj
@@ -385,10 +385,10 @@ class Sig(_ChainChora, metaclass=_Sprite):
     @property
     @_caching.soft_cache()
     def __incision_manager__(self, /):
-        return _Brace[{
-            key: _Slc[::field.hint]
+        return _Brace[_Kwargs(**{
+            key: field.hint
             for key, field in self.sigfields.items()
-            }]
+            })]
 
     @property
     @_caching.soft_cache()
@@ -458,7 +458,7 @@ class Sig(_ChainChora, metaclass=_Sprite):
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.rootrepr
-        _pretty.pretty_dict(self.sigfields, p, cycle, root=root)
+        self.__incision_manager__._repr_pretty_(p, cycle, root)
 
 
 class Param(metaclass=_Sprite):

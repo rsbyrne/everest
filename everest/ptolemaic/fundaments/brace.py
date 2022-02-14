@@ -13,8 +13,10 @@ from everest.incision import (
 from everest.utilities import (
     pretty as _pretty,
     caching as _caching,
+    FrozenNamespace as _FrozenNamespace,
     )
 
+from everest.ptolemaic import query as _query
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.armature import (
@@ -24,11 +26,13 @@ from everest.ptolemaic.chora import (
     Chora as _Chora,
     Choric as _Choric,
     ChainChora as _ChainChora,
+    Basic as _Basic,
     Multi as _Multi,
-    Sampleable as _Sampleable,
     )
+from everest.ptolemaic.diict import Kwargs as _Kwargs
 
 from everest.ptolemaic.fundaments.fundament import Fundament as _Fundament
+from everest.ptolemaic.fundaments.allslyce import AllSlyce as _AllSlyce
 
 
 class Length(metaclass=_Sprite):
@@ -44,16 +48,17 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
     _req_slots__ = ('ilabels',)
 
+    basememberspace = _AllSlyce
 
     @classmethod
     def __mroclass_init__(cls, /):
+        cls.basememberspace = cls.owner
         super().__mroclass_init__()
-        with (Oid := cls.Oid).mutable:
-            Oid.basememberspace = cls.owner
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
+        cls.__class_incision_manager__ = cls.Oid.OpenForm()
         cls._add_mroclass('Slyce')
 
     def __init__(self, /):
@@ -116,7 +121,12 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
         SUBCLASSES = ('OpenForm', 'SymForm', 'AsymForm')
 
-        basememberspace = _Fundament
+        basememberspace = _AllSlyce
+
+        @classmethod
+        def __mroclass_init__(cls, /):
+            cls.basememberspace = cls.owner.basememberspace
+            super().__mroclass_init__()
 
         @property
         def memberspace(self, /):
@@ -134,14 +144,21 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
             @classmethod
             def __class_call__(cls, chora=None):
+                basememberspace = cls.basememberspace
                 if chora is None:
                     chora = cls.basememberspace
-                elif not (
-                        _IncisionProtocol.INCLUDES(cls.basememberspace)
-                        (chora)
-                        ):
-                    raise TypeError(cls, chora)
-                return super().__class_call__(chora)
+                # elif not (
+                #         _IncisionProtocol.INCLUDES(cls.basememberspace)
+                #         (chora)
+                #         ):
+                #     raise TypeError(cls, cls.basememberspace, chora)
+                typ = (
+                    _ArmatureProtocol.BRACE(chora, cls.owner)
+                    .Oid.OpenForm
+                    )
+                if typ is cls:
+                    return super().__class_call__(chora)
+                return typ(chora)
 
             @property
             def memberspace(self, /):
@@ -150,41 +167,31 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
             def _retrieve_repeatlike(self, incisor, /):
                 raise NotImplementedError
 
-            class __choret__(_Sampleable):
+            class __choret__(_Basic):
 
-                def handle_tuple(self, incisor: tuple, /, *, caller):
-                    return _IncisionProtocol.INCISE(self.bound.SymForm(
-                        self.bound.memberspace, (), len(incisor)
-                        ))(incisor, caller=caller)
-
-                def handle_dict(self, incisor: dict, /, *, caller):
+                def handle_mapping(self, incisor: _Kwargs, /, *, caller):
                     return _IncisionProtocol.INCISE(self.bound.SymForm(
                         self.bound.memberspace, tuple(incisor)
-                        ))(incisor, caller=caller)
+                        ))(_query.Shallow(incisor), caller=caller)
+
+                def handle_sequence(self, incisor: tuple, /, *, caller):
+                    return _IncisionProtocol.INCISE(self.bound.SymForm(
+                        self.bound.memberspace, (), len(incisor)
+                        ))(_query.Shallow(incisor), caller=caller)
 
                 def handle_other(self, incisor: object, /, *, caller):
+                    memberspace = self.bound.memberspace
                     caller = _IncisionChain(
+                        memberspace,
+                        _FrozenNamespace(
+                            __incise_slyce__=self.bound._ptolemaic_class__,
+                            __incise_retrieve__=self.bound._retrieve_repeatlike,
+                            ),
                         caller,
-                        __incise_slyce__=self.bound._ptolemaic_class__,
-                        __incise_retrieve__=self.bound._retrieve_repeatlike,
                         )
-                    return _IncisionProtocol.INCISE(self.bound.memberspace)(
+                    return _IncisionProtocol.INCISE(memberspace)(
                         incisor, caller=caller
                         )
-
-                def sample_slyce_chora(self, incisor: _Chora, /):
-                    try:
-                        bracetyp = _ArmatureProtocol.BRACE(incisor)
-                    except AttributeError:
-                        return self.bound.OpenForm(incisor)
-                    else:
-                        memberspace = self.bound.memberspace
-                        if not (
-                                _IncisionProtocol.INCLUDES(memberspace)
-                                (bracetyp)
-                                ):
-                            raise ValueError(self.bound, type(incisor))
-                        return bracetyp
 
             def __incise_contains__(self, arg, /):
                 if not super().__incise_contains__(arg):
@@ -203,8 +210,8 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
             @classmethod
             def __class_call__(cls, chora, labels, depth=None, /):
-                if not cls.basememberspace.__includes__(chora):
-                    raise ValueError(cls, cls.basememberspace, chora)
+                # if not cls.basememberspace.__includes__(chora):
+                #     raise ValueError(cls, cls.basememberspace, chora)
                 if depth is None:
                     depth = len(labels)
                 typ = (
@@ -224,6 +231,10 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
             def values(self, /):
                 return self.choras
+
+            @property
+            def active(self, /):
+                return self.__incision_manager__.active
 
             __choret__ = _Multi
 
@@ -245,9 +256,9 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
                         choras, labels = tuple(choras.values()), tuple(choras)
                     else:
                         labels = ()
-                checker = _IncisionProtocol.INCLUDES(cls.basememberspace)
-                if not all(map(checker, choras)):
-                    raise ValueError(cls.owner, cls.basememberspace, choras)
+                # checker = _IncisionProtocol.INCLUDES(cls.basememberspace)
+                # if not all(map(checker, choras)):
+                #     raise ValueError(cls.owner, cls.basememberspace, choras)
                 if len(typset := set(
                         _ArmatureProtocol.BRACE(chora, cls.owner)
                         .Oid.AsymForm
@@ -279,6 +290,10 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
             def values(self, /):
                 return self.choras
 
+            @property
+            def active(self, /):
+                return self.__incision_manager__.active
+
             def asdict(self, /):
                 return dict(zip(self.keys(), self.values()))
 
@@ -289,14 +304,6 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
                     _pretty.pretty_kwargs(self.asdict(), p, cycle, root=root)
                 else:
                     super()._repr_pretty_(p, cycle, root=root)
-
-
-        class Space(metaclass=_Essence):
-
-            @property
-            @_caching.soft_cache()
-            def __incision_manager__(self, /):
-                return self.OpenForm(self.memberspace)
 
 
     class Slyce(_ChainChora, metaclass=_Sprite):
