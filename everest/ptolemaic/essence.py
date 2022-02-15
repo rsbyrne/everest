@@ -170,7 +170,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             __mroclass_basis__=basis,
             )
         if mixin is None:
-            typname = f"{cls.__name__}{name}"
+            typname = f"{cls.__name__}_{name}"
             bases = (basis,)
             owners = (*cls.owners, cls)
         else:
@@ -179,7 +179,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 ns['_ptolemaic_overclass'] = cls
             else:
                 owners = (*cls.owners, cls)
-            typname = f"{name}_{cls.__name__}"
+            typname = f"{cls.__name__}_{name}"
             bases = (basis, mixin)
             ns['__mroclass_mixin__'] = mixin
         ns['_ptolemaic_owners'] = owners
@@ -211,12 +211,37 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         for name in cls.MROCLASSES:
             cls._try_add_mroclass(name)
 
-    def _add_subclass(cls, arg: (str, type), /):
-        if '__mroclass_mixin__' in cls.__dict__:
-            raise MROSubClassRecursion(arg, cls)
+    def _add_subclass(cls, arg: str, /):
+        if not arg in cls.SUBCLASSES:
+            raise TypeError(
+                "Cannot add subclass "
+                "without declaring its name in .SUBCLASSES."
+                )
+        try:
+            overclass = cls.__dict__['__mroclass_mixin__']
+        except KeyError:
+            pass
+        else:
+            if arg in overclass.SUBCLASSES:
+                raise MROSubClassRecursion(arg, cls)
         return cls._add_mroclass(arg, mixin=cls)
+        # try:
+        #     set() = cls.__dict__['_subclasses']
+        # except KeyError:
+        #     dct = cls._subclasses = {}
+        # dct[arg] = out
+        # return out
 
-    def _try_add_subclass(cls, arg: (str, type), /):
+    # @property
+    # @_caching.soft_cache()
+    # def subclasses(cls, /):
+    #     try:
+    #         dct = cls.__dict__['_subclasses']
+    #     except KeyError:
+    #         dct = cls._subclasses = {}
+    #     return _types.MappingProxyType(dct)
+
+    def _try_add_subclass(cls, arg: str, /):
         try:
             cls._add_subclass(arg)
         except (MROSubClassRecursion, MROClassNotFound):

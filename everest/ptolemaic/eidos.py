@@ -161,7 +161,7 @@ class EidosBase(metaclass=Eidos):
 
     def get_epitaph(self, /):
         return self.taphonomy.custom_epitaph(
-            "$a[$b]",
+            "$a.instantiate($b)",
             a=self._ptolemaic_class__, b=self.params,
             )
 

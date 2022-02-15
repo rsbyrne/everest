@@ -29,7 +29,7 @@ from everest.incision import (
 from everest.epitaph import Epitaph as _Epitaph
 
 from everest.ptolemaic.armature import ArmatureProtocol as _ArmatureProtocol
-from everest.ptolemaic.diict import Kwargs as _Kwargs
+from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.protean import Protean as _Protean
@@ -155,6 +155,10 @@ class Chora(_PseudoIncisable, metaclass=_Essence):
     @property
     def __includes__(self, /):
         return _IncisionProtocol.INCLUDES(self)
+
+    # @property
+    # def codomain(self, /):
+    #     return _IncisionProtocol.RETRIEVE(self).__annotations__['return']
 
     @classmethod
     def __subclasshook__(cls, ACls, /):
@@ -480,11 +484,11 @@ class Multi(Basic):
 
     @property
     def labels(self, /):
-        return self.bound.keys()
+        return self.bound.labels
 
     @property
     def choras(self, /):
-        return self.bound.values()
+        return self.bound.choras
 
     @property
     def depth(self, /):
@@ -517,7 +521,7 @@ class Multi(Basic):
                 chora.retrieve() for chora in choras
                 ))
         if len(set(choras)) == 1:
-            slyce = self.bound.SymForm(choras[0], self.labels, self.depth)
+            slyce = self.bound.SymForm(choras[0], self.labels)
         else:
             slyce = self.bound.AsymForm(choras, self.labels)
         return _IncisionProtocol.SLYCE(caller)(slyce)
@@ -576,7 +580,7 @@ class Multi(Basic):
             raise ValueError("Too many incisors in tuple incision.")
         yield from chorait
 
-    def handle_mapping(self, incisor: _Kwargs, /, *, caller, shallow=False):
+    def handle_mapping(self, incisor: _Diict, /, *, caller, shallow=False):
         if not incisor:
             return _IncisionProtocol.TRIVIAL(caller)()
         if shallow:

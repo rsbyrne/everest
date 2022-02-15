@@ -91,6 +91,12 @@ def _build_oids(Intt, ns, /):
                     lower, upper, self.bound.step
                     )
 
+            def sample_slyce_int(self, incisor: int, /):
+                bound = self.bound
+                return bound._ptolemaic_class__(
+                    bound.lower, bound.step * incisor
+                    )
+
         def __incise_iter__(self, /):
             return _itertools.count(self.lower, self.step)
 
@@ -103,6 +109,10 @@ def _build_oids(Intt, ns, /):
 
         def __incise_includes__(self, arg, /):
             raise NotImplementedError
+
+        @property
+        def numpyquery(self, /):
+            return slice(self.lower, None, self.step)
 
 
     class Limit(_Choric, metaclass=_Eidos):
@@ -148,6 +158,10 @@ def _build_oids(Intt, ns, /):
         def __incise_includes__(self, arg, /):
             raise NotImplementedError
 
+        @property
+        def numpyquery(self, /):
+            return slice(self.lower, None, self.step)
+
 
     class Closed(_Choric, metaclass=_Eidos):
 
@@ -181,6 +195,12 @@ def _build_oids(Intt, ns, /):
                     return _IncisionProtocol.TRIVIAL(caller)
                 return _IncisionProtocol.SLYCE(caller)(
                     self.bound._ptolemaic_class__(start, stop, step)
+                    )
+
+            def sample_slyce_int(self, incisor: int, /):
+                bound = self.bound
+                return bound._ptolemaic_class__(
+                    bound.lower, bound.upper, bound.step * incisor
                     )
 
         def __incise_iter__(self, /):

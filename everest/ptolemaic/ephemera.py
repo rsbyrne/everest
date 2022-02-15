@@ -61,6 +61,35 @@ class Table(_ChainChora, Ephemera, metaclass=_Protean):
         )
     _var_slots__ = ()
 
+
+    class Basis(metaclass=_Sprite):
+
+        shape: tuple
+        dtype: (type, str)
+
+
+    class Slyce(_ChainChora, metaclass=_Sprite):
+
+        basis: object
+        incisor: object
+
+        _req_slots__ = ('__incision_manager__', 'data')
+
+        def __init__(self, /):
+            super().__init__()
+            incisor = self.incisor
+            self.__incision_manager__ = incisor
+            self.data = self.basis.array[]
+
+        @property
+        def __incise_slyce__(self, /):
+            return _functools.partial(self._ptolemaic_class__, self.basis)
+
+        # @property
+        # def data(self, /):
+        #     return self.basis = 
+
+
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
         return super().__class_call__(cls.Basis(*args, **kwargs))
@@ -144,28 +173,6 @@ class Table(_ChainChora, Ephemera, metaclass=_Protean):
 
     def __incise_slyce__(self, incisor, /):
         return self.Slyce(self, incisor)
-
-
-    class Basis(metaclass=_Sprite):
-
-        shape: tuple
-        dtype: (type, str)
-
-
-    class Slyce(_ChainChora, metaclass=_Sprite):
-
-        basis: object
-        incisor: object
-
-        _req_slots__ = ('__incision_manager__',)
-
-        def __init__(self, /):
-            self.__incision_manager__ = self.incisor
-
-        @property
-        def __incise_slyce__(self, /):
-            return _functools.partial(self._ptolemaic_class__, self.basis)
-
 
     def _repr_pretty_base(self, p, cycle):
         _pretty.pretty_kwargs(self.basis.params, p, cycle, root=self.rootrepr)

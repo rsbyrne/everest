@@ -70,7 +70,7 @@ class ODEModelBase(_ChainChora, metaclass=ODEModel):
 
     MROCLASSES = ('Line', 'Traverse', 'Stage')
 
-    statespace = _Thing.Brace
+    statespace = _Thing.Oid.Brace
     metricspace = _Floatt[0.:]
 
     @classmethod
