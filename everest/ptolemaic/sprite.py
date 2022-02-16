@@ -139,7 +139,7 @@ class SpriteBase(metaclass=Sprite):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self.rootrepr
+            root = self._ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.params, p, cycle, root=root)
 
     def __hash__(self, /):

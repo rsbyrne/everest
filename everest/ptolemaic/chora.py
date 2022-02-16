@@ -517,8 +517,9 @@ class Multi(Basic):
     def _handle_generic(self, incisor, /, *, caller, meth):
         choras = tuple(meth(incisor))
         if all(isinstance(chora, Degenerate) for chora in choras):
-            return _IncisionProtocol.RETRIEVE(caller)(tuple(
-                chora.retrieve() for chora in choras
+            return _IncisionProtocol.RETRIEVE(caller)((
+                tuple(chora.retrieve() for chora in choras),
+                self.labels,
                 ))
         if len(set(choras)) == 1:
             slyce = self.bound.SymForm(choras[0], self.labels)

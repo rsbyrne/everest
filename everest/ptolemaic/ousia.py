@@ -207,9 +207,9 @@ class OusiaBase(metaclass=Ousia):
     ### Representations:
 
     def _root_repr(self, /):
-        return ':'.join((
-            self._ptolemaic_class__.__name__,
-            str(id(self)),
+        ptolcls = self._ptolemaic_class__
+        return ':'.join(map(str,
+            (type(ptolcls).__qualname__, ptolcls.__qualname__, id(self))
             ))
 
     @property
@@ -234,13 +234,13 @@ class OusiaBase(metaclass=Ousia):
     def varrepr(self, /):
         return self._var_repr()
 
-    def __repr__(self, /):
-        if (varrepr := self.varrepr):
-            return f"<{self.rootrepr}({self.contentrepr}){{{self.varrepr}}}>"
-        return f"<{self.rootrepr}({self.contentrepr})>"
-
     def __str__(self, /):
-        return self.__repr__()
+        if (varrepr := self.varrepr):
+            return f"{self.rootrepr}({self.contentrepr}){{{self.varrepr}}}"
+        return f"{self.rootrepr}({self.contentrepr})"
+
+    def __repr__(self, /):
+        return f"<{self.rootrepr}>"
 
     def __hash__(self, /):
         return id(self)

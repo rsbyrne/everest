@@ -45,18 +45,17 @@ class Length(metaclass=_Sprite):
 class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
 
-    content: tuple
-    labels: tuple = None
-
-    # _req_slots__ = ('ilabels',)
-
     basememberspace = _AllSlyce
+
+    truecontent: tuple
+    labels: tuple = None
 
     @classmethod
     def __mroclass_init__(cls, /):
         owner = cls.basememberspace = cls.owner
         super().__mroclass_init__()
         cls.__class_incision_manager__ = cls.Oid.OpenForm(owner)
+        # owner.Brace = cls
 
     @classmethod
     def __class_init__(cls, /):
@@ -65,23 +64,11 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
         # cls._add_mroclass('Slyce')
 
     @classmethod
-    def __class_call__(cls, content, labels=None):
+    def __class_call__(cls, truecontent, labels=None):
         if labels is None:
-            labels = len(content)
+            labels = len(truecontent)
         labels = cls.Oid.process_labels(labels)
-        return super().__class_call__(content, labels)
-
-    # @property
-    # @_caching.soft_cache()
-    # def dct(self, /):
-    #     return _types.MappingProxyType(dict(zip(self.labels, self.content)))
-
-    # def __getattr__(self, name, /):
-    #     try:
-    #         index = super().__getattr__('labels').index(name)
-    #     except ValueError:
-    #         return super().__getattr__(name)
-    #     return super().__getattr__('content')[index]
+        return super().__class_call__(truecontent, labels)
 
     @property
     def __incision_manager__(self, /):
@@ -89,64 +76,44 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
     @property
     def __incise_retrieve__(self, /):
-        return self.content.__getitem__
+        return self.truecontent.__getitem__
 
     def __incise_slyce__(self, incisor, /):
-        return self._ptolemaic_class__(self.content, incisor)
+        return self._ptolemaic_class__(self.truecontent, incisor)
 
     @property
-    def __incise_length__(self, /):
-        return self.content.__len__
+    @_caching.soft_cache()
+    def content(self, /):
+        labels = self.labels
+        return tuple(map(
+            self.truecontent.__getitem__,
+            map(labels.__getitem__, labels)
+            ))
+
+    @_caching.soft_cache()
+    def asdict(self, /):
+        return _types.MappingProxyType(dict(zip(
+            self.labels, self.content
+            )))
 
     @property
     def __incise_contains__(self, /):
         return self.content.__contains__
 
-    @property
+    def __incise_length__(self, /):
+        return len(self.content)
+
     def __incise_iter__(self, /):
-        return self.content.__iter__
+        return iter(self.content)
 
-    @property
-    def __incise_index__(self, /):
-        return self.content.index
+    # @property
+    # def __incise_index__(self, /):
+    #     return self.content.index
 
-    # def _repr_pretty_(self, p, cycle, root=None):
-    #     if root is None:
-    #         root = self.rootrepr
-    #     _pretty.pretty_dict(self.dct, p, cycle, root)
-
-
-#     class Slyce(_ChainChora, metaclass=_Sprite):
-
-#         source: 'Brace'
-#         labels: _Chora
-
-#         @property
-#         def __incision_manager__(self, /):
-#             return self.labels
-
-#         @property
-#         def content(self, /):
-#             return tuple(map(self.source.content.__getitem__, self.labels))
-
-#         @property
-#         def __incise_retrieve__(self, /):
-#             return self.source.__incise_retrieve__
-
-#         def __incise_slyce__(self, incisor, /):
-#             return self._ptolemaic_class__(self.source, incisor)
-
-#         @property
-#         def __incise_length__(self, /):
-#             return self.content.__len__
-
-#         @property
-#         def __incise_contains__(self, /):
-#             return self.content.__contains__
-
-#         @property
-#         def __incise_iter__(self, /):
-#             return self.content.__iter__
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self._ptolemaic_class__.__qualname__
+        _pretty.pretty(self.asdict(), p, cycle, root=root)
 
 
     class Oid(metaclass=_Essence):
@@ -166,9 +133,7 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
             return self.basememberspace
 
         def __incise_retrieve__(self, incisor, /):
-            return self._ptolemaic_class__.owner(
-                incisor, getattr(self, 'labels', None)
-                )
+            return self._ptolemaic_class__.owner(*incisor)
 
         @classmethod
         def process_labels(cls, arg, /):
@@ -186,25 +151,30 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
         class OpenForm(_Choric, metaclass=_Sprite):
 
-            chora: _Chora = None
+            chora: _Chora
 
-            @classmethod
-            def __class_call__(cls, chora=None):
-                basememberspace = cls.basememberspace
-                if chora is None:
-                    chora = cls.basememberspace
-                # elif not (
-                #         _IncisionProtocol.INCLUDES(cls.basememberspace)
-                #         (chora)
-                #         ):
-                #     raise TypeError(cls, cls.basememberspace, chora)
-                typ = (
-                    _ArmatureProtocol.BRACE(chora, cls.owner)
-                    .Oid.OpenForm
-                    )
-                if typ is cls:
-                    return super().__class_call__(chora)
-                return typ(chora)
+            # @classmethod
+            # def __class_call__(cls, chora):
+            #     # elif not (
+            #     #         _IncisionProtocol.INCLUDES(cls.basememberspace)
+            #     #         (chora)
+            #     #         ):
+            #     #     raise TypeError(cls, cls.basememberspace, chora)
+            #     print('-' * 3)
+            #     print(repr(cls))
+            #     print(repr(chora))
+            #     try:
+            #         print(repr(_ArmatureProtocol.BRACE(chora)))
+            #     except Exception as exc:
+            #         print(exc)
+            #     print(repr(cls.owner))
+            #     typ = (
+            #         _ArmatureProtocol.BRACE(chora, cls.owner)
+            #         .Oid.OpenForm
+            #         )
+            #     if typ is cls:
+            #         return super().__class_call__(chora)
+            #     return typ(chora)
 
             @property
             def memberspace(self, /):
@@ -250,6 +220,17 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
                     for sub in arg
                     )
 
+            def _repr_pretty_(self, p, cycle, root=None):
+                if root is None:
+                    root = self._ptolemaic_class__.__qualname__
+                if cycle:
+                    p.text(root + '{...}')
+                    return
+                with p.group(4, root + '(', ')'):
+                    # p.breakable()
+                    self.chora._repr_pretty_(p, cycle)
+                    # p.breakable()
+
 
         class SymForm(_Choric, metaclass=_Sprite):
 
@@ -294,31 +275,60 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
                     return False
                 return self.__incision_manager__.__incise_contains__(arg)
 
+            def _repr_pretty_(self, p, cycle, root=None):
+                if root is None:
+                    root = self._ptolemaic_class__.__qualname__
+                if cycle:
+                    p.text(root + '{...}')
+                    return
+                with p.group(4, root + '(', ')'):
+                    # p.breakable()
+                    self.chora._repr_pretty_(p, cycle)
+                    # p.breakable()
+                    p.text(',')
+                    p.breakable()
+                    p.text('labels=')
+                    self.labels._repr_pretty_(p, cycle)
+                    # p.breakable()
+
 
         class AsymForm(_Choric, metaclass=_Sprite):
 
-            choras: tuple
+            truechoras: tuple
             labels: tuple = None
 
             @classmethod
-            def __class_call__(cls, choras, labels=None):
+            def __class_call__(cls, truechoras, labels=None):
                 # checker = _IncisionProtocol.INCLUDES(cls.basememberspace)
                 # if not all(map(checker, choras)):
                 #     raise ValueError(cls.owner, cls.basememberspace, choras)
                 labels = cls.process_labels(
-                    len(choras) if labels is None else labels
+                    len(truechoras) if labels is None else labels
                     )
                 if len(typset := set(
                         _ArmatureProtocol.BRACE(chora, cls.owner)
                         .Oid.AsymForm
-                        for chora in choras
+                        for chora in truechoras
                         )) == 1:
                     typ = typset.pop()
                     if typ is not cls:
-                        return typ(choras, labels)
-                return super().__class_call__(choras, labels)
-
+                        return typ(truechoras, labels)
+                return super().__class_call__(truechoras, labels)
+                                       
             __choret__ = _Multi
+
+            @property
+            @_caching.soft_cache()
+            def choras(self, /):
+                labels = self.labels
+                return tuple(map(
+                    self.truechoras.__getitem__,
+                    map(labels.__getitem__, labels)
+                    ))
+
+            @property
+            def active(self, /):
+                return self.__incision_manager__.active
 
             def __incise_contains__(self, arg, /):
                 if not super().__incise_contains__(arg):
@@ -327,29 +337,18 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
             @property
             def depth(self, /):
-                return len(self.labels)
+                return len(self.choras)
 
-            def keys(self, /):
-                return self.labels
+            @_caching.soft_cache()
+            def asdict(self, /):
+                return _types.MappingProxyType(dict(zip(
+                    self.labels, self.choras
+                    )))
 
-            def values(self, /):
-                return self.choras
-
-            @property
-            def active(self, /):
-                return self.__incision_manager__.active
-
-            # @property
-            # @_caching.soft_cache()
-            # def dct(self, /):
-            #     return _types.MappingProxyType(dict(zip(
-            #         self.labels, self.content
-            #         )))
-
-            # def _repr_pretty_(self, p, cycle, root=None):
-            #     if root is None:
-            #         root = self.rootrepr
-            #     _pretty.pretty_dict(self.dct, p, cycle, root)
+            def _repr_pretty_(self, p, cycle, root=None):
+                if root is None:
+                    root = self._ptolemaic_class__.owner.__qualname__
+                _pretty.pretty(self.asdict(), p, cycle, root=root)
 
 
 ###############################################################################

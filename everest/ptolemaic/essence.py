@@ -169,8 +169,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         ns = dict(
             __mroclass_basis__=basis,
             )
+        typname = name
         if mixin is None:
-            typname = f"{cls.__name__}_{name}"
+            # typname = f"{cls.__name__}_{name}"
             bases = (basis,)
             owners = (*cls.owners, cls)
         else:
@@ -179,7 +180,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 ns['_ptolemaic_overclass'] = cls
             else:
                 owners = (*cls.owners, cls)
-            typname = f"{cls.__name__}_{name}"
+            # typname = f"{cls.__name__}_{name}"
             bases = (basis, mixin)
             ns['__mroclass_mixin__'] = mixin
         ns['_ptolemaic_owners'] = owners
@@ -415,7 +416,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             else:
                 func(ns := _RestrictedNamespace(badvals={cls,}))
                 cls.incorporate_namespace(ns)
-            if cls.owners:
+            if (ocls := cls.overclass):
+                cls.__qualname__ = '.'.join(
+                    (ocls.__qualname__, cls.__name__)
+                    )
+            elif (owners := cls.owners):
+                cls.__qualname__ = '.'.join(
+                    ACls.__qualname__ for ACls in (cls.owner, cls)
+                    )
+            if (owners := cls.owners):
                 cls.__mroclass_init__()
             else:
                 cls.__class_init__()
@@ -513,8 +522,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Representations:
 
+    # @property
+    # @_caching.soft_cache()
+    # def __qualname__(cls, /):
+    #     return '.'.join((*cls.owners, cls.__name__))
+
     def __class_repr__(cls, /):
-        return f"<{type(cls).__name__}:{cls.__qualname__}>"
+        return f"{type(cls).__name__}:{cls.__qualname__}"
 
     def __class_str__(cls, /):
         return cls.__name__
@@ -526,6 +540,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @_caching.soft_cache()
     def __str__(cls, /):
         return cls._ptolemaic_class__.__class_str__()
+
+    def _repr_pretty_(cls, p, cycle, root=None):
+        if root is not None:
+            raise NotImplementedError
+        p.text(cls.__qualname__)
 
     @property
     def hexcode(cls, /):

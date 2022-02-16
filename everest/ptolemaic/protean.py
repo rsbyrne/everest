@@ -37,7 +37,8 @@ class ProteanBase(metaclass=Protean):
         return repr(self.basis)
 
     def _repr_pretty_base(self, p, cycle, /):
-        _pretty.pretty_tuple((self.basis,), p, cycle, root=self.rootrepr)
+        root = self._ptolemaic_class__.__qualname__
+        _pretty.pretty_tuple((self.basis,), p, cycle, root=root)
 
     def _repr_pretty_(self, p, cycle):
         self._repr_pretty_base(p, cycle)

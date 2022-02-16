@@ -8,6 +8,7 @@ import functools as _functools
 import operator as _operator
 from collections import deque as _deque
 import itertools as _itertools
+import abc as _abc
 
 import numpy as _np
 
@@ -24,6 +25,7 @@ from everest.ptolemaic.chora import (
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.eidos import Eidos as _Eidos
 from everest.ptolemaic.fundaments.intt import Intt as _Intt
+# from everest.ptolemaic.fundaments.index import Index as _Index
 
 
 class Ephemera(metaclass=_Essence):
@@ -51,12 +53,40 @@ class Ephemera(metaclass=_Essence):
                 raise AttributeError from exc
 
 
-class Table(_ChainChora, Ephemera, metaclass=_Protean):
+class TableLike(metaclass=_Essence):
+
+    @property
+    @_abc.abstractmethod
+    def data(self, /):
+        raise NotImplementedError
+
+    @property
+    @_abc.abstractmethod
+    def mask(self, /):
+        raise NotImplementedError
+
+    @property
+    def shape(self, /):
+        return self.data.shape
+
+    @property
+    def dtype(self, /):
+        return self.data.dtype
+
+    def __setitem__(self, indices, val, /):
+        self.mask[indices] = True
+        self.data[indices] = val
+
+    def __delitem__(self, indices, /):
+        self.mask[indices] = False
+
+
+class Table(TableLike, _ChainChora, Ephemera, metaclass=_Protean):
 
 
     MROCLASSES = ('Basis', 'Slyce')
     _req_slots__ = (
-        '_array', '_mask', '_opendims', '_nopendims', '_queue',
+        '_data', '_mask', '_opendims', '_nopendims', '_queue',
         '_openslc', '_appendaxis', 'depth', 'append', 'extend',
         )
     _var_slots__ = ()
@@ -68,46 +98,55 @@ class Table(_ChainChora, Ephemera, metaclass=_Protean):
         dtype: (type, str)
 
 
-    class Slyce(_ChainChora, metaclass=_Sprite):
+    class Slyce(TableLike, _ChainChora, metaclass=_Sprite):
 
-        basis: object
-        incisor: object
-
-        _req_slots__ = ('__incision_manager__', 'data')
-
-        def __init__(self, /):
-            super().__init__()
-            incisor = self.incisor
-            self.__incision_manager__ = incisor
-            self.data = self.basis.array[]
+        source: object
+        incisor: object  #_Index
 
         @property
-        def __incise_slyce__(self, /):
-            return _functools.partial(self._ptolemaic_class__, self.basis)
+        def __incision_manager__(self, /):
+            return self.incisor
 
-        # @property
-        # def data(self, /):
-        #     return self.basis = 
+        @property
+        @_caching.soft_cache()
+        def data(self, /):
+            return self.source.data.view()[self.incisor.arrayquery]
+
+        @property
+        @_caching.soft_cache()
+        def mask(self, /):
+            return self.source.mask.view()[self.incisor.arrayquery]
+
+        def __incise_slyce__(self, incisor, /):
+            return self._ptolemaic_class__(self.source, incisor)
+
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self._ptolemaic_class__.__qualname__
+            with p.group(4, root + '(', ')'):
+                p.breakable()
+                p.text(f"source = {repr(self.source)}")
+                p.text(',')
+                p.breakable()
+                p.text("incisor = ")
+                self.incisor._repr_pretty_(p, cycle)
+                p.text(',')
+                p.breakable()
+                p.text("data = ")
+                _pretty.pretty_array(self.data, p, cycle)
+                p.breakable()
 
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
         return super().__class_call__(cls.Basis(*args, **kwargs))
 
-    @property
-    def shape(self, /):
-        return self._array.shape
-
-    @property
-    def dtype(self, /):
-        return self.basis.dtype
-
     def __init__(self, /):
         baseshape = self.basis.shape
         shape = tuple(0 if dim is None else dim for dim in baseshape)
         depth = self.depth = len(shape)
         self._openslc = tuple(_itertools.repeat(slice(None), depth))
-        self._array = _np.empty(shape, self.dtype)
+        self._data = _np.empty(shape, self.basis.dtype)
         self._mask = _np.empty(shape, bool)
         opendims = self._opendims = tuple(val is None for val in baseshape)
         self._nopendims = sum(opendims)
@@ -121,8 +160,12 @@ class Table(_ChainChora, Ephemera, metaclass=_Protean):
             self.extend = queue.extend
 
     @property
-    def array(self, /):
-        return self._array
+    def data(self, /):
+        return self._data
+
+    @property
+    def mask(self, /):
+        return self._mask
 
     def _yield_reshape(self, dims, /):
         dims = iter(dims)
@@ -141,8 +184,8 @@ class Table(_ChainChora, Ephemera, metaclass=_Protean):
             next(idims, dim) if dim is None else dim
             for dim in self.basis.shape
             )
-        self._array.resize(shape, refcheck=False)
-        self._mask.resize(shape, refcheck=False)
+        self.data.resize(shape, refcheck=False)
+        self.mask.resize(shape, refcheck=False)
 
     def stack(self, content, /):
         length = len(content)
@@ -162,26 +205,18 @@ class Table(_ChainChora, Ephemera, metaclass=_Protean):
     @property
     @_caching.soft_cache()
     def __incision_manager__(self, /):
-        return _Intt.Brace[tuple(slice(0, val) for val in self.basis.shape)]
-
-    def __setitem__(self, indices, val, /):
-        self._mask[indices] = True
-        self._array[indices] = val
-
-    def __delitem__(self, indices, /):
-        self._mask[indices] = False
+        return _Intt.Oid.Brace[
+            tuple(slice(0, val) for val in self.basis.shape)
+            ]
 
     def __incise_slyce__(self, incisor, /):
         return self.Slyce(self, incisor)
 
     def _repr_pretty_base(self, p, cycle):
-        _pretty.pretty_kwargs(self.basis.params, p, cycle, root=self.rootrepr)
-        arraytext = _np.array2string(self._array, threshold=100)
-        with p.group(4, '[', ']'):
-            p.breakable()
-            for row in arraytext[:-1].split('\n'):
-                p.text(row[1:])
-                p.breakable()
+        root = self._ptolemaic_class__.__qualname__
+        p.text(root + '(')
+        _pretty.pretty_array(self.data, p, cycle)
+        p.text(')')
 
 
 class Folio(_Choric, Ephemera, metaclass=_Ousia):
@@ -218,11 +253,9 @@ class Folio(_Choric, Ephemera, metaclass=_Ousia):
         def __incise_len__(self, /):
             return self.bound.content.__len__
 
-    def _repr_pretty_(self, p, cycle):
-        root = ':'.join((
-            self._ptolemaic_class__.__name__,
-            str(id(self)),
-            ))
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self._ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.content, p, cycle, root=root)
 
 

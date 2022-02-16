@@ -3,16 +3,23 @@
 ###############################################################################
 
 
-def pretty(obj, p, cycle):
+import types as _types
+
+import numpy as _np
+
+
+def pretty(obj, p, cycle, root=''):
     try:
         meth = {
-            dict: pretty_kwargs,
+            dict: pretty_dict,
+            _types.MappingProxyType: pretty_dict,
             tuple: pretty_tuple,
+            _np.ndarray: pretty_array,
             }[type(obj)]
     except KeyError:
         p.pretty(obj)
     else:
-        meth(obj, p, cycle)
+        meth(obj, p, cycle, root=root)
 
 
 def pretty_kwargs(obj, p, cycle, /, root=''):
@@ -61,6 +68,19 @@ def pretty_dict(obj, p, cycle, /, root=''):
             pretty(val, p, cycle)
             p.text(',')
         p.breakable()
+
+
+def pretty_array(data, p, cycle, /, root=''):
+    if cycle:
+        p.text(root + '{...}')
+        return
+    if not root:
+        root = f"array(shape={data.shape}, dtype={data.dtype})"
+    with p.group(4, root + '[', ']'):
+        p.breakable()
+        for row in _np.array2string(data, threshold=100)[:-1].split('\n'):
+            p.text(row[1:])
+            p.breakable()
 
 
 def pretty_tuple(obj, p, cycle, /, root=''):

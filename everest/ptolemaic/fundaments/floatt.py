@@ -3,7 +3,10 @@
 ###############################################################################
 
 
-from everest.utilities import RestrictedNamespace as _RestrictedNamespace
+from everest.utilities import (
+    RestrictedNamespace as _RestrictedNamespace,
+    pretty as _pretty,
+    )
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -72,6 +75,19 @@ def _build_oids(Floatt, ns, /):
         def __includes__(self, arg, /):
             raise NotImplementedError
 
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self._ptolemaic_class__.trueowner.__name__
+            if cycle:
+                p.text(root + '{...}')
+                return
+            p.text(root)
+            p.text('[')
+            _pretty.pretty(self.lower, p, cycle)
+            p.text('::')
+            # _pretty.pretty(self.step, p, cycle)
+            p.text(']')
+
 
     class Limit(_Choric, metaclass=_Eidos):
 
@@ -113,6 +129,18 @@ def _build_oids(Floatt, ns, /):
 
         def __includes__(self, arg, /):
             raise NotImplementedError
+
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self._ptolemaic_class__.trueowner.__name__
+            if cycle:
+                p.text(root + '{...}')
+                return
+            p.text(root)
+            p.text('[')
+            p.text('::')
+            _pretty.pretty(self.upper, p, cycle)
+            p.text(']')
 
 
     class Closed(_Choric, metaclass=_Eidos):
@@ -179,6 +207,21 @@ def _build_oids(Floatt, ns, /):
                 if (lower, upper) == (olower, oupper):
                     raise _TrivialException
                 return self.bound._ptolemaic_class__(lower, upper)
+
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self._ptolemaic_class__.trueowner.__name__
+            if cycle:
+                p.text(root + '{...}')
+                return
+            p.text(root)
+            p.text('[')
+            _pretty.pretty(self.lower, p, cycle)
+            p.text(':')
+            _pretty.pretty(self.upper, p, cycle)
+            p.text(':')
+            # _pretty.pretty(self.step, p, cycle)
+            p.text(']')
 
 
     ns.update(locals())

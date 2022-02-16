@@ -7,7 +7,10 @@ import abc as _abc
 from collections import abc as _collabc
 import types as _types
 
-from everest.utilities import caching as _caching
+from everest.utilities import (
+    caching as _caching,
+    pretty as _pretty,
+    )
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -41,23 +44,27 @@ class Index(_Fundament, _Choric, metaclass=_Essence):
     def __class_call__(cls, /, *args, **kwargs):
         return cls.Arbitrary(*args, **kwargs)
 
-    @property
     @_abc.abstractmethod
-    def indexdict(self, /) -> _types.MappingProxyType:
+    def __incise_retrieve__(self, /):
+        raise NotImplementedError
+
+    @_abc.abstractmethod
+    def __incise_contains__(self, /):
+        raise NotImplementedError
+
+    @_abc.abstractmethod
+    def __incise_length__(self, /):
+        raise NotImplementedError
+
+    @_abc.abstractmethod
+    def __incise_iter__(self, /):
         raise NotImplementedError
 
     @property
-    def index(self, /):
-        return self.indexdict.__getitem__
+    @_abc.abstractmethod
+    def arrayquery(self, /):
+        raise NotImplementedError
 
-    def __incise_iter__(self, /):
-        return iter(self.indexdict)
-
-    def __incise_contains__(self, /):
-        return self.indexdict.__contains__
-
-    def __incise_length__(self, /):
-        return len(self.indexdict)
 
     class __choret__(_Sampleable):
 
@@ -67,8 +74,8 @@ class Index(_Fundament, _Choric, metaclass=_Essence):
         def slyce_callable(self, incisor: _collabc.Callable, /):
             return self.slyce_predicate(_Predicate(incisor))
 
-        def retrieve_index(self, incisor: 'owner.memberspace', /):
-            return self.bound.index(incisor)
+        def retrieve_member(self, incisor: 'owner.memberspace', /):
+            return incisor
 
 
     class Arbitrary(metaclass=_Sprite):
@@ -79,18 +86,38 @@ class Index(_Fundament, _Choric, metaclass=_Essence):
         def __class_call__(cls, content):
             return super().__class_call__(tuple(content))
 
-        @property
         @_caching.soft_cache()
-        def indexdict(self, /):
+        def asdict(self, /):
             return _types.MappingProxyType(dict(zip(
                 content := self.content, range(len(content))
                 )))
-            # return _types.MappingProxyType(dict(zip(*map(
-            #     reversed, (content := self.content, range(len(content)))
-            #     ))))
+
+        @property
+        def __incise_retrieve__(self, /):
+            return self.asdict().__getitem__
+
+        @property
+        def __incise_contains__(self, /):
+            return self.asdict().__contains__
+
+        def __incise_length__(self, /):
+            return len(self.asdict())
+
+        def __incise_iter__(self, /):
+            return iter(self.asdict())
+
+        @property
+        def arrayquery(self, /):
+            return self.content
+
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self._ptolemaic_class__.__qualname__
+            _pretty.pretty(self.content, p, cycle, root=root)
 
 
     class Slyce(metaclass=_Essence):
+
 
         SUBCLASSES = ('Predicated',)
 
@@ -100,18 +127,35 @@ class Index(_Fundament, _Choric, metaclass=_Essence):
             source: 'Index'
             predicate: _Predicate
 
-            @property
             @_caching.soft_cache()
-            def indexdict(self, /):
+            def asdict(self, /):
                 return _types.MappingProxyType({
-                    key: val for key, val in self.source.indexdict.items()
+                    key: val for key, val in self.source.asdict().items()
                     if self.predicate(key)
                     })
 
-#     class __choret__(metaclass=_Essence):
+            @property
+            @_caching.soft_cache()
+            def content(self, /):
+                return tuple(self.asdict().values())
 
-#         def slyce_predicate(self, incisor: _Null, /):
-#             raise NotImplementedError
+            @property
+            def __incise_retrieve__(self, /):
+                return self.asdict().__getitem__
+
+            @property
+            def __incise_contains__(self, /):
+                return self.asdict().__contains__
+
+            def __incise_length__(self, /):
+                return len(self.asdict())
+
+            def __incise_iter__(self, /):
+                return iter(self.asdict())
+
+            @property
+            def arrayquery(self, /):
+                return self.content
 
 
 ###############################################################################

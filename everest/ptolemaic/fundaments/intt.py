@@ -4,8 +4,13 @@
 
 
 import itertools as _itertools
+import types as _types
 
-from everest.utilities import RestrictedNamespace as _RestrictedNamespace
+from everest.utilities import (
+    RestrictedNamespace as _RestrictedNamespace,
+    pretty as _pretty,
+    caching as _caching,
+    )
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     )
@@ -20,6 +25,7 @@ from everest.ptolemaic.chora import (
 
 from everest.ptolemaic.fundaments.thing import Thing as _Thing
 from everest.ptolemaic.fundaments.real import Real as _Real
+from everest.ptolemaic.fundaments.index import Index as _Index
 
 
 def _nth(iterable, n):
@@ -35,6 +41,7 @@ _OPINT = (type(None), int)
 def _build_oids(Intt, ns, /):
 
 
+    @_Index.register
     class Open(_Choric, metaclass=_Eidos):
 
         lower: Intt
@@ -111,8 +118,22 @@ def _build_oids(Intt, ns, /):
             raise NotImplementedError
 
         @property
-        def numpyquery(self, /):
+        @_caching.soft_cache()
+        def arrayquery(self, /):
             return slice(self.lower, None, self.step)
+
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self._ptolemaic_class__.trueowner.__name__
+            if cycle:
+                p.text(root + '{...}')
+                return
+            p.text(root)
+            p.text('[')
+            _pretty.pretty(self.lower, p, cycle)
+            p.text('::')
+            _pretty.pretty(self.step, p, cycle)
+            p.text(']')
 
 
     class Limit(_Choric, metaclass=_Eidos):
@@ -158,11 +179,20 @@ def _build_oids(Intt, ns, /):
         def __incise_includes__(self, arg, /):
             raise NotImplementedError
 
-        @property
-        def numpyquery(self, /):
-            return slice(self.lower, None, self.step)
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self._ptolemaic_class__.trueowner.__name__
+            if cycle:
+                p.text(root + '{...}')
+                return
+            p.text(root)
+            p.text('[')
+            p.text('::')
+            _pretty.pretty(self.upper, p, cycle)
+            p.text(']')
 
 
+    @_Index.register
     class Closed(_Choric, metaclass=_Eidos):
 
         lower: Intt
@@ -203,11 +233,11 @@ def _build_oids(Intt, ns, /):
                     bound.lower, bound.upper, bound.step * incisor
                     )
 
-        def __incise_iter__(self, /):
-            return iter(self._rangeobj)
-
-        def __incise_length__(self, /):
-            return len(self._rangeobj)
+        @_caching.soft_cache()
+        def asdict(self, /):
+            return _types.MappingProxyType(dict(zip(
+                self, range(len(self))
+                )))
 
         @property
         def __incise_contains__(self, /):
@@ -215,6 +245,32 @@ def _build_oids(Intt, ns, /):
 
         def __incise_includes__(self, arg, /):
             raise NotImplementedError
+
+        def __incise_length__(self, /):
+            return len(self._rangeobj)
+
+        def __incise_iter__(self, /):
+            return iter(self._rangeobj)
+
+        @property
+        @_caching.soft_cache()
+        def arrayquery(self, /):
+            return slice(self.lower, self.upper, self.step)
+
+        def _repr_pretty_(self, p, cycle, root=None):
+            if root is None:
+                root = self._ptolemaic_class__.trueowner.__name__
+            if cycle:
+                p.text(root + '{...}')
+                return
+            p.text(root)
+            p.text('[')
+            _pretty.pretty(self.lower, p, cycle)
+            p.text(':')
+            _pretty.pretty(self.upper, p, cycle)
+            p.text(':')
+            _pretty.pretty(self.step, p, cycle)
+            p.text(']')
 
 
     ns.update(locals())
@@ -244,6 +300,26 @@ class Intt(_Real, _Thing):
                 _build_oids(owner, ns)
                 cls.incorporate_namespace(ns)
             super().__mroclass_init__()
+
+        class Brace(metaclass=_Essence):
+
+            class Oid(metaclass=_Essence):
+
+                class SymForm(metaclass=_Essence):
+
+                    @property
+                    def arrayquery(self, /):
+                        return tuple(
+                            chora.arrayquery for chora in self.choras
+                            )
+
+                class AsymForm(metaclass=_Essence):
+
+                    @property
+                    def arrayquery(self, /):
+                        return tuple(
+                            chora.arrayquery for chora in self.choras
+                            )
 
 
 ###############################################################################

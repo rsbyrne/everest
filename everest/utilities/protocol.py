@@ -74,7 +74,7 @@ class Protocol(_Enum, metaclass=_ProtocolMeta_):
         except AttributeError:
             try:
                 deferto = self.defer(obj)
-            except AttributeError:
+            except (AttributeError, NotImplementedError):
                 if default is None:
                     raise self.exc(obj)
                 return default

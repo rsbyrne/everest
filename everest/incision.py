@@ -83,6 +83,10 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
     def __includes__(self, /):
         return IncisionProtocol.INCLUDES(self)
 
+    @property
+    def index(self, /):
+        return IncisionProtocol.INDEX(self)
+
     @classmethod
     def __subclasshook__(cls, ACls):
         if cls is not IncisionHandler:

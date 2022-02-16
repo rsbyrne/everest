@@ -62,7 +62,6 @@ class Thing(_Fundament, metaclass=_Bythos):
                     return incisor
 
                 def slyce_tuple(self, incisor: tuple, /):
-                    print(incisor)
                     return _ArmatureProtocol.BRACE(self.bound)[
                         tuple(incisor)
                         ]
