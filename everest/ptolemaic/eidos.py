@@ -37,15 +37,20 @@ class Eidos(_Tekton, _Ousia):
     def __construct__(cls, /):
         return cls
 
-    @property
-    @_caching.soft_cache()
-    def _classchoras(cls, /):
-        return _types.MappingProxyType(cls._get_classchoras())
+#     @property
+#     @_caching.soft_cache()
+#     def _classchoras(cls, /):
+#         return _types.MappingProxyType(cls._get_classchoras())
 
-    @property
-    @_caching.soft_cache()
-    def _classconstructors(cls, /):
-        return _types.MappingProxyType(cls._get_classconstructors())
+#     @property
+#     @_caching.soft_cache()
+#     def _classconstructors(cls, /):
+#         return _types.MappingProxyType(cls._get_classconstructors())
+
+#     @property
+#     @_caching.soft_cache()
+#     def __instance_incision_manager__(cls, /):
+#         return _Brace[_Kwargs(cls._classchoras)]
 
 
 class EidosBase(metaclass=Eidos):
@@ -57,6 +62,7 @@ class EidosBase(metaclass=Eidos):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
+        cls.premade = _weakref.WeakValueDictionary()
         if cls._var_slots__:
             raise TypeError(
                 f"Types metatype {type(cls)} cannot have var slots."
@@ -65,10 +71,13 @@ class EidosBase(metaclass=Eidos):
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
         params = _Params(cls.parameterise(cache := {}, *args, **kwargs))
-        cls.check_params(params)
-        obj = cls.instantiate(params)
-        obj.softcache.update(cache)
-        return obj
+        try:
+            return cls.premade[params]
+        except KeyError:            
+            cls.check_params(params)
+            obj = cls.premade[params] = cls.instantiate(params)
+            obj.softcache.update(cache)
+            return obj
 
     @classmethod
     def instantiate(cls, params, /):
@@ -107,56 +116,6 @@ class EidosBase(metaclass=Eidos):
         bound.arguments.update(kwargs)
         return ptolcls(*bound.args, **bound.kwargs)
 
-    ### Incision protocol
-
-    class Oid(metaclass=_Essence):
-
-        @classmethod
-        def __class_call__(cls, chora):
-            try:
-                meth = cls.owner._classconstructors[chora.active]
-            except KeyError:
-                return super().__class_call__(chora)
-            else:
-                return meth(chora)
-
-        @property
-        def active(self, /):
-            return self.chora.active
-
-        @property
-        def choras(self, /):
-            return self.chora.choras
-
-        @property
-        @_caching.soft_cache()
-        def sig(self, /):
-            return self.subject.sig.__incise_slyce__(self.choras[0])
-
-        def __incise_retrieve__(self, incisor, /):
-            itinc = iter(incisor)
-            out = self.subject.instantiate(
-                self.sig.__incise_retrieve__(next(itinc))
-                )
-            for inc in itinc:
-                out = _IncisionProtocol.RETRIEVE(out)(inc)
-            return out
-
-    @classmethod
-    def _get_classchoras(cls, /):
-        return dict()
-
-    @classmethod
-    def _get_classconstructors(cls, /):
-        return dict()
-
-    @classmethod
-    def _make_classspace(cls, /):
-        return cls.Oid(_Brace[_Kwargs(
-            fields=cls.sig.__incision_manager__,
-            **cls._classchoras,
-            )])
-
     ### Serialisation
 
     def get_epitaph(self, /):
@@ -184,8 +143,12 @@ class EidosBase(metaclass=Eidos):
     def hashID(self, /):
         return self.epitaph.hashID
 
-    # def _root_repr(self, /):
-    #     return f"hashID={self.hashID}"
+    def _root_repr(self, /):
+        ptolcls = self._ptolemaic_class__
+        objs = (
+            type(ptolcls).__qualname__, ptolcls.__qualname__, self.hashID
+            )
+        return ':'.join(map(str, objs))
 
     def _content_repr(self, /):
         return ', '.join(
@@ -203,3 +166,68 @@ class EidosBase(metaclass=Eidos):
 
 ###############################################################################
 ###############################################################################
+
+
+#     ### Incision protocol
+
+#     class Oid(metaclass=_Essence):
+
+#         @classmethod
+#         def __class_call__(cls, chora):
+#             try:
+#                 meth = cls.owner._classconstructors[chora.active]
+#             except KeyError:
+#                 return super().__class_call__(chora)
+#             else:
+#                 return meth(chora)
+
+#         @property
+#         def active(self, /):
+#             return self.chora.active
+
+#         @property
+#         def choras(self, /):
+#             return self.chora.choras
+
+#         @property
+#         @_caching.soft_cache()
+#         def sig(self, /):
+#             return self.subject.sig.__incise_slyce__(self.choras[0])
+
+#         def __incise_retrieve__(self, incisor, /):
+#             print(incisor)
+#             itinc = iter(incisor)
+#             out = self.subject._instantiate_from_incisor(itinc)
+#             for inc in itinc:
+#                 out = _IncisionProtocol.RETRIEVE(out)(inc)
+#             return out
+
+#     @classmethod
+#     def _instantiate_from_incisor(cls, incisor, /):
+#         return cls.instantiate(
+#             cls.sig.__incise_retrieve__(next(iter(incisor)))
+#             )
+
+#     @classmethod
+#     def _get_classchoras(cls, /):
+#         return dict()
+
+#     @classmethod
+#     def _get_classconstructors(cls, /):
+#         return {}
+#         # return {
+#         #     (False, *tuple(True for _ in cls._classchoras)): (
+#         #         cls._instantiate_from_incisor
+#         #         )
+#         #     }
+
+#     @classmethod
+#     def _make_classspace(cls, /):
+#         return cls.Oid(_Brace[_Kwargs(
+#             fields=cls.sig.__incision_manager__,
+#             **cls._classchoras,
+#             )])
+
+#     @property
+#     def __incision_manager__(self, /):
+#         return self.__instance_incision_manager__

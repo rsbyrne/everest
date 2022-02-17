@@ -242,6 +242,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     #         dct = cls._subclasses = {}
     #     return _types.MappingProxyType(dct)
 
+    @property
+    def __mroclass_basis__(cls, /):
+        return cls.__dict__.get('__mroclass_basis__', cls)
+
     def _try_add_subclass(cls, arg: str, /):
         try:
             cls._add_subclass(arg)
@@ -570,6 +574,10 @@ class EssenceBase(metaclass=Essence):
 
     MERGETUPLES = ('MROCLASSES', 'SUBCLASSES')
     MERGEDICTS = ('ADJNAMES',)
+
+    @classmethod
+    def __class_call__(cls, /, *_, **__):
+        raise NotImplementedError
 
     @classmethod
     def __class_init__(cls, /):

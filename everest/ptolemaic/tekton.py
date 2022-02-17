@@ -53,23 +53,19 @@ class TektonBase(metaclass=Tekton):
 
     class Oid(_ChainChora, metaclass=_Sprite):
 
-        chora: _Chora
+        sig: _Chora
 
         @property
         def subject(self, /):
             return self._ptolemaic_class__.owner
 
         @property
-        def sig(self, /):
-            return self.chora
-
-        @property
         def __incision_manager__(self, /):
-            return self.chora
+            return self.sig
 
         @property
         def __incise_retrieve__(self, /):
-            return self.subject.instantiate
+            return self._ptolemaic_class__.owner.instantiate
 
         @property
         def __incise_slyce__(self, /):
@@ -80,7 +76,7 @@ class TektonBase(metaclass=Tekton):
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self.rootrepr
+                root = self._ptolemaic_class__.__qualname__
             self.__incision_manager__._repr_pretty_(p, cycle, root)
 
 
@@ -101,6 +97,7 @@ class TektonBase(metaclass=Tekton):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
+        cls.Oid.register(cls)
         sig = cls.sig = cls._make_sig()
         cls.fields = sig.sigfields
         cls.__class_incision_manager__ = cls._make_classspace()

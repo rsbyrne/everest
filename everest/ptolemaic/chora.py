@@ -140,22 +140,6 @@ class Chora(_PseudoIncisable, metaclass=_Essence):
     def __armature_variable__(self, /):
         return self.Var
 
-    @property
-    def __contains__(self, /):
-        return _IncisionProtocol.CONTAINS(self)
-
-    @property
-    def __len__(self, /):
-        return _IncisionProtocol.LENGTH(self)
-
-    @property
-    def __iter__(self, /):
-        return _IncisionProtocol.ITER(self)
-
-    @property
-    def __includes__(self, /):
-        return _IncisionProtocol.INCLUDES(self)
-
     # @property
     # def codomain(self, /):
     #     return _IncisionProtocol.RETRIEVE(self).__annotations__['return']
@@ -185,6 +169,15 @@ class Degenerator(_ChainIncisable, metaclass=_Sprite):
 
 class ChainChora(Chora, _ChainIncisable):
     ...
+
+
+class DeferChora(Chora):
+
+    def __getitem__(self, arg, /):
+        man = self.__incision_manager__
+        return _IncisionProtocol.INCISE(man)(
+            arg, caller=man
+            )
 
 
 class Choret(metaclass=_Sprite):
@@ -278,14 +271,12 @@ WRAPMETHS = dict(
 #     }
 
 
+
+
 class Basic(Choret):
 
-    MERGETUPLES = ('PREFIXES', 'BOUNDREQS')
-    PREFIXES = ('handle', *WRAPMETHS)
-
-    @property
-    def __getitem__(self, /):
-        raise NotImplementedError
+    MERGETUPLES = ('PREFIXES', 'CHANNELS', 'MULTICHANNELS')
+    PREFIXES = ('handle', 'trivial', 'slyce', 'retrieve', 'catch', 'fail')
 
 #     def handle_none(self, incisor: type(None), /, *, caller):
 #         return _IncisionProtocol.GENERIC(caller)
@@ -361,10 +352,50 @@ class Basic(Choret):
                     seen.add(hint)
 
     @classmethod
+    def get_switcher_method(cls, channel, sentinel, switchertype=None):
+
+        if switchertype is None:
+
+            def switcher(self, incisor: sentinel, /, *, caller):
+                return getattr(self, f"{channel}getmeths")[
+                type(incisor)
+                ](self, incisor, caller=caller)
+
+        elif switchertype is tuple:
+
+            def switcher(self, incisor: sentinel, /, *, caller):
+                return getattr(self, f"{channel}getmeths")[
+                tuple(map(type, incisor))
+                ](self, incisor, caller=caller)
+
+        else:
+            raise TypeError
+
+        return switcher
+
+    @classmethod
+    def _add_channel(cls, channel='', hintprocess=None, switchertype=None):
+        if isinstance(channel, tuple):
+            channel, sentinel = channel
+            switchname = f"handle_{channel}"
+            if not hasattr(cls, switchname):
+                switcher = cls.get_switcher_method(
+                    channel, sentinel, switchertype
+                    )
+                setattr(cls, switchname, switcher)
+        cls.update_getmeth_names(channel)
+        setattr(cls, f"{channel}getmeths", _TypeMap(cls._yield_getmeths(
+            channel, hintprocess=hintprocess
+            )))
+
+    @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.update_getmeth_names()
-        cls.getmeths = _TypeMap(cls._yield_getmeths())
+        for channel in cls.CHANNELS:
+            cls._add_channel(channel)
+        for channel in cls.MULTICHANNELS:
+            cls._add_channel(channel, cls.process_multihint, tuple)
+        cls._add_channel()
 
     @property
     def retrievable(self, /):
@@ -378,6 +409,23 @@ class Basic(Choret):
         return self.getmeths[type(incisor)](
             self, incisor, caller=caller
             )
+
+
+class Slyce(Basic, Chora, _IncisionHandler):
+
+    chora: Chora = None
+
+    @classmethod
+    def __class_call__(cls, bound, chora=None):
+        if chora is None:
+            chora = bound.chora
+        return super().__class_call__(bound, chora)
+
+    def catch_chora(self, incisor: Chora, /, *, caller):
+        return self._ptolemaic_class__(self.bound, incisor)
+
+    def __incise__(self, incisor, /, *, caller):
+        return super().__incise__(self.chora[incisor], caller=caller)
 
 
 class Composition(_Incisable, metaclass=_Sprite):
@@ -413,6 +461,8 @@ class Composable(Basic):
 
 class Sliceable(Basic):
 
+    MULTICHANNELS = (('slice', slice),)
+
     def handle_slice(self, incisor: slice, /, *, caller):
         return self.slicegetmeths[
             tuple(map(type, (incisor.start, incisor.stop, incisor.step)))
@@ -426,28 +476,17 @@ class Sliceable(Basic):
         '''The ultimate fallback for unrecognised slice types.'''
         pass
 
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.update_getmeth_names('slice')
-        cls.slicegetmeths = _TypeMap(cls._yield_getmeths(
-            'slice',
-            hintprocess=cls.process_multihint,
-            ))
-
 
 class Sampleable(Basic):
+
+    CHANNELS = (('sample', _query.Sample),)
+    MULTICHANNELS = (('bounds', _query.Bounds),)
 
     def handle_slice(self, incisor: slice, /, *, caller):
         return (
             caller
             [_query.Bounds(incisor.start, incisor.stop)]
             [_query.Sample(incisor.step)]
-            )
-
-    def handle_bounds(self, incisor: _query.Bounds, /, *, caller):
-        return self.boundsgetmeths[type(incisor.lower), type(incisor.upper)](
-            self, incisor, caller=caller
             )
 
     def bounds_trivial_none(self, incisor: (type(None), type(None)), /):
@@ -467,17 +506,6 @@ class Sampleable(Basic):
 
     def sample_fail_ultimate(self, incisor: object, /):
         pass
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.update_getmeth_names('bounds')
-        cls.boundsgetmeths = _TypeMap(cls._yield_getmeths(
-            'bounds',
-            hintprocess=cls.process_multihint,
-            ))
-        cls.update_getmeth_names('sample')
-        cls.samplegetmeths = _TypeMap(cls._yield_getmeths('sample'))
 
 
 class Multi(Basic):

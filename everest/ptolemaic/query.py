@@ -15,6 +15,9 @@ class Query(metaclass=_Essence):
     ...
 
 
+# class ThinQuery()
+
+
 class Sample(Query, metaclass=_Sprite):
 
     content: object = None

@@ -282,14 +282,13 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
                     p.text(root + '{...}')
                     return
                 with p.group(4, root + '(', ')'):
-                    # p.breakable()
+                    p.breakable()
                     self.chora._repr_pretty_(p, cycle)
-                    # p.breakable()
                     p.text(',')
                     p.breakable()
                     p.text('labels=')
                     self.labels._repr_pretty_(p, cycle)
-                    # p.breakable()
+                    p.breakable()
 
 
         class AsymForm(_Choric, metaclass=_Sprite):

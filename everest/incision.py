@@ -49,23 +49,9 @@ class IncisionProtocol(_Protocol):
         return IncisionProtocolException(self, obj)
 
 
-class IncisionHandler(metaclass=_abc.ABCMeta):
+class CollectionLike(metaclass=_abc.ABCMeta):
 
     __slots__ = ()
-
-    def __incise_trivial__(self, /):
-        return self
-
-    def __incise_retrieve__(self, incisor, /):
-        return incisor
-
-    def __incise_slyce__(self, incisor, /):
-        return incisor
-
-    def __incise_fail__(self, incisor, message=None, /):
-        if isinstance(message, Exception):
-            raise IncisorTypeException(incisor, self) from message
-        raise IncisorTypeException(incisor, self, message)
 
     @property
     def __contains__(self, /):
@@ -83,9 +69,24 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
     def __includes__(self, /):
         return IncisionProtocol.INCLUDES(self)
 
-    @property
-    def index(self, /):
-        return IncisionProtocol.INDEX(self)
+
+class IncisionHandler(CollectionLike):
+
+    __slots__ = ()
+
+    def __incise_trivial__(self, /):
+        return self
+
+    def __incise_retrieve__(self, incisor, /):
+        return incisor
+
+    def __incise_slyce__(self, incisor, /):
+        return incisor
+
+    def __incise_fail__(self, incisor, message=None, /):
+        if isinstance(message, Exception):
+            raise IncisorTypeException(incisor, self) from message
+        raise IncisorTypeException(incisor, self, message)
 
     @classmethod
     def __subclasshook__(cls, ACls):
@@ -98,13 +99,9 @@ class IncisionHandler(metaclass=_abc.ABCMeta):
             )
 
 
-class PseudoIncisable(metaclass=_abc.ABCMeta):
+class PseudoIncisable(CollectionLike):
 
     __slots__ = ()
-
-    @_abc.abstractmethod
-    def __incise__(self, incisor, /, *, caller):
-        raise NotImplementedError
 
     def __getitem__(self, arg, /):
         return IncisionProtocol.INCISE(self)(arg, caller=self)

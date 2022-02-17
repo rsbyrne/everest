@@ -14,6 +14,11 @@ class Fundament(metaclass=_Essence):
 
     MROCLASSES = ('Oid',)
 
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.Oid.register(cls)
+
 
     class Oid(_Chora, metaclass=_Essence):
 

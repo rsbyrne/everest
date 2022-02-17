@@ -132,6 +132,14 @@ class SpriteBase(metaclass=Sprite):
     def hashID(self, /):
         return self.epitaph.hashID
 
+    def _root_repr(self, /):
+        ptolcls = self._ptolemaic_class__
+        objs = (
+            type(ptolcls).__qualname__, ptolcls.__qualname__,
+            self.hashID + '_' + str(id(self))
+            )
+        return ':'.join(map(str, objs))
+
     def _content_repr(self, /):
         return ', '.join(
             f"{key}={repr(val)}" for key, val in self.params.items()
