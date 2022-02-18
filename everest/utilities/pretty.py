@@ -15,11 +15,22 @@ def pretty(obj, p, cycle, root=''):
             _types.MappingProxyType: pretty_dict,
             tuple: pretty_tuple,
             _np.ndarray: pretty_array,
+            _types.FunctionType: pretty_function,
             }[type(obj)]
     except KeyError:
         p.pretty(obj)
     else:
         meth(obj, p, cycle, root=root)
+
+
+def pretty_function(obj, p, cycle, /, root='Function'):
+    if cycle:
+        p.text(root + '(...)')
+        return
+    p.text(root)
+    p.text(obj.__module__)
+    p.text('.')
+    p.text(obj.__qualname__)
 
 
 def pretty_kwargs(obj, p, cycle, /, root=''):

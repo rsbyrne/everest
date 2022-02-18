@@ -27,6 +27,7 @@ from everest.incision import (
     )
 
 from everest.ptolemaic.chora import (
+    Chora as _Chora,
     ChainChora as _ChainChora,
     Multi as _Multi,
     Degenerate as _Degenerate,
@@ -141,7 +142,7 @@ with FieldBase.mutable:
 class Field(_ChainChora, FieldBase, metaclass=_Sprite):
 
     kind: ParamKind
-    hint: _Incisable
+    hint: _Chora
     value: object
 
     @classmethod
@@ -163,11 +164,11 @@ class Field(_ChainChora, FieldBase, metaclass=_Sprite):
 
     @classmethod
     def process_hint(cls, hint, /):
-        if hint is _pempty:
+        if hint in (_pempty, object):
             return _Thing
-        if not isinstance(hint, _Incisable):
+        if not isinstance(hint, _Chora):
             raise TypeError(
-                f"The `Field` hint must be an instance of `Incisable`:\n"
+                f"The `Field` hint must be an instance of `Chora`:\n"
                 f"{hint}"
                 )
         return hint
