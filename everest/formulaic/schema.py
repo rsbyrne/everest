@@ -5,7 +5,7 @@
 
 import abc as _abc
 
-from everest.choral.eidos import Eidos as _Eidos
+from everest.algebraic.eidos import Eidos as _Eidos
 
 from everest.uniplex.ephemera import Folio as _Folio
 

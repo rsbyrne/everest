@@ -13,7 +13,7 @@ from everest.ptolemaic.diict import Kwargs as _Kwargs
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
-from everest.choral.brace import Brace as _Brace
+from everest.algebraic.brace import Brace as _Brace
 
 from .traversable import Traversable as _Traversable
 

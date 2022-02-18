@@ -19,13 +19,13 @@ from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.essence import Essence as _Essence
 
-from everest.choral.intt import Intt as _Intt
-from everest.choral.chora import (
+from everest.algebraic.intt import Intt as _Intt
+from everest.algebraic.chora import (
     Choric as _Choric,
     ChainChora as _ChainChora,
     Basic as _Basic,
     )
-from everest.choral.eidos import Eidos as _Eidos
+from everest.algebraic.eidos import Eidos as _Eidos
 # from everest.ptolemaic.fundaments.index import Index as _Index
 
 

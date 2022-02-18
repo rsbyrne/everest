@@ -12,15 +12,15 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.diict import Kwargs as _Kwargs
 
-from everest.choral.chora import (
+from everest.algebraic.chora import (
     Chora as _Chora,
     Slyce as _Slyce,
     ChainChora as _ChainChora,
     Degenerate as _Degenerate,
     )
-from everest.choral.eidos import Eidos as _Eidos
-from everest.choral.floatt import Floatt as _Floatt
-from everest.choral.brace import Brace as _Brace
+from everest.algebraic.eidos import Eidos as _Eidos
+from everest.algebraic.floatt import Floatt as _Floatt
+from everest.algebraic.brace import Brace as _Brace
 
 from .schema import Schema as _Schema
 
