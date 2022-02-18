@@ -10,7 +10,7 @@ import types as _types
 from everest.utilities import pretty as _pretty
 from everest.ur import Var as _Var
 
-from everest.ptolemaic.ousia import Ousia as _Ousia
+from .ousia import Ousia as _Ousia
 
 
 class Protean(_Ousia):

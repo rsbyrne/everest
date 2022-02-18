@@ -11,9 +11,8 @@ from everest.utilities import (
     caching as _caching,
     switch as _switch,
     )
-from everest.incision import IncisionHandler as _IncisionHandler
 
-from everest.ptolemaic.essence import Essence as _Essence
+from .essence import Essence as _Essence
 
 
 class ConcreteMeta:

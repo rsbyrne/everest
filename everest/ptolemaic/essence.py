@@ -20,8 +20,8 @@ from everest.utilities import (
     )
 from everest.ur import Dat as _Dat
 
-from everest.ptolemaic.pleroma import Pleroma as _Pleroma
-from everest.ptolemaic import exceptions as _exceptions
+from .pleroma import Pleroma as _Pleroma
+from . import exceptions as _exceptions
 
 
 class MROClassNotFound(

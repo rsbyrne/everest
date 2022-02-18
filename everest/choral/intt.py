@@ -16,16 +16,16 @@ from everest.incision import (
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.eidos import Eidos as _Eidos
-from everest.ptolemaic.chora import (
+
+from .eidos import Eidos as _Eidos
+from .chora import (
     Choric as _Choric,
     Sampleable as _Sampleable,
     TrivialException as _TrivialException,
     )
-
-from everest.ptolemaic.fundaments.thing import Thing as _Thing
-from everest.ptolemaic.fundaments.real import Real as _Real
-from everest.ptolemaic.fundaments.index import Index as _Index
+from .thing import Thing as _Thing
+from .real import Real as _Real
+from .index import Index as _Index
 
 
 def _nth(iterable, n):

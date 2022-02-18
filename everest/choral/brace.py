@@ -17,24 +17,24 @@ from everest.utilities import (
     FrozenNamespace as _FrozenNamespace,
     )
 
-from everest.ptolemaic import query as _query
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.armature import (
+from everest.ptolemaic.diict import Diict as _Diict
+
+from .armature import (
     ArmatureProtocol as _ArmatureProtocol,
     )
-from everest.ptolemaic.chora import (
+from . import query as _query
+from .chora import (
     Chora as _Chora,
     Choric as _Choric,
     ChainChora as _ChainChora,
     Basic as _Basic,
     Multi as _Multi,
     )
-from everest.ptolemaic.diict import Diict as _Diict
-
-from everest.ptolemaic.fundaments.fundament import Fundament as _Fundament
-from everest.ptolemaic.fundaments.allslyce import AllSlyce as _AllSlyce
-from everest.ptolemaic.fundaments.index import Index as _Index
+from .fundament import Fundament as _Fundament
+from .allslyce import AllSlyce as _AllSlyce
+from .index import Index as _Index
 
 
 class Length(metaclass=_Sprite):

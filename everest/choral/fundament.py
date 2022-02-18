@@ -4,7 +4,8 @@
 
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.chora import (
+
+from .chora import (
     Chora as _Chora,
     )
 

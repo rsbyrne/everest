@@ -9,7 +9,6 @@ from collections import abc as _collabc
 import inspect as _inspect
 import collections as _collections
 
-from everest import epitaph as _epitaph
 from everest.utilities import (
     Null as _Null, FrozenNamespace as _FrozenNamespace
     )

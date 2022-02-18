@@ -10,15 +10,15 @@ from everest.utilities import (
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.eidos import Eidos as _Eidos
-from everest.ptolemaic.chora import (
+
+from .eidos import Eidos as _Eidos
+from .chora import (
     Choric as _Choric,
     Sampleable as _Sampleable,
     TrivialException as _TrivialException,
     )
-
-from everest.ptolemaic.fundaments.thing import Thing as _Thing
-from everest.ptolemaic.fundaments.real import Real as _Real
+from .thing import Thing as _Thing
+from .real import Real as _Real
 
 
 def _build_oids(Floatt, ns, /):

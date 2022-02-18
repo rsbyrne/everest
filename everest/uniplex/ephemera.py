@@ -17,14 +17,15 @@ from everest.utilities import pretty as _pretty, caching as _caching
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.chora import (
+from everest.ptolemaic.essence import Essence as _Essence
+
+from everest.choral.intt import Intt as _Intt
+from everest.choral.chora import (
     Choric as _Choric,
     ChainChora as _ChainChora,
     Basic as _Basic,
     )
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.eidos import Eidos as _Eidos
-from everest.ptolemaic.fundaments.intt import Intt as _Intt
+from everest.choral.eidos import Eidos as _Eidos
 # from everest.ptolemaic.fundaments.index import Index as _Index
 
 

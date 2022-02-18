@@ -17,13 +17,14 @@ from everest.ur import Dat as _Dat
 from everest.incision import IncisionProtocol as _IncisionProtocol
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.tekton import Tekton as _Tekton
 from everest.ptolemaic.ousia import Ousia as _Ousia
-from everest.ptolemaic.chora import Chora as _Chora, Degenerate as _Degenerate
-from everest.ptolemaic.sig import (Params as _Params, Param as _Param)
-from everest.ptolemaic.fundaments.brace import Brace as _Brace
 from everest.ptolemaic.diict import Kwargs as _Kwargs
 from everest.ptolemaic import exceptions as _exceptions
+
+from .tekton import Tekton as _Tekton
+from .brace import Brace as _Brace
+from .chora import Chora as _Chora, Degenerate as _Degenerate
+from .sig import (Params as _Params, Param as _Param)
 
 
 @_Dat.register

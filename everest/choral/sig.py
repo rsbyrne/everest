@@ -26,18 +26,20 @@ from everest.incision import (
     Incisable as _Incisable,
     )
 
-from everest.ptolemaic.chora import (
+from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.diict import Kwargs as _Kwargs
+from everest.ptolemaic.bythos import Bythos as _Bythos
+from everest.ptolemaic.essence import Essence as _Essence
+
+from .thing import Thing as _Thing
+from .brace import Brace as _Brace
+from .chora import (
     Chora as _Chora,
     ChainChora as _ChainChora,
     Multi as _Multi,
     Degenerate as _Degenerate,
     )
-from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.diict import Kwargs as _Kwargs
-from everest.ptolemaic.fundaments.thing import Thing as _Thing
-from everest.ptolemaic.bythos import Bythos as _Bythos
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.fundaments.brace import Brace as _Brace
+
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty

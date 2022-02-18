@@ -13,17 +13,17 @@ from everest.incision import (
 #     Incisable as _Incisable,
     )
 
-from everest.ptolemaic.fundaments.brace import Brace as _Brace
-
 from everest.ptolemaic.diict import Diict as _Diict
-from everest.ptolemaic.chora import (
+from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.bythos import Bythos as _Bythos
+
+from .brace import Brace as _Brace
+from .chora import (
     Chora as _Chora,
     ChainChora as _ChainChora,
     Degenerate as _Degenerate,
     )
-from everest.ptolemaic.bythos import Bythos as _Bythos
-from everest.ptolemaic.sig import Sig as _Sig
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from .sig import Sig as _Sig
 
 
 class Tekton(_Bythos):

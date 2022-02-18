@@ -5,8 +5,9 @@
 
 import abc as _abc
 
-from everest.ptolemaic.eidos import Eidos as _Eidos
-from everest.ptolemaic.ephemera import Folio as _Folio
+from everest.choral.eidos import Eidos as _Eidos
+
+from everest.uniplex.ephemera import Folio as _Folio
 
 
 class Schema(_Eidos):

@@ -9,11 +9,14 @@ import inspect as _inspect
 import numpy as _np
 from scipy.integrate import solve_ivp as _solve_ivp
 
+from everest.ptolemaic.diict import Kwargs as _Kwargs
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.models.traversable import Traversable as _Traversable
-from everest.ptolemaic.fundaments.brace import Brace as _Brace
-from everest.ptolemaic.diict import Kwargs as _Kwargs
+
+from everest.choral.brace import Brace as _Brace
+
+from .traversable import Traversable as _Traversable
+
 
 _Traverse = _Traversable.Instruments.Traverse.__mroclass_basis__
 

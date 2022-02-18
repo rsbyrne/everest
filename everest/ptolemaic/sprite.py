@@ -15,8 +15,8 @@ from everest.utilities import (
     )
 from everest.ur import Dat as _Dat
 
-from everest.ptolemaic.ousia import Ousia as _Ousia
-from everest.ptolemaic.bythos import Bythos as _Bythos
+from .ousia import Ousia as _Ousia
+from .bythos import Bythos as _Bythos
 
 
 def collect_fields_mro(

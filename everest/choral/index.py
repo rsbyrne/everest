@@ -14,14 +14,14 @@ from everest.utilities import (
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.chora import (
+
+from .chora import (
     Choric as _Choric,
     Sampleable as _Sampleable,
     Null as _Null,
     )
-
-from everest.ptolemaic.fundaments.fundament import Fundament as _Fundament
-from everest.ptolemaic.fundaments.predicate import Predicate as _Predicate
+from .fundament import Fundament as _Fundament
+from .predicate import Predicate as _Predicate
 
 
 def get_index_iterable(func, /):

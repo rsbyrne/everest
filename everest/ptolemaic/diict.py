@@ -5,7 +5,7 @@
 
 import types as _types
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from .sprite import Sprite as _Sprite
 
 
 class Diict(metaclass=_Sprite):

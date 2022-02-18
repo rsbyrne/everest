@@ -12,16 +12,16 @@ from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.chora import (
+
+from .chora import (
     Chora as _Chora,
     Null as _Null,
     Choric as _Choric,
     Basic as _Basic,
     )
-from everest.ptolemaic.armature import ArmatureProtocol as _ArmatureProtocol
-
-from everest.ptolemaic.fundaments.fundament import Fundament as _Fundament
-from everest.ptolemaic.fundaments.brace import Brace as _Brace
+from .armature import ArmatureProtocol as _ArmatureProtocol
+from .fundament import Fundament as _Fundament
+from .brace import Brace as _Brace
 
 
 class Thing(_Fundament, metaclass=_Bythos):

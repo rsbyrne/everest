@@ -8,19 +8,21 @@ import functools as _functools
 from everest.incision import IncisionProtocol as _IncisionProtocol
 from everest.utilities import caching as _caching
 
-from everest.ptolemaic.chora import (
+from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.essence import Essence as _Essence
+from everest.ptolemaic.diict import Kwargs as _Kwargs
+
+from everest.choral.chora import (
     Chora as _Chora,
     Slyce as _Slyce,
     ChainChora as _ChainChora,
     Degenerate as _Degenerate,
     )
-from everest.ptolemaic.fundaments.floatt import Floatt as _Floatt
-from everest.ptolemaic.fundaments.brace import Brace as _Brace
-from everest.ptolemaic.schema import Schema as _Schema
-from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.eidos import Eidos as _Eidos
-from everest.ptolemaic.diict import Kwargs as _Kwargs
+from everest.choral.eidos import Eidos as _Eidos
+from everest.choral.floatt import Floatt as _Floatt
+from everest.choral.brace import Brace as _Brace
+
+from .schema import Schema as _Schema
 
 
 class Traversable(_Chora, metaclass=_Schema):
