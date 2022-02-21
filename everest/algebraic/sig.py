@@ -261,7 +261,7 @@ class Params(metaclass=_Sprite):
         exec('\n'.join((
             f'@property',
             f'def {name}(self, /):',
-            f'    return self.arguments.content.{name}',
+            f'    return self.arguments.{name}',
             )))
     del name
 
@@ -464,17 +464,21 @@ class Sig(_ChainChora, metaclass=_Sprite):
         self.__incision_manager__._repr_pretty_(p, cycle, root)
 
 
-class Param(metaclass=_Sprite):
+class Param:
 
-    name: str
+    __slots__ = ('name',)
+
+    def __init__(self, name: str, /):
+        super().__init__()
+        self.name = name
 
     def __get__(self, instance, _=None):
         try:
             return instance.params[self.name]
         except KeyError:
             raise AttributeError(self.name)
-        except AttributeError:
-            return self
+        # except AttributeError:
+        #     return self
 
 
 ###############################################################################

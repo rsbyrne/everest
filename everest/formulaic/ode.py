@@ -39,9 +39,9 @@ class ODESolver(metaclass=_Sprite):
         return _solve_ivp(
             self.callfunc.__call__,
             (t0, tf),
-            traverse.initial,
+            traverse.line.initial,
             t_eval=_np.linspace(t0, tf, round((tf - t0) / freq)),
-            args=tuple(traverse.case),
+            args=tuple(traverse.line.case),
             )
 
 

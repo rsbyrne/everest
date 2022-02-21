@@ -71,6 +71,7 @@ class Sprite(_Ousia, _Bythos):
         return cls._signature_
 
 
+@_Dat.register
 class SpriteBase(metaclass=Sprite):
 
     _req_slots__ = ('params',)
@@ -78,10 +79,10 @@ class SpriteBase(metaclass=Sprite):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        if cls._var_slots__:
-            raise TypeError(
-                f"Types metatype {type(cls)} cannot have var slots."
-                )
+        # if cls._var_slots__:
+        #     raise TypeError(
+        #         f"Types metatype {type(cls)} cannot have var slots."
+        #         )
         hints, defaults = cls.hints, cls.defaults = get_fields(cls)
         cls._signature_ = _Signature(_Parameter(
             key, 1, default=defaults.get(key, _empty), annotation=hints[key]

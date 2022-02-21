@@ -109,5 +109,9 @@ class IncisorTypeException(ExceptionRaisedBy, IncisionException):
         yield 'was passed as an incisor.'
 
 
+class FrozenAttributesException(EverestException, AttributeError):
+    ...
+
+
 ###############################################################################
 ###############################################################################

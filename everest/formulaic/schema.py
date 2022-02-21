@@ -5,28 +5,40 @@
 
 import abc as _abc
 
-from everest.algebraic.eidos import Eidos as _Eidos
+from everest.ptolemaic.sprite import Sprite as _Sprite
 
-from everest.uniplex.ephemera import Folio as _Folio
+from everest.uniplex.plex import Plex as _Plex, GLOBALPLEX as _GLOBALPLEX
 
 
-class Schema(_Eidos):
+class Schema(_Sprite):
 
     ...
 
 
-class SchemaBase(metaclass=Schema):
-    ...
+class SchemaBase(metaclass=_Sprite):
 
-    # @classmethod
-    # def __class_init__(cls, /):
-    #     super().__class_init__()
-    #     cls.folio = _Folio()
+    _req_slots__ = ('_plex_',)
+    _var_slots__ = ('plex',)
 
-    # @classmethod
-    # def instantiate(cls, params, /):
-    #     obj = super().instantiate(params)
-    #     obj
+    def __init__(self, /):
+        super().__init__()
+        self._plex_ = _GLOBALPLEX
+
+    @property
+    def plex(self, /):
+        return self._plex_
+
+    @plex.setter
+    def plex(self, val, /):
+        self.mount_plex(val)
+
+    def mount_plex(self, plex):
+        with self.mutable:
+            self._plex_ = val
+
+    @property
+    def folio(self, /):
+        return self.plex[self.hashID]
 
 
 ###############################################################################

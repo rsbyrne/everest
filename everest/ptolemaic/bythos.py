@@ -6,11 +6,13 @@
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     IncisionHandler as _IncisionHandler,
+    Incisable as _Incisable,
     )
 
 from .essence import Essence as _Essence
 
 
+@_Incisable.register
 class Bythos(_Essence):
 
     @property

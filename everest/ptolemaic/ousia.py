@@ -10,6 +10,10 @@ import types as _types
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
+    reseed as _reseed,
+    )
+from everest.exceptions import (
+    FrozenAttributesException as _FrozenAttributesException
     )
 
 from .essence import Essence as _Essence
@@ -87,7 +91,6 @@ class OusiaBase(metaclass=Ousia):
 
     _req_slots__ = (
         '_softcache', '_weakcache', '__weakref__', '_freezeattr',
-        'finalised',
         )
     _var_slots__ = ()
 
@@ -170,6 +173,9 @@ class OusiaBase(metaclass=Ousia):
     def mutable(self, /):
         return self.freezeattr.as_(False)
 
+    def _alt_getattr__(self, name, /):
+        return super().__getattribute__(name)
+
     def __getattr__(self, name, /):
         return super().__getattribute__(name)
 
@@ -180,7 +186,7 @@ class OusiaBase(metaclass=Ousia):
         if name in self._var_slots__:
             super().__setattr__(name, val)
         elif self.freezeattr:
-            raise AttributeError(
+            raise _FrozenAttributesException(
                 f"Setting attributes on an object of type {type(self)} "
                 "is forbidden at this time; "
                 f"toggle switch `.freezeattr` to override."
@@ -195,7 +201,7 @@ class OusiaBase(metaclass=Ousia):
         if name in self._var_slots__:
             super().__delattr__(name)
         elif self.freezeattr:
-            raise AttributeError(
+            raise _FrozenAttributesException(
                 f"Deleting attributes on an object of type {type(self)} "
                 "is forbidden at this time; "
                 f"toggle switch `.freezeattr` to override."
@@ -241,8 +247,9 @@ class OusiaBase(metaclass=Ousia):
     def __repr__(self, /):
         return f"<{self.rootrepr}>"
 
+    @_caching.soft_cache()
     def __hash__(self, /):
-        return id(self)
+        return _reseed.rdigits(12)
 
     ### Rich comparisons to support ordering of objects:
 

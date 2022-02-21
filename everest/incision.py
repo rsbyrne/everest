@@ -87,15 +87,15 @@ class IncisionHandler(CollectionLike):
             raise IncisorTypeException(incisor, self) from message
         raise IncisorTypeException(incisor, self, message)
 
-    @classmethod
-    def __subclasshook__(cls, ACls):
-        if cls is not IncisionHandler:
-            return super().__subclasshook__(ACls)
-        return all(
-            hasattr(ACls, methname)
-            for methname in cls.__dict__
-            if methname.startswith('__incise_')
-            )
+    # @classmethod
+    # def __subclasshook__(cls, ACls):
+    #     if cls is not IncisionHandler:
+    #         return super().__subclasshook__(ACls)
+    #     return all(
+    #         hasattr(ACls, methname)
+    #         for methname in cls.__dict__
+    #         if methname.startswith('__incise_')
+    #         )
 
 
 class PseudoIncisable(CollectionLike):
@@ -110,13 +110,13 @@ class Incisable(IncisionHandler, PseudoIncisable):
 
     __slots__ = ()
 
-    @classmethod
-    def __subclasshook__(cls, ACls, /):
-        if cls is Incisable:
-            if super().__subclasshook__(ACls):
-                return True
-            return IncisionProtocol.complies(ACls)
-        return super().__subclasshook__(ACls)
+    # @classmethod
+    # def __subclasshook__(cls, ACls, /):
+    #     if cls is Incisable:
+    #         if super().__subclasshook__(ACls):
+    #             return True
+    #         return IncisionProtocol.complies(ACls)
+    #     return super().__subclasshook__(ACls)
 
 
 class IncisionChain(Incisable):
