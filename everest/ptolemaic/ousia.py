@@ -154,8 +154,8 @@ class OusiaBase(metaclass=Ousia):
 
     ### Class instantiation:
 
-    def __init__(self, /):
-        pass
+    # def __init__(self, /):
+    #     pass
 
     ### Implementing the attribute-freezing behaviour for instances:
 

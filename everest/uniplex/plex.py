@@ -6,13 +6,12 @@
 import os as _os
 import weakref as _weakref
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.ousia import Ousia as _Ousia
 
 from everest.uniplex.folio import FolioLike as _FolioLike
-from everest.uniplex.table import Table as _Table
 
 
-class Plex(_FolioLike):
+class Plex(_FolioLike, metaclass=_Ousia):
 
     ext = 'plex'
 

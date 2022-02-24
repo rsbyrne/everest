@@ -142,7 +142,7 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
                 try:
                     Intt = eval('Intt')
                 except NameError:
-                    from everest.ptolemaic.fundaments.intt import Intt
+                    from .intt import Intt
                 return Intt[0:arg]
             if isinstance(arg, tuple):
                 return _Index(arg)

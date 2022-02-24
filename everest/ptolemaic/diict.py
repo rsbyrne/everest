@@ -16,11 +16,9 @@ from .sprite import Sprite as _Sprite
 from .ousia import Ousia as _Ousia
 
 
-class FlexDiict(metaclass=_Ousia):
+class Diict(metaclass=_Sprite):
 
     _req_slots__ = ('_content_',)
-
-    _dcttype = dict
 
     for name in (
             '__getitem__', '__len__', '__iter__', '__contains__',
@@ -32,27 +30,6 @@ class FlexDiict(metaclass=_Ousia):
             f"    return self._content_.{name}",
             )))
     del name
-
-    def __init__(self, /):
-        super().__init__()
-        self._content_ = self._dcttype({})
-
-    def __repr__(self, /):
-        valpairs = ', '.join(map(':'.join, zip(
-            map(repr, _content_ := self._content_),
-            map(repr, _content_.values()),
-            )))
-        return f"<{self._ptolemaic_class__}{{{valpairs}}}>"
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self._ptolemaic_class__.__qualname__
-        _pretty.pretty_dict(self._content_, p, cycle, root=root)
-
-
-class Diict(FlexDiict, metaclass=_Sprite):
-
-    _dcttype = _types.MappingProxyType
 
     @classmethod
     def __class_call__(cls, _content_: dict = None, /, *args, **kwargs):
@@ -71,16 +48,20 @@ class Diict(FlexDiict, metaclass=_Sprite):
             ptolcls, self._content_
             )
 
-
-class FlexKwargs(FlexDiict):
+    def __repr__(self, /):
+        valpairs = ', '.join(map(':'.join, zip(
+            map(repr, _content_ := self._content_),
+            map(repr, _content_.values()),
+            )))
+        return f"<{self._ptolemaic_class__}{{{valpairs}}}>"
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self._ptolemaic_class__.__qualname__
-        _pretty.pretty_kwargs(self._content_, p, cycle, root=root)
+        _pretty.pretty_dict(self._content_, p, cycle, root=root)
 
 
-class Kwargs(FlexKwargs, Diict):
+class Kwargs(Diict):
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
@@ -89,12 +70,21 @@ class Kwargs(FlexKwargs, Diict):
             raise TypeError("All keys of Kwargs must be str type.")
         return out
 
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self._ptolemaic_class__.__qualname__
+        _pretty.pretty_kwargs(self._content_, p, cycle, root=root)
 
-class Namespace(FlexKwargs):
+
+class Namespace(metaclass=_Ousia):
 
     _dcttype = dict
 
-    for name in ('pop', 'popitem', 'clear', 'update', 'setdefault'):
+    _req_slots__ = ('_content_',)
+
+    for name in (
+            '__len__', '__iter__', '__contains__', 'keys', 'values', 'items',
+            ):
         exec('\n'.join((
             f'@property',
             f'def {name}(self, /):',
@@ -102,49 +92,60 @@ class Namespace(FlexKwargs):
             )))
     del name
 
-    def __getitem__(self, name, /):
-        return self._content_[name]
+    def __init__(self, /):
+        super().__init__()
+        self._content_ = self._dcttype({})
 
-    def __setitem__(self, name, val, /):
+    def __getattr__(self, name, /):
+        try:
+            return super().__getattr__(name)
+        except AttributeError as exc:
+            if name == '_content_':
+                raise exc
+            try:
+                return self._content_[name]
+            except KeyError:
+                raise exc
+
+    def _set_val(self, name, val, /):
         if not isinstance(name, str):
             raise TypeError(type(name))
         self._content_[name] = val
-
-    def __delitem__(self, name, /):
-        del self._content_[name]
-
-    def __getattr__(self, name, /):
-        if name.startswith('_'):
-            return super().__getattr__(name)
-        try:
-            return super().__getattr__(name)
-        except AttributeError:
-            try:
-                return self[name]
-            except KeyError:
-                raise AttributeError
 
     def __setattr__(self, name, val, /):
         try:
             super().__setattr__(name, val)
         except _FrozenAttributesException:
-            self.__setitem__(name, val)
+            self._set_val(name, val)
 
     def __delattr__(self, name, /):
         try:
             super().__delattr__(name)
         except _FrozenAttributesException:
-            del self[name]
+            del self._content_[name]
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self._ptolemaic_class__.__qualname__
+        _pretty.pretty_kwargs(self._content_, p, cycle, root=root)
 
 
 class WeakNamespace(Namespace):
 
     _dcttype = _weakref.WeakValueDictionary
 
-    def setget(self, name, val, /):
-        self[name] = val
-        return val
-
 
 ###############################################################################
 ###############################################################################
+
+
+    # for name in (
+    #         '__setitem__', '__delitem__',
+    #         'pop', 'popitem', 'clear', 'update', 'setdefault'
+    #         ):
+    #     exec('\n'.join((
+    #         f'@property',
+    #         f'def {name}(self, /):',
+    #         f"    return self._content_.{name}",
+    #         )))
+    # del name

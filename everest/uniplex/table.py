@@ -19,12 +19,13 @@ from everest.algebraic.chora import ChainChora as _ChainChora
 
 from .plexon import (
     Plexon as _Plexon,
-    GroupPlexon as _GroupPlexon,
     SubPlexon as _SubPlexon,
     )
 
 
 class TableLike(_SubPlexon):
+
+    MERGETUPLES = ('_var_slots__',)
 
     _req_slots__ = (
         '_openslc', 'depth',
@@ -134,7 +135,7 @@ class ArrayLike(metaclass=_Essence):
             self.mask[indices] = False
 
 
-class Table(ArrayLike, TableLike):
+class Table(_ChainChora, ArrayLike, TableLike, metaclass=_Ousia):
 
 
     MROCLASSES = ('Slyce',)
@@ -158,6 +159,10 @@ class Table(ArrayLike, TableLike):
         shape = self.shape
         self.data.resize(shape, refcheck=False)
         self.mask.resize(shape, refcheck=False)
+        try:
+            del self.softcache['__incision_manager__']
+        except KeyError:
+            pass
 
     @property
     @_caching.soft_cache()
@@ -224,49 +229,6 @@ class Table(ArrayLike, TableLike):
                 p.text("data = ")
                 _pretty.pretty_array(self.data, p, cycle)
                 p.breakable()
-
-
-class SubTableLike(TableLike):
-
-    def __init__(self, /, parent, shape=(), *args, **kwargs):
-        if isinstance(shape, tuple):
-            shape = (*parent.shape, *shape)
-        else:
-            shape = (*parent.shape, shape)
-        super().__init__(parent, shape, *args, **kwargs)
-
-
-class SubTable(SubTableLike, Table):
-    ...
-
-
-class MultiTable(TableLike, _GroupPlexon):
-
-    def table(self, /, *args, **kwargs):
-        return self.sub(*args, typ=SubTable, **kwargs)
-
-    def multi(self, /, *args, **kwargs):
-        return self.sub(*args, typ=SubMultiTable, **kwargs)
-
-    def _update_shape(self, /):
-        shape = self.shape
-        for child in self.values():
-            child.shape = (*shape, *child.shape[len(shape):])
-
-    def __setitem__(self, key, val, /):
-        if isinstance(key, str):
-            super().__setitem__(key, val)
-        else:
-            for sub, child in zip(zip(*val), self.values()):
-                child[key] = sub
-
-    @property
-    def _defaultsub(self, /):
-        return self.table
-
-
-class SubMultiTable(SubTableLike, MultiTable):
-    ...
 
 
 ###############################################################################
