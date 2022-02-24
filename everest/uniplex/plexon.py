@@ -58,6 +58,8 @@ class Subs(_WeakNamespace):
         self.owner = _weakref.proxy(owner)
 
     def _set_val(self, name, val, /):
+        if name in self:
+            raise ValueError(name)
         if isinstance(val, SubPlexon):
             if val.parent != self.owner:
                 raise ValueError(val)
