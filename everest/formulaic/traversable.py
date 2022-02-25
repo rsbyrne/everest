@@ -109,7 +109,7 @@ class Traversable(_ChainChora, metaclass=_Schema):
 
             @property
             def folio(self, /):
-                return self.schematic.folio[self.hashID]
+                return self.schematic.folio.folio(self.hashID)
 
 
         class Line(_ChainChora, metaclass=_Essence):
@@ -132,7 +132,12 @@ class Traversable(_ChainChora, metaclass=_Schema):
                 return self.schematic.Instruments.Stage(self, incisor)
 
             @property
-            def table(self, /):
+            def folio(self, /):
+                return self.case.folio.folio(self.hashID)
+
+            @property
+            def data(self, /):
+                self.folio.axle
                 hashID = self.hashID
                 try:
                     table = self.case.folio[hashID]

@@ -6,6 +6,7 @@
 import abc as _abc
 import inspect as _inspect
 import types as _types
+import weakref as _weakref
 
 from everest.utilities import (
     caching as _caching,
@@ -139,7 +140,8 @@ class OusiaBase(metaclass=Ousia):
         try:
             return self._weakcache
         except AttributeError:
-            out = self._weakcache = _weakref.WeakValueDictionary()
+            with self.mutable:
+                out = self._weakcache = _weakref.WeakValueDictionary()
             return out
 
     ### Some aliases:

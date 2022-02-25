@@ -79,9 +79,17 @@ class GroupPlexon(Plexon):
     def sub(self, /, name, *args, typ, **kwargs):
         if not issubclass(typ, SubPlexon):
             raise TypeError(typ)
-        new = typ(self, *args, **kwargs)
-        setattr(self.subs, name, new)
-        return new
+        subs = self.subs
+        try:
+            out = getattr(subs, name)
+        except AttributeError:
+            out = typ(self, *args, **kwargs)
+            setattr(self.subs, name, out)
+        else:
+            if not isinstance(out, typ):
+                raise TypeError(type(out))
+            
+        return out
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:

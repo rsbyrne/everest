@@ -38,7 +38,7 @@ class SchemaBase(metaclass=_Sprite):
 
     @property
     def folio(self, /):
-        return self.plex[self.hashID]
+        return self.plex.folio(self.hashID)
 
 
 ###############################################################################

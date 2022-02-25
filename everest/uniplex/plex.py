@@ -6,29 +6,38 @@
 import os as _os
 import weakref as _weakref
 
+from everest.utilities import caching as _caching
+from everest.utilities.file import H5File as _H5File
+
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
 from everest.uniplex.folio import FolioLike as _FolioLike
 
 
+class PlexFile(_H5File):
+
+    DEFAULTEXT = 'plex'
+
+
 class Plex(_FolioLike, metaclass=_Ousia):
 
-    ext = 'plex'
+    _req_slots__ = ('name', 'path', 'filepath')
 
-    _req_slots__ = ('filename', 'filepath', 'path', 'name')
-
-    def __init__(self, /, path: str = '~/', name: str = 'default'):
+    def __init__(self, name: str, /, path: str = '~/'):
         super().__init__()
-        self.path, self.name = path, name
-        filename = self.filename = '.'.join((name, self.ext))
-        self.filepath = _os.path.join(path, filename)
+        self.name, self.path = name, path
+        self.filepath = PlexFile.get_filepath(name, path)
+
+    # @_caching.weak_cache()
+    def open_file(self, /):
+        return PlexFile(self.filepath)
 
     @property
     def plex(self, /):
         return self
 
 
-GLOBALPLEX = Plex()
+GLOBALPLEX = Plex('default')
 
 
 ###############################################################################
