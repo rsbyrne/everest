@@ -19,6 +19,7 @@ class ArmatureProtocol(_Protocol):
     VARIABLE = ('__armature_variable__', True)
 
     # Optional:
+    TRUSS = ('__armature_truss__', False)
     DEFER = ('__incision_manager__', False)
 
     def exc(self, obj, /):

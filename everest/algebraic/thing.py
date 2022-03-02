@@ -3,10 +3,7 @@
 ###############################################################################
 
 
-# from collections import abc as _collabc
-
 from everest.primitive import Primitive as _Primitive
-from everest.incision import IncisionProtocol as _IncisionProtocol
 
 from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -14,20 +11,17 @@ from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.essence import Essence as _Essence
 
 from .chora import (
-    Chora as _Chora,
-    Null as _Null,
     Choric as _Choric,
     Basic as _Basic,
     )
 from .armature import ArmatureProtocol as _ArmatureProtocol
 from .fundament import Fundament as _Fundament
 from .brace import Brace as _Brace
+from .truss import Truss as _Truss
 
 
 class Thing(_Fundament, metaclass=_Bythos):
 
-
-    # MROCLASSES = ('Brace',)
 
     @classmethod
     def __class_init__(cls, /):
@@ -43,15 +37,18 @@ class Thing(_Fundament, metaclass=_Bythos):
 
     class Oid(metaclass=_Essence):
 
-        SUBCLASSES = ('Space', 'Brace')
+        SUBCLASSES = ('Space', 'Brace', 'Truss')
+
+        Brace = _Brace
+        Truss = _Truss
 
         @property
         def __armature_brace__(self, /):
             return self._ptolemaic_class__.owner.Oid.Brace
-            # try:
-            #     self._ptolemaic_class__.__dict__['Brace']
-            # except KeyError:
-            #     raise AttributeError
+
+        @property
+        def __armature_truss__(self, /):
+            return self._ptolemaic_class__.owner.Oid.Truss
 
         class Space(_Choric, metaclass=_Sprite):
 
@@ -67,9 +64,6 @@ class Thing(_Fundament, metaclass=_Bythos):
                     return _ArmatureProtocol.BRACE(self.bound)[
                         tuple(incisor)
                         ]
-
-
-        Brace = _Brace
 
 
 _ = Thing.register(_Primitive)

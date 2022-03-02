@@ -37,11 +37,6 @@ from .allslyce import AllSlyce as _AllSlyce
 from .index import Index as _Index
 
 
-class Length(metaclass=_Sprite):
-
-    n: int = 0
-
-
 class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
 
@@ -87,7 +82,7 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
         labels = self.labels
         return tuple(map(
             self.truecontent.__getitem__,
-            map(labels.__getitem__, labels)
+            map(labels.__getitem__, labels),
             ))
 
     @_caching.soft_cache()
@@ -105,6 +100,10 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
     def __incise_iter__(self, /):
         return iter(self.content)
+
+    @property
+    def shape(self, /):
+        return (len(self.labels),)
 
     # @property
     # def __incise_index__(self, /):
@@ -134,6 +133,10 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
         def __incise_retrieve__(self, incisor, /):
             return self._ptolemaic_class__.owner(*incisor)
+
+        @property
+        def __armature_brace__(self, /):
+            return _ArmatureProtocol.TRUSS(self._ptolemaic_class__.owner.owner)
 
         @classmethod
         def process_labels(cls, arg, /):
@@ -258,6 +261,10 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
             def depth(self, /):
                 return len(self.labels)
 
+            @property
+            def shape(self, /):
+                return (self.depth,)
+
             def keys(self, /):
                 return self.labels
 
@@ -337,6 +344,10 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
             @property
             def depth(self, /):
                 return len(self.choras)
+
+            @property
+            def shape(self, /):
+                return (self.depth,)
 
             @_caching.soft_cache()
             def asdict(self, /):

@@ -79,6 +79,8 @@ class Number(_Fundament):
                         return self.bound._ptolemaic_class__.owner.Empty
                     return self.bound.Closed(lower, upper)
 
+        # class Brace(metaclass=_Essence):
+
 
 ###############################################################################
 ###############################################################################
