@@ -3,27 +3,30 @@
 ###############################################################################
 
 
-from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from .plexon import GroupPlexon as _GroupPlexon
 from .table import TableLike as _TableLike, Table as _Table
 
 
-class Axle(_TableLike, _GroupPlexon, metaclass=_Ousia):
+class Axle(_TableLike, _GroupPlexon, metaclass=_Sprite):
 
-    _req_slots__ = ('index',)
+    baseshape: tuple = (None,)
+    index: object = None
 
-    def __init__(self, /, parent, shape=(), index=None, *args, **kwargs):
-        super().__init__(parent, shape, *args, **kwargs)
-        self.index = None
+    def table(self, /, name, baseshape=(), *args, **kwargs):
+        selfbaseshape = self.baseshape
+        baseshape = (*selfbaseshape, *baseshape)
+        sub = self.sub(name, baseshape, *args, typ=_Table, **kwargs)
+        sub.shape = (*self.shape, *sub.shape[len(selfbaseshape):])
+        return sub
 
-    def table(self, /, name, shape=(), *args, **kwargs):
-        shape = (*self.shape, *shape)
-        return self.sub(name, shape, *args, typ=_Table, **kwargs)
-
-    def axle(self, /, name, shape=(), *args, **kwargs):
-        shape = (*self.shape, *shape)
-        return self.sub(name, shape, *args, typ=Axle, **kwargs)
+    def axle(self, /, name, baseshape=(), *args, **kwargs):
+        selfbaseshape = self.baseshape
+        baseshape = (*selfbaseshape, *baseshape)
+        sub = self.sub(name, baseshape, *args, typ=Axle, **kwargs)
+        sub.shape = (*self.shape, *sub.shape[len(selfbaseshape):])
+        return sub
 
     def _update_shape(self, /):
         shape = self.shape
@@ -36,6 +39,11 @@ class Axle(_TableLike, _GroupPlexon, metaclass=_Ousia):
         else:
             for sub, child in zip(zip(*val), self.subs.values()):
                 child[key] = sub
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self._ptolemaic_class__.__qualname__
+        self.subs._repr_pretty_(p, cycle, root=root)
 
 
 ###############################################################################

@@ -3,8 +3,11 @@
 ###############################################################################
 
 
+import numbers as _numbers
 import itertools as _itertools
 import types as _types
+
+import numpy as _np
 
 from everest.utilities import (
     RestrictedNamespace as _RestrictedNamespace,
@@ -24,7 +27,7 @@ from .chora import (
     TrivialException as _TrivialException,
     )
 from .thing import Thing as _Thing
-from .real import Real as _Real
+from .number import Number as _Number
 from .index import Index as _Index
 
 
@@ -33,9 +36,6 @@ def _nth(iterable, n):
         return next(_itertools.islice(iterable, n, None))
     except StopIteration:
         raise IndexError(n)
-
-
-_OPINT = (type(None), int)
 
 
 def _build_oids(Intt, ns, /):
@@ -48,20 +48,23 @@ def _build_oids(Intt, ns, /):
         step: Intt = 1
 
         @classmethod
-        def parameterise(cls, cache, /, *args, **kwargs):
-            bound = super().parameterise(cache, *args, **kwargs)
+        def parameterise(cls, /, *args, **kwargs):
+            bound = super().parameterise(*args, **kwargs)
+            bound.arguments.update({
+                key: cls.owner.pytyp(val) for key, val in bound.arguments.items()
+                })
             if bound.arguments['step'] < 1:
                 raise ValueError
             return bound
 
         class __choret__(_Sampleable):
 
-            def retrieve_int(self, incisor: int, /):
+            def retrieve_int(self, incisor: 'owner.comptyp', /):
                 if incisor >= 0:
                     return _nth(self.bound, incisor)
                 raise IndexError
 
-            def bounds_slyce_open(self, incisor: (int, type(None)), /):
+            def bounds_slyce_open(self, incisor: ('owner.comptyp', type(None)), /):
                 lower = incisor.lower
                 if lower == 0:
                     raise _TrivialException
@@ -72,7 +75,7 @@ def _build_oids(Intt, ns, /):
                     self.bound.step,
                     )
 
-            def bounds_slyce_limit(self, incisor: (type(None), int), /):
+            def bounds_slyce_limit(self, incisor: (type(None), 'owner.comptyp'), /):
                 lower = self.bound.lower
                 upper = incisor.upper
                 if upper == 0:
@@ -83,7 +86,7 @@ def _build_oids(Intt, ns, /):
                     lower, lower + upper, self.bound.step
                     )
 
-            def bounds_slyce_closed(self, incisor: (int, int), /):
+            def bounds_slyce_closed(self, incisor: ('owner.comptyp', 'owner.comptyp'), /):
                 lower, upper = incisor.lower, incisor.upper
                 if upper <= lower:
                     return self.bound._ptolemaic_class__.owner.Empty
@@ -98,7 +101,7 @@ def _build_oids(Intt, ns, /):
                     lower, upper, self.bound.step
                     )
 
-            def sample_slyce_int(self, incisor: int, /):
+            def sample_slyce_int(self, incisor: 'owner.comptyp', /):
                 bound = self.bound
                 return bound._ptolemaic_class__(
                     bound.lower, bound.step * incisor
@@ -140,21 +143,29 @@ def _build_oids(Intt, ns, /):
 
         upper: Intt
 
+        @classmethod
+        def parameterise(cls, /, *args, **kwargs):
+            bound = super().parameterise(*args, **kwargs)
+            bound.arguments.update({
+                key: cls.owner.pytyp(val) for key, val in bound.arguments.items()
+                })
+            return bound
+
         class __choret__(_Sampleable):
 
-            def retrieve_int(self, incisor: int, /):
+            def retrieve_int(self, incisor: 'owner.comptyp', /):
                 if incisor < 0:
                     return self.bound.upper + incisor
                 raise IndexError
 
-            def bounds_slyce_open(self, incisor: (int, type(None)), /):
+            def bounds_slyce_open(self, incisor: ('owner.comptyp', type(None)), /):
                 lower, upper = incisor.lower, self.bound.upper
                 if lower >= 0:
                     raise IndexError
                 lower = upper + lower
                 return self.bound.Closed(lower, upper)
 
-            def bounds_slyce_limit(self, incisor: (type(None), int), /):
+            def bounds_slyce_limit(self, incisor: (type(None), 'owner.comptyp'), /):
                 upper = incisor.upper
                 if upper >= 0:
                     raise IndexError
@@ -162,7 +173,7 @@ def _build_oids(Intt, ns, /):
                     self.bound.upper + upper
                     )
 
-            def bounds_slyce_closed(self, incisor: (int, int), /):
+            def bounds_slyce_closed(self, incisor: ('owner.comptyp', 'owner.comptyp'), /):
                 lower, upper = incisor.lower, incisor.upper
                 if upper >= 0:
                     raise IndexError
@@ -202,17 +213,33 @@ def _build_oids(Intt, ns, /):
 
         _req_slots__ = ('_rangeobj',)
 
+        @classmethod
+        def parameterise(cls, /, *args, **kwargs):
+            bound = super().parameterise(*args, **kwargs)
+            bound.arguments.update({
+                key: cls.owner.pytyp(val) for key, val in bound.arguments.items()
+                })
+            return bound
+
         def __init__(self, /):
             super().__init__()
             self._rangeobj = range(self.lower, self.upper, self.step)
 
+        @property
+        def pytyp(self, /):
+            return self.owner.pytyp
+
+        @property
+        def nptyp(self, /):
+            return self.owner.nptyp
+
         class __choret__(_Sampleable):
 
-            def retrieve_int(self, incisor: int, /):
+            def retrieve_int(self, incisor: 'owner.comptyp', /):
                 return self.bound._rangeobj[incisor]
 
             def bounds_handle_any(self,
-                    incisor: (_OPINT, _OPINT), /, *, caller
+                    incisor: ((type(None), 'owner.comptyp'), (type(None), 'owner.comptyp')), /, *, caller
                     ):
                 oldr = self.bound._rangeobj
                 newr = oldr[slice(*incisor)]
@@ -227,7 +254,7 @@ def _build_oids(Intt, ns, /):
                     self.bound._ptolemaic_class__(start, stop, step)
                     )
 
-            def sample_slyce_int(self, incisor: int, /):
+            def sample_slyce_int(self, incisor: 'owner.comptyp', /):
                 bound = self.bound
                 return bound._ptolemaic_class__(
                     bound.lower, bound.upper, bound.step * incisor
@@ -272,25 +299,25 @@ def _build_oids(Intt, ns, /):
             _pretty.pretty(self.step, p, cycle)
             p.text(']')
 
+        def __array__(self, dtype=None):
+            return _np.array(self, dtype=self.nptyp).__array__(dtype)
+
 
     ns.update(locals())
 
 
-class Intt(_Real, _Thing):
-    ...
+class Intt(_Number, _Thing):
 
 
-    @classmethod
-    def __class_init__(cls, /):
-        _ = cls.register(int)
-        super().__class_init__()
-
-
-    class Var(metaclass=_Essence):
-        _default = 0
+    pytyp = int
+    comptyp = _numbers.Integral
+    nptyp = _np.integer
 
 
     class Oid(metaclass=_Essence):
+
+        # class Var(metaclass=_Essence):
+        #     _default = 0
 
         @classmethod
         def __mroclass_init__(cls, /):
@@ -320,6 +347,15 @@ class Intt(_Real, _Thing):
                         return tuple(
                             chora.arrayquery for chora in self.choras
                             )
+
+
+for _num in (8, 16, 32, 64):
+    _new = type(
+        f"Intt{_num}",
+        (Intt,),
+        dict(nptyp=getattr(_np, f"int{_num}")),
+        )
+    exec(f"{_new.__name__}=_new")
 
 
 ###############################################################################

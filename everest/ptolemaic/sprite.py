@@ -3,20 +3,19 @@
 ###############################################################################
 
 
-import functools as _functools
 from collections import deque as _deque
 from inspect import Signature as _Signature, Parameter as _Parameter, _empty
 import weakref as _weakref
-import itertools as _itertools
-import types as _types
 
 from everest.utilities import (
-    caching as _caching, FrozenMap as _FrozenMap, pretty as _pretty
+    caching as _caching, pretty as _pretty
     )
 from everest.ur import Dat as _Dat
 
 from .ousia import Ousia as _Ousia
 from .bythos import Bythos as _Bythos
+from .params import Params as _Params, Param as _Param
+from . import exceptions as _exceptions
 
 
 def collect_fields_mro(
@@ -61,14 +60,14 @@ def get_fields(ACls, /):
     if any(hasattr(ACls, key) for key in out):
         clashes = set(key for key in out if hasattr(ACls, key))
         raise TypeError("Field clashes detected!", ACls, clashes)
+    if set(out) & set(ACls.attributes) & set(ACls._req_slots__):
+        raise TypeError("Field names clash with class attributes.")
     return out, defaults
 
 
 class Sprite(_Ousia, _Bythos):
 
-    @property
-    def __signature__(cls, /):
-        return cls._signature_
+    ...
 
 
 @_Dat.register
@@ -77,43 +76,74 @@ class SpriteBase(metaclass=Sprite):
     _req_slots__ = ('params',)
 
     @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        # if cls._var_slots__:
-        #     raise TypeError(
-        #         f"Types metatype {type(cls)} cannot have var slots."
-        #         )
-        hints, defaults = cls.hints, cls.defaults = get_fields(cls)
-        cls._signature_ = _Signature(_Parameter(
+    def _get_sig(cls, /):
+        hints, defaults = get_fields(cls)
+        return _Signature(_Parameter(
             key, 1, default=defaults.get(key, _empty), annotation=hints[key]
             ) for key in hints)
 
     @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        obj = object.__new__(cls.Concrete)
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.premade = _weakref.WeakValueDictionary()
+
+    @classmethod
+    def instantiate(cls, params: _Params, /):
+        try:
+            return cls.premade[params]
+        except KeyError:
+            obj = cls.premade[params] = cls.Concrete()
+            object.__setattr__(obj, 'params', params)
+            cls.__init__(obj)
+            return obj
+
+    @classmethod
+    def paramexc(cls, /, *args, message=None, **kwargs):
+        return _exceptions.ParameterisationException(
+            (args, kwargs), cls, message
+            )
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
-        for key, val in bound.arguments.items():
-            setattr(obj, key, val)
-        obj.params = _types.MappingProxyType(bound.arguments)
-        obj.__init__()
-        obj.freezeattr.toggle(True)
-        return obj
+        return bound
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        return super().__class_call__(
+            _Params(cls.parameterise(*args, **kwargs).arguments)
+            )
+
+    def remake(self, /, **kwargs):
+        ptolcls = self._ptolemaic_class__
+        bound = ptolcls.__signature__.bind_partial()
+        bound.arguments.update(self.params)
+        bound.arguments.update(kwargs)
+        return ptolcls(*bound.args, **bound.kwargs)
+
+    def __class_getitem__(cls, arg, /):
+        if isinstance(arg, _Params):
+            return cls.instantiate(arg)
+        return super().__class_getitem__(arg)
 
     @classmethod
     def pre_create_concrete(cls, /):
         name, bases, namespace = super().pre_create_concrete()
-        namespace.update(
-            __slots__=tuple(sorted(set(_itertools.chain(
-                namespace['__slots__'], cls.hints,
-                ))))
-            )
+        namespace.update({
+            key: _Param(key) for key in cls.__signature__.parameters
+            })
+        namespace['defaults'] = {
+            key: param.default
+            for key, param in cls.__signature__.parameters.items()
+            if param is not _empty
+            }
         return name, bases, namespace
 
     def get_epitaph(self, /):
         ptolcls = self._ptolemaic_class__
-        return ptolcls.taphonomy.callsig_epitaph(
-            ptolcls, *self.params.values()
+        return ptolcls.taphonomy.custom_epitaph(
+            '$a[$b]', a=ptolcls, b=self.params
             )
 
     @property
@@ -137,7 +167,7 @@ class SpriteBase(metaclass=Sprite):
         ptolcls = self._ptolemaic_class__
         objs = (
             type(ptolcls).__qualname__, ptolcls.__qualname__,
-            self.hashID + '_' + str(id(self))
+            self.hashID + '_' + str(id(self)),
             )
         return ':'.join(map(str, objs))
 
@@ -153,15 +183,6 @@ class SpriteBase(metaclass=Sprite):
 
     def __hash__(self, /):
         return self.hashint
-
-    def __eq__(self, other, /):
-        return hash(self) == hash(other)
-
-    def __lt__(self, other, /):
-        return hash(self) < hash(other)
-
-    def __gt__(self, other, /):
-        return hash(self) < hash(other)
 
 
 ###############################################################################

@@ -137,12 +137,11 @@ class Traversable(_ChainChora, metaclass=_Schema):
 
             @property
             def data(self, /):
-                self.folio.axle
-                hashID = self.hashID
-                try:
-                    table = self.case.folio[hashID]
-                except KeyError:
-                return self.case.folio.multi(self.hashID)
+                axle = self.folio.axle(self.hashID)
+                return (
+                    axle.table('index', dtype=float),
+                    axle.table('state', dtype=float),
+                    )
 
 
         class Traverse(_ChainChora, metaclass=_Essence):

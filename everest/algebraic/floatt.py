@@ -3,6 +3,10 @@
 ###############################################################################
 
 
+import numbers as _numbers
+
+import numpy as _np
+
 from everest.utilities import (
     RestrictedNamespace as _RestrictedNamespace,
     pretty as _pretty,
@@ -18,7 +22,7 @@ from .chora import (
     TrivialException as _TrivialException,
     )
 from .thing import Thing as _Thing
-from .real import Real as _Real
+from .number import Number as _Number
 
 
 def _build_oids(Floatt, ns, /):
@@ -28,14 +32,22 @@ def _build_oids(Floatt, ns, /):
 
         lower: Floatt
 
+        @classmethod
+        def parameterise(cls, /, *args, **kwargs):
+            bound = super().parameterise(*args, **kwargs)
+            bound.arguments.update({
+                key: cls.owner.pytyp(val) for key, val in bound.arguments.items()
+                })
+            return bound
+
         class __choret__(_Sampleable):
 
-            def retrieve_float(self, incisor: float, /):
+            def retrieve_float(self, incisor: 'owner.comptyp', /):
                 if incisor >= 0:
                     return self.bound.lower + incisor
                 raise IndexError
 
-            def bounds_slyce_open(self, incisor: (float, type(None)), /):
+            def bounds_slyce_open(self, incisor: ('owner.comptyp', type(None)), /):
                 lower = incisor.lower
                 if lower == 0:
                     raise _TrivialException
@@ -45,7 +57,7 @@ def _build_oids(Floatt, ns, /):
                     lower + self.bound.lower,
                     )
 
-            def bounds_slyce_limit(self, incisor: (type(None), float), /):
+            def bounds_slyce_limit(self, incisor: (type(None), 'owner.comptyp'), /):
                 lower = self.bound.lower
                 upper = incisor.upper
                 if upper <= 0:
@@ -54,7 +66,7 @@ def _build_oids(Floatt, ns, /):
                     return self.bound._ptolemaic_class__.owner.Empty
                 return self.bound.Closed(lower, upper)
 
-            def bounds_slyce_closed(self, incisor: (float, float), /):
+            def bounds_slyce_closed(self, incisor: ('owner.comptyp', 'owner.comptyp'), /):
                 lower, upper = incisor.lower, incisor.upper
                 if upper <= lower:
                     return self.bound._ptolemaic_class__.owner.Empty
@@ -93,27 +105,35 @@ def _build_oids(Floatt, ns, /):
 
         upper: Floatt
 
+        @classmethod
+        def parameterise(cls, /, *args, **kwargs):
+            bound = super().parameterise(*args, **kwargs)
+            bound.arguments.update({
+                key: cls.owner.pytyp(val) for key, val in bound.arguments.items()
+                })
+            return bound
+
         class __choret__(_Sampleable):
 
-            def retrieve_float(self, incisor: float, /):
+            def retrieve_float(self, incisor: 'owner.comptyp', /):
                 if incisor < 0:
                     return self.bound.upper + incisor
                 raise IndexError
 
-            def bounds_slyce_open(self, incisor: (float, type(None)), /):
+            def bounds_slyce_open(self, incisor: ('owner.comptyp', type(None)), /):
                 lower, upper = incisor.lower, self.bound.upper
                 if lower >= 0:
                     raise IndexError
                 lower = upper + lower
                 return self.bound._ptolemaic_class__.Closed(lower, upper)
 
-            def bounds_slyce_limit(self, incisor: (type(None), float), /):
+            def bounds_slyce_limit(self, incisor: (type(None), 'owner.comptyp'), /):
                 upper = incisor.upper
                 if upper >= 0.:
                     raise IndexError
                 return self.bound._ptolemaic_class__(self.bound.upper + upper)
 
-            def bounds_slyce_closed(self, incisor: (float, float), /):
+            def bounds_slyce_closed(self, incisor: ('owner.comptyp', 'owner.comptyp'), /):
                 lower, upper = incisor.lower, incisor.upper
                 if upper >= 0:
                     raise IndexError
@@ -148,9 +168,17 @@ def _build_oids(Floatt, ns, /):
         lower: Floatt
         upper: Floatt
 
+        @classmethod
+        def parameterise(cls, /, *args, **kwargs):
+            bound = super().parameterise(*args, **kwargs)
+            bound.arguments.update({
+                key: cls.owner.pytyp(val) for key, val in bound.arguments.items()
+                })
+            return bound
+
         class __choret__(_Sampleable):
 
-            def retrieve_float(self, incisor: float, /):
+            def retrieve_float(self, incisor: 'owner.comptyp', /):
                 if incisor == 0:
                     return self.bound.lower
                 if incisor < 0:
@@ -163,7 +191,7 @@ def _build_oids(Floatt, ns, /):
                     raise ValueError
                 return out
 
-            def bounds_slyce_open(self, incisor: (float, type(None)), /):
+            def bounds_slyce_open(self, incisor: ('owner.comptyp', type(None)), /):
                 ilower = incisor.lower
                 lower, upper = self.bound.lower, self.bound.upper
                 if ilower == 0:
@@ -176,7 +204,7 @@ def _build_oids(Floatt, ns, /):
                     return self.bound._ptolemaic_class__.owner.Empty
                 return self.bound._ptolemaic_class__(lower, upper)
 
-            def bounds_slyce_limit(self, incisor: (type(None), float), /):
+            def bounds_slyce_limit(self, incisor: (type(None), 'owner.comptyp'), /):
                 iupper = incisor.upper
                 lower, upper = self.bound.lower, self.bound.upper
                 if iupper == 0:
@@ -189,7 +217,7 @@ def _build_oids(Floatt, ns, /):
                     return self.bound._ptolemaic_class__.owner.Empty
                 return self.bound._ptolemaic_class__(lower, upper)
 
-            def bounds_slyce_closed(self, incisor: (float, float), /):
+            def bounds_slyce_closed(self, incisor: ('owner.comptyp', 'owner.comptyp'), /):
                 ilower, iupper = incisor.lower, incisor.upper
                 olower, oupper = self.bound.lower, self.bound.upper
                 if iupper == 0:
@@ -227,20 +255,18 @@ def _build_oids(Floatt, ns, /):
     ns.update(locals())
 
 
-class Floatt(_Real, _Thing):
+class Floatt(_Number, _Thing):
 
 
-    @classmethod
-    def __class_init__(cls, /):
-        _ = cls.register(float)
-        super().__class_init__()
-
-
-    class Var(metaclass=_Essence):
-        _default = 0.
+    pytyp = float
+    comptyp = _numbers.Real
+    nptyp = _np.floating
 
 
     class Oid(metaclass=_Essence):
+
+        # class Var(metaclass=_Essence):
+        #     _default = 0.
 
         @classmethod
         def __mroclass_init__(cls, /):
@@ -250,6 +276,15 @@ class Floatt(_Real, _Thing):
                 _build_oids(owner, ns)
                 cls.incorporate_namespace(ns)
             super().__mroclass_init__()
+
+
+for _num in (16, 32, 64, 128):
+    _new = type(
+        f"Floatt{_num}",
+        (Floatt,),
+        dict(nptyp=getattr(_np, f"float{_num}")),
+        )
+    exec(f"{_new.__name__}=_new")
 
 
 ###############################################################################

@@ -5,10 +5,12 @@
 
 import weakref as _weakref
 
+from everest.utilities import pretty as _pretty
+
 from everest.primitive import Primitive as _Primitive
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.diict import (
+from everest.ptolemaic.namespace import (
     Namespace as _Namespace,
     WeakNamespace as _WeakNamespace,
     )
@@ -36,13 +38,14 @@ class Plexon(metaclass=_Essence):
 
 class SubPlexon(Plexon):
 
-    _req_slots__ = ('parent',)
+    parent: Plexon
 
-    def __init__(self, /, parent, *args, **kwargs):
-        if not isinstance(parent, Plexon):
-            raise TypeError(type(parent))
-        self.parent = parent
-        super().__init__(*args, **kwargs)
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        bound = super().parameterise(*args, **kwargs)
+        if not isinstance(bound.arguments['parent'], Plexon):
+            raise TypeError
+        return bound
 
     @property
     def plex(self, /):
@@ -88,13 +91,7 @@ class GroupPlexon(Plexon):
         else:
             if not isinstance(out, typ):
                 raise TypeError(type(out))
-            
         return out
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self._ptolemaic_class__.__qualname__
-        self.subs._repr_pretty_(p, cycle, root=root)
 
 
 ###############################################################################

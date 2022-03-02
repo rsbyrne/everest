@@ -36,7 +36,9 @@ class Thing(_Fundament, metaclass=_Bythos):
 
     @classmethod
     def __class_call__(cls, arg, /):
-        return arg
+        if arg in cls:
+            return arg
+        raise ValueError(arg)
 
 
     class Oid(metaclass=_Essence):

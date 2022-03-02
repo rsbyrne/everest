@@ -31,7 +31,7 @@ from everest.epitaph import Epitaph as _Epitaph
 from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.pleroma import Pleroma as _Pleroma
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.protean import Protean as _Protean
+# from everest.ptolemaic.protean import Protean as _Protean
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
@@ -43,7 +43,7 @@ class Gen(metaclass=_Sprite):
     ...
 
 
-class Var(metaclass=_Protean):
+class Var(metaclass=_Ousia):
 
     _req_slots__ = ('_value',)
     _var_slots__ = ('value',)

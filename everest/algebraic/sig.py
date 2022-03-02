@@ -7,28 +7,16 @@ import abc as _abc
 import inspect as _inspect
 import functools as _functools
 import types as _types
-import collections.abc as _collabc
 from collections import deque as _deque
 import operator as _operator
 from enum import Enum as _Enum
 
-from everest.utilities import (
-    caching as _caching,
-    classtools as _classtools,
-    format_argskwargs as _format_argskwargs,
-    reseed as _reseed,
-    pretty as _pretty,
-    Slc as _Slc,
-    )
+from everest.utilities import caching as _caching
 from everest import epitaph as _epitaph
-from everest.incision import (
-    IncisionProtocol as _IncisionProtocol,
-    Incisable as _Incisable,
-    )
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.diict import Kwargs as _Kwargs
-from everest.ptolemaic.bythos import Bythos as _Bythos
+from everest.ptolemaic.params import Params as _Params
 from everest.ptolemaic.essence import Essence as _Essence
 
 from .thing import Thing as _Thing
@@ -36,7 +24,6 @@ from .brace import Brace as _Brace
 from .chora import (
     Chora as _Chora,
     ChainChora as _ChainChora,
-    Multi as _Multi,
     Degenerate as _Degenerate,
     )
 
@@ -198,8 +185,9 @@ class Field(_ChainChora, FieldBase, metaclass=_Sprite):
             kind=self.kind, hint=self.hint, value=arg
             )
 
-    @classmethod
     def __class_getitem__(cls, arg, /):
+        if isinstance(arg, _Params):
+            return super().__class_getitem__(arg)
         return cls(hint=arg)
 
     def degenerate(self, /):
@@ -245,62 +233,6 @@ class Field(_ChainChora, FieldBase, metaclass=_Sprite):
 
 #     hint: _Incisable
 #     value: object
-
-
-class Params(metaclass=_Sprite):
-
-    nargs: int = 0
-    arguments: _Kwargs = _Kwargs()
-
-    _req_slots__ = ('__dict__',)
-
-    for name in (
-            '__getitem__', '__len__', '__iter__', '__contains__',
-            'keys', 'values', 'items',
-            ):
-        exec('\n'.join((
-            f'@property',
-            f'def {name}(self, /):',
-            f'    return self.arguments.{name}',
-            )))
-    del name
-
-    def __init__(self, /):
-        self.__dict__.update(self.arguments)
-
-    @classmethod
-    def __class_call__(cls, arg0=0, arg1=None, /, **kwargs):
-        cache = {}
-        if arg1 is None:
-            if isinstance(arg0, _inspect.BoundArguments):
-                if kwargs:
-                    raise TypeError
-                cache['sigkwargs'] = arg0.kwargs
-                bndargs = cache['sigargs'] = arg0.args
-                nargs = len(bndargs)
-                arguments = arg0.arguments
-            else:
-                nargs = arg0
-                arguments = kwargs
-        else:
-            if kwargs:
-                raise TypeError
-            nargs, arguments = arg0, arg1
-        obj = super().__class_call__(int(nargs), _Kwargs(arguments))
-        if cache:
-            obj.softcache.update(cache)
-        return obj
-
-    @property
-    @_caching.soft_cache()
-    def sigargs(self, /):
-        return tuple(self.arguments.values())[:self.nargs]
-
-    @property
-    @_caching.soft_cache()
-    def sigkwargs(self, /):
-        dct = self.arguments
-        return {name: dct[name] for name in tuple(dct)[self.nargs:]}
 
 
 def gather_fields(bases: iter, fields: dict, /) -> dict:
@@ -423,7 +355,7 @@ class Sig(_ChainChora, metaclass=_Sprite):
         bound.arguments.update(zip(self.sigfields, incisor))
         bound.arguments.update(self.degenerates)
         bound.apply_defaults()
-        return Params(bound)
+        return _Params(bound.arguments)
 
     def __incise_slyce__(self, incisor: _Brace.Oid, /):
         obj = self._ptolemaic_class__(**{
@@ -438,9 +370,9 @@ class Sig(_ChainChora, metaclass=_Sprite):
         return obj
 
     def __call__(self, /, *args, **kwargs):
-        return Params(self.effsignature.bind(*args, **kwargs))
+        return _Params(self.effsignature.bind(*args, **kwargs).arguments)
 
-    def __contains__(self, params: Params) -> bool:
+    def __contains__(self, params: _Params) -> bool:
         fields = self.sigfields
         for key, val in params.items():
             if not val in fields[key]:
@@ -464,23 +396,61 @@ class Sig(_ChainChora, metaclass=_Sprite):
         self.__incision_manager__._repr_pretty_(p, cycle, root)
 
 
-class Param:
-
-    __slots__ = ('name',)
-
-    def __init__(self, name: str, /):
-        super().__init__()
-        self.name = name
-
-    def __get__(self, instance, _=None):
-        try:
-            return instance.params[self.name]
-        except KeyError:
-            raise AttributeError(self.name)
-        # except AttributeError:
-        #     return self
-
-
 ###############################################################################
 ###############################################################################
 
+
+# class Params(metaclass=_Sprite):
+
+#     nargs: int = 0
+#     arguments: _Kwargs = _Kwargs()
+
+#     _req_slots__ = ('__dict__',)
+
+#     for name in (
+#             '__getitem__', '__len__', '__iter__', '__contains__',
+#             'keys', 'values', 'items',
+#             ):
+#         exec('\n'.join((
+#             f'@property',
+#             f'def {name}(self, /):',
+#             f'    return self.arguments.{name}',
+#             )))
+#     del name
+
+#     def __init__(self, /):
+#         self.__dict__.update(self.arguments)
+
+#     @classmethod
+#     def __class_call__(cls, arg0=0, arg1=None, /, **kwargs):
+#         cache = {}
+#         if arg1 is None:
+#             if isinstance(arg0, _inspect.BoundArguments):
+#                 if kwargs:
+#                     raise TypeError
+#                 cache['sigkwargs'] = arg0.kwargs
+#                 bndargs = cache['sigargs'] = arg0.args
+#                 nargs = len(bndargs)
+#                 arguments = arg0.arguments
+#             else:
+#                 nargs = arg0
+#                 arguments = kwargs
+#         else:
+#             if kwargs:
+#                 raise TypeError
+#             nargs, arguments = arg0, arg1
+#         obj = super().__class_call__(int(nargs), _Kwargs(arguments))
+#         if cache:
+#             obj.softcache.update(cache)
+#         return obj
+
+#     @property
+#     @_caching.soft_cache()
+#     def sigargs(self, /):
+#         return tuple(self.arguments.values())[:self.nargs]
+
+#     @property
+#     @_caching.soft_cache()
+#     def sigkwargs(self, /):
+#         dct = self.arguments
+#         return {name: dct[name] for name in tuple(dct)[self.nargs:]}

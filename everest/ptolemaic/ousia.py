@@ -3,16 +3,15 @@
 ###############################################################################
 
 
-import abc as _abc
 import inspect as _inspect
 import types as _types
 import weakref as _weakref
 
 from everest.utilities import (
     caching as _caching,
-    switch as _switch,
     reseed as _reseed,
     )
+from everest.utilities.switch import Switch as _Switch
 from everest.exceptions import (
     FrozenAttributesException as _FrozenAttributesException
     )
@@ -46,9 +45,8 @@ class ConcreteMeta:
     def __signature__(cls, /):
         return cls._ptolemaic_class__.__signature__
 
-    @property
-    def __call__(cls, /, *_, **__):
-        raise NotImplementedError
+    def __call__(cls, /, *args, **kwargs):
+        return cls._ptolemaic_class__.__new__(cls, *args, **kwargs)
 
     @classmethod
     def __meta_init__(meta, /):
@@ -71,10 +69,6 @@ class Ousia(_Essence):
             )
 
     @property
-    def __signature__(cls, /):
-        return _inspect.signature(cls.Concrete.__init__)
-
-    @property
     def Concrete(cls, /):
         try:
             return cls.__dict__['_Concrete']
@@ -88,21 +82,26 @@ class Ousia(_Essence):
 
 class OusiaBase(metaclass=Ousia):
 
-    MERGETUPLES = ('_req_slots__', '_var_slots__')
-
+    MERGETUPLES = ('_req_slots__', '_var_slots__',)
     _req_slots__ = (
-        '_softcache', '_weakcache', '__weakref__', '_freezeattr',
+        '_softcache', '_weakcache', '__weakref__', 'freezeattr',
         )
     _var_slots__ = ()
 
-    def __new__(cls, /, *_, **__):
-        raise TypeError
+    @classmethod
+    def _get_sig(cls, /):
+        return _inspect.signature(cls.__init__)
+
+    @classmethod
+    def instantiate(cls, /, *args, **kwargs):
+        obj = cls.Concrete(*args, **kwargs)
+        cls.__init__(obj, *args, **kwargs)
+        return obj
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        obj = object.__new__(cls.Concrete)
-        obj.__init__(*args, **kwargs)
-        obj.freezeattr.toggle(True)
+        obj = cls.instantiate(*args, **kwargs)
+        object.__setattr__(obj, 'freezeattr', _Switch(True))
         return obj
 
     @property
@@ -154,62 +153,55 @@ class OusiaBase(metaclass=Ousia):
     def taphonomy(self, /):
         return self._ptolemaic_class__.taphonomy
 
-    ### Class instantiation:
-
-    # def __init__(self, /):
-    #     pass
-
     ### Implementing the attribute-freezing behaviour for instances:
 
-    @property
-    def freezeattr(self, /):
-        try:
-            return self._freezeattr
-        except AttributeError:
-            super().__setattr__(
-                '_freezeattr', switch := _switch.Switch(False)
-                )
-            return switch
+    # @property
+    # def freezeattr(self, /):
+    #     try:
+    #         return self._freezeattr
+    #     except AttributeError:
+    #         super().__setattr__(
+    #             '_freezeattr', switch := _switch.Switch(False)
+    #             )
+    #         return switch
 
     @property
     def mutable(self, /):
         return self.freezeattr.as_(False)
 
-    def _alt_getattr__(self, name, /):
-        return super().__getattribute__(name)
-
-    def __getattr__(self, name, /):
-        return super().__getattribute__(name)
-
-    def _alt_setattr__(self, name, val, /):
-        super().__setattr__(name, val)
-
     def __setattr__(self, name, val, /):
         if name in self._var_slots__:
-            super().__setattr__(name, val)
-        elif self.freezeattr:
-            raise _FrozenAttributesException(
-                f"Setting attributes on an object of type {type(self)} "
-                "is forbidden at this time; "
-                f"toggle switch `.freezeattr` to override."
-                )
+            object.__setattr__(self, name, val)
         else:
-            super().__setattr__(name, val)
-
-    def _alt_delattr__(self, name, /):
-        super().__delattr__(name)
+            try:
+                check = self.freezeattr
+            except AttributeError:
+                pass
+            else:
+                if check:
+                    raise _FrozenAttributesException(
+                        f"Setting attributes on an object of type {type(self)} "
+                        "is forbidden at this time; "
+                        f"toggle switch `.freezeattr` to override."
+                        )
+            object.__setattr__(self, name, val)
 
     def __delattr__(self, name, /):
         if name in self._var_slots__:
-            super().__delattr__(name)
-        elif self.freezeattr:
-            raise _FrozenAttributesException(
-                f"Deleting attributes on an object of type {type(self)} "
-                "is forbidden at this time; "
-                f"toggle switch `.freezeattr` to override."
-                )
+            object.__delattr__(self, name)
         else:
-            super().__delattr__(name)
+            try:
+                check = self.freezeattr
+            except AttributeError:
+                pass
+            else:
+                if check:
+                    raise _FrozenAttributesException(
+                        f"Deleting attributes on an object of type {type(self)} "
+                        "is forbidden at this time; "
+                        f"toggle switch `.freezeattr` to override."
+                        )
+            object.__delattr__(self, name)
 
     ### Representations:
 
@@ -242,9 +234,10 @@ class OusiaBase(metaclass=Ousia):
         return self._var_repr()
 
     def __str__(self, /):
-        if (varrepr := self.varrepr):
-            return f"{self.rootrepr}({self.contentrepr}){{{self.varrepr}}}"
-        return f"{self.rootrepr}({self.contentrepr})"
+        out = f"{self.rootrepr}({self.contentrepr})"
+        if self._var_slots__:
+            out += f"{{{self.varrepr}}}"
+        return out
 
     def __repr__(self, /):
         return f"<{self.rootrepr}>"

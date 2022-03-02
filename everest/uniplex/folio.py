@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from .plexon import GroupPlexon as _GroupPlexon, SubPlexon as _SubPlexon
 from .leaf import Leaf as _Leaf
@@ -26,8 +26,12 @@ class FolioLike(_GroupPlexon):
         return self.sub(*args, typ=_Axle, **kwargs)
 
 
-class Folio(_SubPlexon, FolioLike, metaclass=_Ousia):
-    ...
+class Folio(_SubPlexon, FolioLike, metaclass=_Sprite):
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self._ptolemaic_class__.__qualname__
+        self.subs._repr_pretty_(p, cycle, root=root)
 
 
 ###############################################################################

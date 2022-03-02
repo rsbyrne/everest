@@ -3,26 +3,10 @@
 ###############################################################################
 
 
-import weakref as _weakref
-import functools as _functools
-
-from everest.utilities import caching as _caching, Slc as _Slc
-
-from everest.incision import (
-    IncisionProtocol as _IncisionProtocol,
-#     Incisable as _Incisable,
-    )
-
-from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.bythos import Bythos as _Bythos
 
-from .brace import Brace as _Brace
-from .chora import (
-    Chora as _Chora,
-    ChainChora as _ChainChora,
-    Degenerate as _Degenerate,
-    )
+from .chora import Chora as _Chora, ChainChora as _ChainChora
 from .sig import Sig as _Sig
 
 
@@ -53,7 +37,7 @@ class TektonBase(metaclass=Tekton):
 
     class Oid(_ChainChora, metaclass=_Sprite):
 
-        sig: _Chora
+        chora: _Chora
 
         @property
         def subject(self, /):
@@ -61,18 +45,20 @@ class TektonBase(metaclass=Tekton):
 
         @property
         def __incision_manager__(self, /):
-            return self.sig
+            return self.chora
 
         @property
         def __incise_retrieve__(self, /):
-            return self._ptolemaic_class__.owner.instantiate
+            raise NotImplementedError
+            # return self._ptolemaic_class__.owner._retrieve_params
+            # return cls.__construct__(*params.sigargs, **params.sigkwargs)
 
         @property
         def __incise_slyce__(self, /):
             return self._ptolemaic_class__
 
         def __call__(self, /, *args, **kwargs):
-            return self.__incise_retrieve__(self.sig(*args, **kwargs))
+            return self.__incise_retrieve__(self.chora(*args, **kwargs))
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
@@ -81,7 +67,7 @@ class TektonBase(metaclass=Tekton):
 
 
     @classmethod
-    def _make_sig(cls, /):
+    def _get_sig(cls, /):
         try:
             construct = cls.__construct__
         except AttributeError:
@@ -98,13 +84,7 @@ class TektonBase(metaclass=Tekton):
     def __class_init__(cls, /):
         super().__class_init__()
         cls.Oid.register(cls)
-        sig = cls.sig = cls._make_sig()
-        cls.fields = sig.sigfields
         cls.__class_incision_manager__ = cls._make_classspace()
-
-    @classmethod
-    def instantiate(cls, params, /):
-        return cls.__construct__(*params.sigargs, **params.sigkwargs)
 
 
 ###############################################################################

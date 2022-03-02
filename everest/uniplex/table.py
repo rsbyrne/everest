@@ -12,7 +12,7 @@ import numpy as _np
 from everest.utilities import pretty as _pretty, caching as _caching
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ousia import Ousia as _Ousia
+from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from everest.algebraic.intt import Intt as _Intt
 from everest.algebraic.chora import ChainChora as _ChainChora
@@ -30,18 +30,24 @@ class TableLike(_SubPlexon):
     _req_slots__ = (
         '_openslc', 'depth',
         'queue', 'append', 'extend', 'clear',
-        '_shape', 'baseshape', 'opendims', 'appendaxis',
+        '_shape', 'opendims', 'appendaxis',
         )
     _var_slots__ = ('shape', '_shape')
 
-    def __init__(self, /, parent, shape=(), *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
-        if isinstance(shape, tuple):
-            if not shape:
-                shape = (None,)
-        else:
-            shape = (shape,)
-        baseshape = self.baseshape = shape
+    baseshape: tuple
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        bound = super().parameterise(*args, **kwargs)
+        baseshape = bound.arguments['baseshape']
+        if not isinstance(baseshape, tuple):
+            baseshape = (baseshape,)
+        bound.arguments['baseshape'] = baseshape
+        return bound
+
+    def __init__(self, /):
+        super().__init__()
+        baseshape = self.baseshape
         shape = self._shape = \
             tuple(0 if dim is None else dim for dim in baseshape)
         depth = self.depth = len(shape)
@@ -117,10 +123,6 @@ class ArrayLike(metaclass=_Essence):
     def mask(self, /):
         raise NotImplementedError
 
-    @property
-    def dtype(self, /):
-        return self.data.dtype
-
     def __setitem__(self, key, val, /):
         if isinstance(key, str):
             super().__setitem__(key, val)
@@ -134,17 +136,25 @@ class ArrayLike(metaclass=_Essence):
         else:
             self.mask[indices] = False
 
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self._ptolemaic_class__.__qualname__
+        _pretty.pretty_array(self.data, p, cycle, root=root)
 
-class Table(_ChainChora, ArrayLike, TableLike, metaclass=_Ousia):
+
+class Table(_ChainChora, ArrayLike, TableLike, metaclass=_Sprite):
 
 
     MROCLASSES = ('Slyce',)
     _req_slots__ = ('_data', '_mask')
 
-    def __init__(self, /, parent, shape=(), dtype=float, *args, **kwargs):
-        super().__init__(parent, shape, *args, **kwargs)
+    baseshape: tuple = (None,)
+    dtype: object = float
+
+    def __init__(self, /):
+        super().__init__()
         shape = self.shape
-        self._data = _np.empty(shape, dtype)
+        self._data = _np.empty(shape, self.dtype)
         self._mask = _np.empty(shape, bool)
 
     @property
@@ -174,20 +184,11 @@ class Table(_ChainChora, ArrayLike, TableLike, metaclass=_Ousia):
     def __incise_slyce__(self, incisor, /):
         return self.Slyce(self, incisor)
 
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self._ptolemaic_class__.__qualname__
-        root += f"(shape={self.shape}, dtype={self.dtype})"
-        _pretty.pretty_array(self.data, p, cycle, root=root)
 
+    class Slyce(ArrayLike, _ChainChora, metaclass=_Sprite):
 
-    class Slyce(ArrayLike, _ChainChora, metaclass=_Ousia):
-
-        _req_slots__ = ('source', 'incisor')
-
-        def __init__(self, /, source, incisor):
-            super().__init__()
-            self.source, self.incisor = source, incisor
+        source: object
+        incisor: object
 
         @property
         def __incision_manager__(self, /):
@@ -217,18 +218,10 @@ class Table(_ChainChora, ArrayLike, TableLike, metaclass=_Ousia):
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
                 root = self._ptolemaic_class__.__qualname__
-            with p.group(4, root + '(', ')'):
-                p.breakable()
-                p.text(f"source = {repr(self.source)}")
-                p.text(',')
-                p.breakable()
-                p.text("incisor = ")
-                self.incisor._repr_pretty_(p, cycle)
-                p.text(',')
-                p.breakable()
-                p.text("data = ")
-                _pretty.pretty_array(self.data, p, cycle)
-                p.breakable()
+            kwargs = {**self.params}
+            kwargs['source'] = repr(kwargs['source'])
+            kwargs['data'] = self.data
+            _pretty.pretty_kwargs(kwargs, p, cycle, root=root)
 
 
 ###############################################################################

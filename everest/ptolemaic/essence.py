@@ -7,9 +7,8 @@ import abc as _abc
 import itertools as _itertools
 import more_itertools as _mitertools
 import weakref as _weakref
-import operator as _operator
 import types as _types
-import collections as _collections
+import inspect as _inspect
 
 from everest.utilities import (
     caching as _caching,
@@ -503,6 +502,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __call__(cls, /):
         return cls.__class_call__
 
+    @property
+    def __signature__(cls, /):
+        return cls.sig
+
+    @property
+    @_caching.soft_cache()
+    def sig(cls, /):
+        return cls._get_sig()
+
     ### Methods relating to class serialisation:
 
     @property
@@ -578,6 +586,10 @@ class EssenceBase(metaclass=Essence):
     @classmethod
     def __class_call__(cls, /, *_, **__):
         raise NotImplementedError
+
+    @classmethod
+    def _get_sig(cls, /):
+        return _inspect.signature(cls.__class_call__)
 
     @classmethod
     def __class_init__(cls, /):
