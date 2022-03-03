@@ -65,6 +65,41 @@ class Thing(_Fundament, metaclass=_Bythos):
                         tuple(incisor)
                         ]
 
+        def __truediv__(self, arg, /):
+            return _Brace[self.__incise_trivial__(), arg]
+
+        def __rtruediv__(self, arg, /):
+            return _Brace[arg, self.__incise_trivial__()]
+
+        def __floordiv__(self, arg, /):
+            return NotImplemented
+
+        def __rfloordiv__(self, arg, /):
+            return NotImplemented
+
+        def __mod__(self, arg, /):
+            return _Brace.Oid.SymForm(self.__incise_trivial__(), arg)
+
+        def __rmod__(self, arg, /):
+            return NotImplemented
+
+        def __matmul__(self, arg, /):
+            return NotImplemented
+
+        def __rmatmul__(self, arg, /):
+            return NotImplemented
+
+
+    for methname in ('truediv', 'floordiv', 'mod', 'matmul'):
+        for prefix in ('', 'r'):
+            exec('\n'.join((
+                f"@classmethod",
+                f"def __class_{prefix}{methname}__(cls, /, *args, **kwargs):",
+                (f"    return cls.__class_incision_manager__"
+                     f".__{prefix}{methname}__(*args, **kwargs)"),
+                )))
+    del methname, prefix
+
 
 _ = Thing.register(_Primitive)
 _ = Thing.register(_Essence)

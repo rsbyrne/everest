@@ -49,10 +49,22 @@ class Number(_Fundament):
         def __mroclass_init__(cls, /):
             for attr in ('pytyp', 'nptyp', 'convtyp', 'comptyp'):
                 setattr(cls, attr, getattr(cls.owner, attr))
+            cls.dtype = cls.convtyp
             super().__mroclass_init__()
 
-        # def __incise_retrieve__(self, incisor, /):
-        #     return self._ptolemaic_class__.owner.convtyp(incisor)
+        class Brace(metaclass=_Essence):
+
+            class Oid(metaclass=_Essence):
+
+                @classmethod
+                def __mroclass_init__(cls, /):  # vvv UGLY!
+                    try:
+                        for attr in ('pytyp', 'nptyp', 'convtyp', 'comptyp'):
+                            setattr(cls, attr, getattr(cls.owner, attr))
+                        cls.dtype = cls.convtyp
+                    except AttributeError:
+                        pass
+                    super().__mroclass_init__()
 
         class Space(metaclass=_Essence):
 

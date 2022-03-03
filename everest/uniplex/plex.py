@@ -6,7 +6,7 @@
 import os as _os
 import weakref as _weakref
 
-from everest.utilities import caching as _caching
+from everest.utilities import caching as _caching, pretty as _pretty
 from everest.utilities.file import H5File as _H5File
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -41,7 +41,7 @@ class Plex(_FolioLike, metaclass=_Sprite):
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self._ptolemaic_class__.__qualname__
-        self.subs._repr_pretty_(p, cycle, root=root)
+        _pretty.pretty_kwargs(self.subs, p, cycle, root=root)
 
 
 GLOBALPLEX = Plex('default')

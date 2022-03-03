@@ -37,7 +37,7 @@ class SchemaBase(metaclass=_Sprite):
             self._plex_ = val
 
     @property
-    def folio(self, /):
+    def plexon(self, /):
         return self.plex.folio(self.hashID)
 
 

@@ -3,6 +3,8 @@
 ###############################################################################
 
 
+from everest.utilities import misc as _misc
+
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     IncisionHandler as _IncisionHandler,
@@ -10,6 +12,14 @@ from everest.incision import (
     )
 
 from .essence import Essence as _Essence
+
+
+_INCISIONMETHS_ = (
+    'incise', 'incise_trivial', 'incise_retrieve', 'incise_slyce', 'incise_fail',
+    'incise_degenerate', 'incise_empty', 'incise_contains', 'incise_includes',
+    'incise_length', 'incise_iter', 'incision_manager',
+    'armature_brace', 'armature_truss', 'armature_generic', 'armature_variable',
+    )
 
 
 @_Incisable.register
@@ -34,69 +44,22 @@ class Bythos(_Essence):
     def __iter__(cls, /):
         return _IncisionProtocol.ITER(cls)
 
-    ### Incision protocol:
-
-    @property
-    def __incision_manager__(cls, /):
-        return cls.__class_incision_manager__
-
-    @property
-    def __incise__(cls, /):
-        return cls.__class_incise__
-
-    @property
-    def __incise_trivial__(cls, /):
-        return cls.__class_incise_trivial__
-
-    @property
-    def __incise_retrieve__(cls, /):
-        return cls.__class_incise_retrieve__
-
-    @property
-    def __incise_slyce__(cls, /):
-        return cls.__class_incise_slyce__
-
-    @property
-    def __incise_fail__(cls, /):
-        return cls.__class_incise_fail__
-
-    @property
-    def __incise_degenerate__(cls, /):
-        return cls.__class_incise_degenerate__
-
-    @property
-    def __incise_empty__(cls, /):
-        return cls.__class_incise_empty__
-
-    @property
-    def __incise_contains__(cls, /):
-        return cls.__class_incise_contains__
-
-    @property
-    def __incise_includes__(cls, /):
-        return cls.__class_incise_includes__
-
-    @property
-    def __incise_length__(cls, /):
-        return cls.__class_incise_length__
-
-    @property
-    def __incise_iter__(cls, /):
-        return cls.__class_incise_iter__
-
-    ### Armature protocol:
-
-    @property
-    def __armature_brace__(cls, /):
-        return cls.__class_armature_brace__
-
-    @property
-    def __armature_generic__(cls, /):
-        return cls.__class_armature_generic__
-
-    @property
-    def __armature_variable__(cls, /):
-        return cls.__class_armature_variable__
+    for methname in (*_misc.ARITHMOPS, *_misc.REVOPS):
+        exec('\n'.join((
+            f"def __{methname}__(cls, /, *args, **kwargs):",
+            f"    try:",
+            f"        meth = cls.__class_{methname}__",
+            f"    except AttributeError:",
+            f"        return NotImplemented",
+            f"    return meth(*args, **kwargs)",
+            )))
+    for methname in _INCISIONMETHS_:
+        exec('\n'.join((
+            f"@property",
+            f"def __{methname}__(cls, /):",
+            f"    return cls.__class_{methname}__",
+            )))
+    del methname
 
 
 class BythosBase(metaclass=Bythos):

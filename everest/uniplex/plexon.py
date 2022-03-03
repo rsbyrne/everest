@@ -10,10 +10,7 @@ from everest.utilities import pretty as _pretty
 from everest.primitive import Primitive as _Primitive
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.namespace import (
-    Namespace as _Namespace,
-    WeakNamespace as _WeakNamespace,
-    )
+from everest.ptolemaic.namespace import Namespace as _Namespace
 
 
 class Attrs(_Namespace):
@@ -52,44 +49,25 @@ class SubPlexon(Plexon):
         return self.parent.plex
 
 
-class Subs(_WeakNamespace):
-
-    _req_slots__ = ('owner',)
-
-    def __init__(self, owner, /):
-        super().__init__()
-        self.owner = _weakref.proxy(owner)
-
-    def _set_val(self, name, val, /):
-        if name in self:
-            raise ValueError(name)
-        if isinstance(val, SubPlexon):
-            if val.parent != self.owner:
-                raise ValueError(val)
-            super()._set_val(name, val)
-        else:
-            raise TypeError(type(val))
-
-
 class GroupPlexon(Plexon):
 
     _req_slots__ = ('subs',)
 
     def __init__(self, /):
         super().__init__()
-        self.subs = Subs(self)
+        self.subs = _weakref.WeakValueDictionary()
 
     def sub(self, /, name, *args, typ, **kwargs):
         if not issubclass(typ, SubPlexon):
             raise TypeError(typ)
         subs = self.subs
         try:
-            out = getattr(subs, name)
-        except AttributeError:
-            out = typ(self, *args, **kwargs)
-            setattr(self.subs, name, out)
+            out = subs[name]
+        except KeyError:
+            out = self.subs[name] = typ(self, *args, **kwargs)
         else:
             if not isinstance(out, typ):
+                print(out)
                 raise TypeError(type(out))
         return out
 

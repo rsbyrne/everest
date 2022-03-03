@@ -28,11 +28,12 @@ class Truss(_Brace):
             @property
             @_caching.soft_cache()
             def shape(self, /):
-                return tuple(chora.depth for chora in self.choras)
+                return tuple(chora.shape for chora in self.choras)
 
     @property
+    @_caching.soft_cache()
     def shape(self, /):
-        return (self.depth,)
+        return tuple(member.shape for member in self)
 
 
 ###############################################################################

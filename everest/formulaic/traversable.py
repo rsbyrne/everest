@@ -39,10 +39,6 @@ class Traversable(_ChainChora, metaclass=_Schema):
     solver: object
 
     @property
-    def schematic(self, /):
-        return self
-
-    @property
     def __incision_manager__(self, /):
         return _Brace[_Kwargs({
             key: val for key, val in self.params.items()
@@ -51,33 +47,23 @@ class Traversable(_ChainChora, metaclass=_Schema):
 
     def __incise_slyce__(self, incisor: _Brace.Oid, /):
         cs, st, ix = incisor.choras
-        schematic = self.schematic
         if incisor.active == (False, False, True):
-            case = schematic.Instruments.Case(schematic, cs.retrieve())
-            line = schematic.Instruments.Line(case, st.retrieve())
-            return schematic.Instruments.Traverse(line, ix)
-        return schematic.Instruments.Slyce(incisor)
+            case = self.Instruments.Case(self, cs.retrieve())
+            line = self.Instruments.Line(case, st.retrieve())
+            return self.Instruments.Traverse(line, ix)
+        return self.Instruments.Slyce(incisor)
 
     def __incise_retrieve__(self, incisor: _Brace, /):
         cs, st, ix = incisor
-        schematic = self.schematic
-        case = schematic.Instruments.Case(schematic = cs)
-        line = schematic.Instruments.Line(case, st)
-        return schematic.Instruements.Line(line, ix)
-
-    # def _repr_pretty_(self, p, cycle, root=None):
-    #     if root is None:
-    #         root = self._ptolemaic_class__.__qualname__
-    #     p.text(f'{root}({self.hashID})')
+        case = self.Instruments.Case(self, cs)
+        line = self.Instruments.Line(case, st)
+        return self.Instruements.Line(line, ix)
 
 
     class Instruments(metaclass=_Sprite):
 
-        SUBCLASSES = ('Slyce', 'Case', 'Line', 'Traverse', 'Stage')
 
-        @property
-        def folio(self, /):
-            return self.schematic.folio
+        SUBCLASSES = ('Slyce', 'Case', 'Line', 'Traverse', 'Stage')
 
 
         class Slyce(_ChainChora, metaclass=_Essence):
@@ -108,14 +94,17 @@ class Traversable(_ChainChora, metaclass=_Schema):
                 return self.data
 
             @property
-            def folio(self, /):
-                return self.schematic.folio.folio(self.hashID)
+            @_caching.soft_cache()
+            def plexon(self, /):
+                return self.schematic.plexon.folio(self.hashID)
 
 
         class Line(_ChainChora, metaclass=_Essence):
 
             case: 'owner.Instruments.Case'
             initial: object
+
+            _req_slots__ = ('indextable', 'statetable')
 
             @property
             def schematic(self, /):
@@ -132,16 +121,18 @@ class Traversable(_ChainChora, metaclass=_Schema):
                 return self.schematic.Instruments.Stage(self, incisor)
 
             @property
-            def folio(self, /):
-                return self.case.folio.folio(self.hashID)
-
-            @property
-            def data(self, /):
-                axle = self.folio.axle(self.hashID)
-                return (
-                    axle.table('index', dtype=float),
-                    axle.table('state', dtype=float),
-                    )
+            @_caching.soft_cache()
+            def plexon(self, /):
+                sup = self.case.plexon
+                axle = sup.axle(self.hashID)
+                indexspace = self.schematic.indexspace
+                statespace = self.schematic.statespace
+                with self.mutable:
+                    self.indextable = \
+                        axle.table('index', (), dtype=indexspace.dtype)
+                    self.statetable = \
+                        axle.table('state', statespace.shape, statespace.dtype)
+                return axle
 
 
         class Traverse(_ChainChora, metaclass=_Essence):
@@ -211,3 +202,13 @@ class Traversable(_ChainChora, metaclass=_Schema):
 #     class Metric(metaclass=_Eidos):
 
 #         chron: _Floatt
+
+
+
+    # _req_slots__ = ('outspace',)
+
+    # def __init__(self, /):
+    #     super().__init__()
+    #     self.outspace = _Brace[_Kwargs(
+    #         index=self.indexspace, state=self.statespace
+    #         )]

@@ -4,7 +4,6 @@
 
 
 import itertools as _itertools
-from collections import abc as _collabc
 import types as _types
 
 from everest.incision import (
@@ -50,13 +49,11 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
         owner = cls.basememberspace = cls.owner
         super().__mroclass_init__()
         cls.__class_incision_manager__ = cls.Oid.OpenForm(owner)
-        # owner.Brace = cls
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         cls.__class_incision_manager__ = cls.Oid.OpenForm(_AllSlyce)
-        # cls._add_mroclass('Slyce')
 
     @classmethod
     def __class_call__(cls, truecontent, labels=None):
@@ -105,10 +102,6 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
     def shape(self, /):
         return (len(self.labels),)
 
-    # @property
-    # def __incise_index__(self, /):
-    #     return self.content.index
-
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self._ptolemaic_class__.__qualname__
@@ -155,29 +148,6 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
         class OpenForm(_Choric, metaclass=_Sprite):
 
             chora: _Chora
-
-            # @classmethod
-            # def __class_call__(cls, chora):
-            #     # elif not (
-            #     #         _IncisionProtocol.INCLUDES(cls.basememberspace)
-            #     #         (chora)
-            #     #         ):
-            #     #     raise TypeError(cls, cls.basememberspace, chora)
-            #     print('-' * 3)
-            #     print(repr(cls))
-            #     print(repr(chora))
-            #     try:
-            #         print(repr(_ArmatureProtocol.BRACE(chora)))
-            #     except Exception as exc:
-            #         print(exc)
-            #     print(repr(cls.owner))
-            #     typ = (
-            #         _ArmatureProtocol.BRACE(chora, cls.owner)
-            #         .Oid.OpenForm
-            #         )
-            #     if typ is cls:
-            #         return super().__class_call__(chora)
-            #     return typ(chora)
 
             @property
             def memberspace(self, /):
@@ -230,9 +200,7 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
                     p.text(root + '{...}')
                     return
                 with p.group(4, root + '(', ')'):
-                    # p.breakable()
                     self.chora._repr_pretty_(p, cycle)
-                    # p.breakable()
 
 
         class SymForm(_Choric, metaclass=_Sprite):
@@ -242,8 +210,6 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
             @classmethod
             def __class_call__(cls, chora, labels):
-                # if not cls.basememberspace.__includes__(chora):
-                #     raise ValueError(cls, cls.basememberspace, chora)
                 labels = cls.process_labels(labels)
                 typ = (
                     _ArmatureProtocol.BRACE(chora, cls.owner)
@@ -297,6 +263,30 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
                     self.labels._repr_pretty_(p, cycle)
                     p.breakable()
 
+            def __truediv__(self, arg, /):
+                return Brace[(*self.choras, arg)]
+
+            def __rtruediv__(self, arg, /):
+                return Brace[(arg, *self.choras)]
+
+            def __floordiv__(self, arg, /):
+                return Brace[self, arg]
+
+            def __rfloordiv__(self, arg, /):
+                return Brace[arg, self]
+
+            def __mod__(self, arg, /):
+                return Brace.Oid.SymForm(self.chora, self.depth + arg)
+
+            def __rmod__(self, arg, /):
+                return NotImplemented
+
+            def __matmul__(self, arg, /):
+                return Brace.Oid.SymForm(self, arg)
+
+            def __rmatmul__(self, arg, /):
+                return NotImplemented
+
 
         class AsymForm(_Choric, metaclass=_Sprite):
 
@@ -305,9 +295,6 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
             @classmethod
             def __class_call__(cls, truechoras, labels=None):
-                # checker = _IncisionProtocol.INCLUDES(cls.basememberspace)
-                # if not all(map(checker, choras)):
-                #     raise ValueError(cls.owner, cls.basememberspace, choras)
                 labels = cls.process_labels(
                     len(truechoras) if labels is None else labels
                     )
@@ -357,8 +344,37 @@ class Brace(_Fundament, _ChainChora, metaclass=_Sprite):
 
             def _repr_pretty_(self, p, cycle, root=None):
                 if root is None:
-                    root = self._ptolemaic_class__.owner.__qualname__
+                    root = self._ptolemaic_class__.__qualname__
                 _pretty.pretty(self.asdict(), p, cycle, root=root)
+
+            def __truediv__(self, arg, /):
+                return Brace[(*self.choras, arg)]
+
+            def __rtruediv__(self, arg, /):
+                return Brace[(arg, *self.choras)]
+
+            def __floordiv__(self, arg, /):
+                return Brace[self, arg]
+
+            def __rfloordiv__(self, arg, /):
+                return Brace[arg, self]
+
+            def __mod__(self, arg, /):
+                return Brace[tuple(
+                    _itertools.chain.from_iterable(
+                        _itertools.repeat(self.choras, arg)
+                        )
+                    )]
+
+            def __rmod__(self, arg, /):
+                return NotImplemented
+
+            def __matmul__(self, arg, /):
+                return Brace.Oid.SymForm(self, arg)
+
+            def __rmatmul__(self, arg, /):
+                return NotImplemented
+
 
 
 ###############################################################################
