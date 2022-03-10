@@ -44,11 +44,11 @@ class Thing(_Fundament, metaclass=_Bythos):
 
         @property
         def __armature_brace__(self, /):
-            return self._ptolemaic_class__.owner.Oid.Brace
+            return self._ptolemaic_class__.owner.Oid.Brace.Oid
 
         @property
         def __armature_truss__(self, /):
-            return self._ptolemaic_class__.owner.Oid.Truss
+            return self._ptolemaic_class__.owner.Oid.Truss.Oid
 
         class Space(_Choric, metaclass=_Sprite):
 
@@ -71,26 +71,20 @@ class Thing(_Fundament, metaclass=_Bythos):
         def __rtruediv__(self, arg, /):
             return _Brace[arg, self.__incise_trivial__()]
 
-        def __floordiv__(self, arg, /):
+        def __sub__(self, arg, /):
             return NotImplemented
 
-        def __rfloordiv__(self, arg, /):
+        def __rsub__(self, arg, /):
             return NotImplemented
 
         def __mod__(self, arg, /):
-            return _Brace.Oid.SymForm(self.__incise_trivial__(), arg)
+            return _Brace.Oid(self.__incise_trivial__(), arg)
 
         def __rmod__(self, arg, /):
             return NotImplemented
 
-        def __matmul__(self, arg, /):
-            return NotImplemented
 
-        def __rmatmul__(self, arg, /):
-            return NotImplemented
-
-
-    for methname in ('truediv', 'floordiv', 'mod', 'matmul'):
+    for methname in ('truediv', 'sub', 'mod'):
         for prefix in ('', 'r'):
             exec('\n'.join((
                 f"@classmethod",

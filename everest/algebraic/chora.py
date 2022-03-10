@@ -551,9 +551,9 @@ class Multi(Basic):
                 self.labels,
                 ))
         if len(set(choras)) == 1:
-            slyce = self.bound.SymForm(choras[0], self.labels)
+            slyce = self.bound._ptolemaic_class__(choras[0], self.labels)
         else:
-            slyce = self.bound.AsymForm(choras, self.labels)
+            slyce = self.bound._ptolemaic_class__(choras, self.labels)
         return _IncisionProtocol.SLYCE(caller)(slyce)
 
     def yield_mapping_multiincise(self, incisors: _collabc.Mapping, /):

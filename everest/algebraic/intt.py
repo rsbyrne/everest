@@ -51,7 +51,8 @@ def _build_oids(Intt, ns, /):
         def parameterise(cls, /, *args, **kwargs):
             bound = super().parameterise(*args, **kwargs)
             bound.arguments.update({
-                key: cls.owner.pytyp(val) for key, val in bound.arguments.items()
+                key: cls.owner.pytyp(val)
+                for key, val in bound.arguments.items()
                 })
             if bound.arguments['step'] < 1:
                 raise ValueError
@@ -64,7 +65,9 @@ def _build_oids(Intt, ns, /):
                     return _nth(self.bound, incisor)
                 raise IndexError
 
-            def bounds_slyce_open(self, incisor: ('owner.comptyp', type(None)), /):
+            def bounds_slyce_open(self,
+                    incisor: ('owner.comptyp', type(None)), /
+                    ):
                 lower = incisor.lower
                 if lower == 0:
                     raise _TrivialException
@@ -75,7 +78,9 @@ def _build_oids(Intt, ns, /):
                     self.bound.step,
                     )
 
-            def bounds_slyce_limit(self, incisor: (type(None), 'owner.comptyp'), /):
+            def bounds_slyce_limit(self,
+                    incisor: (type(None), 'owner.comptyp'), /
+                    ):
                 lower = self.bound.lower
                 upper = incisor.upper
                 if upper == 0:
@@ -86,7 +91,9 @@ def _build_oids(Intt, ns, /):
                     lower, lower + upper, self.bound.step
                     )
 
-            def bounds_slyce_closed(self, incisor: ('owner.comptyp', 'owner.comptyp'), /):
+            def bounds_slyce_closed(self,
+                    incisor: ('owner.comptyp', 'owner.comptyp'), /
+                    ):
                 lower, upper = incisor.lower, incisor.upper
                 if upper <= lower:
                     return self.bound._ptolemaic_class__.owner.Empty
@@ -147,7 +154,8 @@ def _build_oids(Intt, ns, /):
         def parameterise(cls, /, *args, **kwargs):
             bound = super().parameterise(*args, **kwargs)
             bound.arguments.update({
-                key: cls.owner.pytyp(val) for key, val in bound.arguments.items()
+                key: cls.owner.pytyp(val)
+                for key, val in bound.arguments.items()
                 })
             return bound
 
@@ -158,14 +166,18 @@ def _build_oids(Intt, ns, /):
                     return self.bound.upper + incisor
                 raise IndexError
 
-            def bounds_slyce_open(self, incisor: ('owner.comptyp', type(None)), /):
+            def bounds_slyce_open(self,
+                    incisor: ('owner.comptyp', type(None)), /
+                    ):
                 lower, upper = incisor.lower, self.bound.upper
                 if lower >= 0:
                     raise IndexError
                 lower = upper + lower
                 return self.bound.Closed(lower, upper)
 
-            def bounds_slyce_limit(self, incisor: (type(None), 'owner.comptyp'), /):
+            def bounds_slyce_limit(self,
+                    incisor: (type(None), 'owner.comptyp'), /
+                    ):
                 upper = incisor.upper
                 if upper >= 0:
                     raise IndexError
@@ -173,7 +185,9 @@ def _build_oids(Intt, ns, /):
                     self.bound.upper + upper
                     )
 
-            def bounds_slyce_closed(self, incisor: ('owner.comptyp', 'owner.comptyp'), /):
+            def bounds_slyce_closed(self,
+                    incisor: ('owner.comptyp', 'owner.comptyp'), /
+                    ):
                 lower, upper = incisor.lower, incisor.upper
                 if upper >= 0:
                     raise IndexError
@@ -217,7 +231,8 @@ def _build_oids(Intt, ns, /):
         def parameterise(cls, /, *args, **kwargs):
             bound = super().parameterise(*args, **kwargs)
             bound.arguments.update({
-                key: cls.owner.pytyp(val) for key, val in bound.arguments.items()
+                key: cls.owner.pytyp(val)
+                for key, val in bound.arguments.items()
                 })
             return bound
 
@@ -239,7 +254,11 @@ def _build_oids(Intt, ns, /):
                 return self.bound._rangeobj[incisor]
 
             def bounds_handle_any(self,
-                    incisor: ((type(None), 'owner.comptyp'), (type(None), 'owner.comptyp')), /, *, caller
+                    incisor: (
+                        (type(None), 'owner.comptyp'),
+                        (type(None), 'owner.comptyp')
+                        ),
+                    /, *, caller
                     ):
                 oldr = self.bound._rangeobj
                 newr = oldr[slice(*incisor)]
@@ -332,7 +351,7 @@ class Intt(_Number, _Thing):
 
             class Oid(metaclass=_Essence):
 
-                class SymForm(metaclass=_Essence):
+                class Symmetric(metaclass=_Essence):
 
                     @property
                     def arrayquery(self, /):
@@ -340,7 +359,7 @@ class Intt(_Number, _Thing):
                             chora.arrayquery for chora in self.choras
                             )
 
-                class AsymForm(metaclass=_Essence):
+                class Asymmetric(metaclass=_Essence):
 
                     @property
                     def arrayquery(self, /):

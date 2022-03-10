@@ -15,10 +15,12 @@ from .essence import Essence as _Essence
 
 
 _INCISIONMETHS_ = (
-    'incise', 'incise_trivial', 'incise_retrieve', 'incise_slyce', 'incise_fail',
-    'incise_degenerate', 'incise_empty', 'incise_contains', 'incise_includes',
-    'incise_length', 'incise_iter', 'incision_manager',
-    'armature_brace', 'armature_truss', 'armature_generic', 'armature_variable',
+    'incise', 'incise_trivial', 'incise_retrieve',
+    'incise_slyce', 'incise_fail',
+    'incise_degenerate', 'incise_empty', 'incise_contains',
+    'incise_includes', 'incise_length', 'incise_iter', 'incision_manager',
+    'armature_brace', 'armature_truss',
+    'armature_generic', 'armature_variable',
     )
 
 

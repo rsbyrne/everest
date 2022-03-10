@@ -16,14 +16,14 @@ class Truss(_Brace):
 
     class Oid(metaclass=_Essence):
 
-        class SymForm(metaclass=_Essence):
+        class Symmetric(metaclass=_Essence):
 
             @property
             @_caching.soft_cache()
             def shape(self, /):
                 return tuple(_itertools.repeat(self.chora.depth, self.depth))
 
-        class AsymForm(metaclass=_Essence):
+        class Asymmetric(metaclass=_Essence):
 
             @property
             @_caching.soft_cache()
