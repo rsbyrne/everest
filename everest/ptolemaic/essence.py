@@ -16,6 +16,7 @@ from everest.utilities import (
     reseed as _reseed,
     FrozenMap as _FrozenMap,
     RestrictedNamespace as _RestrictedNamespace,
+    misc as _misc,
     )
 from everest.ur import Dat as _Dat
 
@@ -257,7 +258,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def owners(cls, _default=(), /):
-        return cls.__dict__.get('_ptolemaic_owners', _default)
+        return cls._ptolemaic_class__.__dict__.get('_ptolemaic_owners', _default)
 
     @property
     def owner(cls, /):
@@ -531,6 +532,27 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @_caching.soft_cache()
     def epitaph(cls, /):
         return cls._ptolemaic_class__.get_clsepitaph()
+
+    ### Operations:
+
+    for methname in (*_misc.ARITHMOPS, *_misc.REVOPS):
+        exec('\n'.join((
+            f"def __{methname}__(cls, /, *args, **kwargs):",
+            f"    try:",
+            f"        meth = cls.__class_{methname}__",
+            f"    except AttributeError:",
+            f"        return NotImplemented",
+            f"    return meth(*args, **kwargs)",
+            )))
+    for methname in ('__contains__', '__len__', '__iter__'):
+        exec('\n'.join((
+            f"def __{methname}__(cls, /, *args, **kwargs):",
+            f"    return cls.__class_{methname}__(*args, **kwargs)",
+            )))
+    del methname
+
+    def __bool__(cls, /):
+        return True
 
     ### Representations:
 

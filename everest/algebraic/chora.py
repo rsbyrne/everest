@@ -154,6 +154,48 @@ class Chora(_PseudoIncisable, metaclass=_Essence):
             return False
         return super().__subclasshook__(ACls)
 
+    def __mod__(self, arg, /):
+        return _ArmatureProtocol.BRACE(self)(
+            _IncisionProtocol.TRIVIAL(self)(),
+            arg,
+            )
+
+    def __rmod__(self, arg, /):
+        return NotImplemented
+
+    def __matmul__(self, arg, /):
+        return Composition(
+            _IncisionProtocol.TRIVIAL(self)(),
+            arg,
+            )
+
+    def __rmatmul__(self, arg, /):
+        return NotImplemented
+
+
+class Composition(Chora, metaclass=_Sprite):
+
+    fobj: Chora
+    gobj: Chora
+
+    @property
+    def __incise__(self, /):
+        return _IncisionProtocol.INCISE(self.gobj)
+
+    def __incise_trivial__(self, /):
+        return self
+
+    def __incise_slyce__(self, incisor, /):
+        return type(self)(
+            self.fobj,
+            _IncisionProtocol.SLYCE(self.gobj)(incisor),
+            )
+
+    def __incise_retrieve__(self, incisor, /):
+        return self.fobj[
+            _IncisionProtocol.RETRIEVE(self.gobj)(incisor)
+            ]
+
 
 class Degenerator(_ChainIncisable, metaclass=_Sprite):
 
@@ -429,37 +471,6 @@ class Slyce(Basic, Chora, _IncisionHandler):
         return super().__incise__(self.chora[incisor], caller=caller)
 
 
-class Composition(_Incisable, metaclass=_Sprite):
-
-    fobj: Chora
-    gobj: Chora
-
-    @property
-    def __incise__(self, /):
-        return _IncisionProtocol.INCISE(self.gobj)
-
-    def __incise_trivial__(self, /):
-        return self
-
-    def __incise_slyce__(self, incisor, /):
-        return type(self)(
-            self.fobj,
-            _IncisionProtocol.SLYCE(self.gobj)(incisor),
-            )
-
-    def __incise_retrieve__(self, incisor, /):
-        return self.fobj[
-            _IncisionProtocol.RETRIEVE(self.gobj)(incisor)
-            ]
-
-
-class Composable(Basic):
-
-    def slyce_compose(self, incisor: _Incisable, /):
-        '''Returns the composition of two choras, i.e. f(g(x)).'''
-        return Composition(self.bound, incisor)
-
-
 class Sliceable(Basic):
 
     MULTICHANNELS = (('slice', slice),)
@@ -551,9 +562,9 @@ class Multi(Basic):
                 self.labels,
                 ))
         if len(set(choras)) == 1:
-            slyce = self.bound._ptolemaic_class__(choras[0], self.labels)
+            slyce = self.bound.symmetric(choras[0], self.labels)
         else:
-            slyce = self.bound._ptolemaic_class__(choras, self.labels)
+            slyce = self.bound.asymmetric(choras, self.labels)
         return _IncisionProtocol.SLYCE(caller)(slyce)
 
     def yield_mapping_multiincise(self, incisors: _collabc.Mapping, /):
@@ -601,6 +612,7 @@ class Multi(Basic):
                     continue
                 while True:
                     chora = next(chorait)
+                    assert isinstance(chora, _Incisable), (self, chora)
                     if isinstance(chora, Degenerate):
                         yield chora
                         continue

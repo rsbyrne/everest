@@ -43,7 +43,7 @@ class Number(_Fundament):
 
     class Oid(metaclass=_Essence):
 
-        SUBCLASSES = ('Open', 'Limit', 'Closed')
+        SUBCLASSES = ('UpperBound', 'LowerBound', 'DoubleBound')
 
         @classmethod
         def __mroclass_init__(cls, /):
@@ -52,7 +52,15 @@ class Number(_Fundament):
             cls.dtype = cls.convtyp
             super().__mroclass_init__()
 
+
+        @classmethod
+        def __class_init__(cls, /):
+            super().__class_init__()
+            cls.UnBound = cls.Space
+
+
         class Brace(metaclass=_Essence):
+
 
             class Oid(metaclass=_Essence):
 
@@ -66,30 +74,32 @@ class Number(_Fundament):
                         pass
                     super().__mroclass_init__()
 
+
         class Space(metaclass=_Essence):
+
 
             class __choret__(_Sampleable):
 
                 def retrieve_iscomparable(self, incisor: 'owner.comptyp', /):
                     return self._ptolemaic_class__.owner.convtyp(incisor)
 
-                def bounds_slyce_open(self,
+                def bounds_slyce_lower(self,
                         incisor: ('owner.comptyp', type(None)), /
                         ):
-                    return self.bound.Open(incisor.lower)
+                    return self.bound.LowerBound(incisor.lower)
 
-                def bounds_slyce_limit(self,
+                def bounds_slyce_upper(self,
                         incisor: (type(None), 'owner.comptyp'), /
                         ):
-                    return self.bound.Limit(incisor.upper)
+                    return self.bound.UpperBound(incisor.upper)
 
-                def bounds_slyce_closed(self,
+                def bounds_slyce_double(self,
                         incisor: ('owner.comptyp', 'owner.comptyp'), /
                         ):
                     lower, upper = incisor.lower, incisor.upper
                     if upper <= lower:
                         return self.bound._ptolemaic_class__.owner.Empty
-                    return self.bound.Closed(lower, upper)
+                    return self.bound.DoubleBound(lower, upper)
 
         # class Brace(metaclass=_Essence):
 

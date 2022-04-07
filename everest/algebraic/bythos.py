@@ -3,15 +3,15 @@
 ###############################################################################
 
 
-from everest.utilities import misc as _misc
-
 from everest.incision import (
     IncisionProtocol as _IncisionProtocol,
     IncisionHandler as _IncisionHandler,
     Incisable as _Incisable,
     )
 
-from .essence import Essence as _Essence
+from everest.ptolemaic.essence import Essence as _Essence
+
+from .chora import Chora as _Chora
 
 
 _INCISIONMETHS_ = (
@@ -25,6 +25,7 @@ _INCISIONMETHS_ = (
 
 
 @_Incisable.register
+@_Chora.register
 class Bythos(_Essence):
 
     @property
@@ -39,29 +40,24 @@ class Bythos(_Essence):
     def __len__(cls, /):
         return _IncisionProtocol.LENGTH(cls)
 
-    def __bool__(cls, /):
-        return True
-
     @property
     def __iter__(cls, /):
         return _IncisionProtocol.ITER(cls)
 
-    for methname in (*_misc.ARITHMOPS, *_misc.REVOPS):
-        exec('\n'.join((
-            f"def __{methname}__(cls, /, *args, **kwargs):",
-            f"    try:",
-            f"        meth = cls.__class_{methname}__",
-            f"    except AttributeError:",
-            f"        return NotImplemented",
-            f"    return meth(*args, **kwargs)",
-            )))
     for methname in _INCISIONMETHS_:
         exec('\n'.join((
             f"@property",
             f"def __{methname}__(cls, /):",
             f"    return cls.__class_{methname}__",
             )))
-    del methname
+    for methname in ('mod', 'matmul'):
+        for prefix in ('', 'r'):
+            exec('\n'.join((
+                f"def __class_{prefix}{methname}__(cls, /, *args, **kwargs):",
+                (f"    return cls.__class_incision_manager__"
+                     f".__{prefix}{methname}__(*args, **kwargs)"),
+                )))
+    del methname, prefix
 
 
 class BythosBase(metaclass=Bythos):

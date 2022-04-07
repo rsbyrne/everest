@@ -3,30 +3,28 @@
 ###############################################################################
 
 
+import functools as _functools
+
 from everest.utilities import pretty as _pretty
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from .plexon import GroupPlexon as _GroupPlexon
-from .table import TableLike as _TableLike, Table as _Table
+from .table import PseudoTableLike as _PseudoTableLike, Table as _Table
+from .gable import Gable as _Gable
 
 
-class Axle(_TableLike, _GroupPlexon, metaclass=_Sprite):
+class Axle(_PseudoTableLike, _GroupPlexon, metaclass=_Sprite):
 
     baseshape: tuple = (None,)
-    index: object = None
+    # index: object = None
 
-    def table(self, /, name, baseshape=(), *args, **kwargs):
+    def sub_tablelike(
+            self, /, name, baseshape=(), *args, typ: type, **kwargs
+            ):
         selfbaseshape = self.baseshape
         baseshape = (*selfbaseshape, *baseshape)
-        sub = self.sub(name, baseshape, *args, typ=_Table, **kwargs)
-        sub.shape = (*self.shape, *sub.shape[len(selfbaseshape):])
-        return sub
-
-    def axle(self, /, name, baseshape=(), *args, **kwargs):
-        selfbaseshape = self.baseshape
-        baseshape = (*selfbaseshape, *baseshape)
-        sub = self.sub(name, baseshape, *args, typ=Axle, **kwargs)
+        sub = self.sub(name, baseshape, *args, typ=typ, **kwargs)
         sub.shape = (*self.shape, *sub.shape[len(selfbaseshape):])
         return sub
 
@@ -46,6 +44,12 @@ class Axle(_TableLike, _GroupPlexon, metaclass=_Sprite):
         if root is None:
             root = self._ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.subs, p, cycle, root=root)
+
+
+for typ in (Axle, _Table, _Gable):
+    meth = _functools.partialmethod(Axle.sub_tablelike, typ=typ)
+    setattr(Axle, typ.__name__.lower(), meth)
+del typ, meth
 
 
 ###############################################################################

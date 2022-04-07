@@ -57,7 +57,7 @@ class GroupPlexon(Plexon):
         super().__init__()
         self.subs = _weakref.WeakValueDictionary()
 
-    def sub(self, /, name, *args, typ, **kwargs):
+    def sub(self, /, name, *args, typ: type, **kwargs):
         if not issubclass(typ, SubPlexon):
             raise TypeError(typ)
         subs = self.subs

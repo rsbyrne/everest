@@ -4,9 +4,9 @@
 
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
-from everest.ptolemaic.bythos import Bythos as _Bythos
 
 from .chora import Chora as _Chora, ChainChora as _ChainChora
+from .bythos import Bythos as _Bythos
 from .sig import Sig as _Sig
 
 

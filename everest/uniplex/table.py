@@ -23,7 +23,7 @@ from .plexon import (
     )
 
 
-class TableLike(_SubPlexon):
+class PseudoTableLike(_SubPlexon):
 
     MERGETUPLES = ('_var_slots__',)
 
@@ -34,7 +34,7 @@ class TableLike(_SubPlexon):
         )
     _var_slots__ = ('shape', '_shape')
 
-    baseshape: tuple
+    # baseshape: tuple = (None,)
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -142,14 +142,13 @@ class ArrayLike(metaclass=_Essence):
         _pretty.pretty_array(self.data, p, cycle, root=root)
 
 
-class Table(_ChainChora, ArrayLike, TableLike, metaclass=_Sprite):
+class TableLike(_ChainChora, ArrayLike, PseudoTableLike):
 
 
     MROCLASSES = ('Slyce',)
     _req_slots__ = ('_data', '_mask')
 
-    baseshape: tuple = (None,)
-    dtype: object = float
+    # dtype: object = float
 
     def __init__(self, /):
         super().__init__()
@@ -222,6 +221,12 @@ class Table(_ChainChora, ArrayLike, TableLike, metaclass=_Sprite):
             kwargs['source'] = repr(kwargs['source'])
             kwargs['data'] = self.data
             _pretty.pretty_kwargs(kwargs, p, cycle, root=root)
+
+
+class Table(TableLike, metaclass=_Sprite):
+
+    baseshape: tuple = (None,)
+    dtype: object = float
 
 
 ###############################################################################

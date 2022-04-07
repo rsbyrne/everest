@@ -13,7 +13,6 @@ from everest.utilities import (
 from everest.ur import Dat as _Dat
 
 from .ousia import Ousia as _Ousia
-from .bythos import Bythos as _Bythos
 from .params import Params as _Params, Param as _Param
 from . import exceptions as _exceptions
 
@@ -65,7 +64,7 @@ def get_fields(ACls, /):
     return out, defaults
 
 
-class Sprite(_Ousia, _Bythos):
+class Sprite(_Ousia):
 
     ...
 
@@ -125,7 +124,10 @@ class SpriteBase(metaclass=Sprite):
     def __class_getitem__(cls, arg, /):
         if isinstance(arg, _Params):
             return cls.instantiate(arg)
-        return super().__class_getitem__(arg)
+        try:
+            return super().__class_getitem__(arg)
+        except AttributeError as exc:
+            raise TypeError(type(arg)) from exc
 
     @classmethod
     def pre_create_concrete(cls, /):

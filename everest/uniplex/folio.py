@@ -3,6 +3,8 @@
 ###############################################################################
 
 
+import functools as _functools
+
 from everest.utilities import pretty as _pretty
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
@@ -11,21 +13,11 @@ from .plexon import GroupPlexon as _GroupPlexon, SubPlexon as _SubPlexon
 from .leaf import Leaf as _Leaf
 from .table import Table as _Table
 from .axle import Axle as _Axle
+from .gable import Gable as _Gable
 
 
 class FolioLike(_GroupPlexon):
-
-    def leaf(self, /, *args, **kwargs):
-        return self.sub(*args, typ=_Leaf, **kwargs)
-
-    def folio(self, /, *args, **kwargs):
-        return self.sub(*args, typ=Folio, **kwargs)
-
-    def table(self, /, *args, **kwargs):
-        return self.sub(*args, typ=_Table, **kwargs)
-
-    def axle(self, /, *args, **kwargs):
-        return self.sub(*args, typ=_Axle, **kwargs)
+    ...
 
 
 class Folio(_SubPlexon, FolioLike, metaclass=_Sprite):
@@ -34,6 +26,12 @@ class Folio(_SubPlexon, FolioLike, metaclass=_Sprite):
         if root is None:
             root = self._ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.subs, p, cycle, root=root)
+
+
+for typ in (_Leaf, Folio, _Table, _Axle, _Gable):
+    meth = _functools.partialmethod(FolioLike.sub, typ=typ)
+    setattr(FolioLike, typ.__name__.lower(), meth)
+del typ, meth
 
 
 ###############################################################################

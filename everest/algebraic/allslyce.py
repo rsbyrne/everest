@@ -3,7 +3,6 @@
 ###############################################################################
 
 
-from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.essence import Essence as _Essence
 
@@ -12,6 +11,7 @@ from .chora import (
     Choric as _Choric,
     Basic as _Basic,
     )
+from .bythos import Bythos as _Bythos
 from .fundament import Fundament as _Fundament
 
 

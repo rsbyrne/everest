@@ -180,6 +180,10 @@ RUN pip3 install -U --no-cache-dir \
 RUN pip3 install -U --no-cache-dir \
   cryptography
 
+# Cython
+RUN pip3 install -U --no-cache-dir \
+  cython
+
 # Finish
 RUN apt update -y && apt upgrade -y
 

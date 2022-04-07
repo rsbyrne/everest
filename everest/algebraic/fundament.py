@@ -21,8 +21,7 @@ class Fundament(metaclass=_Essence):
         cls.Oid.register(cls)
 
 
-    class Oid(_Chora, metaclass=_Essence):
-
+    class Oid(_Chora):
 
         @classmethod
         def __class_init__(cls, /):

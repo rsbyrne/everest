@@ -6,11 +6,11 @@
 import abc as _abc
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
-
+from everest.algebraic.bythos import Bythos as _Bythos
 from everest.uniplex.plex import Plex as _Plex, GLOBALPLEX as _GLOBALPLEX
 
 
-class Schema(_Sprite):
+class Schema(_Sprite, _Bythos):
 
     ...
 

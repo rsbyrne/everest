@@ -5,7 +5,6 @@
 
 from everest.primitive import Primitive as _Primitive
 
-from everest.ptolemaic.bythos import Bythos as _Bythos
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.essence import Essence as _Essence
@@ -14,6 +13,7 @@ from .chora import (
     Choric as _Choric,
     Basic as _Basic,
     )
+from .bythos import Bythos as _Bythos
 from .armature import ArmatureProtocol as _ArmatureProtocol
 from .fundament import Fundament as _Fundament
 from .brace import Brace as _Brace
@@ -37,6 +37,7 @@ class Thing(_Fundament, metaclass=_Bythos):
 
     class Oid(metaclass=_Essence):
 
+
         SUBCLASSES = ('Space', 'Brace', 'Truss')
 
         Brace = _Brace
@@ -50,6 +51,7 @@ class Thing(_Fundament, metaclass=_Bythos):
         def __armature_truss__(self, /):
             return self._ptolemaic_class__.owner.Oid.Truss.Oid
 
+
         class Space(_Choric, metaclass=_Sprite):
 
             def __incise_trivial__(self, /):
@@ -61,38 +63,7 @@ class Thing(_Fundament, metaclass=_Bythos):
                     return incisor
 
                 def slyce_tuple(self, incisor: tuple, /):
-                    return _ArmatureProtocol.BRACE(self.bound)[
-                        tuple(incisor)
-                        ]
-
-        def __truediv__(self, arg, /):
-            return _Brace[self.__incise_trivial__(), arg]
-
-        def __rtruediv__(self, arg, /):
-            return _Brace[arg, self.__incise_trivial__()]
-
-        def __sub__(self, arg, /):
-            return NotImplemented
-
-        def __rsub__(self, arg, /):
-            return NotImplemented
-
-        def __mod__(self, arg, /):
-            return _Brace.Oid(self.__incise_trivial__(), arg)
-
-        def __rmod__(self, arg, /):
-            return NotImplemented
-
-
-    for methname in ('truediv', 'sub', 'mod'):
-        for prefix in ('', 'r'):
-            exec('\n'.join((
-                f"@classmethod",
-                f"def __class_{prefix}{methname}__(cls, /, *args, **kwargs):",
-                (f"    return cls.__class_incision_manager__"
-                     f".__{prefix}{methname}__(*args, **kwargs)"),
-                )))
-    del methname, prefix
+                    return _ArmatureProtocol.BRACE(self.bound)[tuple(incisor)]
 
 
 _ = Thing.register(_Primitive)
@@ -103,3 +74,16 @@ _ = Thing.register(_Ousia.BaseTyp)
 
 ###############################################################################
 ###############################################################################
+
+
+#         def __truediv__(self, arg, /):
+#             return _Brace[self.__incise_trivial__(), arg]
+
+#         def __rtruediv__(self, arg, /):
+#             return _Brace[arg, self.__incise_trivial__()]
+
+#         def __sub__(self, arg, /):
+#             return NotImplemented
+
+#         def __rsub__(self, arg, /):
+#             return NotImplemented
