@@ -47,7 +47,6 @@ class Intt(_Number, _Thing):
 
     class Oid(metaclass=_Essence):
 
-
         @_Index.register
         class LowerBound(_Choric, metaclass=_Sprite):
 
@@ -276,7 +275,7 @@ class Intt(_Number, _Thing):
                     olds = oldr.start, oldr.stop, oldr.step
                     news = newr.start, newr.stop, newr.step
                     if news == olds:
-                        return _IncisionProtocol.TRIVIAL(caller)
+                        return _IncisionProtocol.TRIVIAL(caller)()
                     return _IncisionProtocol.SLYCE(caller)(
                         self.bound._ptolemaic_class__(*news)
                         )
@@ -334,21 +333,25 @@ class Intt(_Number, _Thing):
 
             class Oid(metaclass=_Essence):
 
-                class Symmetric(metaclass=_Essence):
+                class Form(metaclass=_Essence):
 
-                    @property
-                    def arrayquery(self, /):
-                        return tuple(
-                            chora.arrayquery for chora in self.choras
-                            )
+                    class Symmetric(metaclass=_Essence):
 
-                class Asymmetric(metaclass=_Essence):
+                        @property
+                        def arrayquery(self, /):
+                            return tuple(
+                                chora.arrayquery for chora in self.choras
+                                )
 
-                    @property
-                    def arrayquery(self, /):
-                        return tuple(
-                            chora.arrayquery for chora in self.choras
-                            )
+                    class Asymmetric(metaclass=_Essence):
+
+                        MYATTRIBUTE = 1
+
+                        @property
+                        def arrayquery(self, /):
+                            return tuple(
+                                chora.arrayquery for chora in self.choras
+                                )
 
 
 for _num in (8, 16, 32, 64):

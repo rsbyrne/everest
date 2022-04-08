@@ -24,7 +24,7 @@ _INCISIONMETHS_ = (
     )
 
 
-@_Incisable.register
+# @_Incisable.register
 @_Chora.register
 class Bythos(_Essence):
 

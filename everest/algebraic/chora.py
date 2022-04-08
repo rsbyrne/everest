@@ -115,7 +115,7 @@ class Degenerate(_Incisable, metaclass=_Sprite):
         return self.retrieve().__eq__
 
 
-# @_Incisable.register
+@_Incisable.register
 class Chora(_PseudoIncisable, metaclass=_Essence):
     '''The `Chora` type is the Ptolemaic implementation '''
     '''of the Everest 'incision protocol'. '''
@@ -145,14 +145,14 @@ class Chora(_PseudoIncisable, metaclass=_Essence):
     # def codomain(self, /):
     #     return _IncisionProtocol.RETRIEVE(self).__annotations__['return']
 
-    @classmethod
-    def __subclasshook__(cls, ACls, /):
-        if cls is Chora:
-            if isinstance(ACls, (_Essence, _Pleroma)):
-                if issubclass(ACls, _Incisable):
-                    return True
-            return False
-        return super().__subclasshook__(ACls)
+    # @classmethod
+    # def __subclasshook__(cls, ACls, /):
+    #     if cls is Chora:
+    #         if isinstance(ACls, (_Essence, _Pleroma)):
+    #             if issubclass(ACls, _Incisable):
+    #                 return True
+    #         return False
+    #     return super().__subclasshook__(ACls)
 
     def __mod__(self, arg, /):
         return _ArmatureProtocol.BRACE(self)(
@@ -495,11 +495,10 @@ class Sampleable(Basic):
     MULTICHANNELS = (('bounds', _query.Bounds),)
 
     def handle_slice(self, incisor: slice, /, *, caller):
-        return (
-            caller
-            [_query.Bounds(incisor.start, incisor.stop)]
-            [_query.Sample(incisor.step)]
-            )
+        inc1 = _query.Bounds(incisor.start, incisor.stop)
+        inc2 = _query.Sample(incisor.step)
+        part = _IncisionProtocol.INCISE(caller)(inc1, caller=caller)
+        return _IncisionProtocol.INCISE(part)(inc2, caller=part)
 
     def bounds_trivial_none(self, incisor: (type(None), type(None)), /):
         pass

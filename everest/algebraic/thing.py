@@ -68,7 +68,7 @@ class Thing(_Fundament, metaclass=_Bythos):
 
 _ = Thing.register(_Primitive)
 _ = Thing.register(_Essence)
-_ = Thing.register(_Ousia.BaseTyp)
+# _ = Thing.register(_Ousia.BaseTyp)  # <-- Causes problems for some reason
 # _ = Thing.Oid.register(_Chora)
 
 

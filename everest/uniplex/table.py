@@ -124,17 +124,11 @@ class ArrayLike(metaclass=_Essence):
         raise NotImplementedError
 
     def __setitem__(self, key, val, /):
-        if isinstance(key, str):
-            super().__setitem__(key, val)
-        else:
-            self.mask[key] = True
-            self.data[key] = val
+        self.mask[key] = True
+        self.data[key] = val
 
     def __delitem__(self, key, /):
-        if isinstance(key, str):
-            super().__delitem__(key)
-        else:
-            self.mask[indices] = False
+        self.mask[key] = False
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:

@@ -34,11 +34,8 @@ class Axle(_PseudoTableLike, _GroupPlexon, metaclass=_Sprite):
             child.shape = (*shape, *child.shape[len(shape):])
 
     def __setitem__(self, key, val, /):
-        if isinstance(key, str):
-            super().__setitem__(key, val)
-        else:
-            for sub, child in zip(zip(*val), self.subs.values()):
-                child[key] = sub
+        for sub, child in zip(zip(*val), self.subs.values()):
+            child[key] = sub
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
