@@ -23,10 +23,12 @@ from .truss import Truss as _Truss
 class Thing(_Fundament, metaclass=_Bythos):
 
 
+    MROCLASSES = ('Oid', 'Space', 'Brace', 'Truss')
+
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.__class_incision_manager__ = cls.Oid.Space()
+        cls.__class_incision_manager__ = cls.Space()
 
     @classmethod
     def __class_call__(cls, arg, /):
@@ -37,33 +39,39 @@ class Thing(_Fundament, metaclass=_Bythos):
 
     class Oid(metaclass=_Essence):
 
-
-        SUBCLASSES = ('Space', 'Brace', 'Truss')
-
-        Brace = _Brace
-        Truss = _Truss
-
         @property
         def __armature_brace__(self, /):
-            return self._ptolemaic_class__.owner.Oid.Brace.Oid
+            return self._ptolemaic_class__.owner.Brace.Oid
 
         @property
         def __armature_truss__(self, /):
-            return self._ptolemaic_class__.owner.Oid.Truss.Oid
+            return self._ptolemaic_class__.owner.Truss.Oid
 
 
-        class Space(_Choric, metaclass=_Sprite):
+    class Space(_Choric, metaclass=_Sprite):
 
-            def __incise_trivial__(self, /):
-                return self._ptolemaic_class__.owner
+        OVERCLASSES = ('Oid',)
 
-            class __choret__(_Basic, metaclass=_Essence):
+        def __incise_trivial__(self, /):
+            return self._ptolemaic_class__.owner
 
-                def retrieve_isinstance(self, incisor: 'owner.owner', /):
-                    return incisor
+        class __choret__(_Basic, metaclass=_Essence):
 
-                def slyce_tuple(self, incisor: tuple, /):
-                    return _ArmatureProtocol.BRACE(self.bound)[tuple(incisor)]
+            def retrieve_isinstance(self, incisor: 'owner.owner', /):
+                return incisor
+
+            def slyce_tuple(self, incisor: tuple, /):
+                return _ArmatureProtocol.BRACE(self.bound)[tuple(incisor)]
+
+
+    class Brace(_Brace):
+
+        OVERCLASSES = ('Oid',)
+
+
+    class Truss(_Truss):
+
+        OVERCLASSES = ('Oid',)
 
 
 _ = Thing.register(_Primitive)

@@ -31,7 +31,9 @@ from .schema import Schema as _Schema
 class Traversable(_ChainChora, metaclass=_Schema):
 
 
-    MROCLASSES = ('Slyce', 'Instruments')
+    MROCLASSES = (
+        'Instrument', 'Slyce', 'Case', 'Line', 'Traverse', 'Stage'
+        )
 
     casespace: _Chora
     statespace: _Chora
@@ -48,137 +50,145 @@ class Traversable(_ChainChora, metaclass=_Schema):
     def __incise_slyce__(self, incisor: _Brace.Oid, /):
         cs, st, ix = incisor.choras
         if incisor.active == (False, False, True):
-            case = self.Instruments.Case(self, cs.retrieve())
-            line = self.Instruments.Line(case, st.retrieve())
-            return self.Instruments.Traverse(line, ix)
-        return self.Instruments.Slyce(incisor)
+            case = self.Case(self, cs.retrieve())
+            line = self.Line(case, st.retrieve())
+            return self.Traverse(line, ix)
+        return self.Slyce(incisor)
 
     def __incise_retrieve__(self, incisor: _Brace, /):
         cs, st, ix = incisor
-        case = self.Instruments.Case(self, cs)
-        line = self.Instruments.Line(case, st)
-        return self.Instruements.Line(line, ix)
+        case = self.Case(self, cs)
+        line = self.Line(case, st)
+        return self.Line(line, ix)
 
 
-    class Instruments(metaclass=_Sprite):
+    class Instrument(metaclass=_Sprite):
+        ...
 
 
-        SUBCLASSES = ('Slyce', 'Case', 'Line', 'Traverse', 'Stage')
+    class Slyce(_ChainChora, metaclass=_Essence):
+
+        OVERCLASSES = ('Instrument',)
+
+        schematic: 'owner'
+        chora: _Brace
+
+        @property
+        def __incision_manager__(self, /):
+            return self.chora
+
+        @property
+        def __incise_slyce__(self, /):
+            return self.schematic.__incise_slyce__
+
+        @property
+        def __incise_retrieve__(self, /):
+            return self.schematic.__incise_retrieve__
 
 
-        class Slyce(_ChainChora, metaclass=_Essence):
+    class Case(_ChainChora, metaclass=_Essence):
 
-            schematic: 'owner'
-            chora: _Brace
+        OVERCLASSES = ('Instrument',)
 
-            @property
-            def __incision_manager__(self, /):
-                return self.chora
+        schematic: 'owner'
+        data: _Brace
 
-            @property
-            def __incise_slyce__(self, /):
-                return self.schematic.__incise_slyce__
+        @property
+        def __incision_manager__(self, /):
+            return self.data
 
-            @property
-            def __incise_retrieve__(self, /):
-                return self.schematic.__incise_retrieve__
-
-
-        class Case(_ChainChora, metaclass=_Essence):
-
-            schematic: 'owner'
-            data: _Brace
-
-            @property
-            def __incision_manager__(self, /):
-                return self.data
-
-            @property
-            @_caching.soft_cache()
-            def plexon(self, /):
-                return self.schematic.plexon.folio(self.hashID)
+        @property
+        @_caching.soft_cache()
+        def plexon(self, /):
+            return self.schematic.plexon.folio(self.hashID)
 
 
-        class Line(_ChainChora, metaclass=_Essence):
+    class Line(_ChainChora, metaclass=_Essence):
 
-            case: 'owner.Instruments.Case'
-            initial: object
+        OVERCLASSES = ('Instrument',)
 
-            _req_slots__ = ('indextable', 'statetable')
+        case: 'owner.Case'
+        initial: object
 
-            @property
-            def schematic(self, /):
-                return self.case.schematic
+        _req_slots__ = ('indextable', 'statetable')
 
-            @property
-            def __incision_manager__(self, /):
-                return self.schematic.indexspace
+        @property
+        def schematic(self, /):
+            return self.case.schematic
 
-            def __incise_slyce__(self, incisor, /):
-                return self.schematic.Instruments.Traverse(self, incisor)
+        @property
+        def __incision_manager__(self, /):
+            return self.schematic.indexspace
 
-            def __incise_retrieve__(self, incisor, /):
-                return self.schematic.Instruments.Stage(self, incisor)
+        def __incise_slyce__(self, incisor, /):
+            return self.schematic.Traverse(self, incisor)
 
-            @property
-            @_caching.soft_cache()
-            def plexon(self, /):
-                sup = self.case.plexon
-                axle = sup.axle(self.hashID)
-                indexspace = self.schematic.indexspace
-                statespace = self.schematic.statespace
-                with self.mutable:
-                    self.indextable = \
-                        axle.table('index', (), dtype=indexspace.dtype)
-                    self.statetable = \
-                        axle.table('state', statespace.shape, statespace.dtype)
-                return axle
+        def __incise_retrieve__(self, incisor, /):
+            return self.schematic.Stage(self, incisor)
 
-
-        class Traverse(_ChainChora, metaclass=_Essence):
-
-            line: 'owner.Instruments.Line'
-            interval: object
-
-            @property
-            def schematic(self, /):
-                return self.line.schematic
-
-            @property
-            def __incision_manager__(self, /):
-                return self.interval
-
-            def __incise_slyce__(self, incisor, /):
-                return self.schematic.Instruments.Traverse(self.line, incisor)
-
-            def __incise_retrieve__(self, incisor, /):
-                return self.schematic.Instruments.Stage(self.line, incisor)
-
-            def solve(self, /):
-                return self.schematic.solver(self)
-
-            def store(self, /):
-                data = self.solve()
-                inds = data.t
-                vertices = data.y.T
-                indtable = self.table.sub('index')
+        @property
+        @_caching.soft_cache()
+        def plexon(self, /):
+            sup = self.case.plexon
+            axle = sup.axle(self.hashID)
+            indexspace = self.schematic.indexspace
+            statespace = self.schematic.statespace
+            with self.mutable:
+                self.indextable = \
+                    axle.table('index', (), dtype=indexspace.dtype)
+                self.statetable = \
+                    axle.table('state', statespace.shape, statespace.dtype)
+            return axle
 
 
-        class Stage(metaclass=_Essence):
+    class Traverse(_ChainChora, metaclass=_Essence):
 
-            line: 'owner.Instruments.Line'
-            index: object
+        OVERCLASSES = ('Instrument',)
 
-            @property
-            def schematic(self, /):
-                return self.line.schematic
+        line: 'owner.Line'
+        interval: object
 
-            def solve(self, /):
-                return self.schematic.solver(self)
+        @property
+        def schematic(self, /):
+            return self.line.schematic
 
-            @property
-            def folio(self, /):
-                return self.line.folio
+        @property
+        def __incision_manager__(self, /):
+            return self.interval
+
+        def __incise_slyce__(self, incisor, /):
+            return self.schematic.Traverse(self.line, incisor)
+
+        def __incise_retrieve__(self, incisor, /):
+            return self.schematic.Stage(self.line, incisor)
+
+        def solve(self, /):
+            return self.schematic.solver(self)
+
+        def store(self, /):
+            data = self.solve()
+            inds = data.t
+            vertices = data.y.T
+            indtable = self.table.sub('index')
+
+
+    class Stage(metaclass=_Essence):
+
+        OVERCLASSES = ('Instrument',)
+
+        line: 'owner.Line'
+        index: object
+
+        @property
+        def schematic(self, /):
+            return self.line.schematic
+
+        def solve(self, /):
+            return self.schematic.solver(self)
+
+        @property
+        def folio(self, /):
+            return self.line.folio
 
 
 ###############################################################################

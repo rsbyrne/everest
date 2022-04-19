@@ -19,6 +19,8 @@ from .fundament import Fundament as _Fundament
 class Number(_Fundament):
 
 
+    MROCLASSES = ('UpperBound', 'LowerBound', 'DoubleBound')
+
     pytyp = _numbers.Number
     comptyp = _numbers.Number
     nptyp = _np.number
@@ -35,6 +37,7 @@ class Number(_Fundament):
         cls.register(convtyp)
         cls.convtyp = convtyp
         super().__class_init__()
+        cls.UnBound = cls.Space
 
     @classmethod
     def __class_call__(cls, arg, /):
@@ -43,65 +46,71 @@ class Number(_Fundament):
 
     class Oid(metaclass=_Essence):
 
-        SUBCLASSES = ('UpperBound', 'LowerBound', 'DoubleBound')
-
-        @classmethod
-        def __mroclass_init__(cls, /):
-            for attr in ('pytyp', 'nptyp', 'convtyp', 'comptyp'):
-                setattr(cls, attr, getattr(cls.owner, attr))
-            cls.dtype = cls.convtyp
-            super().__mroclass_init__()
-
-
         @classmethod
         def __class_init__(cls, /):
+            if (owner := cls.owner) is not None:
+                for attr in ('pytyp', 'nptyp', 'convtyp', 'comptyp'):
+                    setattr(cls, attr, getattr(owner, attr))
+                cls.dtype = cls.convtyp
+                cls.outer = owner
             super().__class_init__()
-            cls.UnBound = cls.Space
 
 
-        class Brace(metaclass=_Essence):
+    class UpperBound(metaclass=_Essence):
+
+        OVERCLASSES = ('Oid',)
 
 
-            class Oid(metaclass=_Essence):
+    class LowerBound(metaclass=_Essence):
 
-                @classmethod
-                def __mroclass_init__(cls, /):  # vvv UGLY!
-                    try:
-                        for attr in ('pytyp', 'nptyp', 'convtyp', 'comptyp'):
-                            setattr(cls, attr, getattr(cls.owner, attr))
-                        cls.dtype = cls.convtyp
-                    except AttributeError:
-                        pass
-                    super().__mroclass_init__()
+        OVERCLASSES = ('Oid',)
 
 
-        class Space(metaclass=_Essence):
+    class DoubleBound(metaclass=_Essence):
+
+        OVERCLASSES = ('Oid',)
 
 
-            class __choret__(_Sampleable):
+    class Space(metaclass=_Essence):
 
-                def retrieve_iscomparable(self, incisor: 'owner.comptyp', /):
-                    return self._ptolemaic_class__.owner.convtyp(incisor)
+        class __choret__(_Sampleable):
 
-                def bounds_slyce_lower(self,
-                        incisor: ('owner.comptyp', type(None)), /
-                        ):
-                    return self.bound.LowerBound(incisor.lower)
+            def retrieve_iscomparable(self, incisor: 'owner.comptyp', /):
+                return self.bound.convtyp(incisor)
 
-                def bounds_slyce_upper(self,
-                        incisor: (type(None), 'owner.comptyp'), /
-                        ):
-                    return self.bound.UpperBound(incisor.upper)
+            def bounds_slyce_lower(self,
+                    incisor: ('owner.comptyp', type(None)), /
+                    ):
+                return self.boundowner.LowerBound(incisor.lower)
 
-                def bounds_slyce_double(self,
-                        incisor: ('owner.comptyp', 'owner.comptyp'), /
-                        ):
-                    lower, upper = incisor.lower, incisor.upper
-                    if upper <= lower:
-                        return self.bound._ptolemaic_class__.owner.Empty
-                    return self.bound.DoubleBound(lower, upper)
+            def bounds_slyce_upper(self,
+                    incisor: (type(None), 'owner.comptyp'), /
+                    ):
+                return self.boundowner.UpperBound(incisor.upper)
 
-        # class Brace(metaclass=_Essence):
+            def bounds_slyce_double(self,
+                    incisor: ('owner.comptyp', 'owner.comptyp'), /
+                    ):
+                lower, upper = incisor.lower, incisor.upper
+                if upper <= lower:
+                    return self.bound.Empty
+                return self.boundowner.DoubleBound(lower, upper)
+
+
+#         class Brace(metaclass=_Essence):
+
+
+#             class Oid(metaclass=_Essence):
+
+#                 @classmethod
+#                 def __mroclass_init__(cls, /):  # vvv UGLY!
+#                     try:
+#                         for attr in ('pytyp', 'nptyp', 'convtyp', 'comptyp'):
+#                             setattr(cls, attr, getattr(cls.owner, attr))
+#                         cls.dtype = cls.convtyp
+#                     except AttributeError:
+#                         pass
+#                     super().__mroclass_init__()
 
 
 ###############################################################################

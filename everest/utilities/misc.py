@@ -450,7 +450,10 @@ class TypeMap(BoolMap):
                     ))
         else:
             def keyfunc(arg, /, *, key=key):
-                return issubclass(arg, key)
+                try:
+                    return issubclass(arg, key)
+                except TypeError as exc:
+                    raise TypeError(arg, key) from exc
         return keyfunc
 
     @_functools.lru_cache

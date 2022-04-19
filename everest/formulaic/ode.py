@@ -18,7 +18,7 @@ from everest.algebraic.brace import Brace as _Brace
 from .traversable import Traversable as _Traversable
 
 
-_Traverse = _Traversable.Instruments.Traverse.__mroclass_basis__
+_Traverse = _Traversable._mrobase_Traverse
 
 
 class ODESolver(metaclass=_Sprite):

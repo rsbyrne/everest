@@ -107,6 +107,12 @@ def expand_bases(bases):
             yield base
 
 
+def is_innerclass(inner, outer):
+    if inner.__module__ is not outer.__module__:
+        return False
+    return '.'.join(inner.__qualname__.split('.')[:-1]) == outer.__qualname__
+
+
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
@@ -115,150 +121,65 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Implementing mroclasses:
 
-    def _process_mrobase(cls, inh, /):
-        if isinstance(inh, str):
-            if inh.startswith('.'):
-                attrnames = iter(inh.strip('.').split('.'))
-                inh = cls
-                for attrname in attrnames:
-                    inh = getattr(inh, attrname)
-            else:
-                inh = eval(inh)
-        if isinstance(inh, type):
-            inh = inh.__dict__.get('__mroclass_basis__', inh)
-        else:
-            try:
-                inh = getattr(inh, '__mroclass_basis__')
-            except AttributeError:
-                raise TypeError
-        if not isinstance(inh, Essence):
-            raise TypeError
-        return inh
-
-    def _make_mroclass(cls, name: str, /, mixin=None):
-        candidates = []
-        try:
-            inh = cls.__dict__[name]
-        except KeyError:
-            pass
-        else:
-            candidates.append(cls._process_mrobase(inh))
+    def _gather_mrobases(cls, name: str, /):
         for base in cls.__bases__:
             if not isinstance(base, Essence):
                 continue
-            try:
-                inh = getattr(base, name)
-            except AttributeError:
-                continue
-            candidates.append(inh)
-        inhclasses = []
-        for inh in candidates:
-            inh = cls._process_mrobase(inh)
-            if inh not in inhclasses:
-                inhclasses.append(inh)
-        if not inhclasses:
-            raise MROClassNotFound(name, cls)
-        if len(inhclasses) == 1:
-            basis = inhclasses[0]
-        else:
-            basis = type(
-                f"{name}_FusedUnder_{cls.__name__}",
-                tuple(inhclasses),
-                {},
-                )
-        ns = dict(
-            __mroclass_basis__=basis,
-            )
-        typname = name
-        if mixin is None:
-            # typname = f"{cls.__name__}_{name}"
-            bases = (basis,)
-            owners = (*cls.owners, cls)
-        else:
-            if mixin is cls:
-                owners = cls.owners
-                ns['_ptolemaic_overclass'] = cls
-            else:
-                owners = (*cls.owners, cls)
-            # typname = f"{cls.__name__}_{name}"
-            bases = (basis, mixin)
-            ns['__mroclass_mixin__'] = mixin
-        ns['_ptolemaic_owners'] = owners
-        out = type(typname, bases, ns)
-        return out
+            if name in base.MROCLASSES:
+                yield getattr(base, f"_mrofused_{name}")
+            elif hasattr(base, name):
+                yield getattr(base, name)
 
-    def _add_mroclass(cls, arg: (str, type), /, mixin=None):
-        if not isinstance(arg, str):
-            if not isinstance(arg, type):
-                raise TypeError(arg)
-            setattr(cls, arg.__name__, arg)
-        name = arg
-        try:
-            out = cls._make_mroclass(name, mixin=mixin)
-        except TypeError as exc:
-            raise TypeError(cls, name, mixin) from exc
-        setattr(cls, name, out)
-        if hasattr(out, '__set_name__'):
-            out.__set_name__(cls, name)
-        return out
-
-    def _try_add_mroclass(cls, arg: (str, type), /, mixin=None):
-        try:
-            cls._add_mroclass(arg, mixin=mixin)
-        except MROClassNotFound:
-            pass
+    def _add_mroclass(cls, name: str, /):
+        mrobases = tuple(cls._gather_mrobases(name))
+        if not all(isinstance(base, Essence) for base in mrobases):
+            raise TypeError("All mroclass bases must be Essences.")
+        if name in cls.__dict__:
+            homebase = cls.__dict__[name]
+            if not isinstance(homebase, Essence):
+                raise TypeError("All mroclass bases must be Essences.")
+            mrobasename = f"_mrobase_{name}"
+            setattr(cls, mrobasename, homebase)
+            if is_innerclass(homebase, cls):
+                with homebase.mutable:
+                    homebase.__qualname__ = f"{cls.__qualname__}.{mrobasename}"
+            mrobases = (homebase, *mrobases)
+        if not mrobases:
+            mrobases = (Essence.BaseTyp,)
+            # return
+        mrofusedname = f"_mrofused_{name}"
+        ns = {
+            '_ptolemaic_owners': (*cls.owners, cls),
+            '__module__': cls.__module__,
+            '__qualname__': f"{cls.__qualname__}.{mrofusedname}",
+            }
+        fused = type(name, mrobases, ns)
+        setattr(cls, mrofusedname, fused)
+        newbases = (fused, *(
+            getattr(cls, oname)
+            for oname in fused.OVERCLASSES
+            if hasattr(cls, oname)
+            ))
+        ns = {
+            '_ptolemaic_owners': (*cls.owners, cls),
+            '__module__': cls.__module__,
+            '__qualname__': f"{cls.__qualname__}.{name}",
+            }
+        final = type(name, newbases, ns)
+        setattr(cls, name, final)
 
     def _add_mroclasses(cls, /):
         for name in cls.MROCLASSES:
-            cls._try_add_mroclass(name)
-
-    def _add_subclass(cls, arg: str, /):
-        if not arg in cls.SUBCLASSES:
-            raise TypeError(
-                "Cannot add subclass "
-                "without declaring its name in .SUBCLASSES."
-                )
-        try:
-            overclass = cls.__dict__['__mroclass_mixin__']
-        except KeyError:
-            pass
-        else:
-            if arg in overclass.SUBCLASSES:
-                raise MROSubClassRecursion(arg, cls)
-        return cls._add_mroclass(arg, mixin=cls)
-        # try:
-        #     set() = cls.__dict__['_subclasses']
-        # except KeyError:
-        #     dct = cls._subclasses = {}
-        # dct[arg] = out
-        # return out
-
-    # @property
-    # @_caching.soft_cache()
-    # def subclasses(cls, /):
-    #     try:
-    #         dct = cls.__dict__['_subclasses']
-    #     except KeyError:
-    #         dct = cls._subclasses = {}
-    #     return _types.MappingProxyType(dct)
-
-    @property
-    def __mroclass_basis__(cls, /):
-        return cls.__dict__.get('__mroclass_basis__', cls)
-
-    def _try_add_subclass(cls, arg: str, /):
-        try:
-            cls._add_subclass(arg)
-        except (MROSubClassRecursion, MROClassNotFound):
-            pass
+            cls._add_mroclass(name)
 
     def _add_subclasses(cls, /):
-        for name in cls.SUBCLASSES:
-            cls._try_add_subclass(name)
+        pass
 
     @property
     def owners(cls, _default=(), /):
-        return cls._ptolemaic_class__.__dict__.get('_ptolemaic_owners', _default)
+        return cls._ptolemaic_class__.__dict__.get(
+            '_ptolemaic_owners', _default
+            )
 
     @property
     def owner(cls, /):
@@ -274,10 +195,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         except IndexError:
             return None
 
-    @property
-    def overclass(cls, /):
-        return cls.__dict__.get('_ptolemaic_overclass', None)
-
     ### Creating the object that is the class itself:
 
     @classmethod
@@ -288,8 +205,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def __meta_init__(meta, /):
         pass
-
-#     MERGETUPLES = ('MROCLASSES',)
 
     @classmethod
     def process_mergenames(meta, name, bases, namespace, /):
@@ -420,18 +335,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             else:
                 func(ns := _RestrictedNamespace(badvals={cls,}))
                 cls.incorporate_namespace(ns)
-            if (ocls := cls.overclass):
-                cls.__qualname__ = '.'.join(
-                    (ocls.__qualname__, cls.__name__)
-                    )
-            elif (owners := cls.owners):
-                cls.__qualname__ = '.'.join(
-                    ACls.__qualname__ for ACls in (cls.owner, cls)
-                    )
-            if (owners := cls.owners):
-                cls.__mroclass_init__()
-            else:
-                cls.__class_init__()
+            # if (owners := cls.owners):
+            #     cls.__qualname__ = '.'.join(
+            #         ACls.__qualname__ for ACls in (cls.owner, cls)
+            #         )
+            cls.__class_init__()
 
 
     def incorporate_namespace(cls, ns, /):
@@ -602,7 +510,7 @@ _Dat.register(Essence)
 
 class EssenceBase(metaclass=Essence):
 
-    MERGETUPLES = ('MROCLASSES', 'SUBCLASSES')
+    MERGETUPLES = ('MROCLASSES', 'OVERCLASSES')
     MERGEDICTS = ('ADJNAMES',)
 
     @classmethod
@@ -616,11 +524,18 @@ class EssenceBase(metaclass=Essence):
     @classmethod
     def __class_init__(cls, /):
         cls._add_mroclasses()
-        cls._add_subclasses()
+        # Temporary!
+        try:
+            cls.__mroclass_init__()
+        except AttributeError:
+            pass
+        else:
+            raise RuntimeError
+        # cls._add_subclasses()
 
-    @classmethod
-    def __mroclass_init__(cls, /):
-        cls.__class_init__()
+    # @classmethod
+    # def __mroclass_init__(cls, /):
+        # cls.__class_init__()
 
 
 ###############################################################################

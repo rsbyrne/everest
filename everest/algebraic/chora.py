@@ -206,6 +206,10 @@ class Degenerator(_ChainIncisable, metaclass=_Sprite):
         return self.chora
 
     @property
+    def __incise_trivial__(self, /):
+        return self.chora.__incise_trivial__
+
+    @property
     def __incise_retrieve__(self, /):
         return _IncisionProtocol.DEGENERATE(self.chora)
 
@@ -225,9 +229,13 @@ class DeferChora(Chora):
 
 class Choret(metaclass=_Sprite):
 
-    BOUNDREQS = ()
-
     bound: object
+
+    _req_slots__ = ('boundowner',)
+
+    def __init__(self, /):
+        super().__init__()
+        self.boundowner = self.bound._ptolemaic_class__.owner
 
     def __incise__(self, incisor, /, *, caller):
         return _IncisionProtocol.FAIL(caller)(incisor)
@@ -561,9 +569,9 @@ class Multi(Basic):
                 self.labels,
                 ))
         if len(set(choras)) == 1:
-            slyce = self.bound.symmetric(choras[0], self.labels)
+            slyce = self.boundowner(choras[0], self.labels)
         else:
-            slyce = self.bound.asymmetric(choras, self.labels)
+            slyce = self.boundowner(choras, self.labels)
         return _IncisionProtocol.SLYCE(caller)(slyce)
 
     def yield_mapping_multiincise(self, incisors: _collabc.Mapping, /):
