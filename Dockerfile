@@ -95,7 +95,9 @@ ENV PYTHONPATH "$EVERESTDIR:${PYTHONPATH}"
 #   pytest
 
 # CLI
-RUN pip3 install -U --no-cache-dir click
+RUN pip3 install -U --no-cache-dir \
+  click \
+  rich
 
 # Convenience
 # https://whoosh.readthedocs.io/en/latest/

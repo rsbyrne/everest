@@ -327,31 +327,6 @@ class Intt(_Number, _Thing):
             return _np.array(self, dtype=self.nptyp).__array__(dtype)
 
 
-#     class Brace(metaclass=_Essence):
-
-#         class Oid(metaclass=_Essence):
-
-#             class Form(metaclass=_Essence):
-
-#                 class Symmetric(metaclass=_Essence):
-
-#                     @property
-#                     def arrayquery(self, /):
-#                         return tuple(
-#                             chora.arrayquery for chora in self.choras
-#                             )
-
-#                 class Asymmetric(metaclass=_Essence):
-
-#                     MYATTRIBUTE = 1
-
-#                     @property
-#                     def arrayquery(self, /):
-#                         return tuple(
-#                             chora.arrayquery for chora in self.choras
-#                             )
-
-
 for _num in (8, 16, 32, 64):
     _new = type(
         f"Intt{_num}",
