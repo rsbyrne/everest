@@ -5,20 +5,13 @@
 
 import functools as _functools
 
-from everest.incision import IncisionProtocol as _IncisionProtocol
 from everest.utilities import caching as _caching
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.diict import Kwargs as _Kwargs
 
-from everest.algebraic.chora import (
-    Chora as _Chora,
-    Slyce as _Slyce,
-    ChainChora as _ChainChora,
-    Degenerate as _Degenerate,
-    Multi as _Multi,
-    )
+from everest.algebraic import chora as _chora
 from everest.algebraic.eidos import Eidos as _Eidos
 from everest.algebraic.floatt import Floatt as _Floatt
 from everest.algebraic.brace import Brace as _Brace
@@ -28,23 +21,23 @@ from everest.uniplex.table import Table as _Table
 from .schema import Schema as _Schema
 
 
-class Traversable(_ChainChora, metaclass=_Schema):
+class Traversable(_chora.ChainChora, metaclass=_Schema):
 
 
     MROCLASSES = (
         'Instrument', 'Slyce', 'Case', 'Line', 'Traverse', 'Stage'
         )
 
-    casespace: _Chora
-    statespace: _Chora
-    indexspace: _Chora
+    casespace: _chora.Chora
+    statespace: _chora.Chora
+    indexspace: _chora.Chora
     solver: object
 
     @property
     def __incision_manager__(self, /):
         return _Brace[_Kwargs({
             key: val for key, val in self.params.items()
-            if isinstance(val, _Chora)
+            if isinstance(val, _chora.Chora)
             })]
 
     def __incise_slyce__(self, incisor: _Brace.Oid, /):
@@ -66,7 +59,7 @@ class Traversable(_ChainChora, metaclass=_Schema):
         ...
 
 
-    class Slyce(_ChainChora, metaclass=_Essence):
+    class Slyce(_chora.ChainChora, metaclass=_Essence):
 
         OVERCLASSES = ('Instrument',)
 
@@ -86,7 +79,7 @@ class Traversable(_ChainChora, metaclass=_Schema):
             return self.schematic.__incise_retrieve__
 
 
-    class Case(_ChainChora, metaclass=_Essence):
+    class Case(_chora.ChainChora, metaclass=_Essence):
 
         OVERCLASSES = ('Instrument',)
 
@@ -103,7 +96,7 @@ class Traversable(_ChainChora, metaclass=_Schema):
             return self.schematic.plexon.folio(self.hashID)
 
 
-    class Line(_ChainChora, metaclass=_Essence):
+    class Line(_chora.ChainChora, metaclass=_Essence):
 
         OVERCLASSES = ('Instrument',)
 
@@ -141,7 +134,7 @@ class Traversable(_ChainChora, metaclass=_Schema):
             return axle
 
 
-    class Traverse(_ChainChora, metaclass=_Essence):
+    class Traverse(_chora.ChainChora, metaclass=_Essence):
 
         OVERCLASSES = ('Instrument',)
 

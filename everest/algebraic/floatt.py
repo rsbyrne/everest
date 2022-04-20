@@ -7,18 +7,15 @@ import numbers as _numbers
 
 import numpy as _np
 
-from everest.utilities import (
-    pretty as _pretty,
-    )
+from everest.utilities import pretty as _pretty
 
-from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from .chora import (
-    Choric as _Choric,
-    Sampleable as _Sampleable,
+    Chora as _Chora,
     TrivialException as _TrivialException,
     )
+from . import choret as _choret
 from .thing import Thing as _Thing
 from .number import Number as _Number
 
@@ -31,7 +28,9 @@ class Floatt(_Number, _Thing):
     nptyp = _np.floating
 
 
-    class LowerBound(_Choric, metaclass=_Sprite):
+    class LowerBound(_Chora, metaclass=_Sprite):
+
+        MROCLASSES = ('__incise__',)
 
         lower: float
 
@@ -44,7 +43,7 @@ class Floatt(_Number, _Thing):
                 })
             return bound
 
-        class __choret__(_Sampleable):
+        class __incise__(_choret.Sampleable):
 
             def retrieve_float(self, incisor: 'owner.comptyp', /):
                 if incisor >= 0:
@@ -111,7 +110,9 @@ class Floatt(_Number, _Thing):
             p.text(']')
 
 
-    class UpperBound(_Choric, metaclass=_Sprite):
+    class UpperBound(_Chora, metaclass=_Sprite):
+
+        MROCLASSES = ('__incise__',)
 
         upper: float
 
@@ -124,7 +125,7 @@ class Floatt(_Number, _Thing):
                 })
             return bound
 
-        class __choret__(_Sampleable):
+        class __choret__(_choret.Sampleable):
 
             def retrieve_float(self, incisor: 'owner.comptyp', /):
                 if incisor < 0:
@@ -184,7 +185,9 @@ class Floatt(_Number, _Thing):
             p.text(']')
 
 
-    class DoubleBound(_Choric, metaclass=_Sprite):
+    class DoubleBound(_Chora, metaclass=_Sprite):
+
+        MROCLASSES = ('__incise__',)
 
         lower: float
         upper: float
@@ -198,7 +201,7 @@ class Floatt(_Number, _Thing):
                 })
             return bound
 
-        class __choret__(_Sampleable):
+        class __incise__(_choret.Sampleable):
 
             def retrieve_float(self, incisor: 'owner.comptyp', /):
                 if incisor == 0:

@@ -8,18 +8,14 @@ from collections import abc as _collabc
 import types as _types
 
 from everest.utilities import (
-    caching as _caching,
-    pretty as _pretty,
+    caching as _caching, pretty as _pretty, Null as _Null
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
-from .chora import (
-    Choric as _Choric,
-    Sampleable as _Sampleable,
-    Null as _Null,
-    )
+from .chora import Chora as _Chora
+from . import choret as _choret
 from .fundament import Fundament as _Fundament
 from .predicate import Predicate as _Predicate
 
@@ -50,22 +46,24 @@ class Index(_Fundament):
         return cls.Arbitrary(*args, **kwargs)
 
 
-    class Form(_Choric):
+    class Form(_Chora):
+
+        MROCLASSES = ('__incise__',)
 
         @_abc.abstractmethod
         def __incise_retrieve__(self, /):
             raise NotImplementedError
 
         @_abc.abstractmethod
-        def __incise_contains__(self, /):
+        def __contains__(self, /):
             raise NotImplementedError
 
         @_abc.abstractmethod
-        def __incise_length__(self, /):
+        def __len__(self, /):
             raise NotImplementedError
 
         @_abc.abstractmethod
-        def __incise_iter__(self, /):
+        def __iter__(self, /):
             raise NotImplementedError
 
         @property
@@ -73,8 +71,7 @@ class Index(_Fundament):
         def arrayquery(self, /):
             raise NotImplementedError
 
-
-        class __choret__(_Sampleable):
+        class __incise__(_choret.Sampleable):
 
             def slyce_predicate(self, incisor: _Predicate, /):
                 return (bound := self.bound).Slyce.Predicated(bound, incisor)
@@ -107,13 +104,13 @@ class Index(_Fundament):
             return self.asdict().__getitem__
 
         @property
-        def __incise_contains__(self, /):
+        def __contains__(self, /):
             return self.asdict().__contains__
 
-        def __incise_length__(self, /):
+        def __len__(self, /):
             return len(self.asdict())
 
-        def __incise_iter__(self, /):
+        def __iter__(self, /):
             return iter(self.asdict())
 
         @property
@@ -155,13 +152,13 @@ class Index(_Fundament):
             return self.asdict().__getitem__
 
         @property
-        def __incise_contains__(self, /):
+        def __contains__(self, /):
             return self.asdict().__contains__
 
-        def __incise_length__(self, /):
+        def __len__(self, /):
             return len(self.asdict())
 
-        def __incise_iter__(self, /):
+        def __iter__(self, /):
             return iter(self.asdict())
 
         @property

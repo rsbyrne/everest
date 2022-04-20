@@ -9,12 +9,9 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.essence import Essence as _Essence
 
-from .chora import (
-    Choric as _Choric,
-    Basic as _Basic,
-    )
+from .chora import Chora as _Chora
+from .choret import Basic as _Basic
 from .bythos import Bythos as _Bythos
-from .armature import ArmatureProtocol as _ArmatureProtocol
 from .fundament import Fundament as _Fundament
 from .brace import Brace as _Brace
 from .truss import Truss as _Truss
@@ -23,7 +20,7 @@ from .truss import Truss as _Truss
 class Thing(_Fundament, metaclass=_Bythos):
 
 
-    MROCLASSES = ('Oid', 'Space', 'Brace', 'Truss')
+    MROCLASSES = ('Space', 'Brace', 'Truss')
 
     @classmethod
     def __class_init__(cls, /):
@@ -48,20 +45,21 @@ class Thing(_Fundament, metaclass=_Bythos):
             return self._ptolemaic_class__.owner.Truss.Oid
 
 
-    class Space(_Choric, metaclass=_Sprite):
+    class Space(_Chora, metaclass=_Sprite):
 
+        MROCLASSES = ('__incise__',)
         OVERCLASSES = ('Oid',)
 
         def __incise_trivial__(self, /):
             return self._ptolemaic_class__.owner
 
-        class __choret__(_Basic, metaclass=_Essence):
+        class __incise__(_Basic):
 
             def retrieve_isinstance(self, incisor: 'owner.owner', /):
                 return incisor
 
             def slyce_tuple(self, incisor: tuple, /):
-                return _ArmatureProtocol.BRACE(self.bound)[tuple(incisor)]
+                return self.bound.__armature_brace__[tuple(incisor)]
 
 
     class Brace(_Brace):
@@ -82,16 +80,3 @@ _ = Thing.register(_Essence)
 
 ###############################################################################
 ###############################################################################
-
-
-#         def __truediv__(self, arg, /):
-#             return _Brace[self.__incise_trivial__(), arg]
-
-#         def __rtruediv__(self, arg, /):
-#             return _Brace[arg, self.__incise_trivial__()]
-
-#         def __sub__(self, arg, /):
-#             return NotImplemented
-
-#         def __rsub__(self, arg, /):
-#             return NotImplemented

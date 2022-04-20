@@ -128,16 +128,21 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             if name in base.MROCLASSES:
                 yield getattr(base, f"_mrofused_{name}")
             elif hasattr(base, name):
-                yield getattr(base, name)
+                candidate = getattr(base, name)
+                if not isinstance(candidate, Essence):
+                    continue
+                yield candidate
 
     def _add_mroclass(cls, name: str, /):
         mrobases = tuple(cls._gather_mrobases(name))
         if not all(isinstance(base, Essence) for base in mrobases):
-            raise TypeError("All mroclass bases must be Essences.")
+            raise TypeError("All mroclass bases must be Essences.", mrobases)
         if name in cls.__dict__:
             homebase = cls.__dict__[name]
             if not isinstance(homebase, Essence):
-                raise TypeError("All mroclass bases must be Essences.")
+                raise TypeError(
+                    "All mroclass bases must be Essences.", homebase
+                    )
             mrobasename = f"_mrobase_{name}"
             setattr(cls, mrobasename, homebase)
             if is_innerclass(homebase, cls):
@@ -311,9 +316,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def create_class_object(meta, name, bases, namespace):
-        return _abc.ABCMeta.__new__(
-            meta.get_meta(bases), name, bases, namespace
-            )
+        meta = meta.get_meta(bases)
+        return _abc.ABCMeta.__new__(meta, name, bases, namespace)
 
     @classmethod
     def __class_construct__(meta,
@@ -524,18 +528,6 @@ class EssenceBase(metaclass=Essence):
     @classmethod
     def __class_init__(cls, /):
         cls._add_mroclasses()
-        # Temporary!
-        try:
-            cls.__mroclass_init__()
-        except AttributeError:
-            pass
-        else:
-            raise RuntimeError
-        # cls._add_subclasses()
-
-    # @classmethod
-    # def __mroclass_init__(cls, /):
-        # cls.__class_init__()
 
 
 ###############################################################################

@@ -12,7 +12,7 @@ from everest.utilities import pretty as _pretty
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
-from .chora import Sampleable as _Sampleable
+from .choret import Sampleable as _Sampleable
 from .fundament import Fundament as _Fundament
 
 
@@ -73,7 +73,9 @@ class Number(_Fundament):
 
     class Space(metaclass=_Essence):
 
-        class __choret__(_Sampleable):
+        MROCLASSES = ('__incise__',)
+
+        class __incise__(_Sampleable):
 
             def retrieve_iscomparable(self, incisor: 'owner.comptyp', /):
                 return self.bound.convtyp(incisor)

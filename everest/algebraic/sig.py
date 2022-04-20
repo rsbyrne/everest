@@ -13,6 +13,7 @@ from enum import Enum as _Enum
 
 from everest.utilities import caching as _caching
 from everest import epitaph as _epitaph
+from everest.incision import Degenerate as _Degenerate
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.diict import Kwargs as _Kwargs
@@ -24,7 +25,6 @@ from .brace import Brace as _Brace
 from .chora import (
     Chora as _Chora,
     ChainChora as _ChainChora,
-    Degenerate as _Degenerate,
     )
 
 
@@ -398,59 +398,3 @@ class Sig(_ChainChora, metaclass=_Sprite):
 
 ###############################################################################
 ###############################################################################
-
-
-# class Params(metaclass=_Sprite):
-
-#     nargs: int = 0
-#     arguments: _Kwargs = _Kwargs()
-
-#     _req_slots__ = ('__dict__',)
-
-#     for name in (
-#             '__getitem__', '__len__', '__iter__', '__contains__',
-#             'keys', 'values', 'items',
-#             ):
-#         exec('\n'.join((
-#             f'@property',
-#             f'def {name}(self, /):',
-#             f'    return self.arguments.{name}',
-#             )))
-#     del name
-
-#     def __init__(self, /):
-#         self.__dict__.update(self.arguments)
-
-#     @classmethod
-#     def __class_call__(cls, arg0=0, arg1=None, /, **kwargs):
-#         cache = {}
-#         if arg1 is None:
-#             if isinstance(arg0, _inspect.BoundArguments):
-#                 if kwargs:
-#                     raise TypeError
-#                 cache['sigkwargs'] = arg0.kwargs
-#                 bndargs = cache['sigargs'] = arg0.args
-#                 nargs = len(bndargs)
-#                 arguments = arg0.arguments
-#             else:
-#                 nargs = arg0
-#                 arguments = kwargs
-#         else:
-#             if kwargs:
-#                 raise TypeError
-#             nargs, arguments = arg0, arg1
-#         obj = super().__class_call__(int(nargs), _Kwargs(arguments))
-#         if cache:
-#             obj.softcache.update(cache)
-#         return obj
-
-#     @property
-#     @_caching.soft_cache()
-#     def sigargs(self, /):
-#         return tuple(self.arguments.values())[:self.nargs]
-
-#     @property
-#     @_caching.soft_cache()
-#     def sigkwargs(self, /):
-#         dct = self.arguments
-#         return {name: dct[name] for name in tuple(dct)[self.nargs:]}

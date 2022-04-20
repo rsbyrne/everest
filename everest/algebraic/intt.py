@@ -13,18 +13,11 @@ from everest.utilities import (
     pretty as _pretty,
     caching as _caching,
     )
-from everest.incision import (
-    IncisionProtocol as _IncisionProtocol,
-    )
 
-from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
-from .chora import (
-    Choric as _Choric,
-    Sampleable as _Sampleable,
-    TrivialException as _TrivialException,
-    )
+from . import choret as _choret
+from .chora import Chora as _Chora, TrivialException as _TrivialException
 from .thing import Thing as _Thing
 from .number import Number as _Number
 from .index import Index as _Index
@@ -46,7 +39,9 @@ class Intt(_Number, _Thing):
 
 
     @_Index.register
-    class LowerBound(_Choric, metaclass=_Sprite):
+    class LowerBound(_Chora, metaclass=_Sprite):
+
+        MROCLASSES = ('__incise__',)
 
         lower: int
         step: int = 1
@@ -62,7 +57,7 @@ class Intt(_Number, _Thing):
                 raise ValueError
             return bound
 
-        class __choret__(_Sampleable):
+        class __incise__(_choret.Sampleable):
 
             def retrieve_int(self, incisor: 'owner.comptyp', /):
                 if incisor >= 0:
@@ -118,17 +113,17 @@ class Intt(_Number, _Thing):
                     bound.lower, bound.step * incisor
                     )
 
-        def __incise_iter__(self, /):
+        def __iter__(self, /):
             return _itertools.count(self.lower, self.step)
 
-        def __incise_contains__(self, arg, /):
+        def __contains__(self, arg, /):
             if not super().__contains__(arg):
                 return False
             if arg < self.lower:
                 return False
             return not (arg - self.lower) % self.step
 
-        def __incise_includes__(self, arg, /):
+        def __includes__(self, arg, /):
             raise NotImplementedError
 
         @property
@@ -150,7 +145,9 @@ class Intt(_Number, _Thing):
             p.text(']')
 
 
-    class UpperBound(_Choric, metaclass=_Sprite):
+    class UpperBound(_Chora, metaclass=_Sprite):
+
+        MROCLASSES = ('__incise__',)
 
         upper: int
 
@@ -163,7 +160,7 @@ class Intt(_Number, _Thing):
                 })
             return bound
 
-        class __choret__(_Sampleable):
+        class __incise__(_choret.Sampleable):
 
             def retrieve_int(self, incisor: 'owner.comptyp', /):
                 if incisor < 0:
@@ -200,12 +197,12 @@ class Intt(_Number, _Thing):
                     return self.boundowner.Empty
                 return self.boundowner.DoubleBound(lower, upper)
 
-        def __incise_contains__(self, arg, /):
+        def __contains__(self, arg, /):
             if not super().__contains__(arg):
                 return False
             return arg < self.upper
 
-        def __incise_includes__(self, arg, /):
+        def __includes__(self, arg, /):
             raise NotImplementedError
 
         def _repr_pretty_(self, p, cycle, root=None):
@@ -222,7 +219,9 @@ class Intt(_Number, _Thing):
 
 
     @_Index.register
-    class DoubleBound(_Choric, metaclass=_Sprite):
+    class DoubleBound(_Chora, metaclass=_Sprite):
+
+        MROCLASSES = ('__incise__',)
 
         lower: int
         upper: int
@@ -252,7 +251,7 @@ class Intt(_Number, _Thing):
         def nptyp(self, /):
             return self.owner.nptyp
 
-        class __choret__(_Sampleable):
+        class __incise__(_choret.Sampleable):
 
             def retrieve_int(self, incisor: 'owner.comptyp', /):
                 return self.bound._rangeobj[incisor]
@@ -267,14 +266,12 @@ class Intt(_Number, _Thing):
                 oldr = self.bound._rangeobj
                 newr = oldr[slice(*incisor)]
                 if len(newr) == 0:
-                    return _IncisionProtocol.SLYCE(caller)(
-                        self.boundowner.Empty
-                        )
+                    return caller.__incise_slyce__(self.boundowner.Empty)
                 olds = oldr.start, oldr.stop, oldr.step
                 news = newr.start, newr.stop, newr.step
                 if news == olds:
-                    return _IncisionProtocol.TRIVIAL(caller)()
-                return _IncisionProtocol.SLYCE(caller)(
+                    return caller.__incise_trivial__()
+                return caller.__incise_slyce__(
                     self.bound._ptolemaic_class__(*news)
                     )
 
@@ -291,16 +288,16 @@ class Intt(_Number, _Thing):
                 )))
 
         @property
-        def __incise_contains__(self, /):
+        def __contains__(self, /):
             return self._rangeobj.__contains__
 
-        def __incise_includes__(self, arg, /):
+        def __includes__(self, arg, /):
             raise NotImplementedError
 
-        def __incise_length__(self, /):
+        def __len__(self, /):
             return len(self._rangeobj)
 
-        def __incise_iter__(self, /):
+        def __iter__(self, /):
             return iter(self._rangeobj)
 
         @property

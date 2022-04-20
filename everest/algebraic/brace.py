@@ -7,10 +7,8 @@ import itertools as _itertools
 import types as _types
 
 from everest.incision import (
-    IncisionProtocol as _IncisionProtocol,
     IncisionChain as _IncisionChain,
     Incisable as _Incisable,
-    IncisionProtocolException as _IncisionProtocolException
     )
 from everest.utilities import (
     pretty as _pretty,
@@ -22,17 +20,9 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.diict import Diict as _Diict
 
-from .armature import (
-    ArmatureProtocol as _ArmatureProtocol,
-    )
 from . import query as _query
-from .chora import (
-    Chora as _Chora,
-    Choric as _Choric,
-    ChainChora as _ChainChora,
-    Basic as _Basic,
-    Multi as _Multi,
-    )
+from .chora import Chora as _Chora, ChainChora as _ChainChora
+from . import choret as _choret
 from .bythos import Bythos as _Bythos
 from .fundament import Fundament as _Fundament
 from .index import Index as _Index
@@ -57,9 +47,18 @@ def process_labels(arg, /):
     return arg
 
 
+def get_bracetyp_single(arg, default=None, /):
+    try:
+        return arg.__armature_brace__
+    except (AttributeError, NotImplementedError) as exc:
+        if default is None:
+            raise exc
+        return default
+
+
 def get_bracetyp(ACls, arg: tuple, /):
     if len(typset := set(
-            _ArmatureProtocol.BRACE(arg, ACls)
+            get_bracetyp_single(arg, ACls)
             for subarg in arg
             )) == 1:
         return typset.pop()
@@ -75,8 +74,8 @@ class PowerChora(metaclass=_Bythos):
     @classmethod
     def __class_incise__(cls, incisor, /, *, caller):
         if isinstance(incisor, _Chora):
-            return _IncisionProtocol.SLYCE(caller)(incisor)
-        return IncisionProtocol.FAIL(caller)
+            return caller.__incise_slyce__(incisor)
+        return caller.__incise_fail__(incisor)
 
 
 class BraceLike(metaclass=_Essence):
@@ -96,7 +95,7 @@ class BraceLike(metaclass=_Essence):
                 labels = len(arg)
             labels = process_labels(labels)
             return get_bracetyp(cls, arg).Asymmetric(arg, labels)
-        typ = _ArmatureProtocol.BRACE(arg, cls)
+        typ = get_bracetyp_single(arg, cls)
         if labels is None:
             return typ.Power(arg)
         labels = process_labels(labels)
@@ -155,7 +154,7 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
         def __incise_slyce__(self, incisor, /):
             return self._ptolemaic_class__(self.content, incisor)
 
-        def __incise_length__(self, /):
+        def __len__(self, /):
             return len(self.labels)
 
         @_caching.soft_cache()
@@ -179,10 +178,10 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
         def __incise_retrieve__(self, _=None, /):
             return self.content
 
-        def __incise_iter__(self, /):
+        def __iter__(self, /):
             return _itertools.repeat(self.content, len(self))
 
-        def __incise_contains__(self, arg, /):
+        def __contains__(self, arg, /):
             return arg == self.content
 
 
@@ -201,10 +200,10 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
                 ))
 
         @property
-        def __incise_contains__(self, /):
+        def __contains__(self, /):
             return self.astuple().__contains__
 
-        def __incise_iter__(self, /):
+        def __iter__(self, /):
             return iter(self.astuple())
 
 
@@ -218,9 +217,7 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
 
             @property
             def __armature_brace__(self, /):
-                return _ArmatureProtocol.TRUSS(
-                    self._ptolemaic_class__.owner.owner
-                    )
+                return self._ptolemaic_class__.owner.owner.__armature_truss__
 
             def __mod__(self, arg, /):
                 return Brace.Oid(self, arg)
@@ -229,28 +226,33 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
                 return NotImplemented
 
 
-        class Power(_Choric):
+        class Power(_Chora):
+
+            MROCLASSES = ('__incise__',)
 
             def _retrieve_repeatlike(self, incisor, /):
                 raise NotImplementedError
 
-            class __choret__(_Basic):
+            class __incise__(_choret.Basic):
 
                 def handle_mapping(self,
                         incisor: _Diict, /, *, caller
                         ):
-                    return _IncisionProtocol.INCISE(self.boundowner(
-                        self.bound.content,
-                        tuple(incisor),
-                        ))(_query.Shallow(incisor), caller=caller)
+                    return (
+                        self.boundowner(self.bound.content, tuple(incisor))
+                        .__incise__(_query.Shallow(incisor), caller=caller)
+                        )
 
                 def handle_sequence(self,
                         incisor: tuple, /, *, caller
                         ):
-                    return _IncisionProtocol.INCISE(self.boundowner(
-                        self.bound.content,
-                        _get_intt_()[0:len(incisor)],
-                        ))(_query.Shallow(incisor), caller=caller)
+                    return (
+                        self.boundowner(
+                            self.bound.content,
+                            _get_intt_()[0:len(incisor)],
+                            )
+                        .__incise__(_query.Shallow(incisor), caller=caller)
+                        )
 
                 def handle_other(self, incisor: object, /, *, caller):
                     bound = self.bound
@@ -263,12 +265,10 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
                             ),
                         caller,
                         )
-                    return _IncisionProtocol.INCISE(content)(
-                        incisor, caller=caller
-                        )
+                    return content.__incise__(incisor, caller=caller)
 
-            def __incise_contains__(self, arg, /):
-                if not super().__incise_contains__(arg):
+            def __contains__(self, arg, /):
+                if not super().__contains__(arg):
                     return False
                 return all(
                     isinstance(sub, self.content)
@@ -285,7 +285,9 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
                     _pretty.pretty(self.content, p, cycle)
 
 
-        class Symmetric(_Choric):
+        class Symmetric(_Chora):
+
+            MROCLASSES = ('__incise__',)
 
             @property
             def choras(self, /):
@@ -307,14 +309,14 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
 
             @property
             def active(self, /):
-                return self.__incision_manager__.active
+                return self.__incise__.active
 
-            __choret__ = _Multi
+            __incise__ = _choret.Multi
 
-            def __incise_contains__(self, arg, /):
-                if not super().__incise_contains__(arg):
+            def __contains__(self, arg, /):
+                if not super().__contains__(arg):
                     return False
-                return self.__incision_manager__.__incise_contains__(arg)
+                return self.__incise__.__contains__(arg)
 
             def _repr_pretty_(self, p, cycle, root=None):
                 if root is None:
@@ -332,9 +334,11 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
                     p.breakable()
 
 
-        class Asymmetric(_Choric, metaclass=_Sprite):
+        class Asymmetric(_Chora, metaclass=_Sprite):
 
-            __choret__ = _Multi
+            MROCLASSES = ('__incise__',)
+
+            __incise__ = _choret.Multi
 
             @property
             @_caching.soft_cache()
@@ -347,12 +351,12 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
 
             @property
             def active(self, /):
-                return self.__incision_manager__.active
+                return self.__incise__.active
 
-            def __incise_contains__(self, arg, /):
-                if not super().__incise_contains__(arg):
+            def __contains__(self, arg, /):
+                if not super().__contains__(arg):
                     return False
-                return self.__incision_manager__.__incise_contains__(arg)
+                return self.__incise__.__contains__(arg)
 
             @property
             def depth(self, /):
@@ -376,56 +380,3 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
 
 ###############################################################################
 ###############################################################################
-
-
-#         @classmethod
-#         def symmetric(cls, arg, labels, /):
-#             return (
-#                 _ArmatureProtocol.BRACE(arg, cls.owner)
-#                 .Symmetric(arg, labels)
-#                 )
-
-#         @classmethod
-#         def asymmetric(cls, args, labels, /):
-#             return (
-#                 get_bracetyp(cls, args)
-#                 .Asymmetric(args, labels)
-#                 )
-
-
-#                 def __truediv__(self, arg, /):
-#                     return Brace[(*self.choras, arg)]
-
-#                 def __rtruediv__(self, arg, /):
-#                     return Brace[(arg, *self.choras)]
-
-#                 def __sub__(self, arg, /):
-#                     return Brace[self, arg]
-
-#                 def __rsub__(self, arg, /):
-#                     return Brace[arg, self]
-
-# if isinstance(arg, int):
-#     return Brace.Oid.SymForm(self.chora, self.depth * arg)
-
-# if isinstance(arg, int):
-#     return Brace[tuple(
-#         _itertools.chain.from_iterable(
-#             _itertools.repeat(self.choras, arg)
-#             )
-#         )]
-
-
-                        # baseowner = self._ptolemaic_class__.owner.owner
-                        # if tuple(map(incisor.__contains__, SPECIALMEMBERS)):
-                        #     length = len(incisor)
-                        #     if length == 2:
-                        #         if incisor[0] is Ellipsis:
-                        #             return baseowner.Symmetric(
-                        #                 self.bound.arg,
-                        #                 Intt[:0]
-                        #                 )
-                        #         if incisor[1] is Ellipsis
-                        #     elif length == 3:
-                        #         pass
-                        #     raise ValueError(incisor)

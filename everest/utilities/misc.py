@@ -17,19 +17,21 @@ import types as _types
 import numpy as _np
 
 
-RICHOPS = ('lt', 'le', 'eq', 'ne', 'ge', 'gt')
-BOOLOPS = ('not', 'truth', 'is', 'is_not',)
-ARITHMOPS = (
+RICHOPS = tuple(f"__{strn}__" for strn in ('lt', 'le', 'eq', 'ne', 'ge', 'gt'))
+BOOLOPS = tuple(f"__{strn}__" for strn in ('not', 'truth', 'is', 'is_not'))
+ARITHMOPS = tuple(f"__{strn}__" for strn in (
     'abs', 'add', 'and', 'floordiv', 'index', 'inv',
     'lshift', 'mod', 'mul', 'matmul', 'neg', 'or',
     'pos', 'pow', 'rshift', 'sub', 'truediv', 'xor'
-    )
-REVOPS = (
+    ))
+REVOPS = tuple(f"__{strn}__" for strn in (
     'radd', 'rand', 'rfloordiv', 'rlshift', 'rmod', 'rmul',
     'rmatmul', 'ror', 'rpow', 'rrshift', 'rsub', 'rtruediv',
     'rxor',
-    )
-SEQOPS = ('concat', 'contains', 'countOf', 'indexOf', )
+    ))
+SEQOPS = tuple(f"__{strn}__" for strn in (
+    'concat', 'contains', 'countOf', 'indexOf'
+    ))
 ALLOPS = (*RICHOPS, *BOOLOPS, *ARITHMOPS, *SEQOPS)
 
 
