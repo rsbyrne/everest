@@ -417,7 +417,7 @@ class Multi(Basic):
 
     def __contains__(self, arg, /):
         choras = self.choras
-        if len(arg) > len(choras):
+        if len(arg) != len(choras):
             return False
         elif isinstance(arg, _collabc.Mapping):
             for key, chora in zip(self.labels, choras):
@@ -427,6 +427,21 @@ class Multi(Basic):
         else:
             for val, chora in zip(arg, self.choras):
                 if val not in chora:
+                    return False
+        return True
+
+    def __includes__(self, arg, /):
+        choras = self.choras
+        if len(arg) != len(choras):
+            return False
+        elif isinstance(arg, _collabc.Mapping):
+            for key, chora in zip(self.labels, choras):
+                if key in arg:
+                    if not chora.__includes__(arg[key]):
+                        return False
+        else:
+            for val, chora in zip(arg, self.choras):
+                if not chora.__includes__(val):
                     return False
         return True
 

@@ -4,6 +4,7 @@
 
 
 from everest.primitive import Primitive as _Primitive
+from everest import incision as _incision
 
 from everest.ptolemaic.sprite import Sprite as _Sprite
 from everest.ptolemaic.ousia import Ousia as _Ousia
@@ -43,6 +44,20 @@ class Thing(_Fundament, metaclass=_Bythos):
         @property
         def __armature_truss__(self, /):
             return self._ptolemaic_class__.owner.Truss.Oid
+
+        def __incise_trivial__(self, /):
+            return self
+
+        def __includes__(self, arg, /) -> bool:
+            if isinstance(arg, _incision.Degenerate):
+                return arg.retrieve() in self
+            owner = self._ptolemaic_class__.owner
+            if arg is owner:
+                return True
+            return isinstance(arg, owner.Oid)
+
+        def __contains__(self, arg, /):
+            return isinstance(arg, self._ptolemaic_class__.owner)
 
 
     class Space(_Chora, metaclass=_Sprite):

@@ -84,7 +84,7 @@ class Incisable(IncisionHandler):
 
     __slots__ = ()
 
-    # @_abc.abstractmethod
+    @_abc.abstractmethod
     def __contains__(self, arg, /):
         raise NotImplementedError
 
@@ -92,11 +92,10 @@ class Incisable(IncisionHandler):
     def __len__(self, /):
         raise NotImplementedError
 
-    # @_abc.abstractmethod
     def __iter__(self, /):
         raise NotImplementedError
 
-    # @_abc.abstractmethod
+    @_abc.abstractmethod
     def __includes__(self, /):
         raise NotImplementedError
 

@@ -19,7 +19,13 @@ class TrivialException(Exception):
     ...
 
 
-CHORAMETHODS = (*_incision.INCISABLEMETHS, *_ALGEBRAICMETHODS)
+CHORAMETHODS = (
+    '__pow__', '__rpow__',
+    '__matmul__', '__rmatmul__',
+    '__lshift__', '__rshift__',
+    *_incision.INCISABLEMETHS,
+    *_ALGEBRAICMETHODS,
+    )
 
 
 class Chora(_incision.Incisable, _Algebraic):
@@ -51,10 +57,10 @@ class Chora(_incision.Incisable, _Algebraic):
     def __armature_variable__(self, /):
         return self.Var
 
-    def __mod__(self, arg, /):
+    def __pow__(self, arg, /):
         return self.__armature_brace__(self.__incise_trivial__(), arg)
 
-    def __rmod__(self, arg, /):
+    def __rpow__(self, arg, /):
         return NotImplemented
 
     def __matmul__(self, arg, /):
@@ -62,6 +68,12 @@ class Chora(_incision.Incisable, _Algebraic):
 
     def __rmatmul__(self, arg, /):
         return NotImplemented
+
+    def __lshift(self, other, /):
+        return AbstractMapping(other, self)
+
+    def __rshift__(self, other, /):
+        return AbstractMapping(self, other)
 
 
     class Gen(_Armature, metaclass=_Sprite):
@@ -104,6 +116,8 @@ class Chora(_incision.Incisable, _Algebraic):
             return self.arg
 
         def __incise__(self, incisor, /, *, caller):
+            if incisor is Ellipsis:
+                return caller.__incise_trivial__()
             return caller.__incise_fail__(
                 incisor,
                 "Cannot further incise an already degenerate incisable."
@@ -116,6 +130,9 @@ class Chora(_incision.Incisable, _Algebraic):
         @property
         def __contains__(self, /):
             return self.retrieve().__eq__
+
+        def __includes__(self, _, /):
+            return False
 
 
     @_incision.Empty.register
@@ -137,15 +154,70 @@ class Chora(_incision.Incisable, _Algebraic):
             return False
 
 
-class ChoraChain(_incision.IncisionChain):
+class AbstractMapping(Chora, metaclass=_Sprite):
 
-    for methname in _ALGEBRAICMETHODS:
-        exec('\n'.join((
-            f"@property",
-            f"def {methname}(self, /):",
-            f"    return self.last.{methname}",
-            )))
-    del methname
+    fromchora: Chora
+    tochora: Chora
+
+    def __incise_retrieve__(self, incisor, /):
+        return ArbitraryPair(self, *incisor)
+
+    def __incise_slyce__(self, incisor, /):
+        return AbstractMapping(*incisor)
+
+    def __incise__(self, incisor, /, *, caller):
+        if incisor is Ellipsis:
+            return caller.__incise_trivial__()
+        if not isinstance(incisor, tuple):
+            return caller.__incise_fail__(
+                incisor, "Incisors must be two-tuples."
+                )
+        if len(incisor) != 2:
+            return caller.__incise_fail__(
+                incisor, "Incisors must be two-tuples."
+                )
+        try:
+            outs = tuple(
+                _incision.Degenerator(chora)[subinc]
+                for subinc, chora in zip(incisor, self.params.values())
+                )
+        except _incision.IncisorTypeException as exc:
+            return caller.__incise_fail__(exc)
+        if all(isinstance(out, _incision.Degenerate) for out in outs):
+            return caller.__incise_retrieve__(out.retrieve() for out in outs)
+        return caller.__incise_slyce__(outs)
+
+    def __contains__(self, arg, /):
+        if not isinstance(arg, ArbitraryPair):
+            return False
+        return self.__includes__(arg.source)
+
+    def __includes__(self, arg, /):
+        if not isinstance(arg, AbstractMapping):
+            return False
+        return all((
+            self.fromchora.__includes__(arg.fromchora),
+            self.tochora.__includes__(arg.tochora),
+            ))
+
+
+class ArbitraryPair(metaclass=_Sprite):
+
+    source: AbstractMapping
+    key: object
+    val: object
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        bound = super().parameterise(*args, **kwargs)
+        source, key, val = bound.arguments.values()
+        fromchora, tochora = source.params.values()
+        if (key not in fromchora) or (val not in tochora):
+            cls.paramexc(message=(
+                "The `key` and `val` args must be proper members "
+                "of the `source` `fromchora` and `tochora` respectively."
+                ))
+        return bound
 
 
 class Composition(Chora, metaclass=_Sprite):
@@ -168,6 +240,17 @@ class Composition(Chora, metaclass=_Sprite):
             f"@property",
             f"def {methname}(self, /):",
             f"    return self.gobj.{methname}",
+            )))
+    del methname
+
+
+class ChoraChain(_incision.IncisionChain):
+
+    for methname in _ALGEBRAICMETHODS:
+        exec('\n'.join((
+            f"@property",
+            f"def {methname}(self, /):",
+            f"    return self.last.{methname}",
             )))
     del methname
 

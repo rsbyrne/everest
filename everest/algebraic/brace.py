@@ -6,10 +6,7 @@
 import itertools as _itertools
 import types as _types
 
-from everest.incision import (
-    IncisionChain as _IncisionChain,
-    Incisable as _Incisable,
-    )
+from everest import incision as _incision
 from everest.utilities import (
     pretty as _pretty,
     caching as _caching,
@@ -210,7 +207,7 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
     class Oid(BraceLike):
 
 
-        class Form(_Incisable, metaclass=_Essence):
+        class Form(_incision.Incisable, metaclass=_Essence):
 
             def __incise_retrieve__(self, incisor, /):
                 return self._ptolemaic_class__.owner.owner(*incisor)
@@ -224,6 +221,20 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
 
             def __rmod__(self, arg, /):
                 return NotImplemented
+
+            def __incise_trivial__(self, /):
+                return self
+
+            def __includes__(self, arg, /) -> bool:
+                if isinstance(arg, _incision.Degenerate):
+                    return arg.retrieve() in self
+                owner = self._ptolemaic_class__.owner.owner
+                if arg is owner:
+                    return True
+                return isinstance(arg, owner.Oid)
+
+            def __contains__(self, arg, /):
+                return isinstance(arg, self._ptolemaic_class__.owner.owner)
 
 
         class Power(_Chora):
@@ -257,7 +268,7 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
                 def handle_other(self, incisor: object, /, *, caller):
                     bound = self.bound
                     content = bound.content
-                    caller = _IncisionChain(
+                    caller = _incision.IncisionChain(
                         content,
                         _FrozenNamespace(
                             __incise_slyce__=bound._ptolemaic_class__,
@@ -270,10 +281,12 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
             def __contains__(self, arg, /):
                 if not super().__contains__(arg):
                     return False
-                return all(
-                    isinstance(sub, self.content)
-                    for sub in arg
-                    )
+                return all(map(self.content.__contains__, arg))
+
+            def __includes__(self, arg, /):
+                if not super().__includes__(arg):
+                    return False
+                return self.content.__includes__(arg.content)
 
             def _repr_pretty_(self, p, cycle, root=None):
                 if root is None:
@@ -357,6 +370,11 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
                 if not super().__contains__(arg):
                     return False
                 return self.__incise__.__contains__(arg)
+
+            def __includes__(self, arg, /):
+                if not super().__includes__(arg):
+                    return False
+                return self.__incise__.__includes__(arg)
 
             @property
             def depth(self, /):
