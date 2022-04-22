@@ -456,13 +456,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Bureaux:
 
     @property
+    @_caching.weak_cache()
     def drawer(cls, /):
-        try:
-            return cls._drawer
-        except (AttributeError, ReferenceError):
-            with cls.mutable:
-                drawer = cls._drawer = _open_drawer(cls)
-            return drawer
+        return _open_drawer(cls)
 
     ### Representations:
 

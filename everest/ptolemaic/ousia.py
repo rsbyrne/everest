@@ -199,13 +199,9 @@ class OusiaBase(metaclass=Ousia):
     ### Bureaux:
 
     @property
-    def drawer(self, /):
-        try:
-            return self._drawer
-        except (AttributeError, ReferenceError):
-            with self.mutable:
-                drawer = self._drawer = _open_drawer(self)
-            return drawer
+    @_caching.weak_cache()
+    def drawer(cls, /):
+        return _open_drawer(cls)
 
     ### Representations:
 
