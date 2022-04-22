@@ -12,6 +12,7 @@ from everest.utilities import (
     reseed as _reseed,
     )
 from everest.utilities.switch import Switch as _Switch
+from everest.bureau import open_drawer as _open_drawer
 from everest.exceptions import (
     FrozenAttributesException as _FrozenAttributesException
     )
@@ -84,7 +85,7 @@ class OusiaBase(metaclass=Ousia):
 
     MERGETUPLES = ('_req_slots__', '_var_slots__',)
     _req_slots__ = (
-        '_softcache', '_weakcache', '__weakref__', 'freezeattr',
+        '_softcache', '_weakcache', '__weakref__', 'freezeattr', '_drawer'
         )
     _var_slots__ = ()
 
@@ -155,16 +156,6 @@ class OusiaBase(metaclass=Ousia):
 
     ### Implementing the attribute-freezing behaviour for instances:
 
-    # @property
-    # def freezeattr(self, /):
-    #     try:
-    #         return self._freezeattr
-    #     except AttributeError:
-    #         super().__setattr__(
-    #             '_freezeattr', switch := _switch.Switch(False)
-    #             )
-    #         return switch
-
     @property
     def mutable(self, /):
         return self.freezeattr.as_(False)
@@ -180,7 +171,8 @@ class OusiaBase(metaclass=Ousia):
             else:
                 if check:
                     raise _FrozenAttributesException(
-                        f"Setting attributes on an object of type {type(self)} "
+                        f"Setting attributes "
+                        f"on an object of type {type(self)} "
                         "is forbidden at this time; "
                         f"toggle switch `.freezeattr` to override."
                         )
@@ -197,11 +189,23 @@ class OusiaBase(metaclass=Ousia):
             else:
                 if check:
                     raise _FrozenAttributesException(
-                        f"Deleting attributes on an object of type {type(self)} "
+                        f"Deleting attributes "
+                        f"on an object of type {type(self)} "
                         "is forbidden at this time; "
                         f"toggle switch `.freezeattr` to override."
                         )
             object.__delattr__(self, name)
+
+    ### Bureaux:
+
+    @property
+    def drawer(self, /):
+        try:
+            return self._drawer
+        except (AttributeError, ReferenceError):
+            with self.mutable:
+                drawer = self._drawer = _open_drawer(self)
+            return drawer
 
     ### Representations:
 

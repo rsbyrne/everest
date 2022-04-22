@@ -55,10 +55,6 @@ class Index(_Fundament):
             raise NotImplementedError
 
         @_abc.abstractmethod
-        def __contains__(self, /):
-            raise NotImplementedError
-
-        @_abc.abstractmethod
         def __len__(self, /):
             raise NotImplementedError
 
@@ -107,6 +103,10 @@ class Index(_Fundament):
         def __contains__(self, /):
             return self.asdict().__contains__
 
+        @property
+        def __includes__(self, /):
+            raise NotImplementedError
+
         def __len__(self, /):
             return len(self.asdict())
 
@@ -154,6 +154,10 @@ class Index(_Fundament):
         @property
         def __contains__(self, /):
             return self.asdict().__contains__
+
+        @property
+        def __includes__(self, /):
+            raise NotImplementedError
 
         def __len__(self, /):
             return len(self.asdict())

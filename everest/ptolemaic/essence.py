@@ -10,6 +10,7 @@ import weakref as _weakref
 import types as _types
 import inspect as _inspect
 
+from everest.bureau import open_drawer as _open_drawer
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
@@ -20,6 +21,7 @@ from everest.utilities import (
     )
 from everest.ur import Dat as _Dat
 
+from .ptolemaic import Ptolemaic as _Ptolemaic
 from .pleroma import Pleroma as _Pleroma
 from . import exceptions as _exceptions
 
@@ -113,6 +115,7 @@ def is_innerclass(inner, outer):
     return '.'.join(inner.__qualname__.split('.')[:-1]) == outer.__qualname__
 
 
+@_Ptolemaic.register
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
@@ -447,24 +450,19 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Operations:
 
-    for methname in (*_misc.ARITHMOPS, *_misc.REVOPS):
-        exec('\n'.join((
-            f"def __{methname}__(cls, /, *args, **kwargs):",
-            f"    try:",
-            f"        meth = cls.__class_{methname}__",
-            f"    except AttributeError:",
-            f"        return NotImplemented",
-            f"    return meth(*args, **kwargs)",
-            )))
-    for methname in ('__contains__', '__len__', '__iter__'):
-        exec('\n'.join((
-            f"def __{methname}__(cls, /, *args, **kwargs):",
-            f"    return cls.__class_{methname}__(*args, **kwargs)",
-            )))
-    del methname
-
     def __bool__(cls, /):
         return True
+
+    ### Bureaux:
+
+    @property
+    def drawer(cls, /):
+        try:
+            return cls._drawer
+        except (AttributeError, ReferenceError):
+            with cls.mutable:
+                drawer = cls._drawer = _open_drawer(cls)
+            return drawer
 
     ### Representations:
 
@@ -512,6 +510,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 _Dat.register(Essence)
 
 
+@_Ptolemaic.register
 class EssenceBase(metaclass=Essence):
 
     MERGETUPLES = ('MROCLASSES', 'OVERCLASSES')
@@ -527,6 +526,7 @@ class EssenceBase(metaclass=Essence):
 
     @classmethod
     def __class_init__(cls, /):
+        cls._bureaux = _weakref.WeakKeyDictionary()
         cls._add_mroclasses()
 
 
