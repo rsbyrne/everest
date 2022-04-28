@@ -16,7 +16,7 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from .chora import Chora as _Chora
 from . import choret as _choret
-from .fundament import Fundament as _Fundament
+from .algebraic import Algebraic as _Algebraic
 from .predicate import Predicate as _Predicate
 
 
@@ -29,7 +29,7 @@ def get_index_iterable(func, /):
     return index_iterable
 
 
-class Index(_Fundament):
+class Index(_Algebraic):
 
 
     MROCLASSES = ('Form', 'Arbitrary', 'Slyce')

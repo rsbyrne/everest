@@ -18,7 +18,6 @@ from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from . import choret as _choret
 from .chora import Chora as _Chora, TrivialException as _TrivialException
-from .thing import Thing as _Thing
 from .number import Number as _Number
 from .index import Index as _Index
 
@@ -30,7 +29,7 @@ def _nth(iterable, n):
         raise IndexError(n)
 
 
-class Intt(_Number, _Thing):
+class Intt(_Number):
 
 
     pytyp = int

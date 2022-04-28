@@ -16,11 +16,10 @@ from .chora import (
     TrivialException as _TrivialException,
     )
 from . import choret as _choret
-from .thing import Thing as _Thing
 from .number import Number as _Number
 
 
-class Floatt(_Number, _Thing):
+class Floatt(_Number):
 
 
     pytyp = float

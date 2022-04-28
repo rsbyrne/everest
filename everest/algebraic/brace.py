@@ -21,7 +21,7 @@ from . import query as _query
 from .chora import Chora as _Chora, ChainChora as _ChainChora
 from . import choret as _choret
 from .bythos import Bythos as _Bythos
-from .fundament import Fundament as _Fundament
+from .algebraic import Algebraic as _Algebraic
 from .index import Index as _Index
 
 
@@ -131,12 +131,15 @@ class BraceLike(metaclass=_Essence):
         labels: tuple
 
 
-class Brace(BraceLike, _Fundament, metaclass=_Bythos):
+class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
 
+
+    MROCLASSES = ('Oid',)
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
+        cls.Oid.register(cls)
         if (owner := cls.owner) is None:
             owner = PowerChora
         cls.__class_incision_manager__ = cls.Oid.Power(owner)
@@ -204,7 +207,8 @@ class Brace(BraceLike, _Fundament, metaclass=_Bythos):
             return iter(self.astuple())
 
 
-    class Oid(BraceLike):
+    @_Algebraic.register
+    class Oid(BraceLike, _Chora):
 
 
         class Form(_incision.Incisable, metaclass=_Essence):

@@ -67,7 +67,6 @@ class GroupPlexon(Plexon):
             out = self.subs[name] = typ(self, *args, **kwargs)
         else:
             if not isinstance(out, typ):
-                print(out)
                 raise TypeError(type(out))
         return out
 

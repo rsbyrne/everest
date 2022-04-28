@@ -10,7 +10,6 @@ import weakref as _weakref
 import types as _types
 import inspect as _inspect
 
-from everest.bureau import open_drawer as _open_drawer
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
@@ -116,6 +115,7 @@ def is_innerclass(inner, outer):
 
 
 @_Ptolemaic.register
+@_Dat.register
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
@@ -453,13 +453,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __bool__(cls, /):
         return True
 
-    ### Bureaux:
-
-    @property
-    @_caching.weak_cache()
-    def drawer(cls, /):
-        return _open_drawer(cls)
-
     ### Representations:
 
     # @property
@@ -503,11 +496,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return _reseed.rdigits(12)
 
 
-_Dat.register(Essence)
-
-
-@_Ptolemaic.register
-class EssenceBase(metaclass=Essence):
+class EssenceBase(_Ptolemaic, metaclass=Essence):
 
     MERGETUPLES = ('MROCLASSES', 'OVERCLASSES')
     MERGEDICTS = ('ADJNAMES',)

@@ -8,10 +8,10 @@ from collections import abc as _collabc
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from .chora import Chora as _Chora
-from .fundament import Fundament as _Fundament
+from .algebraic import Algebraic as _Algebraic
 
 
-class Predicate(_Fundament, _Chora, metaclass=_Sprite):
+class Predicate(_Chora, _Algebraic, metaclass=_Sprite):
 
     func: _collabc.Callable
 

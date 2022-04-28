@@ -13,10 +13,10 @@ from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from .choret import Sampleable as _Sampleable
-from .fundament import Fundament as _Fundament
+from .thing import Thing as _Thing
 
 
-class Number(_Fundament):
+class Number(_Thing):
 
 
     MROCLASSES = ('UpperBound', 'LowerBound', 'DoubleBound')

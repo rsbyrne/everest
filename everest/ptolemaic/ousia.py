@@ -3,8 +3,9 @@
 ###############################################################################
 
 
+import abc as _abc
+
 import inspect as _inspect
-import types as _types
 import weakref as _weakref
 
 from everest.utilities import (
@@ -12,7 +13,6 @@ from everest.utilities import (
     reseed as _reseed,
     )
 from everest.utilities.switch import Switch as _Switch
-from everest.bureau import open_drawer as _open_drawer
 from everest.exceptions import (
     FrozenAttributesException as _FrozenAttributesException
     )
@@ -83,11 +83,10 @@ class Ousia(_Essence):
 
 class OusiaBase(metaclass=Ousia):
 
-    MERGETUPLES = ('_req_slots__', '_var_slots__',)
+    MERGETUPLES = ('_req_slots__',)
     _req_slots__ = (
-        '_softcache', '_weakcache', '__weakref__', 'freezeattr', '_drawer'
+        '_softcache', '_weakcache', '__weakref__', 'freezeattr',
         )
-    _var_slots__ = ()
 
     @classmethod
     def _get_sig(cls, /):
@@ -95,7 +94,7 @@ class OusiaBase(metaclass=Ousia):
 
     @classmethod
     def instantiate(cls, /, *args, **kwargs):
-        obj = cls.Concrete(*args, **kwargs)
+        obj = cls.Concrete()
         cls.__init__(obj, *args, **kwargs)
         return obj
 
@@ -104,12 +103,6 @@ class OusiaBase(metaclass=Ousia):
         obj = cls.instantiate(*args, **kwargs)
         object.__setattr__(obj, 'freezeattr', _Switch(True))
         return obj
-
-    @property
-    def varvals(self, /):
-        return _types.MappingProxyType({
-            key: getattr(self, key) for key in self._var_slots__
-            })
 
     ### Configuring the concrete class:
 
@@ -161,47 +154,34 @@ class OusiaBase(metaclass=Ousia):
         return self.freezeattr.as_(False)
 
     def __setattr__(self, name, val, /):
-        if name in self._var_slots__:
-            object.__setattr__(self, name, val)
+        try:
+            check = self.freezeattr
+        except AttributeError:
+            pass
         else:
-            try:
-                check = self.freezeattr
-            except AttributeError:
-                pass
-            else:
-                if check:
-                    raise _FrozenAttributesException(
-                        f"Setting attributes "
-                        f"on an object of type {type(self)} "
-                        "is forbidden at this time; "
-                        f"toggle switch `.freezeattr` to override."
-                        )
-            object.__setattr__(self, name, val)
+            if check:
+                raise _FrozenAttributesException(
+                    f"Setting attributes "
+                    f"on an object of type {type(self)} "
+                    "is forbidden at this time; "
+                    f"toggle switch `.freezeattr` to override."
+                    )
+        object.__setattr__(self, name, val)
 
     def __delattr__(self, name, /):
-        if name in self._var_slots__:
-            object.__delattr__(self, name)
+        try:
+            check = self.freezeattr
+        except AttributeError:
+            pass
         else:
-            try:
-                check = self.freezeattr
-            except AttributeError:
-                pass
-            else:
-                if check:
-                    raise _FrozenAttributesException(
-                        f"Deleting attributes "
-                        f"on an object of type {type(self)} "
-                        "is forbidden at this time; "
-                        f"toggle switch `.freezeattr` to override."
-                        )
-            object.__delattr__(self, name)
-
-    ### Bureaux:
-
-    @property
-    @_caching.weak_cache()
-    def drawer(cls, /):
-        return _open_drawer(cls)
+            if check:
+                raise _FrozenAttributesException(
+                    f"Deleting attributes "
+                    f"on an object of type {type(self)} "
+                    "is forbidden at this time; "
+                    f"toggle switch `.freezeattr` to override."
+                    )
+        object.__delattr__(self, name)
 
     ### Representations:
 
@@ -224,20 +204,8 @@ class OusiaBase(metaclass=Ousia):
     def contentrepr(self, /):
         return self._content_repr()
 
-    def _var_repr(self, /):
-        return ', '.join(
-            f"{key}:{getattr(self, key)}" for key in self._var_slots__
-            )
-
-    @property
-    def varrepr(self, /):
-        return self._var_repr()
-
     def __str__(self, /):
-        out = f"{self.rootrepr}({self.contentrepr})"
-        if self._var_slots__:
-            out += f"{{{self.varrepr}}}"
-        return out
+        return f"{self.rootrepr}({self.contentrepr})"
 
     def __repr__(self, /):
         return f"<{self.rootrepr}>"
@@ -245,6 +213,11 @@ class OusiaBase(metaclass=Ousia):
     @_caching.soft_cache()
     def __hash__(self, /):
         return _reseed.rdigits(12)
+
+    @property
+    @_abc.abstractmethod
+    def epitaph(self, /):
+        raise NotImplementedError
 
     ### Rich comparisons to support ordering of objects:
 

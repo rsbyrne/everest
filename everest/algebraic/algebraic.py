@@ -25,3 +25,9 @@ class Algebraic(metaclass=_Essence):
 
 ###############################################################################
 ###############################################################################
+
+
+        # @classmethod
+        # def __class_init__(cls, /):
+        #     super().__class_init__()
+        #     cls.register(cls.Degenerate)

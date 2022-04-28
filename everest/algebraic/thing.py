@@ -13,19 +13,20 @@ from everest.ptolemaic.essence import Essence as _Essence
 from .chora import Chora as _Chora
 from .choret import Basic as _Basic
 from .bythos import Bythos as _Bythos
-from .fundament import Fundament as _Fundament
+from .algebraic import Algebraic as _Algebraic
 from .brace import Brace as _Brace
 from .truss import Truss as _Truss
 
 
-class Thing(_Fundament, metaclass=_Bythos):
+class Thing(_Algebraic, metaclass=_Bythos):
 
 
-    MROCLASSES = ('Space', 'Brace', 'Truss')
+    MROCLASSES = ('Oid', 'Space', 'Brace', 'Truss')
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
+        cls.Oid.register(cls)
         cls.__class_incision_manager__ = cls.Space()
 
     @classmethod
@@ -35,7 +36,8 @@ class Thing(_Fundament, metaclass=_Bythos):
         raise ValueError(arg)
 
 
-    class Oid(metaclass=_Essence):
+    @_Algebraic.register
+    class Oid(_Chora):
 
         @property
         def __armature_brace__(self, /):

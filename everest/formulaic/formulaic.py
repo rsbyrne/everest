@@ -3,12 +3,11 @@
 ###############################################################################
 
 
-import abc as _abc
+from everest.ptolemaic.essence import Essence as _Essence
 
 
-class Ptolemaic(metaclass=_abc.ABCMeta):
-
-    __slots__ = ()
+class Formulaic(metaclass=_Essence):
+    ...
 
 
 ###############################################################################
