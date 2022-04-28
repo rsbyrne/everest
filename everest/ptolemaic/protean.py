@@ -33,14 +33,17 @@ class ProteanBase(metaclass=Protean):
         super().__class_init__()
         cls.varnames = set(cls._var_slots__)
 
+    def initialise(self, varvals, /):
+        super().initialise()
+        self.update(varvals)
+
     @classmethod
     def instantiate(cls, varvals, basis=None, /):
         if not isinstance(basis, cls.BasisType):
             raise TypeError(type(basis))
-        obj = cls.Concrete()
+        obj = cls.corporealise()
         obj.basis = basis
-        obj.update(varvals)
-        cls.__init__(obj)
+        obj.initialise(varvals)
         return obj
 
     @classmethod
@@ -49,7 +52,7 @@ class ProteanBase(metaclass=Protean):
         for key in set(kwargs) & cls.varnames:
             varvals[key] = kwargs.pop(key)
         basis = cls.BasisType(*args, **kwargs)
-        return super().__class_call__(varvals, basis)
+        return cls.instantiate(varvals, basis)
 
     def update(self, arg: dict = None, /, **kwargs):
         if arg is None:
@@ -57,34 +60,34 @@ class ProteanBase(metaclass=Protean):
         elif kwargs:
             raise ValueError("Cannot update from both arg and kwargs.")
         elif isinstance(arg, tuple):
-            for name, arg in zip(self._var_slots__, args):
-                object.__setattr__(self, key, val)
+            for name, val in zip(self._var_slots__, arg):
+                object.__setattr__(self, name, val)
             return
         varnames = self.varnames
         if (bad := set(arg).difference(varnames)):
             raise _FrozenAttributesException(bad)
-        for key, val in arg.items():
-            object.__setattr__(self, key, val)
+        for name, val in arg.items():
+            object.__setattr__(self, name, val)
 
     def __getattr__(self, name, /):
-        try:
-            return super().__getattr__(name)
-        except AttributeError as exc:
-            if name in self._var_slots__:
+        if name in object.__getattribute__(self, '_var_slots__'):
+            try:
+                return super().__getattribute__(name)
+            except AttributeError:
                 return None
-            raise
+        return super().__getattribute__(name)
 
     def __setattr__(self, name, val, /):
-        if name in self._var_slots__:
+        if name in object.__getattribute__(self, '_var_slots__'):
             object.__setattr__(self, name, val)
         else:
             super().__setattr__(name, val)
 
     def __delattr__(self, name, /):
-        if name in self._var_slots__:
+        if name in object.__getattribute__(self, '_var_slots__'):
             object.__delattr__(self, name)
         else:
-            super().__setattr__(name, val)
+            super().__delattr__(name)
 
     @property
     def vardict(self, /):

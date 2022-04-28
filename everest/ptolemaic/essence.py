@@ -511,7 +511,6 @@ class EssenceBase(_Ptolemaic, metaclass=Essence):
 
     @classmethod
     def __class_init__(cls, /):
-        cls._bureaux = _weakref.WeakKeyDictionary()
         cls._add_mroclasses()
 
 

@@ -87,16 +87,6 @@ class SpriteBase(metaclass=Sprite):
         cls.premade = _weakref.WeakValueDictionary()
 
     @classmethod
-    def instantiate(cls, params: _Params, /):
-        try:
-            return cls.premade[params]
-        except KeyError:
-            obj = cls.premade[params] = cls.Concrete()
-            object.__setattr__(obj, 'params', params)
-            cls.__init__(obj)
-            return obj
-
-    @classmethod
     def paramexc(cls, /, *args, message=None, **kwargs):
         return _exceptions.ParameterisationException(
             (args, kwargs), cls, message
@@ -109,10 +99,31 @@ class SpriteBase(metaclass=Sprite):
         return bound
 
     @classmethod
+    def instantiate(cls, params: _Params, /):
+        try:
+            return cls.premade[params]
+        except KeyError:
+            obj = cls.premade[params] = cls.corporealise()
+            obj.params = params
+            obj.initialise()
+            return obj
+
+    @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return super().__class_call__(
+        return cls.instantiate(
             _Params(cls.parameterise(*args, **kwargs).arguments)
             )
+
+    def __class_getitem__(cls, arg, /):
+        if not isinstance(arg, _Params):
+            if isinstance(arg, dict):
+                arg = _Params(arg)
+            else:
+                try:
+                    return super().__class_getitem__(arg)
+                except AttributeError as exc:
+                    raise TypeError(cls, type(arg)) from exc
+        return cls.instantiate(arg)
 
     def remake(self, /, **kwargs):
         ptolcls = self._ptolemaic_class__
@@ -120,14 +131,6 @@ class SpriteBase(metaclass=Sprite):
         bound.arguments.update(self.params)
         bound.arguments.update(kwargs)
         return ptolcls(*bound.args, **bound.kwargs)
-
-    def __class_getitem__(cls, arg, /):
-        if isinstance(arg, _Params):
-            return cls.instantiate(arg)
-        try:
-            return super().__class_getitem__(arg)
-        except AttributeError as exc:
-            raise TypeError(type(arg)) from exc
 
     @classmethod
     def pre_create_concrete(cls, /):

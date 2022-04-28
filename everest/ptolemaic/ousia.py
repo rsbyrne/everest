@@ -93,16 +93,24 @@ class OusiaBase(metaclass=Ousia):
         return _inspect.signature(cls.__init__)
 
     @classmethod
-    def instantiate(cls, /, *args, **kwargs):
+    def corporealise(cls, /):
         obj = cls.Concrete()
-        cls.__init__(obj, *args, **kwargs)
+        object.__setattr__(obj, 'freezeattr', _Switch(False))
         return obj
 
     @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        obj = cls.instantiate(*args, **kwargs)
-        object.__setattr__(obj, 'freezeattr', _Switch(True))
+    def instantiate(cls, /, *args, **kwargs):
+        obj = cls.corporealise()
+        obj.initialise(*args, **kwargs)
         return obj
+
+    def initialise(self, /, *args, **kwargs):
+        self._ptolemaic_class__.__init__(self, *args, **kwargs)
+        self.freezeattr.toggle(True)
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        return cls.instantiate(*args, **kwargs)
 
     ### Configuring the concrete class:
 
