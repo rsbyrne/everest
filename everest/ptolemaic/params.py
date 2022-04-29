@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from .diict import Kwargs as _Kwargs
+from .atlantean import Kwargs as _Kwargs
 
 
 class Params(_Kwargs):

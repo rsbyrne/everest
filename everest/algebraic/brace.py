@@ -15,7 +15,7 @@ from everest.utilities import (
 
 from everest.ptolemaic.schematic import Schematic as _Schematic
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.diict import Diict as _Diict
+from everest.ptolemaic.atlantean import Diict as _Diict
 
 from . import query as _query
 from .chora import Chora as _Chora, ChainChora as _ChainChora

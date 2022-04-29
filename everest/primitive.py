@@ -5,6 +5,7 @@
 
 import abc as _abc
 import types as _types
+from enum import Enum as _Enum
 
 
 class PrimitiveMeta(_abc.ABCMeta):
@@ -33,7 +34,8 @@ class Primitive(metaclass=PrimitiveMeta):
         type(None),
         type(Ellipsis),
         type(NotImplemented),
-#         type,
+        _Enum,
+        type,
         )
 
     @classmethod
@@ -43,22 +45,22 @@ class Primitive(metaclass=PrimitiveMeta):
                 return True
         return NotImplemented
 
-#     @classmethod
-#     def __class_instancecheck__(cls, arg, /):
-#         if cls is not Primitive:
-#             return NotImplemented
-#         if isinstance(arg, cls.TYPS):
-#             return True
-#         if isinstance(arg, tuple):
-#             return all(map(cls.__instancecheck__, arg))
-#         if isinstance(arg, dict):
-#             return all(map(
-#                 cls.__instancecheck__,
-#                 (tuple(arg), tuple(arg.values())),
-#                 ))
-#         if hasattr(arg, '__module__'):
-#             return arg.__module__ == 'builtins'
-#         return False
+    # @classmethod
+    # def __class_instancecheck__(cls, arg, /):
+    #     if cls is not Primitive:
+    #         return NotImplemented
+    #     if isinstance(arg, cls.TYPS):
+    #         return True
+    #     if isinstance(arg, tuple):
+    #         return all(map(cls.__instancecheck__, arg))
+    #     if isinstance(arg, dict):
+    #         return all(map(
+    #             cls.__instancecheck__,
+    #             (tuple(arg), tuple(arg.values())),
+    #             ))
+    #     if hasattr(arg, '__module__'):
+    #         return arg.__module__ == 'builtins'
+    #     return False
 
 
 ###############################################################################

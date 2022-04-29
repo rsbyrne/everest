@@ -85,13 +85,16 @@ class OusiaBase(metaclass=Ousia):
 
     MERGETUPLES = ('_req_slots__',)
     _req_slots__ = (
-        '_softcache', '_weakcache', '__weakref__', 'freezeattr',
+        '__weakref__',
+        'softcache', 'weakcache', 'freezeattr',
         )
 
     @classmethod
     def corporealise(cls, /):
         obj = cls.Concrete()
         object.__setattr__(obj, 'freezeattr', _Switch(False))
+        object.__setattr__(obj, 'softcache', {})
+        object.__setattr__(obj, 'weakcache', _weakref.WeakValueDictionary())
         return obj
 
     def initialise(self, /, *args, **kwargs):
@@ -120,26 +123,6 @@ class OusiaBase(metaclass=Ousia):
             __class_init__=lambda: None,
             )
         return name, bases, namespace
-
-    ### Managing the instance cache:
-
-    @property
-    def softcache(self, /):
-        try:
-            return self._softcache
-        except AttributeError:
-            with self.mutable:
-                out = self._softcache = {}
-            return out
-
-    @property
-    def weakcache(self, /):
-        try:
-            return self._weakcache
-        except AttributeError:
-            with self.mutable:
-                out = self._weakcache = _weakref.WeakValueDictionary()
-            return out
 
     ### Some aliases:
 

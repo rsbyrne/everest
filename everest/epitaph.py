@@ -149,6 +149,29 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         '''Wraps a string in a fence, optionally with a 'directive'.'''
         return f"{directive}({arg})"
 
+    def encode_module(self, arg: _types.ModuleType, /, *, subencode=None):
+        return self.enfence(repr(arg.__name__), 'm')
+
+    _CONTENTTYPES = (
+        type,
+        _types.FunctionType,
+        _types.MethodType,
+        _types.BuiltinFunctionType,
+        _types.BuiltinMethodType,
+        )
+
+    def encode_content(self,
+            arg: _CONTENTTYPES, /, *, subencode: _Callable
+            ):
+        '''
+        Serialises 'content':
+        objects that can be reached by qualname paths from a module.
+        '''
+        mod = _getmodule(arg)
+        if mod.__name__ == 'builtins':
+            return arg.__name__
+        return f"{self.encode_module(mod)}.{arg.__qualname__}"
+
     def encode_string(self, arg: str, /, *, subencode=None):
         return repr(arg)
 
@@ -177,29 +200,6 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
 #             "({0},{1})".format,
 #             zip(map(subencode, arg), map(subencode, arg.values()))
 #             )), 'd')
-
-    def encode_module(self, arg: _types.ModuleType, /, *, subencode=None):
-        return self.enfence(repr(arg.__name__), 'm')
-
-    _CONTENTTYPES = (
-        type,
-        _types.FunctionType,
-        _types.MethodType,
-        _types.BuiltinFunctionType,
-        _types.BuiltinMethodType,
-        )
-
-    def encode_content(self,
-            arg: _CONTENTTYPES, /, *, subencode: _Callable
-            ):
-        '''
-        Serialises 'content':
-        objects that can be reached by qualname paths from a module.
-        '''
-        mod = _getmodule(arg)
-        if mod.__name__ == 'builtins':
-            return arg.__name__
-        return f"{self.encode_module(mod)}.{arg.__qualname__}"
 
     def _encode_pickle(self,
             arg: object, /, *, subencode: _Callable

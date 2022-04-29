@@ -17,7 +17,7 @@ from everest.utilities import (
 from everest import incision as _incision
 from everest.epitaph import Epitaph as _Epitaph
 
-from everest.ptolemaic.diict import Diict as _Diict
+from everest.ptolemaic.atlantean import Diict as _Diict
 from everest.ptolemaic.schematic import Schematic as _Schematic
 
 from . import query as _query

@@ -3,17 +3,15 @@
 ###############################################################################
 
 
-from everest.ur import Dat as _Dat
+from .protean import Protean as _Protean
+from .pentheros import Pentheros as _Pentheros
 
-from .ousia import Ousia as _Ousia
 
-
-class Protean(_Ousia):
+class Crucible(_Pentheros, _Protean):
     ...
 
 
-@_Var.register
-class ProteanBase(metaclass=Protean):
+class CrucibleBase(metaclass=Crucible):
     ...
 
 
