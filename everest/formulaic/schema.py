@@ -7,14 +7,14 @@ import abc as _abc
 
 from everest.utilities import caching as _caching
 from everest.bureau.bureau import open_drawer as _open_drawer
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 from everest.algebraic.bythos import Bythos as _Bythos
 from everest.uniplex.plex import Plex as _Plex, GLOBALPLEX as _GLOBALPLEX
 
 from .formulaic import Formulaic as _Formulaic
 
 
-class Schema(_Sprite, _Bythos):
+class Schema(_Pentheros, _Bythos):
 
     @property
     @_caching.weak_cache()
@@ -22,7 +22,7 @@ class Schema(_Sprite, _Bythos):
         return _open_drawer(cls)
 
 
-class SchemaBase(_Formulaic, metaclass=_Sprite):
+class SchemaBase(_Formulaic, metaclass=_Pentheros):
 
     @property
     @_caching.weak_cache()

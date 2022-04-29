@@ -11,7 +11,7 @@ from scipy.integrate import solve_ivp as _solve_ivp
 
 from everest.ptolemaic.diict import Kwargs as _Kwargs
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 
 from everest.algebraic.brace import Brace as _Brace
 
@@ -21,7 +21,7 @@ from .traversable import Traversable as _Traversable
 _Traverse = _Traversable._mrobase_Traverse
 
 
-class ODESolver(metaclass=_Sprite):
+class ODESolver(metaclass=_Pentheros):
 
     callfunc: _collabc.Callable
 

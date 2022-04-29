@@ -15,7 +15,7 @@ from everest.utilities import caching as _caching
 from everest import epitaph as _epitaph
 from everest.incision import Degenerate as _Degenerate
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 from everest.ptolemaic.diict import Kwargs as _Kwargs
 from everest.ptolemaic.params import Params as _Params
 from everest.ptolemaic.essence import Essence as _Essence
@@ -100,7 +100,7 @@ class FieldBase(metaclass=_Essence):
         raise NotImplementedError
 
 
-class FieldKind(FieldBase, metaclass=_Sprite):
+class FieldKind(FieldBase, metaclass=_Pentheros):
 
     kind: ParamKind
 
@@ -128,7 +128,7 @@ with FieldBase.mutable:
         setattr(FieldBase, name := kind.name, FieldKind(ParamKind[name]))
 
 
-class Field(_ChainChora, FieldBase, metaclass=_Sprite):
+class Field(_ChainChora, FieldBase, metaclass=_Pentheros):
 
     kind: ParamKind
     hint: _Chora
@@ -229,7 +229,7 @@ class Field(_ChainChora, FieldBase, metaclass=_Sprite):
         def kind(self, /):
             return self.value.kind
 
-# class DegenerateField(_Degenerate, _FullField_, metaclass=_Sprite):
+# class DegenerateField(_Degenerate, _FullField_, metaclass=_Pentheros):
 
 #     hint: _Incisable
 #     value: object
@@ -269,7 +269,7 @@ def get_typ_fields(typ):
     return fields
 
 
-class Sig(_ChainChora, metaclass=_Sprite):
+class Sig(_ChainChora, metaclass=_Pentheros):
 
     sigfields: _Kwargs
 

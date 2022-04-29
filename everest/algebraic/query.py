@@ -8,7 +8,7 @@ from collections import abc as _collabc
 
 from everest.ptolemaic.diict import Diict as _Diict
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 
 
 class Query(metaclass=_Essence):
@@ -18,12 +18,12 @@ class Query(metaclass=_Essence):
 # class ThinQuery()
 
 
-class Sample(Query, metaclass=_Sprite):
+class Sample(Query, metaclass=_Pentheros):
 
     content: object = None
 
 
-class Bounds(Query, metaclass=_Sprite):
+class Bounds(Query, metaclass=_Pentheros):
 
     lower: object = None
     upper: object = None
@@ -33,7 +33,7 @@ class Bounds(Query, metaclass=_Sprite):
         yield self.upper
 
 
-class Shallow(Query, metaclass=_Sprite):
+class Shallow(Query, metaclass=_Pentheros):
 
     query: object
 

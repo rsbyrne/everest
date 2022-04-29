@@ -14,7 +14,7 @@ from everest.utilities import (
     caching as _caching,
     )
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 
 from . import choret as _choret
 from .chora import Chora as _Chora, TrivialException as _TrivialException
@@ -38,7 +38,7 @@ class Intt(_Number):
 
 
     @_Index.register
-    class LowerBound(_Chora, metaclass=_Sprite):
+    class LowerBound(_Chora, metaclass=_Pentheros):
 
         MROCLASSES = ('__incise__',)
 
@@ -144,7 +144,7 @@ class Intt(_Number):
             p.text(']')
 
 
-    class UpperBound(_Chora, metaclass=_Sprite):
+    class UpperBound(_Chora, metaclass=_Pentheros):
 
         MROCLASSES = ('__incise__',)
 
@@ -218,7 +218,7 @@ class Intt(_Number):
 
 
     @_Index.register
-    class DoubleBound(_Chora, metaclass=_Sprite):
+    class DoubleBound(_Chora, metaclass=_Pentheros):
 
         MROCLASSES = ('__incise__',)
 

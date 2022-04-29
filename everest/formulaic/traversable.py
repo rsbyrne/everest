@@ -7,7 +7,7 @@ import functools as _functools
 
 from everest.utilities import caching as _caching
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.diict import Kwargs as _Kwargs
 
@@ -55,7 +55,7 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
         return self.Line(line, ix)
 
 
-    class Instrument(metaclass=_Sprite):
+    class Instrument(metaclass=_Pentheros):
         ...
 
 

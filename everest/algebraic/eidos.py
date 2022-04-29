@@ -6,13 +6,13 @@
 from everest.ur import Dat as _Dat
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 
 from .tekton import Tekton as _Tekton
 
 
 @_Dat.register
-class Eidos(_Tekton, _Sprite):
+class Eidos(_Tekton, _Pentheros):
 
     @property
     def __call__(cls, /):

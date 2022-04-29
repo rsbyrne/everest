@@ -10,7 +10,6 @@ import numpy as _np
 from everest.utilities import pretty as _pretty
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.sprite import Sprite as _Sprite
 
 from .choret import Sampleable as _Sampleable
 from .thing import Thing as _Thing

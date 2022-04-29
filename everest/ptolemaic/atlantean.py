@@ -3,16 +3,18 @@
 ###############################################################################
 
 
-from everest.ptolemaic.pentheros import Pentheros as _Pentheros
+from everest.ur import Dat as _Dat
 
-from .table import TableLike as _TableLike
+from .ousia import Ousia as _Ousia
 
 
-class Gable(_TableLike, metaclass=_Pentheros):
+class Atlantean(_Ousia):
+    ...
 
-    dtype = str
 
-    baseshape: tuple = (None,)
+@_Dat.register
+class AtlanteanBase(metaclass=Atlantean):
+    ...
 
 
 ###############################################################################

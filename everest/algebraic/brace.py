@@ -13,7 +13,7 @@ from everest.utilities import (
     FrozenNamespace as _FrozenNamespace,
     )
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.diict import Diict as _Diict
 
@@ -103,14 +103,14 @@ class BraceLike(metaclass=_Essence):
         ...
 
 
-    class Power(metaclass=_Sprite):
+    class Power(metaclass=_Pentheros):
 
         OVERCLASSES = ('Form',)
 
         content: object
 
 
-    class Symmetric(metaclass=_Sprite):
+    class Symmetric(metaclass=_Pentheros):
 
         OVERCLASSES = ('Form',)
 
@@ -123,7 +123,7 @@ class BraceLike(metaclass=_Essence):
             super().__init__()
 
 
-    class Asymmetric(metaclass=_Sprite):
+    class Asymmetric(metaclass=_Pentheros):
 
         OVERCLASSES = ('Form',)
 
@@ -351,7 +351,7 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
                     p.breakable()
 
 
-        class Asymmetric(_Chora, metaclass=_Sprite):
+        class Asymmetric(_Chora, metaclass=_Pentheros):
 
             MROCLASSES = ('__incise__',)
 

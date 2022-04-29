@@ -6,7 +6,7 @@
 from everest.primitive import Primitive as _Primitive
 from everest import incision as _incision
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 from everest.ptolemaic.ousia import Ousia as _Ousia
 from everest.ptolemaic.essence import Essence as _Essence
 
@@ -62,7 +62,7 @@ class Thing(_Algebraic, metaclass=_Bythos):
             return isinstance(arg, self._ptolemaic_class__.owner)
 
 
-    class Space(_Chora, metaclass=_Sprite):
+    class Space(_Chora, metaclass=_Pentheros):
 
         MROCLASSES = ('__incise__',)
         OVERCLASSES = ('Oid',)

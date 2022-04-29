@@ -11,7 +11,6 @@ from everest.exceptions import (
     )
 
 from .ousia import Ousia as _Ousia
-from .sprite import Sprite as _Sprite
 
 
 class Protean(_Ousia):

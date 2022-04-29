@@ -10,9 +10,8 @@ import weakref as _weakref
 from everest.utilities import (
     caching as _caching, pretty as _pretty
     )
-from everest.ur import Dat as _Dat
 
-from .ousia import Ousia as _Ousia
+from .atlantean import Atlantean as _Atlantean
 from .params import Params as _Params, Param as _Param
 from . import exceptions as _exceptions
 
@@ -27,7 +26,7 @@ def collect_fields_mro(
         return
     anno = (dct := base.__dict__).get('__annotations__', {})
     collect_fields_mro(bases, hints, defaults, inorder, reserved | set(anno))
-    if isinstance(base, Sprite):
+    if isinstance(base, Pentheros):
         defaults.update(base.Concrete.defaults)
     for key, val in anno.items():
         deq = hints.setdefault(key, _deque())
@@ -64,13 +63,12 @@ def get_fields(ACls, /):
     return out, defaults
 
 
-class Sprite(_Ousia):
+class Pentheros(_Atlantean):
 
     ...
 
 
-@_Dat.register
-class SpriteBase(metaclass=Sprite):
+class PentherosBase(metaclass=Pentheros):
 
     _req_slots__ = ('params',)
 

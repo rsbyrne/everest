@@ -98,15 +98,15 @@ class OusiaBase(metaclass=Ousia):
         object.__setattr__(obj, 'freezeattr', _Switch(False))
         return obj
 
+    def initialise(self, /, *args, **kwargs):
+        self._ptolemaic_class__.__init__(self, *args, **kwargs)
+        self.freezeattr.toggle(True)
+
     @classmethod
     def instantiate(cls, /, *args, **kwargs):
         obj = cls.corporealise()
         obj.initialise(*args, **kwargs)
         return obj
-
-    def initialise(self, /, *args, **kwargs):
-        self._ptolemaic_class__.__init__(self, *args, **kwargs)
-        self.freezeattr.toggle(True)
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):

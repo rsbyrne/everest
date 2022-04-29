@@ -5,7 +5,7 @@
 
 from everest.utilities import pretty as _pretty, caching as _caching
 
-from everest.ptolemaic.ousia import Ousia as _Ousia
+from .atlantean import Atlantean as _Atlantean
 
 
 # class DiictMeta(_Ousia):
@@ -19,7 +19,7 @@ from everest.ptolemaic.ousia import Ousia as _Ousia
 #         return dict
 
 
-class Diict(dict, metaclass=_Ousia):
+class Diict(dict, metaclass=_Atlantean):
 
     # @classmethod
     # def __class_call__(cls, /, *args, **kwargs):

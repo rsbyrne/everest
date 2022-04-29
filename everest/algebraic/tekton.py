@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 
 from .chora import Chora as _Chora, ChainChora as _ChainChora
 from .bythos import Bythos as _Bythos
@@ -35,7 +35,7 @@ class TektonBase(metaclass=Tekton):
     MROCLASSES = ('Oid',)
 
 
-    class Oid(_ChainChora, metaclass=_Sprite):
+    class Oid(_ChainChora, metaclass=_Pentheros):
 
         chora: _Chora
 
@@ -91,7 +91,7 @@ class TektonBase(metaclass=Tekton):
 ###############################################################################
 
 
-#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Sprite):
+#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Pentheros):
 
 #         subject: _Chora
 #         sig: _Sig
@@ -118,7 +118,7 @@ class TektonBase(metaclass=Tekton):
 
 
 
-#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Sprite):
+#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Pentheros):
 
 #         subject: _Chora
 #         chora: _Chora

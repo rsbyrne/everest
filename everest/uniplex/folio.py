@@ -7,7 +7,7 @@ import functools as _functools
 
 from everest.utilities import pretty as _pretty
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 
 from .plexon import GroupPlexon as _GroupPlexon, SubPlexon as _SubPlexon
 from .leaf import Leaf as _Leaf
@@ -20,7 +20,7 @@ class FolioLike(_GroupPlexon):
     ...
 
 
-class Folio(_SubPlexon, FolioLike, metaclass=_Sprite):
+class Folio(_SubPlexon, FolioLike, metaclass=_Pentheros):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:

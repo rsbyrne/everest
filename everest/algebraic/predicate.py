@@ -5,13 +5,13 @@
 
 from collections import abc as _collabc
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 
 from .chora import Chora as _Chora
 from .algebraic import Algebraic as _Algebraic
 
 
-class Predicate(_Chora, _Algebraic, metaclass=_Sprite):
+class Predicate(_Chora, _Algebraic, metaclass=_Pentheros):
 
     func: _collabc.Callable
 

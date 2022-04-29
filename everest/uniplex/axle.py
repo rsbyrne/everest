@@ -7,14 +7,14 @@ import functools as _functools
 
 from everest.utilities import pretty as _pretty
 
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 
 from .plexon import GroupPlexon as _GroupPlexon
 from .table import PseudoTableLike as _PseudoTableLike, Table as _Table
 from .gable import Gable as _Gable
 
 
-class Axle(_PseudoTableLike, _GroupPlexon, metaclass=_Sprite):
+class Axle(_PseudoTableLike, _GroupPlexon, metaclass=_Pentheros):
 
     baseshape: tuple = (None,)
     # index: object = None

@@ -6,7 +6,7 @@
 from everest import incision as _incision
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
 from .algebraic import (
@@ -76,7 +76,7 @@ class Chora(_incision.Incisable, _Algebraic):
         return AbstractMapping(self, other)
 
 
-    class Gen(_Armature, metaclass=_Sprite):
+    class Gen(_Armature, metaclass=_Pentheros):
         ...
 
 
@@ -108,7 +108,7 @@ class Chora(_incision.Incisable, _Algebraic):
 
 
     @_incision.Degenerate.register
-    class Degenerate(_incision.Incisable, _Armature, metaclass=_Sprite):
+    class Degenerate(_incision.Incisable, _Armature, metaclass=_Pentheros):
 
         arg: object
 
@@ -136,7 +136,7 @@ class Chora(_incision.Incisable, _Algebraic):
 
 
     @_incision.Empty.register
-    class Empty(_incision.Incisable, _Armature, metaclass=_Sprite):
+    class Empty(_incision.Incisable, _Armature, metaclass=_Pentheros):
 
         chora: _incision.Incisable
 
@@ -154,7 +154,7 @@ class Chora(_incision.Incisable, _Algebraic):
             return False
 
 
-class AbstractMapping(Chora, metaclass=_Sprite):
+class AbstractMapping(Chora, metaclass=_Pentheros):
 
     fromchora: Chora
     tochora: Chora
@@ -201,7 +201,7 @@ class AbstractMapping(Chora, metaclass=_Sprite):
             ))
 
 
-class ArbitraryPair(metaclass=_Sprite):
+class ArbitraryPair(metaclass=_Pentheros):
 
     source: AbstractMapping
     key: object
@@ -220,7 +220,7 @@ class ArbitraryPair(metaclass=_Sprite):
         return bound
 
 
-class Composition(Chora, metaclass=_Sprite):
+class Composition(Chora, metaclass=_Pentheros):
 
     fobj: Chora
     gobj: Chora

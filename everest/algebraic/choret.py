@@ -18,13 +18,13 @@ from everest import incision as _incision
 from everest.epitaph import Epitaph as _Epitaph
 
 from everest.ptolemaic.diict import Diict as _Diict
-from everest.ptolemaic.sprite import Sprite as _Sprite
+from everest.ptolemaic.pentheros import Pentheros as _Pentheros
 
 from . import query as _query
 from .chora import TrivialException
 
 
-class Choret(_Sprite):
+class Choret(_Pentheros):
 
     def __get__(cls, obj, objtype=None):
         if obj is None:

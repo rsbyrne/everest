@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from everest.ptolemaic.diict import Kwargs as _Kwargs
+from .diict import Kwargs as _Kwargs
 
 
 class Params(_Kwargs):
