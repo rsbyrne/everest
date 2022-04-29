@@ -5,6 +5,8 @@
 
 import abc as _abc
 
+from .primitive import Primitive as _Primitive
+
 
 class Ur(_abc.ABCMeta):
     ...
@@ -12,6 +14,9 @@ class Ur(_abc.ABCMeta):
 
 class Dat(metaclass=Ur):
     ...
+
+
+Dat.register(_Primitive)
 
 
 class Var(metaclass=Ur):

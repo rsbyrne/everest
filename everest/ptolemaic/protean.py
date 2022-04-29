@@ -5,7 +5,6 @@
 
 import types as _types
 
-from everest.ur import Var as _Var
 from everest.exceptions import (
     FrozenAttributesException as _FrozenAttributesException
     )
@@ -18,7 +17,6 @@ class Protean(_Ousia):
     ...
 
 
-@_Var.register
 class ProteanBase(metaclass=Protean):
 
     BasisType = type(None)

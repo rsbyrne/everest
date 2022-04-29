@@ -12,7 +12,7 @@ from everest.utilities import (
     )
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.pentheros import Pentheros as _Pentheros
+from everest.ptolemaic.schematic import Schematic as _Schematic
 
 from .chora import Chora as _Chora
 from . import choret as _choret
@@ -79,7 +79,7 @@ class Index(_Algebraic):
                 return incisor
 
 
-    class Arbitrary(metaclass=_Pentheros):
+    class Arbitrary(metaclass=_Schematic):
 
         OVERCLASSES = ('Form',)
 
@@ -128,7 +128,7 @@ class Index(_Algebraic):
         OVERCLASSES = ('Form',)
 
 
-    class Predicated(metaclass=_Pentheros):
+    class Predicated(metaclass=_Schematic):
 
         OVERCLASSES = ('Slyce',)
 

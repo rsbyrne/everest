@@ -18,13 +18,13 @@ from everest import incision as _incision
 from everest.epitaph import Epitaph as _Epitaph
 
 from everest.ptolemaic.diict import Diict as _Diict
-from everest.ptolemaic.pentheros import Pentheros as _Pentheros
+from everest.ptolemaic.schematic import Schematic as _Schematic
 
 from . import query as _query
 from .chora import TrivialException
 
 
-class Choret(_Pentheros):
+class Choret(_Schematic):
 
     def __get__(cls, obj, objtype=None):
         if obj is None:
@@ -60,7 +60,7 @@ def _wrap_slyce(meth, /):
         except TrivialException:
             return caller.__incise_trivial__()
         except Exception as exc:
-            return (arg, exc)
+            return caller.__incise_fail__(arg, exc)
         return caller.__incise_slyce__(result)
     return wrapper
 

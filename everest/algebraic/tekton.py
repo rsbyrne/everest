@@ -3,11 +3,14 @@
 ###############################################################################
 
 
-from everest.ptolemaic.pentheros import Pentheros as _Pentheros
+from everest.ptolemaic.schematic import Schematic as _Schematic
 
 from .chora import Chora as _Chora, ChainChora as _ChainChora
 from .bythos import Bythos as _Bythos
 from .sig import Sig as _Sig
+
+
+raise NotImplementedError
 
 
 class Tekton(_Bythos):
@@ -35,7 +38,7 @@ class TektonBase(metaclass=Tekton):
     MROCLASSES = ('Oid',)
 
 
-    class Oid(_ChainChora, metaclass=_Pentheros):
+    class Oid(_ChainChora, metaclass=_Schematic):
 
         chora: _Chora
 
@@ -91,7 +94,7 @@ class TektonBase(metaclass=Tekton):
 ###############################################################################
 
 
-#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Pentheros):
+#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Schematic):
 
 #         subject: _Chora
 #         sig: _Sig
@@ -118,7 +121,7 @@ class TektonBase(metaclass=Tekton):
 
 
 
-#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Pentheros):
+#     class ClassSlyce(_Armature, _ChainIncisable, metaclass=_Schematic):
 
 #         subject: _Chora
 #         chora: _Chora

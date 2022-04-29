@@ -36,16 +36,11 @@ class Diict(dict, metaclass=_Atlantean):
     def __delitem__(self, /):
         raise NotImplementedError
 
-    def get_epitaph(self, /):
+    def make_epitaph(self, /):
         ptolcls = self._ptolemaic_class__
         return ptolcls.taphonomy.callsig_epitaph(
             ptolcls, dict(self)
             )
-
-    @property
-    @_caching.soft_cache()
-    def epitaph(self, /):
-        return self.get_epitaph()
 
     @property
     def hexcode(self, /):
@@ -86,7 +81,7 @@ class Diict(dict, metaclass=_Atlantean):
 
 class Kwargs(Diict):
 
-    def get_epitaph(self, /):
+    def make_epitaph(self, /):
         ptolcls = self._ptolemaic_class__
         return ptolcls.taphonomy.callsig_epitaph(
             ptolcls, **self

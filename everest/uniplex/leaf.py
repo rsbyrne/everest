@@ -3,12 +3,12 @@
 ###############################################################################
 
 
-from everest.ptolemaic.pentheros import Pentheros as _Pentheros
+from everest.ptolemaic.schematic import Schematic as _Schematic
 
 from .plexon import SubPlexon as _SubPlexon
 
 
-class Leaf(_SubPlexon, metaclass=_Pentheros):
+class Leaf(_SubPlexon, metaclass=_Schematic):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:

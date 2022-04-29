@@ -89,10 +89,6 @@ class OusiaBase(metaclass=Ousia):
         )
 
     @classmethod
-    def _get_sig(cls, /):
-        return _inspect.signature(cls.__init__)
-
-    @classmethod
     def corporealise(cls, /):
         obj = cls.Concrete()
         object.__setattr__(obj, 'freezeattr', _Switch(False))
