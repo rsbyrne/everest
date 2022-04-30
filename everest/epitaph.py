@@ -50,7 +50,7 @@ class Epitaph(_classtools.Freezable):
         depdict = self.depdict = _types.MappingProxyType({
             f"_{ind}":dep for ind, dep in enumerate(deps)
             })
-        if _process_content:
+        if _process_content and len(depdict) > 1:
             content = _Template(content).substitute(
                 **{f"_{val}": key for key, val in depdict.items()}
                 )

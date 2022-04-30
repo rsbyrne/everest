@@ -7,6 +7,8 @@ import abc as _abc
 import itertools as _itertools
 from collections import abc as _collabc
 
+import numpy as _np
+
 from everest.utilities import pretty as _pretty, caching as _caching
 from everest import epitaph as _epitaph
 
@@ -28,7 +30,7 @@ def convert(val, /):
     if isinstance(val, _collabc.Sequence):
         return Tuuple(val)
     raise TypeError(
-        "Object {val} of type {type(val)} cannot be converted to a _Dat."
+        f"Object {val} of type {type(val)} cannot be converted to a _Dat."
         )
 
 
@@ -140,6 +142,44 @@ class Kwargs(Diict):
         ptolcls = self._ptolemaic_class__
         return ptolcls.taphonomy.callsig_epitaph(
             ptolcls, **self
+            )
+
+
+class Arraay(metaclass=Atlantean):
+
+    _req_slots__ = ('_array',)
+
+    def __init__(self, arg, /, dtype=None):
+        if isinstance(arg, bytes):
+            arr = _np.frombuffer(arg, dtype=dtype)
+        else:
+            arr = _np.array(arg, dtype=dtype).copy()
+        object.__setattr__(self, '_array', arr)
+
+    for methname in (
+            'dtype', 'shape', '__len__', '__getitem__'
+            ):
+        exec('\n'.join((
+            f"@property",
+            f"def {methname}(self, /):",
+            f"    return self._array.{methname}",
+            )))
+    del methname
+
+    def _content_repr(self, /):
+        return _np.array2string(self._array, threshold=100)[:-1]
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self._ptolemaic_class__.__qualname__
+        _pretty.pretty_array(self._array, p, cycle, root=root)
+
+    def make_epitaph(self, /):
+        ptolcls = self._ptolemaic_class__
+        content = f"{repr(bytes(self._array))},{repr(str(self.dtype))}"
+        return ptolcls.taphonomy(
+            f"""m('everest.ptolemaic.atlantean').Arraay({content})""",
+            {},
             )
 
 
