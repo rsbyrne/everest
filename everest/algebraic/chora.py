@@ -6,7 +6,7 @@
 from everest import incision as _incision
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 from everest.ptolemaic.ousia import Ousia as _Ousia
 
 from .algebraic import (
@@ -76,7 +76,7 @@ class Chora(_incision.Incisable, _Algebraic):
         return AbstractMapping(self, other)
 
 
-    class Gen(_Armature, metaclass=_Schematic):
+    class Gen(_Armature, metaclass=_Compound):
         ...
 
 
@@ -108,7 +108,7 @@ class Chora(_incision.Incisable, _Algebraic):
 
 
     @_incision.Degenerate.register
-    class Degenerate(_incision.Incisable, _Armature, metaclass=_Schematic):
+    class Degenerate(_incision.Incisable, _Armature, metaclass=_Compound):
 
         arg: object
 
@@ -136,7 +136,7 @@ class Chora(_incision.Incisable, _Algebraic):
 
 
     @_incision.Empty.register
-    class Empty(_incision.Incisable, _Armature, metaclass=_Schematic):
+    class Empty(_incision.Incisable, _Armature, metaclass=_Compound):
 
         chora: _incision.Incisable
 
@@ -154,7 +154,7 @@ class Chora(_incision.Incisable, _Algebraic):
             return False
 
 
-class AbstractMapping(Chora, metaclass=_Schematic):
+class AbstractMapping(Chora, metaclass=_Compound):
 
     fromchora: Chora
     tochora: Chora
@@ -179,7 +179,7 @@ class AbstractMapping(Chora, metaclass=_Schematic):
         try:
             outs = tuple(
                 _incision.Degenerator(chora)[subinc]
-                for subinc, chora in zip(incisor, self.params.values())
+                for subinc, chora in zip(incisor, self.fields.values())
                 )
         except _incision.IncisorTypeException as exc:
             return caller.__incise_fail__(exc)
@@ -201,7 +201,7 @@ class AbstractMapping(Chora, metaclass=_Schematic):
             ))
 
 
-class ArbitraryPair(metaclass=_Schematic):
+class ArbitraryPair(metaclass=_Compound):
 
     source: AbstractMapping
     key: object
@@ -211,7 +211,7 @@ class ArbitraryPair(metaclass=_Schematic):
     def parameterise(cls, /, *args, **kwargs):
         bound = super().parameterise(*args, **kwargs)
         source, key, val = bound.arguments.values()
-        fromchora, tochora = source.params.values()
+        fromchora, tochora = source.fields.values()
         if (key not in fromchora) or (val not in tochora):
             cls.paramexc(message=(
                 "The `key` and `val` args must be proper members "
@@ -220,7 +220,7 @@ class ArbitraryPair(metaclass=_Schematic):
         return bound
 
 
-class Composition(Chora, metaclass=_Schematic):
+class Composition(Chora, metaclass=_Compound):
 
     fobj: Chora
     gobj: Chora

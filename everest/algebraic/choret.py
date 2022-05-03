@@ -17,14 +17,14 @@ from everest.utilities import (
 from everest import incision as _incision
 from everest.epitaph import Epitaph as _Epitaph
 
-from everest.ptolemaic.atlantean import Diict as _Diict
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.atlantean import Binding as _Binding
+from everest.ptolemaic.compound import Compound as _Compound
 
 from . import query as _query
 from .chora import TrivialException
 
 
-class Choret(_Schematic):
+class Choret(_Compound):
 
     def __get__(cls, obj, objtype=None):
         if obj is None:
@@ -383,7 +383,7 @@ class Multi(Basic):
             raise ValueError("Too many incisors in tuple incision.")
         yield from chorait
 
-    def handle_mapping(self, incisor: _Diict, /, *, caller, shallow=False):
+    def handle_mapping(self, incisor: _Binding, /, *, caller, shallow=False):
         if not incisor:
             return caller.__incise_trivial__()
         if shallow:

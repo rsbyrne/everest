@@ -3,12 +3,12 @@
 ###############################################################################
 
 
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 
 from .plexon import SubPlexon as _SubPlexon
 
 
-class Leaf(_SubPlexon, metaclass=_Schematic):
+class Leaf(_SubPlexon, metaclass=_Compound):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:

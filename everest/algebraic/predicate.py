@@ -5,13 +5,13 @@
 
 from collections import abc as _collabc
 
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 
 from .chora import Chora as _Chora
 from .algebraic import Algebraic as _Algebraic
 
 
-class Predicate(_Chora, _Algebraic, metaclass=_Schematic):
+class Predicate(_Chora, _Algebraic, metaclass=_Compound):
 
     func: _collabc.Callable
 

@@ -12,7 +12,7 @@ import numpy as _np
 from everest.utilities import pretty as _pretty, caching as _caching
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 
 from everest.algebraic.intt import Intt as _Intt
 from everest.algebraic.chora import ChainChora as _ChainChora
@@ -178,7 +178,7 @@ class TableLike(_ChainChora, ArrayLike, PseudoTableLike):
         return self.Slyce(self, incisor)
 
 
-    class Slyce(ArrayLike, _ChainChora, metaclass=_Schematic):
+    class Slyce(ArrayLike, _ChainChora, metaclass=_Compound):
 
         source: object
         incisor: object
@@ -211,13 +211,13 @@ class TableLike(_ChainChora, ArrayLike, PseudoTableLike):
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
                 root = self._ptolemaic_class__.__qualname__
-            kwargs = {**self.params}
+            kwargs = {**self.fields}
             kwargs['source'] = repr(kwargs['source'])
             kwargs['data'] = self.data
             _pretty.pretty_kwargs(kwargs, p, cycle, root=root)
 
 
-class Table(TableLike, metaclass=_Schematic):
+class Table(TableLike, metaclass=_Compound):
 
     baseshape: tuple = (None,)
     dtype: object = float

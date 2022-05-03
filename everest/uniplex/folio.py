@@ -7,7 +7,7 @@ import functools as _functools
 
 from everest.utilities import pretty as _pretty
 
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 
 from .plexon import GroupPlexon as _GroupPlexon, SubPlexon as _SubPlexon
 from .leaf import Leaf as _Leaf
@@ -20,7 +20,7 @@ class FolioLike(_GroupPlexon):
     ...
 
 
-class Folio(_SubPlexon, FolioLike, metaclass=_Schematic):
+class Folio(_SubPlexon, FolioLike, metaclass=_Compound):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:

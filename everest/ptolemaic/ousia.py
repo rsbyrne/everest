@@ -90,11 +90,16 @@ class OusiaBase(metaclass=Ousia):
         )
 
     @classmethod
+    def get_corporealisation_namevals(cls, /):
+        yield 'freezeattr', _Switch(False)
+        yield 'softcache', {}
+        yield 'weakcache', _weakref.WeakValueDictionary()
+
+    @classmethod
     def corporealise(cls, /):
         obj = cls.Concrete()
-        object.__setattr__(obj, 'freezeattr', _Switch(False))
-        object.__setattr__(obj, 'softcache', {})
-        object.__setattr__(obj, 'weakcache', _weakref.WeakValueDictionary())
+        for name, val in cls.get_corporealisation_namevals():
+            object.__setattr__(obj, name, val)
         return obj
 
     def initialise(self, /, *args, **kwargs):
@@ -187,7 +192,6 @@ class OusiaBase(metaclass=Ousia):
         return ''
 
     @property
-    @_caching.soft_cache()
     def contentrepr(self, /):
         return self._content_repr()
 

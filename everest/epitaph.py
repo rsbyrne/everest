@@ -100,6 +100,10 @@ class Epitaph(_classtools.Freezable):
     def hashID(self, /):
         return _word.get_random_proper(2, seed=self.hexcode)
 
+    @property
+    def __call__(self, /):
+        return self.decode
+
 
 class Epitaphable(_abc.ABC):
 

@@ -75,13 +75,13 @@ class ProteanBase(metaclass=Protean):
         return super().__getattribute__(name)
 
     def __setattr__(self, name, val, /):
-        if name in object.__getattribute__(self, '_var_slots__'):
+        if name in type(self)._var_slots__:
             object.__setattr__(self, name, val)
         else:
             super().__setattr__(name, val)
 
     def __delattr__(self, name, /):
-        if name in object.__getattribute__(self, '_var_slots__'):
+        if name in type(self)._var_slots__:
             object.__delattr__(self, name)
         else:
             super().__delattr__(name)

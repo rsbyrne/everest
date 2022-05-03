@@ -11,7 +11,7 @@ from scipy.integrate import solve_ivp as _solve_ivp
 
 from everest.ptolemaic.atlantean import Kwargs as _Kwargs
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 
 from everest.algebraic.brace import Brace as _Brace
 
@@ -21,7 +21,7 @@ from .traversable import Traversable as _Traversable
 _Traverse = _Traversable._mrobase_Traverse
 
 
-class ODESolver(metaclass=_Schematic):
+class ODESolver(metaclass=_Compound):
 
     callfunc: _collabc.Callable
 
@@ -77,7 +77,7 @@ class ODEModel(metaclass=_Essence):
 #     IncisionProtocol as _IncisionProtocol,
 #     )
 
-# from everest.ptolemaic.diict import Diict as _Diict
+# from everest.ptolemaic.binding import Binding as _Binding
 # from everest.ptolemaic.sprite import Sprite as _Sprite
 # # from everest.ptolemaic.schema import Schema as _Schema
 # from everest.ptolemaic.eidos import Eidos as _Schema

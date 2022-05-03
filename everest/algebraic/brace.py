@@ -13,9 +13,9 @@ from everest.utilities import (
     FrozenNamespace as _FrozenNamespace,
     )
 
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.atlantean import Diict as _Diict
+from everest.ptolemaic.atlantean import Binding as _Binding
 
 from . import query as _query
 from .chora import Chora as _Chora, ChainChora as _ChainChora
@@ -103,14 +103,14 @@ class BraceLike(metaclass=_Essence):
         ...
 
 
-    class Power(metaclass=_Schematic):
+    class Power(metaclass=_Compound):
 
         OVERCLASSES = ('Form',)
 
         content: object
 
 
-    class Symmetric(metaclass=_Schematic):
+    class Symmetric(metaclass=_Compound):
 
         OVERCLASSES = ('Form',)
 
@@ -123,7 +123,7 @@ class BraceLike(metaclass=_Essence):
             super().__init__()
 
 
-    class Asymmetric(metaclass=_Schematic):
+    class Asymmetric(metaclass=_Compound):
 
         OVERCLASSES = ('Form',)
 
@@ -251,7 +251,7 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
             class __incise__(_choret.Basic):
 
                 def handle_mapping(self,
-                        incisor: _Diict, /, *, caller
+                        incisor: _Binding, /, *, caller
                         ):
                     return (
                         self.boundowner(self.bound.content, tuple(incisor))
@@ -351,7 +351,7 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
                     p.breakable()
 
 
-        class Asymmetric(_Chora, metaclass=_Schematic):
+        class Asymmetric(_Chora, metaclass=_Compound):
 
             MROCLASSES = ('__incise__',)
 

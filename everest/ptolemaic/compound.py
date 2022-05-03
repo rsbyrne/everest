@@ -3,16 +3,18 @@
 ###############################################################################
 
 
-from everest.ptolemaic.compound import Compound as _Compound
+from .atlantean import Atlantean as _Atlantean
+from .pentheros import Pentheros as _Pentheros
 
-from .table import TableLike as _TableLike
+
+class Compound(_Pentheros, _Atlantean):
+
+    ...
 
 
-class Gable(_TableLike, metaclass=_Compound):
+class CompoundBase(metaclass=Compound):
 
-    dtype = str
-
-    baseshape: tuple = (None,)
+    ...
 
 
 ###############################################################################

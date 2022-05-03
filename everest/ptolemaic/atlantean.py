@@ -25,8 +25,10 @@ class Atlantean(_Ousia):
 def convert(val, /):
     if isinstance(val, _Dat):
         return val
+    if isinstance(val, _np.ndarray):
+        return Arraay(val)
     if isinstance(val, _collabc.Mapping):
-        return Diict(**val)
+        return Binding(**val)
     if isinstance(val, _collabc.Sequence):
         return Tuuple(val)
     raise TypeError(
@@ -37,6 +39,9 @@ def convert(val, /):
 @_Dat.register
 class AtlanteanBase(metaclass=Atlantean):
 
+    def __setattr__(self, name, val, /):
+        super().__setattr__(name, convert(val))
+
     @_abc.abstractmethod
     def make_epitaph(self, /):
         raise NotImplementedError
@@ -46,8 +51,13 @@ class AtlanteanBase(metaclass=Atlantean):
     def epitaph(self, /):
         return self.make_epitaph()
 
-    def __setattr__(self, name, val, /):
-        super().__setattr__(name, convert(val))
+    @property
+    @_caching.soft_cache()
+    def contentrepr(self, /):
+        return self._content_repr()
+
+    def __reduce__(self, /):
+        return self.epitaph, ()
 
 
 @AtlanteanBase.register
@@ -64,7 +74,7 @@ class Tuuple(tuple):
         return _epitaph.TAPHONOMY.callsig_epitaph(type(self), tuple(self))
 
 
-class Diict(dict, metaclass=Atlantean):
+class Binding(dict, metaclass=Atlantean):
 
     # @classmethod
     # def __class_call__(cls, /, *args, **kwargs):
@@ -131,7 +141,7 @@ class Diict(dict, metaclass=Atlantean):
         return hash(self) < hash(other)
 
 
-class Kwargs(Diict):
+class Kwargs(Binding):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
@@ -157,7 +167,7 @@ class Arraay(metaclass=Atlantean):
         object.__setattr__(self, '_array', arr)
 
     for methname in (
-            'dtype', 'shape', '__len__', '__getitem__'
+            'dtype', 'shape', '__len__',
             ):
         exec('\n'.join((
             f"@property",
@@ -165,6 +175,12 @@ class Arraay(metaclass=Atlantean):
             f"    return self._array.{methname}",
             )))
     del methname
+
+    def __getitem__(self, arg, /):
+        out = self._array[arg]
+        if isinstance(out, _np.ndarray):
+            return self._ptolemaic_class__(out)
+        return out
 
     def _content_repr(self, /):
         return _np.array2string(self._array, threshold=100)[:-1]

@@ -7,7 +7,7 @@ import functools as _functools
 
 from everest.utilities import caching as _caching
 
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.atlantean import Kwargs as _Kwargs
 
@@ -36,7 +36,7 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
     @property
     def __incision_manager__(self, /):
         return _Brace[_Kwargs({
-            key: val for key, val in self.params.items()
+            key: val for key, val in self.fields.items()
             if isinstance(val, _chora.Chora)
             })]
 
@@ -55,7 +55,7 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
         return self.Line(line, ix)
 
 
-    class Instrument(metaclass=_Schematic):
+    class Instrument(metaclass=_Compound):
         ...
 
 
@@ -63,7 +63,7 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
 
         OVERCLASSES = ('Instrument',)
 
-        schematic: 'owner'
+        compound: 'owner'
         chora: _Brace
 
         @property
@@ -72,18 +72,18 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
 
         @property
         def __incise_slyce__(self, /):
-            return self.schematic.__incise_slyce__
+            return self.compound.__incise_slyce__
 
         @property
         def __incise_retrieve__(self, /):
-            return self.schematic.__incise_retrieve__
+            return self.compound.__incise_retrieve__
 
 
     class Case(_chora.ChainChora, metaclass=_Essence):
 
         OVERCLASSES = ('Instrument',)
 
-        schematic: 'owner'
+        compound: 'owner'
         data: _Brace
 
         @property
@@ -93,7 +93,7 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
         @property
         @_caching.soft_cache()
         def plexon(self, /):
-            return self.schematic.plexon.folio(self.hashID)
+            return self.compound.plexon.folio(self.hashID)
 
 
     class Line(_chora.ChainChora, metaclass=_Essence):
@@ -106,26 +106,26 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
         _req_slots__ = ('indextable', 'statetable')
 
         @property
-        def schematic(self, /):
-            return self.case.schematic
+        def compound(self, /):
+            return self.case.compound
 
         @property
         def __incision_manager__(self, /):
-            return self.schematic.indexspace
+            return self.compound.indexspace
 
         def __incise_slyce__(self, incisor, /):
-            return self.schematic.Traverse(self, incisor)
+            return self.compound.Traverse(self, incisor)
 
         def __incise_retrieve__(self, incisor, /):
-            return self.schematic.Stage(self, incisor)
+            return self.compound.Stage(self, incisor)
 
         @property
         @_caching.soft_cache()
         def plexon(self, /):
             sup = self.case.plexon
             axle = sup.axle(self.hashID)
-            indexspace = self.schematic.indexspace
-            statespace = self.schematic.statespace
+            indexspace = self.compound.indexspace
+            statespace = self.compound.statespace
             with self.mutable:
                 self.indextable = \
                     axle.table('index', (), dtype=indexspace.dtype)
@@ -142,21 +142,21 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
         interval: object
 
         @property
-        def schematic(self, /):
-            return self.line.schematic
+        def compound(self, /):
+            return self.line.compound
 
         @property
         def __incision_manager__(self, /):
             return self.interval
 
         def __incise_slyce__(self, incisor, /):
-            return self.schematic.Traverse(self.line, incisor)
+            return self.compound.Traverse(self.line, incisor)
 
         def __incise_retrieve__(self, incisor, /):
-            return self.schematic.Stage(self.line, incisor)
+            return self.compound.Stage(self.line, incisor)
 
         def solve(self, /):
-            return self.schematic.solver(self)
+            return self.compound.solver(self)
 
         def store(self, /):
             data = self.solve()
@@ -173,11 +173,11 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
         index: object
 
         @property
-        def schematic(self, /):
-            return self.line.schematic
+        def compound(self, /):
+            return self.line.compound
 
         def solve(self, /):
-            return self.schematic.solver(self)
+            return self.compound.solver(self)
 
         @property
         def folio(self, /):

@@ -9,6 +9,7 @@ import more_itertools as _mitertools
 import weakref as _weakref
 import types as _types
 import inspect as _inspect
+import functools as _functools
 
 from everest.utilities import (
     caching as _caching,

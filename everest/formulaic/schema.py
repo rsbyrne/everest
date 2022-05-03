@@ -7,14 +7,14 @@ import abc as _abc
 
 from everest.utilities import caching as _caching
 from everest.bureau.bureau import open_drawer as _open_drawer
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 from everest.algebraic.bythos import Bythos as _Bythos
 from everest.uniplex.plex import Plex as _Plex, GLOBALPLEX as _GLOBALPLEX
 
 from .formulaic import Formulaic as _Formulaic
 
 
-class Schema(_Schematic, _Bythos):
+class Schema(_Compound, _Bythos):
 
     @property
     @_caching.weak_cache()
@@ -22,7 +22,7 @@ class Schema(_Schematic, _Bythos):
         return _open_drawer(cls)
 
 
-class SchemaBase(_Formulaic, metaclass=_Schematic):
+class SchemaBase(_Formulaic, metaclass=_Compound):
 
     @property
     @_caching.weak_cache()

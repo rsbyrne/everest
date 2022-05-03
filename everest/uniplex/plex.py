@@ -9,7 +9,7 @@ import weakref as _weakref
 from everest.utilities import caching as _caching, pretty as _pretty
 from everest.utilities.file import H5File as _H5File
 
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 
 from everest.uniplex.folio import FolioLike as _FolioLike
 
@@ -19,7 +19,7 @@ class PlexFile(_H5File):
     DEFAULTEXT = 'plex'
 
 
-class Plex(_FolioLike, metaclass=_Schematic):
+class Plex(_FolioLike, metaclass=_Compound):
 
     _req_slots__ = ('filepath',)
 

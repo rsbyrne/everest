@@ -9,7 +9,7 @@ import numpy as _np
 
 from everest.utilities import pretty as _pretty
 
-from everest.ptolemaic.schematic import Schematic as _Schematic
+from everest.ptolemaic.compound import Compound as _Compound
 
 from .chora import (
     Chora as _Chora,
@@ -27,7 +27,7 @@ class Floatt(_Number):
     nptyp = _np.floating
 
 
-    class LowerBound(_Chora, metaclass=_Schematic):
+    class LowerBound(_Chora, metaclass=_Compound):
 
         MROCLASSES = ('__incise__',)
 
@@ -109,7 +109,7 @@ class Floatt(_Number):
             p.text(']')
 
 
-    class UpperBound(_Chora, metaclass=_Schematic):
+    class UpperBound(_Chora, metaclass=_Compound):
 
         MROCLASSES = ('__incise__',)
 
@@ -184,7 +184,7 @@ class Floatt(_Number):
             p.text(']')
 
 
-    class DoubleBound(_Chora, metaclass=_Schematic):
+    class DoubleBound(_Chora, metaclass=_Compound):
 
         MROCLASSES = ('__incise__',)
 
