@@ -14,11 +14,11 @@ import functools as _functools
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
-    reseed as _reseed,
     FrozenMap as _FrozenMap,
     RestrictedNamespace as _RestrictedNamespace,
     misc as _misc,
     )
+from everest import bureau as _bureau
 from everest.ur import Dat as _Dat
 
 from .ptolemaic import Ptolemaic as _Ptolemaic
@@ -253,24 +253,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 #                 out.append(bases)
 #         return tuple(out)
 
-    @property
-    def softcache(cls, /):
-        try:
-            return cls.__dict__['_clssoftcache']
-        except KeyError:
-            with cls.mutable:
-                out = cls._clssoftcache = {}
-            return out
-
-    @property
-    def weakcache(cls, /):
-        try:
-            return cls.__dict__['_clsweakcache']
-        except KeyError:
-            with cls.mutable:
-                out = cls._clsweakcache = _weakref.WeakValueDictionary()
-            return out
-
     @classmethod
     def pre_create_class(meta, name, bases, namespace, /):
         bases = meta.process_bases(name, bases, namespace)
@@ -284,8 +266,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 pass
             else:
                 del namespace[key]
-        namespace['_clssoftcache'] = {}
-        namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
+        # namespace['_clssoftcache'] = {}
+        # namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
         meta.process_annotations(name, bases, namespace)
         return name, bases, namespace
 
@@ -330,6 +312,34 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return meta.create_class_object(*meta.pre_create_class(
             name, bases, namespace
             ))
+
+    ### Storage:
+
+    @property
+    def softcache(cls, /):
+        try:
+            return cls.drawer.softcache
+        except AttributeError:
+            out = cls.drawer.softcache = {}
+            return out
+
+    @property
+    def weakcache(cls, /):
+        try:
+            return cls.drawer.weakcache
+        except AttributeError:
+            out = cls.drawer.weakcache = {}
+            return out
+
+    @property
+    def drawer(cls, /):
+        # import types
+        # return types.SimpleNamespace()
+        return _bureau.get_drawer(cls)
+
+    @property
+    def taphonomy(cls, /):
+        return _bureau.get_bureau().taphonomy
 
     ### Initialising the class:
 
@@ -435,19 +445,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return type(cls._ptolemaic_class__)
 
     @property
-    def taphonomy(cls, /):
-        return cls.metacls.taphonomy
-
-    def get_clsepitaph(cls, /):
-        try:
-            return cls.__dict__['_clsepitaph']
-        except KeyError:
-            return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
-
-    @property
     @_caching.soft_cache()
     def epitaph(cls, /):
-        return cls._ptolemaic_class__.get_clsepitaph()
+        return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
 
     ### Operations:
 
@@ -492,9 +492,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def hashID(cls, /):
         return cls.epitaph.hashID
 
-    @_caching.soft_cache()
     def __hash__(cls, /):
-        return _reseed.rdigits(12)
+        return id(cls)
 
 
 class EssenceBase(_Ptolemaic, metaclass=Essence):

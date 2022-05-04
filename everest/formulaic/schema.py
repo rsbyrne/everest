@@ -26,8 +26,8 @@ class SchemaBase(_Formulaic, metaclass=_Compound):
 
     @property
     @_caching.weak_cache()
-    def drawer(cls, /):
-        return _open_drawer(cls)
+    def drawer(self, /):
+        return _open_drawer(self)
 
 
 ###############################################################################

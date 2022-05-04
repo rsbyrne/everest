@@ -319,7 +319,22 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         strn, subs = self.posformat_callsig(caller, *args, **kwargs)
         return self.custom_epitaph(strn, **subs)
 
-    def __call__(self, content, deps=None, hexcode=None, /) -> Epitaph:
+    def getitem_epitaph(self, caller, arg, /):
+        deps = set()
+        subpart = self.sub_part(deps)
+        if isinstance(arg, tuple):
+            getstrn = self.encode_tuple(arg, subencode=subpart)
+            if len(arg) > 0:
+                getstrn = getstrn.strip('()')
+            if len(arg) > 1:
+                getstrn = getstrn.rstrip(',')
+        else:
+            getstrn = self.encode(arg, subencode=subpart)
+        return self(f"{self.encode(caller, deps)}[{getstrn}]", deps)
+
+    def __call__(
+            self, content='None', deps=None, hexcode=None, /
+            ) -> Epitaph:
         if deps is None:
             if isinstance(content, Epitaphable):
                 return content.epitaph
@@ -336,16 +351,6 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
 
     def __reduce__(self, /):
         return self.__class__, (self.namespace.content,)
-
-
-TAPHONOMY = Taphonomy()
-
-
-def entomb(obj, /):
-    return TAPHONOMY(obj)
-
-def revive(content, deps, hexcode):
-    return TAPHONOMY(content, deps, hexcode)
 
 
 ###############################################################################

@@ -10,7 +10,6 @@ import weakref as _weakref
 
 from everest.utilities import (
     caching as _caching,
-    reseed as _reseed,
     )
 from everest.utilities.switch import Switch as _Switch
 from everest.exceptions import (
@@ -201,9 +200,8 @@ class OusiaBase(metaclass=Ousia):
     def __repr__(self, /):
         return f"<{self.rootrepr}>"
 
-    @_caching.soft_cache()
     def __hash__(self, /):
-        return _reseed.rdigits(12)
+        return id(self)
 
     @property
     @_abc.abstractmethod

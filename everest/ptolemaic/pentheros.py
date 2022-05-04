@@ -124,9 +124,7 @@ class PentherosBase(metaclass=Pentheros):
 
     def make_epitaph(self, /):
         ptolcls = self._ptolemaic_class__
-        return ptolcls.taphonomy.custom_epitaph(
-            '$a[$b]', a=ptolcls, b=self.fieldvals
-            )
+        return ptolcls.taphonomy.getitem_epitaph(ptolcls, self.fieldvals)
 
     @property
     def hexcode(self, /):

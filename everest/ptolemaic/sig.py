@@ -156,9 +156,8 @@ class Sig(metaclass=_Atlantean):
         _pretty.pretty_kwargs(self.sigfields, p, cycle, root)
 
     def make_epitaph(self, /):
-        return _epitaph.TAPHONOMY.callsig_epitaph(
-            self._ptolemaic_class__, **self.sigfields,
-            )
+        ptolcls = self._ptolemaic_class__
+        return ptolcls.taphonomy.callsig_epitaph(ptolcls, **self.sigfields)
 
 
 ###############################################################################

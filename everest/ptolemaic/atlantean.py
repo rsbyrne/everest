@@ -71,7 +71,7 @@ class Tuuple(tuple):
 
     @property
     def epitaph(self, /):
-        return _epitaph.TAPHONOMY.callsig_epitaph(type(self), tuple(self))
+        return AtlanteanBase.taphonomy.callsig_epitaph(type(self), tuple(self))
 
 
 class Binding(dict, metaclass=Atlantean):
@@ -115,9 +115,8 @@ class Binding(dict, metaclass=Atlantean):
         return self.hashint
 
     def make_epitaph(self, /):
-        return _epitaph.TAPHONOMY.callsig_epitaph(
-            self._ptolemaic_class__, dict(self)
-            )
+        ptolcls = self._ptolemaic_class__
+        return ptolcls.taphonomy.callsig_epitaph(ptolcls, dict(self))
 
     @property
     def hexcode(self, /):
