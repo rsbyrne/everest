@@ -268,6 +268,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 del namespace[key]
         # namespace['_clssoftcache'] = {}
         # namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
+        namespace['__weak_dict__'] = _weakref.WeakValueDictionary()
         meta.process_annotations(name, bases, namespace)
         return name, bases, namespace
 
@@ -333,13 +334,16 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def drawer(cls, /):
-        # import types
-        # return types.SimpleNamespace()
-        return _bureau.get_drawer(cls)
+        try:
+            return cls.__weak_dict__['_drawer']
+        except KeyError:
+            out = cls.__weak_dict__['_drawer'] = _bureau.get_drawer(cls)
+            return out
 
     @property
+    @_caching.soft_cache()
     def taphonomy(cls, /):
-        return _bureau.get_bureau().taphonomy
+        return cls.drawer.cabinet.host.taphonomy
 
     ### Initialising the class:
 

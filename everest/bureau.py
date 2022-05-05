@@ -29,101 +29,93 @@ def get_taphonomy():
     return get_session().taphonomy
 
 
-class OpenStorer:
+class OpenDrawer:
 
-    __slots__ = ('__weakref__', 'storer')
+    __slots__ = ('__weakref__', 'drawer')
 
-    def __init__(self, storer, /):
-        object.__setattr__(self, 'storer', storer)
+    def __init__(self, drawer, /):
+        object.__setattr__(self, 'drawer', drawer)
 
     def __getattr__(self, name, /):
-        return getattr(object.__getattribute__(self, 'storer'), name)
+        return getattr(object.__getattribute__(self, 'drawer'), name)
 
     def __setattr__(self, name, val, /):
-        return setattr(object.__getattribute__(self, 'storer'), name, val)
+        return setattr(object.__getattribute__(self, 'drawer'), name, val)
 
     def __delattr__(self, name, val, /):
-        return delattr(object.__getattribute__(self, 'storer'), name)
+        return delattr(object.__getattribute__(self, 'drawer'), name)
 
     def __repr__(self, /):
         return (
             f"<"
             f"{type(self).__qualname__} {id(self)} "
-            f"of {object.__getattribute__(self, 'storer')}"
+            f"of {object.__getattribute__(self, 'drawer')}"
             f">"
             )
 
 
-class Storer(_SimpleNamespace):
+class Drawer(_SimpleNamespace):
 
-    __slots__ = ('_owner',)
+    __slots__ = ('__weakref__', '_cabinet', '_owner')
 
-    def __init__(self, owner, /):
+    def __init__(self, cabinet, owner, /):
+        self._cabinet = _weakref.ref(cabinet)
         self._owner = _weakref.ref(owner)
+
+    @property
+    def cabinet(self, /):
+        return self._cabinet()
 
     @property
     def owner(self, /):
         return self._owner()
 
     def open_(self, /):
-        return OpenStorer(self)
+        return OpenDrawer(self)
 
     def __repr__(self, /):
-        return f"<{type(self).__qualname__} {id(self)} of {self.owner}>"
+        return (
+            f"<"
+            f"{type(self).__qualname__} "
+            f"{id(self)} of {self.cabinet} "
+            f"owned by {self.owner}"
+            f">"
+            )
 
 
-class MultiStorer:
+class Cabinet:
 
-    __slots__ = ('_data',)
+    __slots__ = ('__weakref__', '_host', '_data',)
 
-    def __init__(self, /):
+    def __init__(self, host, /):
+        self._host = _weakref.ref(host)
         self._data = _weakref.WeakKeyDictionary()
+
+    @property
+    def host(self, /):
+        return self._host()
 
     @property
     def data(self, /):
         return _MappingProxyType(self._data)
 
     def new(self, requester, /):
-        return Storer(requester)
+        return Drawer(self, requester)
 
     def __getitem__(self, requester, /):
         try:
-            storer = self._data[requester]
+            drawer = self._data[requester]
         except KeyError:
-            storer = self._data[requester] = self.new(requester)
-        return storer.open_()
+            drawer = self._data[requester] = self.new(requester)
+        return drawer.open_()
 
-
-class OpenDrawer(OpenStorer):
-    ...
-
-
-class Drawer(Storer):
-
-    def open_(self, /):
-        return OpenDrawer(self)
-
-
-class Drawers(MultiStorer):
-
-    def new(self, requester, /):
-        return Drawer(requester)
-
-
-class OpenTray(OpenStorer):
-    ...
-
-
-class Tray(Storer):
-
-    def open_(self, /):
-        return OpenTray(self)
-
-
-class Trays(MultiStorer):
-
-    def new(self, requester, /):
-        return Tray(requester)
+    def __repr__(self, /):
+        return (
+            f"<"
+            f"{type(self).__qualname__} "
+            f"{id(self)} of {self.host} "
+            f">"
+            )
 
 
 class _FocusMeta_(type):
@@ -172,7 +164,7 @@ class _Focus_(metaclass=_FocusMeta_):
 
     def get_drawer(self, requester, /):
         opendrawer = self._opendrawers[requester] = \
-            self.session.bureau.drawers[requester]
+            self.session.bureau.cabinet[requester]
         return opendrawer
 
     def __repr__(self, /):
@@ -216,12 +208,12 @@ class Bureau:
 
     __slots__ = (
         '__weakref__',
-        '_drawers', '_name', '_taphonomy', '_currentsession',
+        '_cabinet', '_name', '_taphonomy', '_currentsession',
         )
 
     def __init__(self, name: str, /):
         self._name = name
-        self._drawers = Drawers()
+        self._cabinet = Cabinet(self)
         self._taphonomy = _Taphonomy()
         self._currentsession = None
 
@@ -230,8 +222,8 @@ class Bureau:
         return self._name
 
     @property
-    def drawers(self, /):
-        return self._drawers
+    def cabinet(self, /):
+        return self._cabinet
 
     @property
     def taphonomy(self, /):
