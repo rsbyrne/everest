@@ -21,7 +21,7 @@ class PlexFile(_H5File):
 
 class Plex(_FolioLike, metaclass=_Compound):
 
-    _req_slots__ = ('filepath',)
+    __req_slots__ = ('filepath',)
 
     name: str
     path: str = '~/'
@@ -40,7 +40,7 @@ class Plex(_FolioLike, metaclass=_Compound):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self._ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.subs, p, cycle, root=root)
 
 

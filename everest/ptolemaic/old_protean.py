@@ -21,8 +21,8 @@ class ProteanBase(metaclass=Protean):
 
     BasisType = type(None)
 
-    MERGETUPLES = ('_req_slots__', '_var_slots__',)
-    _req_slots__ = ('basis',)
+    MERGETUPLES = ('__req_slots__', '_var_slots__',)
+    __req_slots__ = ('basis',)
     _var_slots__ = ()
 
     @classmethod
@@ -98,7 +98,7 @@ class ProteanBase(metaclass=Protean):
 
     @property
     def epitaph(self, /):
-        ptolcls = self._ptolemaic_class__
+        ptolcls = self.__ptolemaic_class__
         return ptolcls.taphonomy.custom_epitaph(
             '$a.instantiate($b,$c)',
             a=ptolcls, b=self.varvals, c=self.basis,

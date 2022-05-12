@@ -27,7 +27,7 @@ class PseudoTableLike(_SubPlexon):
 
     MERGETUPLES = ('_var_slots__',)
 
-    _req_slots__ = (
+    __req_slots__ = (
         '_openslc', 'depth',
         'queue', 'append', 'extend', 'clear',
         '_shape', 'opendims', 'appendaxis',
@@ -132,7 +132,7 @@ class ArrayLike(metaclass=_Essence):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self._ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_array(self.data, p, cycle, root=root)
 
 
@@ -140,7 +140,7 @@ class TableLike(_ChainChora, ArrayLike, PseudoTableLike):
 
 
     MROCLASSES = ('Slyce',)
-    _req_slots__ = ('_data', '_mask')
+    __req_slots__ = ('_data', '_mask')
 
     # dtype: object = float
 
@@ -206,11 +206,11 @@ class TableLike(_ChainChora, ArrayLike, PseudoTableLike):
             return self.source.mask.view()[self.incisor.arrayquery]
 
         def __incise_slyce__(self, incisor, /):
-            return self._ptolemaic_class__(self.source, incisor)
+            return self.__ptolemaic_class__(self.source, incisor)
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.__qualname__
+                root = self.__ptolemaic_class__.__qualname__
             kwargs = {**self.fields}
             kwargs['source'] = repr(kwargs['source'])
             kwargs['data'] = self.data

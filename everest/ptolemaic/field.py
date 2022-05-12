@@ -80,7 +80,7 @@ class ParamKind(_Enum):
 
 class FieldBase(metaclass=_Essence):
 
-    _req_slots__ = ('score',)
+    __req_slots__ = ('score',)
 
     @_abc.abstractmethod
     def get_parameter(self, name: str = 'anon', /) -> _pkind:
@@ -99,7 +99,7 @@ class FieldKind(FieldBase, metaclass=_Atlantean):
 
     kind: ParamKind
 
-    _req_slots__ = ('kind',)
+    __req_slots__ = ('kind',)
 
     def __init__(self, kind: ParamKind, /, _skipcheck=False):
         if not _skipcheck:
@@ -135,7 +135,7 @@ class FieldKind(FieldBase, metaclass=_Atlantean):
 
     def make_epitaph(self, /):
         return _epitaph.TAPHONOMY.callsig_epitaph(
-            self._ptolemaic_class__, self.kind
+            self.__ptolemaic_class__, self.kind
             )
 
 
@@ -146,7 +146,7 @@ with FieldBase.mutable:
 
 class Field(FieldBase, metaclass=_Atlantean):
 
-    _req_slots__ = ('kind', 'hint', 'value', 'args')
+    __req_slots__ = ('kind', 'hint', 'value', 'args')
 
     @staticmethod
     def process_value(value, /):
@@ -164,8 +164,11 @@ class Field(FieldBase, metaclass=_Atlantean):
             return hint
         if isinstance(hint, type):
             return hint
+        if isinstance(hint, str):
+            return hint
         raise TypeError(
-            f"The `Field` hint must be a type or a tuple of types"
+            f"The `Field` hint must be a type or a tuple of types:",
+            hint,
             )
 
     @staticmethod
@@ -206,20 +209,20 @@ class Field(FieldBase, metaclass=_Atlantean):
 
     def __getitem__(self, arg, /):
         if not isinstance(arg, FieldBase):
-            return self._ptolemaic_class__(
+            return self.__ptolemaic_class__(
                 self.kind,
                 self.combine_hints(self.hint, arg),
                 self.value,
                 )
         if isinstance(arg, Field):
             incval = arg.value
-            return self._ptolemaic_class__(
+            return self.__ptolemaic_class__(
                 max(param.kind for param in (self, arg)),
                 self.combine_hints((self.hint, arg.hint)),
                 (self.value if incval is NotImplemented else incval),
                 )
         if isinstance(arg, FieldKind):
-            return self._ptolemaic_class__(
+            return self.__ptolemaic_class__(
                 max(param.kind for param in (self, arg)),
                 self.hint,
                 self.value,
@@ -241,14 +244,14 @@ class Field(FieldBase, metaclass=_Atlantean):
 
     def make_epitaph(self, /):
         return _epitaph.TAPHONOMY.callsig_epitaph(
-            self._ptolemaic_class__, *self.args
+            self.__ptolemaic_class__, *self.args
             )
 
 
 @FieldBase.register
 class DegenerateField(metaclass=_Atlantean):
 
-    _req_slots__ = ('value',)
+    __req_slots__ = ('value',)
 
     score = -1
 
@@ -286,7 +289,7 @@ class DegenerateField(metaclass=_Atlantean):
 
     def make_epitaph(self, /):
         return _epitaph.TAPHONOMY.callsig_epitaph(
-            self._ptolemaic_class__, self.value
+            self.__ptolemaic_class__, self.value
             )
 
 

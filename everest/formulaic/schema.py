@@ -34,7 +34,7 @@ class SchemaBase(_Formulaic, metaclass=_Compound):
 ###############################################################################
 
 
-#     _req_slots__ = ('_plex_',)
+#     __req_slots__ = ('_plex_',)
 #     _var_slots__ = ('plex',)
 
 #     def __init__(self, /):

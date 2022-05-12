@@ -22,7 +22,7 @@ _pempty = _inspect._empty
 
 class Sig(metaclass=_Atlantean):
 
-    _req_slots__ = ('sigfields',)
+    __req_slots__ = ('sigfields',)
 
     @classmethod
     def get_orderscore(cls, pair):
@@ -156,7 +156,7 @@ class Sig(metaclass=_Atlantean):
         _pretty.pretty_kwargs(self.sigfields, p, cycle, root)
 
     def make_epitaph(self, /):
-        ptolcls = self._ptolemaic_class__
+        ptolcls = self.__ptolemaic_class__
         return ptolcls.taphonomy.callsig_epitaph(ptolcls, **self.sigfields)
 
 

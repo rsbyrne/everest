@@ -16,104 +16,92 @@ from everest.epitaph import Taphonomy as _Taphonomy
 _CURRENTFOCUS = None
 
 
-def get_session():
+def get_current_session():
     return _CURRENTFOCUS.session
 
-def get_bureau():
-    return get_session().bureau
+def get_current_bureau():
+    return _CURRENTFOCUS.bureau
 
-def get_drawer(requester, /):
-    return _CURRENTFOCUS.get_drawer(requester)
+def request_tab(requester, /):
+    return _CURRENTFOCUS.request_tab(requester)
+
+def request_tray(requester, /):
+    return _CURRENTFOCUS.request_tray(requester)
+
+def request_drawer(requester, /):
+    return _CURRENTFOCUS.request_drawer(requester)
 
 def get_taphonomy():
     return get_session().taphonomy
 
 
-class OpenDrawer:
+class OpenStorer:
 
-    __slots__ = ('__weakref__', 'drawer')
+    __slots__ = ('__weakref__', 'storer')
 
-    def __init__(self, drawer, /):
-        object.__setattr__(self, 'drawer', drawer)
+    def __init__(self, storer, /):
+        object.__setattr__(self, 'storer', storer)
 
     def __getattr__(self, name, /):
-        return getattr(object.__getattribute__(self, 'drawer'), name)
+        return getattr(object.__getattribute__(self, 'storer'), name)
 
     def __setattr__(self, name, val, /):
-        return setattr(object.__getattribute__(self, 'drawer'), name, val)
+        return setattr(object.__getattribute__(self, 'storer'), name, val)
 
     def __delattr__(self, name, val, /):
-        return delattr(object.__getattribute__(self, 'drawer'), name)
+        return delattr(object.__getattribute__(self, 'storer'), name)
 
     def __repr__(self, /):
         return (
             f"<"
             f"{type(self).__qualname__} {id(self)} "
-            f"of {object.__getattribute__(self, 'drawer')}"
+            f"of {object.__getattribute__(self, 'storer')}"
             f">"
             )
 
 
-class Drawer(_SimpleNamespace):
+class Storer(_SimpleNamespace):
 
-    __slots__ = ('__weakref__', '_cabinet', '_owner')
+    __slots__ = ('__weakref__',)
 
-    def __init__(self, cabinet, owner, /):
-        self._cabinet = _weakref.ref(cabinet)
-        self._owner = _weakref.ref(owner)
-
-    @property
-    def cabinet(self, /):
-        return self._cabinet()
-
-    @property
-    def owner(self, /):
-        return self._owner()
-
-    def open_(self, /):
-        return OpenDrawer(self)
+    def __init__(self, /):
+        super().__init__()
 
     def __repr__(self, /):
         return (
             f"<"
             f"{type(self).__qualname__} "
-            f"{id(self)} of {self.cabinet} "
-            f"owned by {self.owner}"
+            f"{id(self)}"
             f">"
             )
 
 
-class Cabinet:
+class MultiStorer(_weakref.WeakKeyDictionary):
 
-    __slots__ = ('__weakref__', '_host', '_data',)
-
-    def __init__(self, host, /):
-        self._host = _weakref.ref(host)
-        self._data = _weakref.WeakKeyDictionary()
-
-    @property
-    def host(self, /):
-        return self._host()
-
-    @property
-    def data(self, /):
-        return _MappingProxyType(self._data)
-
-    def new(self, requester, /):
-        return Drawer(self, requester)
+    def __init__(self, /):
+        super().__init__()
 
     def __getitem__(self, requester, /):
         try:
-            drawer = self._data[requester]
+            storer = super().__getitem__(requester)
         except KeyError:
-            drawer = self._data[requester] = self.new(requester)
-        return drawer.open_()
+            storer = Storer()
+            super().__setitem__(requester, storer)
+        return OpenStorer(storer)
+
+    for methname in ('__setitem__', 'setdefault', 'update'):
+        exec('\n'.join((
+            f"@property",
+            f"def {methname}(self, /):",
+            f"    raise AttributeError",
+            )))
+    del methname
 
     def __repr__(self, /):
         return (
             f"<"
             f"{type(self).__qualname__} "
-            f"{id(self)} of {self.host} "
+            f"{id(self)}"
             f">"
             )
 
@@ -131,16 +119,18 @@ class _FocusMeta_(type):
 
 class _Focus_(metaclass=_FocusMeta_):
 
-    __slots__ = ('__weakref__', '_session', '_opendrawers')
+    __slots__ = ('__weakref__', '_session')
 
     _SESSIONS = _deque([None,])
+
+    _tabs = MultiStorer()
+    _stuff = _deque()
 
     def __new__(cls, session=None, /):
         if session is not None:
             cls._SESSIONS.append(session)
         obj = super().__new__(cls)
         obj._session = cls.SESSIONS[-1]
-        obj._opendrawers = _weakref.WeakKeyDictionary()
         global _CURRENTFOCUS
         if _CURRENTFOCUS is not None:
             ref = _weakref.ref(_CURRENTFOCUS)
@@ -159,28 +149,51 @@ class _Focus_(metaclass=_FocusMeta_):
         return self._session
 
     @property
-    def opendrawers(self, /):
-        return _MappingProxyType(self._opendrawers)
+    def bureau(self, /):
+        return self.session.bureau
 
-    def get_drawer(self, requester, /):
-        opendrawer = self._opendrawers[requester] = \
-            self.session.bureau.cabinet[requester]
-        return opendrawer
+    @property
+    def tabs(self, /):
+        return type(self)._tabs
+
+    def request_tab(self, requester, /):
+        obj = self.tabs[requester]
+        self._stuff.append(obj)
+        return obj
+
+    def request_tray(self, requester, /):
+        obj = self.session.trays[requester]
+        self._stuff.append(obj)
+        return obj
+
+    def request_drawer(self, requester, /):
+        obj = self.bureau.drawers[requester]
+        self._stuff.append(obj)
+        return obj
 
     def __repr__(self, /):
         return f"<_Focus_ {id(self)} of {self.session}>"
 
+    def __del__(self, /):
+        self._tabs.clear()
+        self._stuff.clear()
+
 
 class Session:
 
-    __slots__ = ('__weakref__', '_bureau')
+    __slots__ = ('__weakref__', '_bureau', '_trays')
 
     def __init__(self, bureau, /):
         self._bureau = bureau
+        self._trays = MultiStorer()
 
     @property
     def bureau(self, /):
         return self._bureau
+
+    @property
+    def trays(self, /):
+        return self._trays
 
     @property
     def entered(self, /):
@@ -203,17 +216,20 @@ class Session:
     def __repr__(self, /):
         return f"<Session {hash(self)} of {self.bureau}>"
 
+    def __del__(self, /):
+        self._trays.clear()
+
 
 class Bureau:
 
     __slots__ = (
         '__weakref__',
-        '_cabinet', '_name', '_taphonomy', '_currentsession',
+        '_drawers', '_name', '_taphonomy', '_currentsession',
         )
 
     def __init__(self, name: str, /):
         self._name = name
-        self._cabinet = Cabinet(self)
+        self._drawers = MultiStorer()
         self._taphonomy = _Taphonomy()
         self._currentsession = None
 
@@ -222,8 +238,8 @@ class Bureau:
         return self._name
 
     @property
-    def cabinet(self, /):
-        return self._cabinet
+    def drawers(self, /):
+        return self._drawers
 
     @property
     def taphonomy(self, /):
@@ -253,6 +269,9 @@ class Bureau:
 
     def __repr__(self, /):
         return f"Bureau({self.name})"
+
+    def __del__(self, /):
+        self._drawers.clear()
 
 
 _GLOBALBUREAU = Bureau('GLOBAL').__enter__()

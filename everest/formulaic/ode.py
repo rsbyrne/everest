@@ -169,10 +169,10 @@ class ODEModel(metaclass=_Essence):
 #         initial: object
 
 #         def __incise_slyce__(self, incisor, /):
-#             return self._ptolemaic_class__.owner.Traverse(self, incisor)
+#             return self.__ptolemaic_class__.owner.Traverse(self, incisor)
 
 #         def __incise_retrieve__(self, incisor, /):
-#             return self._ptolemaic_class__.owner.Stage(self, incisor)
+#             return self.__ptolemaic_class__.owner.Stage(self, incisor)
 
 #         @property
 #         def __incision_manager__(self, /):
@@ -201,10 +201,10 @@ class ODEModel(metaclass=_Essence):
 #             return self.interval
 
 #         def __incise_slyce__(self, incisor, /):
-#             return self._ptolemaic_class__(self.line, incisor)
+#             return self.__ptolemaic_class__(self.line, incisor)
 
 #         def __incise_retrieve__(self, incisor, /):
-#             return self._ptolemaic_class__.owner.Stage(self.line, incisor)
+#             return self.__ptolemaic_class__.owner.Stage(self.line, incisor)
 
 #         def solve(self, /):
 #             line = self.line

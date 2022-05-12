@@ -36,11 +36,11 @@ class ChoretBase(metaclass=Choret):
 
     bound: object
 
-    _req_slots__ = ('boundowner',)
+    __req_slots__ = ('boundowner',)
 
     def __init__(self, /):
         super().__init__()
-        self.boundowner = self.bound._ptolemaic_class__.owner
+        self.boundowner = self.bound.__ptolemaic_class__.owner
 
     def __call__(self, incisor, /, *, caller):
         return caller.__incise_fail__(caller)(incisor)
@@ -226,7 +226,7 @@ class Basic(metaclass=Choret):
 #         return super().__class_call__(bound, chora)
 
 #     def catch_chora(self, incisor: _chora.Chora, /, *, caller):
-#         return self._ptolemaic_class__(self.bound, incisor)
+#         return self.__ptolemaic_class__(self.bound, incisor)
 
 #     def __incise__(self, incisor, /, *, caller):
 #         return super().__incise__(self.chora[incisor], caller=caller)

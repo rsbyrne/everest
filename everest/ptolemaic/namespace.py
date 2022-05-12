@@ -17,7 +17,7 @@ class Namespace(metaclass=_Ousia):
 
     _dcttype = dict
 
-    _req_slots__ = ('_content_',)
+    __req_slots__ = ('_content_',)
 
     for name in (
             '__len__', '__iter__', '__contains__', 'keys', 'values', 'items',
@@ -63,7 +63,7 @@ class Namespace(metaclass=_Ousia):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self._ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self._content_, p, cycle, root=root)
 
 

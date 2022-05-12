@@ -103,7 +103,7 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
         case: 'owner.Case'
         initial: object
 
-        _req_slots__ = ('indextable', 'statetable')
+        __req_slots__ = ('indextable', 'statetable')
 
         @property
         def compound(self, /):
@@ -208,7 +208,7 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
 
 
 
-    # _req_slots__ = ('outspace',)
+    # __req_slots__ = ('outspace',)
 
     # def __init__(self, /):
     #     super().__init__()

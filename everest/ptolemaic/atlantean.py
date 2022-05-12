@@ -23,28 +23,24 @@ class Atlantean(_Ousia):
 
 
 def convert(val, /):
-    if isinstance(val, _Dat):
-        return val
-    if isinstance(val, _np.ndarray):
-        return Arraay(val)
-    if isinstance(val, _collabc.Mapping):
-        return Binding(**val)
-    if isinstance(val, _collabc.Sequence):
-        return Tuuple(val)
-    raise TypeError(
-        f"Object {val} of type {type(val)} cannot be converted to a _Dat."
-        )
+        if isinstance(val, _Dat):
+            return val
+        if isinstance(val, _np.ndarray):
+            return Arraay(val)
+        if isinstance(val, _collabc.Mapping):
+            return Binding(**val)
+        if isinstance(val, _collabc.Sequence):
+            return Tuuple(val)
+        raise TypeError(
+            f"Object {val} of type {type(val)} cannot be converted to a _Dat."
+            )
 
 
 @_Dat.register
 class AtlanteanBase(metaclass=Atlantean):
 
-    def __setattr__(self, name, val, /):
-        super().__setattr__(name, convert(val))
-
-    @_abc.abstractmethod
-    def make_epitaph(self, /):
-        raise NotImplementedError
+    def __process_attr__(self, val, /):
+        return convert(val)
 
     @property
     @_caching.soft_cache()
@@ -76,13 +72,6 @@ class Tuuple(tuple):
 
 class Binding(dict, metaclass=Atlantean):
 
-    # @classmethod
-    # def __class_call__(cls, /, *args, **kwargs):
-    #     obj = cls.instantiate()
-    #     dict.__init__(obj, *args, **kwargs)
-    #     object.__setattr__(obj, 'freezeattr', _Switch(True))
-    #     return obj
-
     def __init__(self, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.update({convert(key): convert(val) for key, val in self.items()})
@@ -104,18 +93,18 @@ class Binding(dict, metaclass=Atlantean):
             map(repr, self),
             map(repr, self.values()),
             )))
-        return f"<{self._ptolemaic_class__}{{{valpairs}}}>"
+        return f"<{self.__ptolemaic_class__}{{{valpairs}}}>"
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self._ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_dict(self, p, cycle, root=root)
 
     def __hash__(self, /):
         return self.hashint
 
     def make_epitaph(self, /):
-        ptolcls = self._ptolemaic_class__
+        ptolcls = self.__ptolemaic_class__
         return ptolcls.taphonomy.callsig_epitaph(ptolcls, dict(self))
 
     @property
@@ -144,11 +133,11 @@ class Kwargs(Binding):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self._ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self, p, cycle, root=root)
 
     def make_epitaph(self, /):
-        ptolcls = self._ptolemaic_class__
+        ptolcls = self.__ptolemaic_class__
         return ptolcls.taphonomy.callsig_epitaph(
             ptolcls, **self
             )
@@ -156,7 +145,7 @@ class Kwargs(Binding):
 
 class Arraay(metaclass=Atlantean):
 
-    _req_slots__ = ('_array',)
+    __req_slots__ = ('_array',)
 
     def __init__(self, arg, /, dtype=None):
         if isinstance(arg, bytes):
@@ -178,7 +167,7 @@ class Arraay(metaclass=Atlantean):
     def __getitem__(self, arg, /):
         out = self._array[arg]
         if isinstance(out, _np.ndarray):
-            return self._ptolemaic_class__(out)
+            return self.__ptolemaic_class__(out)
         return out
 
     def _content_repr(self, /):
@@ -186,11 +175,11 @@ class Arraay(metaclass=Atlantean):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self._ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_array(self._array, p, cycle, root=root)
 
     def make_epitaph(self, /):
-        ptolcls = self._ptolemaic_class__
+        ptolcls = self.__ptolemaic_class__
         content = f"{repr(bytes(self._array))},{repr(str(self.dtype))}"
         return ptolcls.taphonomy(
             f"""m('everest.ptolemaic.atlantean').Arraay({content})""",

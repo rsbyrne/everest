@@ -40,12 +40,14 @@ class ProteanBase(metaclass=Protean):
 
     MERGETUPLES = ('_var_slots__',)
 
-    _req_slots__ = ('_dependants', '_state',)
+    __req_slots__ = ('_dependants', '_state',)
 
     @classmethod
-    def get_corporealisation_namevals(cls, /):
-        yield '_dependents', _weakref.WeakSet()
-        yield '_state', {}
+    def corporealise(cls, /):
+        obj = super().corporealise()
+        object.__setattr__(obj, '_dependents', _weakref.WeakSet())
+        object.__setattr__(obj, '_state', {})
+        return obj
 
     @property
     def dependants(self, /):

@@ -38,15 +38,15 @@ class ConcreteMeta:
         return super().__class_construct__(*basecls.pre_create_concrete())
 
     @property
-    def _ptolemaic_class__(cls, /):
+    def __ptolemaic_class__(cls, /):
         return cls._basecls
 
     @property
     def __signature__(cls, /):
-        return cls._ptolemaic_class__.__signature__
+        return cls.__ptolemaic_class__.__signature__
 
-    def __call__(cls, /, *args, **kwargs):
-        return cls._ptolemaic_class__.__new__(cls, *args, **kwargs)
+    def __call__(cls, /):
+        raise AttributeError
 
     @classmethod
     def __meta_init__(meta, /):
@@ -68,47 +68,34 @@ class Ousia(_Essence):
             meta.concretemeta_namespace(),
             )
 
-    @property
-    def Concrete(cls, /):
-        try:
-            return cls.__dict__['_Concrete']
-        except KeyError:
-            with cls.mutable:
-                out = cls._Concrete = cls.ConcreteMeta(cls)
-            return out
-
-#     ConcreteAbstract = ConcreteAbstract
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        with cls.mutable:
+            cls.Concrete = cls.ConcreteMeta(cls)
 
 
 class OusiaBase(metaclass=Ousia):
 
-    MERGETUPLES = ('_req_slots__',)
-    _req_slots__ = (
+    MERGETUPLES = ('__req_slots__',)
+    __req_slots__ = (
         '__weakref__',
         'softcache', 'weakcache', 'freezeattr',
         )
 
     @classmethod
-    def get_corporealisation_namevals(cls, /):
-        yield 'freezeattr', _Switch(False)
-        yield 'softcache', {}
-        yield 'weakcache', _weakref.WeakValueDictionary()
-
-    @classmethod
     def corporealise(cls, /):
-        obj = cls.Concrete()
-        for name, val in cls.get_corporealisation_namevals():
-            object.__setattr__(obj, name, val)
+        Concrete = cls.Concrete
+        obj = Concrete.__new__(Concrete)
+        object.__setattr__(obj, 'freezeattr', _Switch(False))
+        object.__setattr__(obj, 'softcache', {})
+        object.__setattr__(obj, 'weakcache', _weakref.WeakValueDictionary())
         return obj
-
-    def initialise(self, /, *args, **kwargs):
-        self._ptolemaic_class__.__init__(self, *args, **kwargs)
-        self.freezeattr.toggle(True)
 
     @classmethod
     def instantiate(cls, /, *args, **kwargs):
         obj = cls.corporealise()
-        obj.initialise(*args, **kwargs)
+        obj.__init__(*args, **kwargs)
+        obj.freezeattr.toggle(True)
         return obj
 
     @classmethod
@@ -119,10 +106,10 @@ class OusiaBase(metaclass=Ousia):
 
     @classmethod
     def pre_create_concrete(cls, /):
-        name = f"Concrete_{cls._ptolemaic_class__.__name__}"
+        name = f"Concrete_{cls.__ptolemaic_class__.__name__}"
         bases = (cls,)
         namespace = dict(
-            __slots__=cls._req_slots__,
+            __slots__=cls.__req_slots__,
             _basecls=cls,
             __class_init__=lambda: None,
             )
@@ -131,12 +118,29 @@ class OusiaBase(metaclass=Ousia):
     ### Some aliases:
 
     @property
-    def _ptolemaic_class__(self, /):
-        return self.__class__._ptolemaic_class__
+    def __ptolemaic_class__(self, /):
+        return self.__class__.__ptolemaic_class__
 
     @property
     def taphonomy(self, /):
-        return self._ptolemaic_class__.taphonomy
+        return self.__ptolemaic_class__.taphonomy
+
+    ### Storage:
+
+    @property
+    @_caching.weak_cache()
+    def tab(self, /):
+        return _bureau.request_tab(self)
+
+    @property
+    @_caching.weak_cache()
+    def tray(self, /):
+        return _bureau.request_tray(self)
+
+    @property
+    @_caching.weak_cache()
+    def drawer(self, /):
+        return _bureau.request_drawer(self)
 
     ### Implementing the attribute-freezing behaviour for instances:
 
@@ -144,40 +148,46 @@ class OusiaBase(metaclass=Ousia):
     def mutable(self, /):
         return self.freezeattr.as_(False)
 
+    def __process_attr__(self, val, /):
+        return val
+
     def __setattr__(self, name, val, /):
-        try:
-            check = self.freezeattr
-        except AttributeError:
-            pass
-        else:
-            if check:
-                raise _FrozenAttributesException(
-                    f"Setting attributes "
-                    f"on an object of type {type(self)} "
-                    "is forbidden at this time; "
-                    f"toggle switch `.freezeattr` to override."
-                    )
+        if name in self.__slots__:
+            try:
+                check = self.freezeattr
+            except AttributeError:
+                pass
+            else:
+                if check:
+                    raise _FrozenAttributesException(
+                        f"Setting attributes "
+                        f"on an object of type {type(self)} "
+                        "is forbidden at this time; "
+                        f"toggle switch `.freezeattr` to override."
+                        )
+                val = self.__process_attr__(val)
         object.__setattr__(self, name, val)
 
     def __delattr__(self, name, /):
-        try:
-            check = self.freezeattr
-        except AttributeError:
-            pass
-        else:
-            if check:
-                raise _FrozenAttributesException(
-                    f"Deleting attributes "
-                    f"on an object of type {type(self)} "
-                    "is forbidden at this time; "
-                    f"toggle switch `.freezeattr` to override."
-                    )
+        if name in self.__slots__:
+            try:
+                check = self.freezeattr
+            except AttributeError:
+                pass
+            else:
+                if check:
+                    raise _FrozenAttributesException(
+                        f"Deleting attributes "
+                        f"on an object of type {type(self)} "
+                        "is forbidden at this time; "
+                        f"toggle switch `.freezeattr` to override."
+                        )
         object.__delattr__(self, name)
 
     ### Representations:
 
     def _root_repr(self, /):
-        ptolcls = self._ptolemaic_class__
+        ptolcls = self.__ptolemaic_class__
         return ':'.join(map(str,
             (type(ptolcls).__qualname__, ptolcls.__qualname__, id(self))
             ))
@@ -203,10 +213,28 @@ class OusiaBase(metaclass=Ousia):
     def __hash__(self, /):
         return id(self)
 
-    @property
     @_abc.abstractmethod
-    def epitaph(self, /):
+    def make_epitaph(self, /):
         raise NotImplementedError
+
+    @property
+    def epitaph(self, /):
+        return self.make_epitaph()
+
+    @property
+    def hexcode(self, /):
+        return self.epitaph.hexcode
+
+    @property
+    def hashint(self, /):
+        return self.epitaph.hashint
+
+    @property
+    def hashID(self, /):
+        return self.epitaph.hashID
+
+    def __hash__(self, /):
+        return self.hashint
 
     ### Rich comparisons to support ordering of objects:
 

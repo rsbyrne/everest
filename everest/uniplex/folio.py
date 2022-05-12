@@ -24,7 +24,7 @@ class Folio(_SubPlexon, FolioLike, metaclass=_Compound):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self._ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.subs, p, cycle, root=root)
 
 

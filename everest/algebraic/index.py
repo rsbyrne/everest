@@ -119,7 +119,7 @@ class Index(_Algebraic):
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.__qualname__
+                root = self.__ptolemaic_class__.__qualname__
             _pretty.pretty(self.content, p, cycle, root=root)
 
 

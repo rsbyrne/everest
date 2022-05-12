@@ -24,9 +24,9 @@ class Attrs(_Namespace):
 
 class Plexon(metaclass=_Essence):
 
-    MERGETUPLES = ('_req_slots__',)
+    MERGETUPLES = ('__req_slots__',)
 
-    _req_slots__ = ('attrs',)
+    __req_slots__ = ('attrs',)
 
     def __init__(self, /):
         super().__init__()
@@ -51,7 +51,7 @@ class SubPlexon(Plexon):
 
 class GroupPlexon(Plexon):
 
-    _req_slots__ = ('subs',)
+    __req_slots__ = ('subs',)
 
     def __init__(self, /):
         super().__init__()

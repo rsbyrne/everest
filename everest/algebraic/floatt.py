@@ -57,7 +57,7 @@ class Floatt(_Number):
                     raise _TrivialException
                 elif lower < 0:
                     raise IndexError
-                return self.bound._ptolemaic_class__(
+                return self.bound.__ptolemaic_class__(
                     lower + self.bound.lower,
                     )
 
@@ -97,7 +97,7 @@ class Floatt(_Number):
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.trueowner.__name__
+                root = self.__ptolemaic_class__.trueowner.__name__
             if cycle:
                 p.text(root + '{...}')
                 return
@@ -148,7 +148,7 @@ class Floatt(_Number):
                 upper = incisor.upper
                 if upper >= 0.:
                     raise IndexError
-                return self.bound._ptolemaic_class__(
+                return self.bound.__ptolemaic_class__(
                     self.bound.upper + upper
                     )
 
@@ -173,7 +173,7 @@ class Floatt(_Number):
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.trueowner.__name__
+                root = self.__ptolemaic_class__.trueowner.__name__
             if cycle:
                 p.text(root + '{...}')
                 return
@@ -228,7 +228,7 @@ class Floatt(_Number):
                     lower = lower + ilower
                 if upper <= lower:
                     return self.boundowner.Empty
-                return self.bound._ptolemaic_class__(lower, upper)
+                return self.bound.__ptolemaic_class__(lower, upper)
 
             def bounds_slyce_limit(self,
                     incisor: (type(None), 'owner.comptyp'), /
@@ -243,7 +243,7 @@ class Floatt(_Number):
                     upper = lower + iupper
                 if upper <= lower:
                     return self.boundowner.Empty
-                return self.bound._ptolemaic_class__(lower, upper)
+                return self.bound.__ptolemaic_class__(lower, upper)
 
             def bounds_slyce_closed(self,
                     incisor: ('owner.comptyp', 'owner.comptyp'), /
@@ -264,11 +264,11 @@ class Floatt(_Number):
                     return self.boundowner.Empty
                 if (lower, upper) == (olower, oupper):
                     raise _TrivialException
-                return self.bound._ptolemaic_class__(lower, upper)
+                return self.bound.__ptolemaic_class__(lower, upper)
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.trueowner.__name__
+                root = self.__ptolemaic_class__.trueowner.__name__
             if cycle:
                 p.text(root + '{...}')
                 return

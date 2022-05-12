@@ -152,7 +152,7 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
             return self.labels
 
         def __incise_slyce__(self, incisor, /):
-            return self._ptolemaic_class__(self.content, incisor)
+            return self.__ptolemaic_class__(self.content, incisor)
 
         def __len__(self, /):
             return len(self.labels)
@@ -169,7 +169,7 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.__qualname__
+                root = self.__ptolemaic_class__.__qualname__
             _pretty.pretty(self.asdict(), p, cycle, root=root)
 
 
@@ -214,11 +214,11 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
         class Form(_incision.Incisable, metaclass=_Essence):
 
             def __incise_retrieve__(self, incisor, /):
-                return self._ptolemaic_class__.owner.owner(*incisor)
+                return self.__ptolemaic_class__.owner.owner(*incisor)
 
             @property
             def __armature_brace__(self, /):
-                return self._ptolemaic_class__.owner.owner.__armature_truss__
+                return self.__ptolemaic_class__.owner.owner.__armature_truss__
 
             def __mod__(self, arg, /):
                 return Brace.Oid(self, arg)
@@ -232,13 +232,13 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
             def __includes__(self, arg, /) -> bool:
                 if isinstance(arg, _incision.Degenerate):
                     return arg.retrieve() in self
-                owner = self._ptolemaic_class__.owner.owner
+                owner = self.__ptolemaic_class__.owner.owner
                 if arg is owner:
                     return True
                 return isinstance(arg, owner.Oid)
 
             def __contains__(self, arg, /):
-                return isinstance(arg, self._ptolemaic_class__.owner.owner)
+                return isinstance(arg, self.__ptolemaic_class__.owner.owner)
 
 
         class Power(_Chora):
@@ -275,7 +275,7 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
                     caller = _incision.IncisionChain(
                         content,
                         _FrozenNamespace(
-                            __incise_slyce__=bound._ptolemaic_class__,
+                            __incise_slyce__=bound.__ptolemaic_class__,
                             __incise_retrieve__=bound._retrieve_repeatlike,
                             ),
                         caller,
@@ -294,7 +294,7 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
 
             def _repr_pretty_(self, p, cycle, root=None):
                 if root is None:
-                    root = self._ptolemaic_class__.__qualname__
+                    root = self.__ptolemaic_class__.__qualname__
                 if cycle:
                     p.text(root + '{...}')
                     return
@@ -337,7 +337,7 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
 
             def _repr_pretty_(self, p, cycle, root=None):
                 if root is None:
-                    root = self._ptolemaic_class__.__qualname__
+                    root = self.__ptolemaic_class__.__qualname__
                 if cycle:
                     p.text(root + '{...}')
                     return
@@ -396,7 +396,7 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
 
             def _repr_pretty_(self, p, cycle, root=None):
                 if root is None:
-                    root = self._ptolemaic_class__.__qualname__
+                    root = self.__ptolemaic_class__.__qualname__
                 _pretty.pretty(self.asdict(), p, cycle, root=root)
 
 

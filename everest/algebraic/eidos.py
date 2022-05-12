@@ -29,7 +29,7 @@ class EidosBase(metaclass=Eidos):
 
         @property
         def __incise_retrieve__(self, /):
-            return self._ptolemaic_class__.owner.instantiate
+            return self.__ptolemaic_class__.owner.instantiate
 
 
 ###############################################################################

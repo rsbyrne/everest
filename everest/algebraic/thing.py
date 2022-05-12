@@ -40,11 +40,11 @@ class Thing(_Algebraic, metaclass=_Bythos):
 
         @property
         def __armature_brace__(self, /):
-            return self._ptolemaic_class__.owner.Brace.Oid
+            return self.__ptolemaic_class__.owner.Brace.Oid
 
         @property
         def __armature_truss__(self, /):
-            return self._ptolemaic_class__.owner.Truss.Oid
+            return self.__ptolemaic_class__.owner.Truss.Oid
 
         def __incise_trivial__(self, /):
             return self
@@ -52,13 +52,13 @@ class Thing(_Algebraic, metaclass=_Bythos):
         def __includes__(self, arg, /) -> bool:
             if isinstance(arg, _incision.Degenerate):
                 return arg.retrieve() in self
-            owner = self._ptolemaic_class__.owner
+            owner = self.__ptolemaic_class__.owner
             if arg is owner:
                 return True
             return isinstance(arg, owner.Oid)
 
         def __contains__(self, arg, /):
-            return isinstance(arg, self._ptolemaic_class__.owner)
+            return isinstance(arg, self.__ptolemaic_class__.owner)
 
 
     class Space(_Chora, metaclass=_Compound):
@@ -67,7 +67,7 @@ class Thing(_Algebraic, metaclass=_Bythos):
         OVERCLASSES = ('Oid',)
 
         def __incise_trivial__(self, /):
-            return self._ptolemaic_class__.owner
+            return self.__ptolemaic_class__.owner
 
         class __incise__(_Basic):
 

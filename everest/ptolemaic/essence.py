@@ -103,7 +103,7 @@ def expand_bases(bases):
     seen = set()
     for base in bases:
         if isinstance(base, Essence):
-            base = base._ptolemaic_class__
+            base = base.__ptolemaic_class__
         if base not in seen:
             seen.add(base)
             yield base
@@ -186,7 +186,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def owners(cls, _default=(), /):
-        return cls._ptolemaic_class__.__dict__.get(
+        return cls.__ptolemaic_class__.__dict__.get(
             '_ptolemaic_owners', _default
             )
 
@@ -266,8 +266,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 pass
             else:
                 del namespace[key]
-        # namespace['_clssoftcache'] = {}
-        # namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
+        namespace['_clssoftcache'] = {}
+        namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
         namespace['__weak_dict__'] = _weakref.WeakValueDictionary()
         meta.process_annotations(name, bases, namespace)
         return name, bases, namespace
@@ -318,32 +318,34 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def softcache(cls, /):
-        try:
-            return cls.drawer.softcache
-        except AttributeError:
-            out = cls.drawer.softcache = {}
-            return out
+        return cls._clssoftcache
 
     @property
     def weakcache(cls, /):
-        try:
-            return cls.drawer.weakcache
-        except AttributeError:
-            out = cls.drawer.weakcache = {}
-            return out
+        return cls._clsweakcache
 
     @property
+    @_caching.weak_cache()
+    def tab(cls, /):
+        return _bureau.request_tab(cls)
+
+    @property
+    @_caching.weak_cache()
+    def tray(cls, /):
+        return _bureau.request_tray(cls)
+
+    @property
+    @_caching.weak_cache()
     def drawer(cls, /):
-        try:
-            return cls.__weak_dict__['_drawer']
-        except KeyError:
-            out = cls.__weak_dict__['_drawer'] = _bureau.get_drawer(cls)
-            return out
+        return _bureau.request_drawer(cls)
 
     @property
-    @_caching.soft_cache()
     def taphonomy(cls, /):
-        return cls.drawer.cabinet.host.taphonomy
+        try:
+            return cls.tab._taphonomy
+        except AttributeError:
+            out = cls.tab._taphonomy = _bureau.get_current_bureau().taphonomy
+            return out
 
     ### Initialising the class:
 
@@ -396,7 +398,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Aliases:
 
     @property
-    def _ptolemaic_class__(cls, /):
+    def __ptolemaic_class__(cls, /):
         return cls
 
     def get_attributes(cls, /):
@@ -446,12 +448,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def metacls(cls, /):
-        return type(cls._ptolemaic_class__)
+        return type(cls.__ptolemaic_class__)
 
     @property
     @_caching.soft_cache()
     def epitaph(cls, /):
-        return cls.taphonomy.auto_epitaph(cls._ptolemaic_class__)
+        return cls.taphonomy.auto_epitaph(cls.__ptolemaic_class__)
 
     ### Operations:
 
@@ -477,7 +479,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @_caching.soft_cache()
     def __str__(cls, /):
-        return cls._ptolemaic_class__.__class_str__()
+        return cls.__ptolemaic_class__.__class_str__()
 
     def _repr_pretty_(cls, p, cycle, root=None):
         if root is not None:

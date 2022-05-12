@@ -71,7 +71,7 @@ class Intt(_Number):
                     raise _TrivialException
                 elif lower < 0:
                     raise IndexError
-                return self.bound._ptolemaic_class__(
+                return self.bound.__ptolemaic_class__(
                     lower + self.bound.lower,
                     self.bound.step,
                     )
@@ -108,7 +108,7 @@ class Intt(_Number):
 
             def sample_slyce_int(self, incisor: 'owner.comptyp', /):
                 bound = self.bound
-                return bound._ptolemaic_class__(
+                return bound.__ptolemaic_class__(
                     bound.lower, bound.step * incisor
                     )
 
@@ -132,7 +132,7 @@ class Intt(_Number):
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.trueowner.__name__
+                root = self.__ptolemaic_class__.trueowner.__name__
             if cycle:
                 p.text(root + '{...}')
                 return
@@ -181,7 +181,7 @@ class Intt(_Number):
                 upper = incisor.upper
                 if upper >= 0:
                     raise IndexError
-                return self.bound._ptolemaic_class__(
+                return self.bound.__ptolemaic_class__(
                     self.bound.upper + upper
                     )
 
@@ -206,7 +206,7 @@ class Intt(_Number):
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.trueowner.__name__
+                root = self.__ptolemaic_class__.trueowner.__name__
             if cycle:
                 p.text(root + '{...}')
                 return
@@ -227,7 +227,7 @@ class Intt(_Number):
         # step: Intt[1:] = 1
         step: int = 1
 
-        _req_slots__ = ('_rangeobj',)
+        __req_slots__ = ('_rangeobj',)
 
         @classmethod
         def parameterise(cls, /, *args, **kwargs):
@@ -271,12 +271,12 @@ class Intt(_Number):
                 if news == olds:
                     return caller.__incise_trivial__()
                 return caller.__incise_slyce__(
-                    self.bound._ptolemaic_class__(*news)
+                    self.bound.__ptolemaic_class__(*news)
                     )
 
             def sample_slyce_int(self, incisor: 'owner.comptyp', /):
                 bound = self.bound
-                return bound._ptolemaic_class__(
+                return bound.__ptolemaic_class__(
                     bound.lower, bound.upper, bound.step * incisor
                     )
 
@@ -306,7 +306,7 @@ class Intt(_Number):
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.trueowner.__name__
+                root = self.__ptolemaic_class__.trueowner.__name__
             if cycle:
                 p.text(root + '{...}')
                 return

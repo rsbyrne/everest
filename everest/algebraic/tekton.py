@@ -44,7 +44,7 @@ class TektonBase(metaclass=Tekton):
 
         @property
         def subject(self, /):
-            return self._ptolemaic_class__.owner
+            return self.__ptolemaic_class__.owner
 
         @property
         def __incision_manager__(self, /):
@@ -56,14 +56,14 @@ class TektonBase(metaclass=Tekton):
 
         @property
         def __incise_slyce__(self, /):
-            return self._ptolemaic_class__
+            return self.__ptolemaic_class__
 
         def __call__(self, /, *args, **kwargs):
             return self.__incise_retrieve__(self.chora(*args, **kwargs))
 
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
-                root = self._ptolemaic_class__.__qualname__
+                root = self.__ptolemaic_class__.__qualname__
             self.__incision_manager__._repr_pretty_(p, cycle, root)
 
 

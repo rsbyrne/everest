@@ -82,7 +82,7 @@ class Chora(_incision.Incisable, _Algebraic):
 
     class Var(_Armature, metaclass=_Ousia):
 
-        _req_slots__ = ('_value',)
+        __req_slots__ = ('_value',)
         _var_slots__ = ('value',)
 
         _default = None
