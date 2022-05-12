@@ -42,12 +42,10 @@ class ProteanBase(metaclass=Protean):
 
     __req_slots__ = ('_dependants', '_state',)
 
-    @classmethod
-    def corporealise(cls, /):
-        obj = super().corporealise()
-        object.__setattr__(obj, '_dependents', _weakref.WeakSet())
-        object.__setattr__(obj, '_state', {})
-        return obj
+    def initialise(self, /):
+        object.__setattr__(self, '_dependents', _weakref.WeakSet())
+        object.__setattr__(self, '_state', {})
+        super().initialise()
 
     @property
     def dependants(self, /):

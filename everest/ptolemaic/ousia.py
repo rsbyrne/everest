@@ -82,20 +82,19 @@ class OusiaBase(metaclass=Ousia):
         'softcache', 'weakcache', 'freezeattr',
         )
 
-    @classmethod
-    def corporealise(cls, /):
-        Concrete = cls.Concrete
-        obj = Concrete.__new__(Concrete)
-        object.__setattr__(obj, 'freezeattr', _Switch(False))
-        object.__setattr__(obj, 'softcache', {})
-        object.__setattr__(obj, 'weakcache', _weakref.WeakValueDictionary())
-        return obj
+    def initialise(self, /, *args, **kwargs):
+        self.__init__(*args, **kwargs)
 
     @classmethod
     def instantiate(cls, /, *args, **kwargs):
-        obj = cls.corporealise()
-        obj.__init__(*args, **kwargs)
-        obj.freezeattr.toggle(True)
+        Concrete = cls.Concrete
+        obj = Concrete.__new__(Concrete)
+        switch = _Switch(False)
+        object.__setattr__(obj, 'freezeattr', switch)
+        object.__setattr__(obj, 'softcache', {})
+        object.__setattr__(obj, 'weakcache', _weakref.WeakValueDictionary())
+        obj.initialise(*args, **kwargs)
+        switch.toggle(True)
         return obj
 
     @classmethod

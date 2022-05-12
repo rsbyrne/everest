@@ -41,17 +41,13 @@ class CompositeBase(metaclass=Composite):
             self.__field_slots__, self.__field_vals__
             )))
 
-    @classmethod
-    def instantiate(cls, fieldvals: tuple, /):
-        obj = cls.corporealise()
+    def initialise(self, fieldvals: tuple, /):
         for name, val in zip(
-                cls.__field_slots__,
-                map(obj.__process_attr__, fieldvals),
+                self.__field_slots__,
+                map(self.__process_attr__, fieldvals),
                 ):
-            object.__setattr__(obj, name, val)
-        obj.__init__()
-        obj.freezeattr.toggle(True)
-        return obj
+            object.__setattr__(self, name, val)
+        super().initialise()
 
     def remake(self, /, **kwargs):
         return self.__ptolemaic_class__.instantiate(
