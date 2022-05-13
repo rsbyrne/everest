@@ -4,6 +4,7 @@
 
 
 import types as _types
+import weakref as _weakref
 
 from everest.utilities import pretty as _pretty
 
@@ -41,18 +42,29 @@ class CompositeBase(metaclass=Composite):
             self.__field_slots__, self.__field_vals__
             )))
 
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.premade = _weakref.WeakValueDictionary()
+
+    def __process_field__(self, val, /):
+        return val
+
     def initialise(self, fieldvals: tuple, /):
         for name, val in zip(
                 self.__field_slots__,
-                map(self.__process_attr__, fieldvals),
+                map(self.__process_field__, fieldvals),
                 ):
             object.__setattr__(self, name, val)
         super().initialise()
 
-    def remake(self, /, **kwargs):
-        return self.__ptolemaic_class__.instantiate(
-            tuple({**self.fields, **kwargs}.values())
-            )
+    @classmethod
+    def instantiate(cls, fieldvals: tuple, /):
+        try:
+            return cls.premade[fieldvals]
+        except KeyError:
+            obj = cls.premade[fieldvals] = super().instantiate(fieldvals)
+            return obj
 
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):
@@ -62,6 +74,11 @@ class CompositeBase(metaclass=Composite):
             except AttributeError as exc:
                 raise TypeError(cls, type(arg)) from exc
         return cls.instantiate(arg)
+
+    def remake(self, /, **kwargs):
+        return self.__ptolemaic_class__.instantiate(
+            tuple({**self.fields, **kwargs}.values())
+            )
 
     def make_epitaph(self, /):
         ptolcls = self.__ptolemaic_class__

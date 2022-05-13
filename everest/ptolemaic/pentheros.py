@@ -4,7 +4,6 @@
 
 
 from inspect import Signature as _Signature, Parameter as _Parameter, _empty
-import weakref as _weakref
 
 from everest.utilities import caching as _caching
 
@@ -39,7 +38,6 @@ class PentherosBase(metaclass=Pentheros):
     def __class_init__(cls, /):
         super().__class_init__()
         cls.__field_slots__ = tuple(cls.sig.keys())
-        cls.premade = _weakref.WeakValueDictionary()
 
     @classmethod
     def paramexc(cls, /, *args, message=None, **kwargs):
@@ -52,14 +50,6 @@ class PentherosBase(metaclass=Pentheros):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
         return bound
-
-    @classmethod
-    def instantiate(cls, fieldvals: tuple, /):
-        try:
-            return cls.premade[fieldvals]
-        except KeyError:
-            obj = cls.premade[fieldvals] = super().instantiate(fieldvals)
-            return obj
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):

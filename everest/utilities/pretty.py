@@ -27,10 +27,10 @@ def pretty_function(obj, p, cycle, /, root='Function'):
     if cycle:
         p.text(root + '(...)')
         return
-    p.text(root)
-    p.text(obj.__module__)
-    p.text('.')
-    p.text(obj.__qualname__)
+    with p.group(4, root + '(', ')'):
+        p.text(obj.__module__)
+        p.text('.')
+        p.text(obj.__qualname__)
 
 
 def pretty_kwargs(obj, p, cycle, /, root=''):

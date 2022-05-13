@@ -126,6 +126,28 @@ def hard_cache(cachedir, /, *subcaches):
     return decorator
 
 
+def func_cache():
+
+    def decorator(func, /):
+
+        if _inspect.signature(func).parameters:
+            raise RuntimeError(
+                "`func_cache` can only be used on functions with zero arguments."
+                )
+
+        @_functools.wraps(func)
+        def wrapper():
+            try:
+                return func._value
+            except AttributeError:
+                _value = func._value = func()
+                return _value
+
+        return wrapper
+
+    return decorator
+
+
 # def softcache_property(getfunc):
 #     attname = getfunc.__name__.lstrip('get')
 #     @property

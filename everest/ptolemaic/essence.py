@@ -498,9 +498,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def hashID(cls, /):
         return cls.epitaph.hashID
 
-    def __hash__(cls, /):
-        return id(cls)
-
 
 class EssenceBase(_Ptolemaic, metaclass=Essence):
 

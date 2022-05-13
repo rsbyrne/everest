@@ -57,10 +57,10 @@ class Chora(_incision.Incisable, _Algebraic):
     def __armature_variable__(self, /):
         return self.Var
 
-    def __pow__(self, arg, /):
+    def __mod__(self, arg, /):
         return self.__armature_brace__(self.__incise_trivial__(), arg)
 
-    def __rpow__(self, arg, /):
+    def __rmod__(self, arg, /):
         return NotImplemented
 
     def __matmul__(self, arg, /):
@@ -272,8 +272,6 @@ class DeferChora(_incision.DeferIncisable, metaclass=_Essence):
             f"        raise NotImplementedError",
             )))
     del methname
-
-
 
 
 ###############################################################################

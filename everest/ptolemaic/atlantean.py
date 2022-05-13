@@ -6,6 +6,7 @@
 import abc as _abc
 import itertools as _itertools
 from collections import abc as _collabc
+import types as _types
 
 import numpy as _np
 
@@ -31,6 +32,8 @@ def convert(val, /):
             return Binding(**val)
         if isinstance(val, _collabc.Sequence):
             return Tuuple(val)
+        if isinstance(val, _types.FunctionType):
+            return Fuunction(val)
         raise TypeError(
             f"Object {val} of type {type(val)} cannot be converted to a _Dat."
             )
@@ -39,7 +42,7 @@ def convert(val, /):
 @_Dat.register
 class AtlanteanBase(metaclass=Atlantean):
 
-    def __process_attr__(self, val, /):
+    def __process_field__(self, val, /):
         return convert(val)
 
     @property
@@ -54,6 +57,30 @@ class AtlanteanBase(metaclass=Atlantean):
 
     def __reduce__(self, /):
         return self.epitaph, ()
+
+
+class Funcc(metaclass=Atlantean):
+
+    __req_slots__ = ('func',)
+
+    def __init__(self, func: _types.FunctionType, /):
+        self.func = func
+
+    @property
+    def __call__(self, /):
+        return self.func
+
+    def make_epitaph(self, /):
+        ptolcls = self.__ptolemaic_class__
+        return ptolcls.taphonomy.callsig_epitaph(ptolcls, self.func)
+
+    def _content_repr(self, /):
+        return repr(self.func)
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.__ptolemaic_class__.__qualname__
+        _pretty.pretty_function(self.func, p, cycle, root=root)
 
 
 @AtlanteanBase.register

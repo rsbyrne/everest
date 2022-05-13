@@ -9,7 +9,7 @@ import inspect as _inspect
 import weakref as _weakref
 
 from everest.utilities import (
-    caching as _caching,
+    caching as _caching, reseed as _reseed
     )
 from everest.utilities.switch import Switch as _Switch
 from everest.exceptions import (
@@ -79,7 +79,7 @@ class OusiaBase(metaclass=Ousia):
     MERGETUPLES = ('__req_slots__',)
     __req_slots__ = (
         '__weakref__',
-        'softcache', 'weakcache', 'freezeattr',
+        'softcache', 'weakcache', 'freezeattr', '_pyhash'
         )
 
     def initialise(self, /, *args, **kwargs):
@@ -93,6 +93,7 @@ class OusiaBase(metaclass=Ousia):
         object.__setattr__(obj, 'freezeattr', switch)
         object.__setattr__(obj, 'softcache', {})
         object.__setattr__(obj, 'weakcache', _weakref.WeakValueDictionary())
+        object.__setattr__(obj, '_pyhash', _reseed.rdigits(16))
         obj.initialise(*args, **kwargs)
         switch.toggle(True)
         return obj
@@ -147,9 +148,6 @@ class OusiaBase(metaclass=Ousia):
     def mutable(self, /):
         return self.freezeattr.as_(False)
 
-    def __process_attr__(self, val, /):
-        return val
-
     def __setattr__(self, name, val, /):
         if name in self.__slots__:
             try:
@@ -164,7 +162,6 @@ class OusiaBase(metaclass=Ousia):
                         "is forbidden at this time; "
                         f"toggle switch `.freezeattr` to override."
                         )
-                val = self.__process_attr__(val)
         object.__setattr__(self, name, val)
 
     def __delattr__(self, name, /):
@@ -209,6 +206,11 @@ class OusiaBase(metaclass=Ousia):
     def __repr__(self, /):
         return f"<{self.rootrepr}>"
 
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.__ptolemaic_class__.__qualname__
+        p.text(f"{root}({self.contentrepr})")
+
     def __hash__(self, /):
         return id(self)
 
@@ -233,7 +235,7 @@ class OusiaBase(metaclass=Ousia):
         return self.epitaph.hashID
 
     def __hash__(self, /):
-        return self.hashint
+        return self._pyhash
 
     ### Rich comparisons to support ordering of objects:
 
