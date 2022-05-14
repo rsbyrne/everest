@@ -4,6 +4,7 @@
 
 
 from inspect import Signature as _Signature, Parameter as _Parameter, _empty
+import types as _types
 
 from everest.utilities import caching as _caching
 
@@ -23,12 +24,13 @@ class Pentheros(_Composite):
         return cls.sig.sigfields
 
 
-class PentherosBase(metaclass=Pentheros):
+class ProvisionalParams(_types.SimpleNamespace):
 
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.sig = cls._get_sig()
+    def __iter__(self, /):
+        return iter(self.__dict__.values())
+
+
+class PentherosBase(metaclass=Pentheros):
 
     @classmethod
     def _get_sig(cls, /):
@@ -36,8 +38,8 @@ class PentherosBase(metaclass=Pentheros):
 
     @classmethod
     def __class_init__(cls, /):
+        cls.__field_names__ = tuple(cls.sig.keys())
         super().__class_init__()
-        cls.__field_slots__ = tuple(cls.sig.keys())
 
     @classmethod
     def paramexc(cls, /, *args, message=None, **kwargs):
@@ -49,13 +51,11 @@ class PentherosBase(metaclass=Pentheros):
     def parameterise(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
-        return bound
+        return ProvisionalParams(**bound.arguments)
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return cls.instantiate(tuple(
-            cls.parameterise(*args, **kwargs).arguments.values()
-            ))
+        return cls.instantiate(tuple(cls.parameterise(*args, **kwargs)))
 
 
 ###############################################################################

@@ -38,12 +38,12 @@ class PseudoTableLike(_SubPlexon):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        bound = super().parameterise(*args, **kwargs)
-        baseshape = bound.arguments['baseshape']
+        params = super().parameterise(*args, **kwargs)
+        baseshape = params.baseshape
         if not isinstance(baseshape, tuple):
             baseshape = (baseshape,)
-        bound.arguments['baseshape'] = baseshape
-        return bound
+        params.baseshape = baseshape
+        return params
 
     def __init__(self, /):
         super().__init__()
@@ -211,7 +211,7 @@ class TableLike(_ChainChora, ArrayLike, PseudoTableLike):
         def _repr_pretty_(self, p, cycle, root=None):
             if root is None:
                 root = self.__ptolemaic_class__.__qualname__
-            kwargs = {**self.fields}
+            kwargs = {**self.params._asdict()}
             kwargs['source'] = repr(kwargs['source'])
             kwargs['data'] = self.data
             _pretty.pretty_kwargs(kwargs, p, cycle, root=root)

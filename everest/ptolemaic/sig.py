@@ -33,7 +33,7 @@ class Sig(metaclass=_Atlantean):
         return dict(sorted(fields.items(), key=cls.get_orderscore))
 
     @classmethod
-    def process_field(cls, name, hint, value, /) -> _field.FieldBase:
+    def process_sigfield(cls, name, hint, value, /) -> _field.FieldBase:
         if not isinstance(hint, _field.FieldBase):
             return _field.Field(hint=hint, value=value)
         if isinstance(hint, _field.FieldKind):
@@ -58,7 +58,7 @@ class Sig(metaclass=_Atlantean):
         anno = base.__dict__.get('__annotations__', {})
         for name, hint in anno.items():
             fields.setdefault(name, _deque()).append(
-                cls.process_field(
+                cls.process_sigfield(
                     name, hint, base.__dict__.get(name, _pempty)
                     )
                 )
@@ -90,7 +90,7 @@ class Sig(metaclass=_Atlantean):
                 raise TypeError
             if isinstance(arg, dict):
                 fields = {
-                    key: self.process_field(key, val, _pempty)
+                    key: self.process_sigfield(key, val, _pempty)
                     for key, val in fields.items()
                     }
             elif isinstance(arg, type):

@@ -36,7 +36,7 @@ class Traversable(_chora.ChainChora, metaclass=_Schema):
     @property
     def __incision_manager__(self, /):
         return _Brace[_Kwargs({
-            key: val for key, val in self.fields.items()
+            key: val for key, val in self.params._asdict().items()
             if isinstance(val, _chora.Chora)
             })]
 

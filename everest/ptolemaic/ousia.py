@@ -7,6 +7,7 @@ import abc as _abc
 
 import inspect as _inspect
 import weakref as _weakref
+import types as _types
 
 from everest.utilities import (
     caching as _caching, reseed as _reseed
@@ -82,6 +83,37 @@ class OusiaBase(metaclass=Ousia):
         'softcache', 'weakcache', 'freezeattr', '_pyhash'
         )
 
+    ### Configuring the concrete class:
+
+    @classmethod
+    def _yield_cache_slots(cls, /):
+        for attr in cls.__dict__.values():
+            if isinstance(attr, property):
+                attr = attr.fget
+            if isinstance(attr, _types.FunctionType):
+                try:
+                    yield attr.__attr_cache_storedname__
+                except AttributeError:
+                    pass
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.__cache_slots__ = tuple(cls._yield_cache_slots())
+
+    @classmethod
+    def pre_create_concrete(cls, /):
+        name = f"Concrete_{cls.__ptolemaic_class__.__name__}"
+        bases = (cls,)
+        namespace = dict(
+            __slots__=(*cls.__req_slots__, *cls.__cache_slots__),
+            _basecls=cls,
+            __class_init__=lambda: None,
+            )
+        return name, bases, namespace
+
+    ### Object creation:
+
     def initialise(self, /, *args, **kwargs):
         self.__init__(*args, **kwargs)
 
@@ -101,19 +133,6 @@ class OusiaBase(metaclass=Ousia):
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
         return cls.instantiate(*args, **kwargs)
-
-    ### Configuring the concrete class:
-
-    @classmethod
-    def pre_create_concrete(cls, /):
-        name = f"Concrete_{cls.__ptolemaic_class__.__name__}"
-        bases = (cls,)
-        namespace = dict(
-            __slots__=cls.__req_slots__,
-            _basecls=cls,
-            __class_init__=lambda: None,
-            )
-        return name, bases, namespace
 
     ### Some aliases:
 
@@ -149,7 +168,9 @@ class OusiaBase(metaclass=Ousia):
         return self.freezeattr.as_(False)
 
     def __setattr__(self, name, val, /):
-        if name in self.__slots__:
+        if name.startswith('_cached_'):
+            pass
+        elif name in self.__slots__:
             try:
                 check = self.freezeattr
             except AttributeError:
@@ -165,6 +186,8 @@ class OusiaBase(metaclass=Ousia):
         object.__setattr__(self, name, val)
 
     def __delattr__(self, name, /):
+        if name.startswith('_cached_'):
+            pass
         if name in self.__slots__:
             try:
                 check = self.freezeattr

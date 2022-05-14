@@ -42,7 +42,8 @@ def convert(val, /):
 @_Dat.register
 class AtlanteanBase(metaclass=Atlantean):
 
-    def __process_field__(self, val, /):
+    @classmethod
+    def __process_field__(cls, val, /):
         return convert(val)
 
     @property

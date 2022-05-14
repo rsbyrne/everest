@@ -16,7 +16,8 @@ class Sprite(_Atlantean, _Composite):
 
 class SpriteBase(metaclass=Sprite):
 
-    def __process_field__(self, val, /):
+    @classmethod
+    def __process_field__(cls, val, /):
         if isinstance(val, _Primitive):
             return val
         raise TypeError(

@@ -39,8 +39,8 @@ class SubPlexon(Plexon):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        bound = super().parameterise(*args, **kwargs)
-        if not isinstance(bound.arguments['parent'], Plexon):
+        params = super().parameterise(*args, **kwargs)
+        if not isinstance(params.parent, Plexon):
             raise TypeError
         return bound
 

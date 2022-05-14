@@ -324,18 +324,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def weakcache(cls, /):
         return cls._clsweakcache
 
-    @property
-    @_caching.weak_cache()
+    @_caching.attr_property(weak=True, dictlook=True)
     def tab(cls, /):
         return _bureau.request_tab(cls)
 
-    @property
-    @_caching.weak_cache()
+    @_caching.attr_property(weak=True, dictlook=True)
     def tray(cls, /):
         return _bureau.request_tray(cls)
 
-    @property
-    @_caching.weak_cache()
+    @_caching.attr_property(weak=True, dictlook=True)
     def drawer(cls, /):
         return _bureau.request_drawer(cls)
 
@@ -386,14 +383,27 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def mutable(cls, /):
         return cls.freezeattr.as_(False)
 
-    def __setattr__(cls, key, val, /):
+    def __setattr__(cls, name, val, /):
+        if name.startswith('_cached_'):
+            pass
         if cls.freezeattr:
             raise AttributeError(
                 f"Setting attributes on an object of type {type(cls)} "
                 "is forbidden at this time; "
                 f"toggle switch `.freezeattr` to override."
                 )
-        super().__setattr__(key, val)
+        super().__setattr__(name, val)
+
+    def __delattr__(cls, name, /):
+        if name.startswith('_cached_'):
+            pass
+        if cls.freezeattr:
+            raise AttributeError(
+                f"Deleting attributes on an object of type {type(cls)} "
+                "is forbidden at this time; "
+                f"toggle switch `.freezeattr` to override."
+                )
+        super().__delattr__(name)
 
     ### Aliases:
 
@@ -439,8 +449,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __signature__(cls, /):
         return cls.sig
 
-    @property
-    @_caching.soft_cache()
+    @_caching.attr_property(dictlook=True)
     def sig(cls, /):
         return cls._get_sig()
 
@@ -450,8 +459,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def metacls(cls, /):
         return type(cls.__ptolemaic_class__)
 
-    @property
-    @_caching.soft_cache()
+    @_caching.attr_property(dictlook=True)
     def epitaph(cls, /):
         return cls.taphonomy.auto_epitaph(cls.__ptolemaic_class__)
 
@@ -462,8 +470,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Representations:
 
-    # @property
-    # @_caching.soft_cache()
+    # @_caching.attr_property(dictlook=True)
     # def __qualname__(cls, /):
     #     return '.'.join((*cls.owners, cls.__name__))
 
@@ -473,11 +480,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __class_str__(cls, /):
         return cls.__name__
 
-    @_caching.soft_cache()
+    @_caching.attr_property(dictlook=True)
     def __repr__(cls, /):
         return cls.__class_repr__()
 
-    @_caching.soft_cache()
+    @_caching.attr_property(dictlook=True)
     def __str__(cls, /):
         return cls.__ptolemaic_class__.__class_str__()
 

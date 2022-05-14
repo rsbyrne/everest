@@ -47,14 +47,14 @@ class Intt(_Number):
 
         @classmethod
         def parameterise(cls, /, *args, **kwargs):
-            bound = super().parameterise(*args, **kwargs)
-            bound.arguments.update({
+            params = super().parameterise(*args, **kwargs)
+            params.__dict__.update({
                 key: cls.owner.pytyp(val)
-                for key, val in bound.arguments.items()
+                for key, val in params.__dict__.items()
                 })
-            if bound.arguments['step'] < 1:
+            if params.step < 1:
                 raise ValueError
-            return bound
+            return params
 
         class __incise__(_choret.Sampleable):
 
@@ -152,12 +152,12 @@ class Intt(_Number):
 
         @classmethod
         def parameterise(cls, /, *args, **kwargs):
-            bound = super().parameterise(*args, **kwargs)
-            bound.arguments.update({
+            params = super().parameterise(*args, **kwargs)
+            params.__dict__.update({
                 key: cls.owner.pytyp(val)
-                for key, val in bound.arguments.items()
+                for key, val in params.__dict__.items()
                 })
-            return bound
+            return params
 
         class __incise__(_choret.Sampleable):
 
@@ -231,12 +231,12 @@ class Intt(_Number):
 
         @classmethod
         def parameterise(cls, /, *args, **kwargs):
-            bound = super().parameterise(*args, **kwargs)
-            bound.arguments.update({
+            params = super().parameterise(*args, **kwargs)
+            params.__dict__.update({
                 key: cls.owner.pytyp(val)
-                for key, val in bound.arguments.items()
+                for key, val in params.__dict__.items()
                 })
-            return bound
+            return params
 
         def __init__(self, /):
             super().__init__()

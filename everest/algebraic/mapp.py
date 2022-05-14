@@ -6,6 +6,8 @@
 import abc as _abc
 import functools as _functools
 
+from everest.utilities.caching import attr_property as _attr_property
+
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.atlantean import Funcc as _Funcc
 from everest.ptolemaic.compound import Compound as _Compound
@@ -51,18 +53,21 @@ class Mapp(metaclass=_Essence):
 
 class DefMapp(_Funcc, Mapp):
 
-    __req_slots__ = ('_domain', '_codomain')
-
-    def __init__(self, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        getanno = self.__getitem__.__annotations__
-        self._domain = _Sett(getanno.get('arg', None))
-        self._codomain = _Sett(getanno.get('return', None))
-
     @property
     def __getitem__(self, /):
         return self.func
 
+    @_attr_property
+    def domain(self, /):
+        return _Sett(self.__getitem__.__annotations__.get('arg', None))
+
+    @_attr_property
+    def codomain(self, /):
+        return _Sett(self.__getitem__.__annotations__.get('return', None))
+
+
+class MappOp(Mapp):
+
     @property
     def domain(self, /):
         return self._domain
@@ -72,68 +77,61 @@ class DefMapp(_Funcc, Mapp):
         return self._codomain
 
 
-class MappOp(Mapp):
-    ...
+class ModifiedMapp(_Compound.Base):
+
+    mapp: _Field.POS[Mapp]
+    domain: Field[_Sett] = None
+    codomain: Field[_Sett] = None
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        mapp = params.mapp
+        for methname in ('domain', 'codomain'):
+            if getattr(params, methname) is None:
+                setattr(params, methname, getattr(mapp, methname))
+        return params
+
+    def __getitem__(self, arg, /):
+        if arg not in self.domain:
+            raise MappError
+        out = self.mapp[arg]
+        assert out in self.codomain
+        return out
 
 
 class MappMultiOp(_Compound.BaseTyp, MappOp):
 
-    __req_slots__ = ('_domain', '_codomain')
-
     mapps: _Field.ARGS
-
-    @property
-    def domain(self, /):
-        return self._domain
-
-    @property
-    def codomain(self, /):
-        return self._codomain
 
 
 class SwitchMapp(MappMultiOp):
 
-    __req_slots__ = ('get_mapper',)
-
-    def __init__(self, /):
-        super().__init__()
+    @_attr_property
+    def get_mapper(self, /):
         mapps = self.mapps
         checkmapps = ((mapp.domain.__contains_like__, mapp) for mapp in mapps)
         @_functools.lru_cache()
-        def get_mapper(arg: type, /):
+        def _get_mapper(arg: type, /):
             for check, mapp in checkmapps:
                 if check(arg):
                     return mapp
             raise MappError(arg)
-        self.get_mapper = get_mapper
-        self._domain = _SettUnion(*(mp.domain for mp in mapps))
-        self._codomain = _SettUnion(*(mp.codomain for mp in mapps))
+        return _get_mapper
 
     def __getitem__(self, arg, /):
         return self.get_mapper(type(arg))[arg]
 
+    @_attr_property
+    def domain(self, /):
+        return _SettUnion(*(mp.domain for mp in self.mapps))
 
-# class SwitchMapp(_Compound.BaseTyp, Mapp):
-
-#     __req_slots__ = ('_domain', '_codomain')
-
-#     mapps: _Field.ARGS
-
-#     def __init__(self, /, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self._domain = _SettUnion(*(mp.domain for mp in self.mapps))
-#         self._codomain = _SettUnion(*(mp.codomain for mp in self.mapps))
-
-#     def __getitem__(self, arg, /):
-#         for mapp in self.mapps:
-#             if arg in mapp.domain:
-#                 return mapp[arg]
-#         raise MappError(arg)
+    @_attr_property
+    def codomain(self, /):
+        return _SettUnion(*(mp.codomain for mp in self.mapps))
 
 
 class ComposedMapp(MappMultiOp):
-
-    __req_slots__ = ('_domain', '_codomain')
 
     mapps: _Field.ARGS
 
@@ -151,16 +149,18 @@ class ComposedMapp(MappMultiOp):
     def parameterise(cls, /, *args):
         return super().parameterise(*cls._unpack_args(args))
 
-    def __init__(self, /):
-        super().__init__()
-        mapps = self.mapps
-        self._domain = mapps[0].domain
-        self._codomain = mapps[-1].codomain
-
     def __getitem__(self, arg, /):
         for mapp in self.mapps:
             arg = mapp[arg]
         return arg
+
+    @_attr_property
+    def domain(self, /):
+        return mapps[0].domain
+
+    @_attr_property
+    def codomain(self, /):
+        return mapps[-1].codomain
 
 
 ###############################################################################

@@ -110,8 +110,8 @@ class SettInverse(_Compound.BaseTyp, SettOp):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        bound = super().parameterise(*args, **kwargs)
-        bound.arguments['sett'] = convert(bound.arguments['sett'])
+        params = super().parameterise(*args, **kwargs)
+        params.sett = convert(params.sett)
         return bound
 
     def __contains__(self, arg, /):

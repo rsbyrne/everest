@@ -5,6 +5,7 @@
 
 import types as _types
 import weakref as _weakref
+import collections as _collections
 
 from everest.utilities import pretty as _pretty
 
@@ -15,55 +16,52 @@ class Composite(_Ousia):
     ...
 
 
+class Param:
+
+    __slots__ = ('name',)
+
+    def __set_name__(self, owner, name, /):
+        self.name = name
+
+    def __get__(self, instance, owner=None, /):
+        return getattr(instance.params, self.name)
+
+
 class CompositeBase(metaclass=Composite):
 
-    MERGETUPLES = ('__field_slots__',)
-
-    __field_slots__ = ()
-
-    @classmethod
-    def pre_create_concrete(cls, /):
-        name, bases, namespace = super().pre_create_concrete()
-        namespace['__slots__'] = (
-            *namespace['__slots__'], *cls.__field_slots__
-            )
-        return name, bases, namespace
-
-    @property
-    def __field_vals__(self, /):
-        return tuple(
-            object.__getattribute__(self, fieldname)
-            for fieldname in self.__field_slots__
-            )
-
-    @property
-    def fields(self, /):
-        return _types.MappingProxyType(dict(zip(
-            self.__field_slots__, self.__field_vals__
-            )))
+    MERGETUPLES = ('__field_names__',)
+    __field_names__ = ()
+    __req_slots__ = ('params',)
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         cls.premade = _weakref.WeakValueDictionary()
+        fieldnames = cls.__field_names__
+        for name in fieldnames:
+            setattr(cls, name, param := Param())
+            param.__set_name__(cls, name)
+        cls.Params = _collections.namedtuple(
+            f"{cls.__name__}Params",
+            fieldnames,
+            )
 
-    def __process_field__(self, val, /):
+    @classmethod
+    def __process_field__(cls, val, /):
         return val
 
-    def initialise(self, fieldvals: tuple, /):
-        for name, val in zip(
-                self.__field_slots__,
-                map(self.__process_field__, fieldvals),
-                ):
-            object.__setattr__(self, name, val)
+    def initialise(self, params, /):
+        object.__setattr__(self, 'params', params)
         super().initialise()
 
     @classmethod
     def instantiate(cls, fieldvals: tuple, /):
+        fieldvals = tuple(map(cls.__process_field__, fieldvals))
         try:
             return cls.premade[fieldvals]
         except KeyError:
-            obj = cls.premade[fieldvals] = super().instantiate(fieldvals)
+            obj = cls.premade[fieldvals] = \
+                super().instantiate(cls.Params(*fieldvals))
             return obj
 
     # Special-cased, so no need for @classmethod
@@ -77,7 +75,7 @@ class CompositeBase(metaclass=Composite):
 
     def remake(self, /, **kwargs):
         return self.__ptolemaic_class__.instantiate(
-            tuple({**self.fields, **kwargs}.values())
+            tuple({**self.params._asdict(), **kwargs}.values())
             )
 
     def make_epitaph(self, /):
@@ -94,13 +92,13 @@ class CompositeBase(metaclass=Composite):
 
     def _content_repr(self, /):
         return ', '.join(
-            f"{key}={repr(val)}" for key, val in self.fields.items()
+            f"{key}={repr(val)}" for key, val in self.params._asdict().items()
             )
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_kwargs(self.fields, p, cycle, root=root)
+        _pretty.pretty_kwargs(self.params._asdict(), p, cycle, root=root)
 
 
 ###############################################################################

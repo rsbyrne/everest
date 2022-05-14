@@ -5,6 +5,7 @@
 
 import weakref as _weakref
 import os as _os
+import types as _types
 import pickle as _pickle
 import functools as _functools
 import inspect as _inspect
@@ -14,6 +15,9 @@ from .makehash import quick_hash as _quick_hash
 
 
 def soft_cache(storage='softcache', storetyp=dict):
+
+    if isinstance(storage, _types.FunctionType):
+        return soft_cache()(storage)
 
     if not isinstance(storage, (str, _collabc.Collection)):
         raise TypeError("Storage must be str or Collection type.")
@@ -76,6 +80,9 @@ def weak_cache(storage='weakcache'):
 
 def hard_cache(cachedir, /, *subcaches):
 
+    if isinstance(cachedir, _types.FunctionType):
+        return hard_cache()(cachedir)
+
     def decorator(func, /, subcaches=subcaches, cachedir=cachedir):
 
         _os.makedirs(cachedir, exist_ok = True)
@@ -126,7 +133,10 @@ def hard_cache(cachedir, /, *subcaches):
     return decorator
 
 
-def func_cache():
+def func_cache(arg=None):
+
+    if isinstance(arg, _types.FunctionType):
+        return func_cache()(arg)
 
     def decorator(func, /):
 
@@ -146,6 +156,146 @@ def func_cache():
         return wrapper
 
     return decorator
+
+
+def attr_cache(prefix=None, /, weak=False, dictlook=False):
+
+    if isinstance(prefix, _types.FunctionType):
+        return attr_cache()(prefix)
+    elif prefix is None:
+        prefix = '_cached'
+
+    def decorator(func, /):
+
+        if len(_inspect.signature(func).parameters) != 1:
+            raise TypeError("Only functions of one argument can be attr-cached.")
+
+        storedname = f"{prefix}_{func.__name__}"
+
+        if weak:
+
+            if dictlook:
+
+                def wrapper(obj, /):
+                    try:
+                        ref = obj.__dict__[storedname]
+                    except KeyError:
+                        pass
+                    else:
+                        out = ref()
+                        if out is not None:
+                            return out
+                    out = func(obj)
+                    setattr(obj, storedname, _weakref.ref(out))
+                    return out
+
+            else:
+
+                def wrapper(obj, /):
+                    try:
+                        ref = getattr(obj, storedname)
+                    except AttributeError:
+                        pass
+                    else:
+                        out = ref()
+                        if out is not None:
+                            return out
+                    out = func(obj)
+                    setattr(obj, storedname, _weakref.ref(out))
+                    return out
+
+        else:
+
+            if dictlook:
+
+                def wrapper(obj, /):
+                    try:
+                        return obj.__dict__[storedname]
+                    except KeyError:
+                        out = func(obj)
+                        setattr(obj, storedname, out)
+                        return out
+
+            else:
+
+                def wrapper(obj, /):
+                    try:
+                        return getattr(obj, storedname)
+                    except AttributeError:
+                        out = func(obj)
+                        setattr(obj, storedname, out)
+                        return out
+
+        wrapper = _functools.wraps(func)(wrapper)
+        wrapper.__attr_cache_storedname__ = storedname
+
+        return wrapper
+
+    return decorator
+
+
+@_functools.wraps(attr_cache)
+def attr_property(arg0=None, /, *args, **kwargs):
+    if not (args or kwargs):
+        if isinstance(arg0, _types.FunctionType):
+            return attr_property()(arg0)
+    return lambda x: property(attr_cache(arg0, *args, **kwargs)(x))
+
+
+def dict_cache(prefix=None, /, weak=False):
+
+    if isinstance(prefix, _types.FunctionType):
+        return dict_cache()(prefix)
+    elif prefix is None:
+        prefix = '_cached'
+
+    def decorator(func, /):
+
+        if len(_inspect.signature(func).parameters) != 1:
+            raise TypeError("Only functions of one argument can be attr-cached.")
+
+        storedname = f"{prefix}_{func.__name__}"
+
+        if weak:
+
+            @_functools.wraps(func)
+            def wrapper(obj, /):
+                try:
+                    ref = obj.__dict__[storedname]
+                except AttributeError:
+                    pass
+                else:
+                    out = ref()
+                    if out is not None:
+                        return out
+                out = func(obj)
+                setattr(obj, storedname, _weakref.ref(out))
+                return out
+
+        else:
+
+            @_functools.wraps(func)
+            def wrapper(obj, /):
+                try:
+                    return getattr(obj, storedname)
+                except AttributeError:
+                    out = func(obj)
+                    setattr(obj, storedname, out)
+                    return out
+
+        wrapper.__attr_cache_storedname__ = storedname
+
+        return wrapper
+
+    return decorator
+
+
+@_functools.wraps(attr_cache)
+def dict_property(arg0=None, /, *args, **kwargs):
+    if not (args or kwargs):
+        if isinstance(arg0, _types.FunctionType):
+            return dict_property()(arg0)
+    return lambda x: property(dict_cache(arg0, *args, **kwargs)(x))
 
 
 # def softcache_property(getfunc):

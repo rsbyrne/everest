@@ -179,7 +179,7 @@ class AbstractMapping(Chora, metaclass=_Compound):
         try:
             outs = tuple(
                 _incision.Degenerator(chora)[subinc]
-                for subinc, chora in zip(incisor, self.fields.values())
+                for subinc, chora in zip(incisor, self.params)
                 )
         except _incision.IncisorTypeException as exc:
             return caller.__incise_fail__(exc)
@@ -209,15 +209,15 @@ class ArbitraryPair(metaclass=_Compound):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        bound = super().parameterise(*args, **kwargs)
-        source, key, val = bound.arguments.values()
-        fromchora, tochora = source.fields.values()
+        params = super().parameterise(*args, **kwargs)
+        source, key, val = params.__dict__.values()
+        fromchora, tochora = source.params
         if (key not in fromchora) or (val not in tochora):
             cls.paramexc(message=(
                 "The `key` and `val` args must be proper members "
                 "of the `source` `fromchora` and `tochora` respectively."
                 ))
-        return bound
+        return params
 
 
 class Composition(Chora, metaclass=_Compound):

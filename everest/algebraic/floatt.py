@@ -35,12 +35,12 @@ class Floatt(_Number):
 
         @classmethod
         def parameterise(cls, /, *args, **kwargs):
-            bound = super().parameterise(*args, **kwargs)
-            bound.arguments.update({
+            params = super().parameterise(*args, **kwargs)
+            params.__dict__.update({
                 key: cls.owner.pytyp(val)
-                for key, val in bound.arguments.items()
+                for key, val in params.__dict__.items()
                 })
-            return bound
+            return params
 
         class __incise__(_choret.Sampleable):
 
@@ -117,12 +117,12 @@ class Floatt(_Number):
 
         @classmethod
         def parameterise(cls, /, *args, **kwargs):
-            bound = super().parameterise(*args, **kwargs)
-            bound.arguments.update({
+            params = super().parameterise(*args, **kwargs)
+            params.__dict__.update({
                 key: cls.owner.pytyp(val)
-                for key, val in bound.arguments.items()
+                for key, val in params.__dict__.items()
                 })
-            return bound
+            return params
 
         class __choret__(_choret.Sampleable):
 
@@ -193,12 +193,12 @@ class Floatt(_Number):
 
         @classmethod
         def parameterise(cls, /, *args, **kwargs):
-            bound = super().parameterise(*args, **kwargs)
-            bound.arguments.update({
+            params = super().parameterise(*args, **kwargs)
+            params.__dict__.update({
                 key: cls.owner.pytyp(val)
-                for key, val in bound.arguments.items()
+                for key, val in params.__dict__.items()
                 })
-            return bound
+            return params
 
         class __incise__(_choret.Sampleable):
 
