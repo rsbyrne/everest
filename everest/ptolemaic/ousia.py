@@ -15,9 +15,7 @@ from everest.utilities import (
     pretty as _pretty, caching as _caching, reseed as _reseed
     )
 from everest.utilities.switch import Switch as _Switch
-from everest.exceptions import (
-    FrozenAttributesException as _FrozenAttributesException
-    )
+from everest.bureau import FOCUS as _FOCUS
 
 from .essence import Essence as _Essence
 
@@ -173,18 +171,13 @@ class OusiaBase(metaclass=Ousia):
 
     @property
     @_caching.weak_cache()
-    def tab(self, /):
-        return _bureau.request_tab(self)
-
-    @property
-    @_caching.weak_cache()
     def tray(self, /):
-        return _bureau.request_tray(self)
+        return _FOCUS.request_session_storer(self)
 
     @property
     @_caching.weak_cache()
     def drawer(self, /):
-        return _bureau.request_drawer(self)
+        return _FOCUS.request_bureau_storer(self)
 
     ### Implementing the attribute-freezing behaviour for instances:
 
@@ -192,41 +185,27 @@ class OusiaBase(metaclass=Ousia):
     def mutable(self, /):
         return self.freezeattr.as_(False)
 
+    def __getattr__(self, name, /):
+        try:
+            return self.tray[name]
+        except KeyError:
+            raise AttributeError(name)
+
     def __setattr__(self, name, val, /):
-        if name.startswith('_cached_'):
-            pass
-        elif name in self.__slots__:
-            try:
-                check = self.freezeattr
-            except AttributeError:
-                pass
-            else:
-                if check:
-                    raise _FrozenAttributesException(
-                        f"Setting attributes "
-                        f"on an object of type {type(self)} "
-                        "is forbidden at this time; "
-                        f"toggle switch `.freezeattr` to override."
-                        )
-        object.__setattr__(self, name, val)
+        if self.freezeattr:
+            if name in self.__slots__:
+                raise AttributeError("Cannot alter slot attribute while immutable.")
+            self.tray[name] = val
+        else:
+            object.__setattr__(self, name, val)
 
     def __delattr__(self, name, /):
-        if name.startswith('_cached_'):
-            pass
-        if name in self.__slots__:
-            try:
-                check = self.freezeattr
-            except AttributeError:
-                pass
-            else:
-                if check:
-                    raise _FrozenAttributesException(
-                        f"Deleting attributes "
-                        f"on an object of type {type(self)} "
-                        "is forbidden at this time; "
-                        f"toggle switch `.freezeattr` to override."
-                        )
-        object.__delattr__(self, name)
+        if self.freezeattr:
+            if name in self.__slots__:
+                raise AttributeError("Cannot alter slot attribute while immutable.")
+            del self.tray[name]
+        else:
+            object.__delattr__(self, name)
 
     ### Representations:
 

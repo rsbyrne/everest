@@ -11,28 +11,7 @@ from types import (
 from collections import deque as _deque
 
 from everest.epitaph import Taphonomy as _Taphonomy
-
-
-_CURRENTFOCUS = None
-
-
-def get_current_session():
-    return _CURRENTFOCUS.session
-
-def get_current_bureau():
-    return _CURRENTFOCUS.bureau
-
-def request_tab(requester, /):
-    return _CURRENTFOCUS.request_tab(requester)
-
-def request_tray(requester, /):
-    return _CURRENTFOCUS.request_tray(requester)
-
-def request_drawer(requester, /):
-    return _CURRENTFOCUS.request_drawer(requester)
-
-def get_taphonomy():
-    return get_session().taphonomy
+from everest.utilities import pretty as _pretty
 
 
 class OpenStorer:
@@ -40,29 +19,35 @@ class OpenStorer:
     __slots__ = ('__weakref__', 'storer')
 
     def __init__(self, storer, /):
-        object.__setattr__(self, 'storer', storer)
+        super().__init__()
+        self.storer = _weakref.proxy(storer)
 
-    def __getattr__(self, name, /):
-        return getattr(object.__getattribute__(self, 'storer'), name)
-
-    def __setattr__(self, name, val, /):
-        return setattr(object.__getattribute__(self, 'storer'), name, val)
-
-    def __delattr__(self, name, val, /):
-        return delattr(object.__getattribute__(self, 'storer'), name)
+    for methname in (
+            '__getitem__', '__iter__', '__len__',
+            '__contains__', 'keys', 'items', 'values', 'get', '__eq__', '__ne__',
+            '__setitem__', '__delitem__',
+            'pop', 'popitem', 'clear', 'update', 'setdefault',
+            ):
+        exec('\n'.join((
+            f"@property",
+            f"def {methname}(self, /):",
+            f"    return self.storer.{methname}",
+            )))
+    del methname
 
     def __repr__(self, /):
         return (
             f"<"
             f"{type(self).__qualname__} {id(self)} "
-            f"of {object.__getattribute__(self, 'storer')}"
+            f"of {self.storer}"
             f">"
             )
 
+    def _repr_pretty_(self, p, cycle, /):
+        return _pretty.pretty_dict(self, p, cycle, root=repr(self))
 
-class Storer(_SimpleNamespace):
 
-    __slots__ = ('__weakref__',)
+class Storer(dict):
 
     def __init__(self, /):
         super().__init__()
@@ -75,8 +60,11 @@ class Storer(_SimpleNamespace):
             f">"
             )
 
+    def _repr_pretty_(self, p, cycle, /):
+        return _pretty.pretty_dict(self, p, cycle, root=repr(self))
 
-class MultiStorer(_weakref.WeakKeyDictionary):
+
+class Cabinet(_weakref.WeakKeyDictionary):
 
     def __init__(self, /):
         super().__init__()
@@ -105,6 +93,9 @@ class MultiStorer(_weakref.WeakKeyDictionary):
             f">"
             )
 
+    def _repr_pretty_(self, p, cycle, /):
+        return _pretty.pretty_dict(self, p, cycle, root=repr(self))
+
 
 class _FocusMeta_(type):
 
@@ -117,27 +108,47 @@ class _FocusMeta_(type):
         return cls._scratch
 
 
+class FocusProxy:
+
+    def __getattribute__(self, name, /):
+        return getattr(_Focus_._instance, name)
+
+    @property
+    def __setattr__(self, /):
+        raise AttributeError
+
+    @property
+    def __delattr__(self, /):
+        raise AttributeError
+
+
+FOCUS = FocusProxy()
+
+
 class _Focus_(metaclass=_FocusMeta_):
 
-    __slots__ = ('__weakref__', '_session')
+    __slots__ = ('__weakref__', 'session')
 
     _SESSIONS = _deque([None,])
-
-    _tabs = MultiStorer()
-    _stuff = _deque()
+    _sessionopenstorers = _weakref.WeakKeyDictionary()
+    _bureauopenstorers = _weakref.WeakKeyDictionary()
 
     def __new__(cls, session=None, /):
+        sessions = cls._SESSIONS
         if session is not None:
-            cls._SESSIONS.append(session)
+            sessions.append(session)
         obj = super().__new__(cls)
-        obj._session = cls.SESSIONS[-1]
-        global _CURRENTFOCUS
-        if _CURRENTFOCUS is not None:
-            ref = _weakref.ref(_CURRENTFOCUS)
-            del _CURRENTFOCUS
+        obj.session = sessions[-1]
+        try:
+            currentfocus = cls._instance
+        except AttributeError:
+            pass
+        else:
+            ref = _weakref.ref(currentfocus)
+            del cls._instance
             if ref() is not None:
                 raise RuntimeError
-        _CURRENTFOCUS = obj
+        cls._instance = obj
 
     @classmethod
     def revert_to_previous_session(cls, /):
@@ -145,55 +156,26 @@ class _Focus_(metaclass=_FocusMeta_):
         cls()
 
     @property
-    def session(self, /):
-        return self._session
-
-    @property
     def bureau(self, /):
         return self.session.bureau
 
-    @property
-    def tabs(self, /):
-        return type(self)._tabs
+    def request_session_storer(self, requester, /):
+        out = self._sessionopenstorers[requester] = self.session[requester]
+        return out
 
-    def request_tab(self, requester, /):
-        obj = self.tabs[requester]
-        self._stuff.append(obj)
-        return obj
-
-    def request_tray(self, requester, /):
-        obj = self.session.trays[requester]
-        self._stuff.append(obj)
-        return obj
-
-    def request_drawer(self, requester, /):
-        obj = self.bureau.drawers[requester]
-        self._stuff.append(obj)
-        return obj
+    def request_bureau_storer(self, requester, /):
+        out = self._bureauopenstorers[requester] = self.bureau[requester]
+        return out
 
     def __repr__(self, /):
         return f"<_Focus_ {id(self)} of {self.session}>"
 
-    def __del__(self, /):
-        self._tabs.clear()
-        self._stuff.clear()
 
-
-class Session:
-
-    __slots__ = ('__weakref__', '_bureau', '_trays')
+class Session(Cabinet):
 
     def __init__(self, bureau, /):
-        self._bureau = bureau
-        self._trays = MultiStorer()
-
-    @property
-    def bureau(self, /):
-        return self._bureau
-
-    @property
-    def trays(self, /):
-        return self._trays
+        super().__init__()
+        self.bureau = bureau
 
     @property
     def entered(self, /):
@@ -216,30 +198,22 @@ class Session:
     def __repr__(self, /):
         return f"<Session {hash(self)} of {self.bureau}>"
 
-    def __del__(self, /):
-        self._trays.clear()
 
-
-class Bureau:
+class Bureau(Cabinet):
 
     __slots__ = (
-        '__weakref__',
-        '_drawers', '_name', '_taphonomy', '_currentsession',
+        '_name', '_taphonomy', '_currentsession',
         )
 
     def __init__(self, name: str, /):
+        super().__init__()
         self._name = name
-        self._drawers = MultiStorer()
         self._taphonomy = _Taphonomy()
         self._currentsession = None
 
     @property
     def name(self, /):
         return self._name
-
-    @property
-    def drawers(self, /):
-        return self._drawers
 
     @property
     def taphonomy(self, /):
@@ -269,9 +243,6 @@ class Bureau:
 
     def __repr__(self, /):
         return f"Bureau({self.name})"
-
-    def __del__(self, /):
-        self._drawers.clear()
 
 
 _GLOBALBUREAU = Bureau('GLOBAL').__enter__()

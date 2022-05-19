@@ -18,7 +18,7 @@ from everest.utilities import (
     RestrictedNamespace as _RestrictedNamespace,
     misc as _misc,
     )
-from everest import bureau as _bureau
+from everest.bureau import FOCUS as _FOCUS
 from everest.ur import Dat as _Dat
 
 from .ptolemaic import Ptolemaic as _Ptolemaic
@@ -264,6 +264,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         namespace['_clssoftcache'] = {}
         namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
         namespace['__weak_dict__'] = _weakref.WeakValueDictionary()
+        namespace['_clsfreezeattr'] = _switch.Switch(False)
         meta.process_annotations(name, bases, namespace)
         return name, bases, namespace
 
@@ -309,36 +310,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             name, bases, namespace
             ))
 
-    ### Storage:
-
-    @property
-    def softcache(cls, /):
-        return cls._clssoftcache
-
-    @property
-    def weakcache(cls, /):
-        return cls._clsweakcache
-
-    @_caching.attr_property(weak=True, dictlook=True)
-    def tab(cls, /):
-        return _bureau.request_tab(cls)
-
-    @_caching.attr_property(weak=True, dictlook=True)
-    def tray(cls, /):
-        return _bureau.request_tray(cls)
-
-    @_caching.attr_property(weak=True, dictlook=True)
-    def drawer(cls, /):
-        return _bureau.request_drawer(cls)
-
-    @property
-    def taphonomy(cls, /):
-        try:
-            return cls.tab._taphonomy
-        except AttributeError:
-            out = cls.tab._taphonomy = _bureau.get_current_bureau().taphonomy
-            return out
-
     ### Initialising the class:
 
     # def __init__(cls, /, *args, **kwargs):
@@ -361,43 +332,71 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         for key, val in ns.items():
             setattr(cls, key, val)
 
+    ### Storage:
+
+    @property
+    def softcache(cls, /):
+        return cls._clssoftcache
+
+    @property
+    def weakcache(cls, /):
+        return cls._clsweakcache
+
+    @_caching.attr_property(weak=True, dictlook=True)
+    def tray(cls, /):
+        return _FOCUS.request_session_storer(cls)
+
+    @_caching.attr_property(weak=True, dictlook=True)
+    def drawer(cls, /):
+        return _FOCUS.request_bureau_storer(cls)
+
+    @property
+    def taphonomy(cls, /):
+        try:
+            return cls.tab._taphonomy
+        except AttributeError:
+            out = cls.tab._taphonomy = _FOCUS.bureau.taphonomy
+            return out
+
     ### Implementing the attribute-freezing behaviour for classes:
 
     @property
     def freezeattr(cls, /):
-        try:
-            return cls.__dict__['_clsfreezeattr']
-        except KeyError:
-            super().__setattr__(
-                '_clsfreezeattr', switch := _switch.Switch(False)
-                )
-            return switch
+        return cls._clsfreezeattr
 
     @property
     def mutable(cls, /):
         return cls.freezeattr.as_(False)
 
+    def __getattr__(cls, name, /):
+        try:
+            return cls.tray[name]
+        except KeyError:
+            raise AttributeError(name)
+
     def __setattr__(cls, name, val, /):
-        if name.startswith('_cached_'):
-            pass
         if cls.freezeattr:
-            raise AttributeError(
-                f"Setting attributes on an object of type {type(cls)} "
-                "is forbidden at this time; "
-                f"toggle switch `.freezeattr` to override."
-                )
-        super().__setattr__(name, val)
+            try:
+                _ = object.__getattribute__(cls, name)
+            except AttributeError:
+                pass
+            else:
+                raise AttributeError("Cannot alter class attribute while immutable.")
+            cls.tray[name] = val
+        else:
+            super().__setattr__(name, val)
 
     def __delattr__(cls, name, /):
-        if name.startswith('_cached_'):
-            pass
         if cls.freezeattr:
-            raise AttributeError(
-                f"Deleting attributes on an object of type {type(cls)} "
-                "is forbidden at this time; "
-                f"toggle switch `.freezeattr` to override."
-                )
-        super().__delattr__(name)
+            try:
+                _ = object.__getattribute__(cls, name)
+            except AttributeError:
+                pass
+            else:
+                raise AttributeError("Cannot alter class attribute while immutable.")
+            del cls.tray[name]
+        else:
+            super().__delattr__(name)
 
     ### Aliases:
 
