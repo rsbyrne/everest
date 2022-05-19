@@ -6,7 +6,7 @@
 import abc as _abc
 
 from .compound import Compound as _Compound
-from .atlantean import Tuuple as _Tuuple
+from .ousia import Tuuple as _Tuuple
 
 
 class Functional(_Compound):

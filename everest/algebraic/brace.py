@@ -15,7 +15,7 @@ from everest.utilities import (
 
 from everest.ptolemaic.compound import Compound as _Compound
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.atlantean import Binding as _Binding
+from everest.ptolemaic.ousia import Binding as _Binding
 
 from . import query as _query
 from .chora import Chora as _Chora, ChainChora as _ChainChora
@@ -46,7 +46,7 @@ def process_labels(arg, /):
 
 def get_bracetyp_single(arg, default=None, /):
     try:
-        return arg.__armature_brace__
+        return arg.__charmature_brace__
     except (AttributeError, NotImplementedError) as exc:
         if default is None:
             raise exc
@@ -217,8 +217,8 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
                 return self.__ptolemaic_class__.owner.owner(*incisor)
 
             @property
-            def __armature_brace__(self, /):
-                return self.__ptolemaic_class__.owner.owner.__armature_truss__
+            def __charmature_brace__(self, /):
+                return self.__ptolemaic_class__.owner.owner.__charmature_truss__
 
             def __mod__(self, arg, /):
                 return Brace.Oid(self, arg)

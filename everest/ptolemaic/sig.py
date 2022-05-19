@@ -13,14 +13,14 @@ from everest import epitaph as _epitaph
 from everest.utilities import caching as _caching, pretty as _pretty
 
 from .essence import Essence as _Essence
-from .atlantean import Atlantean as _Atlantean
+from .ousia import Ousia as _Ousia
 from . import field as _field
 
 
 _pempty = _inspect._empty
 
 
-class Sig(metaclass=_Atlantean):
+class Sig(metaclass=_Ousia):
 
     __req_slots__ = ('sigfields',)
 

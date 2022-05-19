@@ -12,7 +12,7 @@ from everest import epitaph as _epitaph
 from everest.utilities import pretty as _pretty
 
 from .essence import Essence as _Essence
-from .atlantean import Atlantean as _Atlantean
+from .ousia import Ousia as _Ousia
 
 
 _pkind = _inspect._ParameterKind
@@ -95,7 +95,7 @@ class FieldBase(metaclass=_Essence):
         return kind
 
 
-class FieldKind(FieldBase, metaclass=_Atlantean):
+class FieldKind(FieldBase, metaclass=_Ousia):
 
     kind: ParamKind
 
@@ -144,7 +144,7 @@ with FieldBase.mutable:
         setattr(FieldBase, name := kind.name, FieldKind(ParamKind[name]))
 
 
-class Field(FieldBase, metaclass=_Atlantean):
+class Field(FieldBase, metaclass=_Ousia):
 
     __req_slots__ = ('kind', 'hint', 'value', 'args')
 
@@ -249,7 +249,7 @@ class Field(FieldBase, metaclass=_Atlantean):
 
 
 @FieldBase.register
-class DegenerateField(metaclass=_Atlantean):
+class DegenerateField(metaclass=_Ousia):
 
     __req_slots__ = ('value',)
 

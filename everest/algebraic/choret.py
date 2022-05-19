@@ -17,7 +17,7 @@ from everest.utilities import (
 from everest import incision as _incision
 from everest.epitaph import Epitaph as _Epitaph
 
-from everest.ptolemaic.atlantean import Binding as _Binding
+from everest.ptolemaic.ousia import Binding as _Binding
 from everest.ptolemaic.compound import Compound as _Compound
 
 from . import query as _query

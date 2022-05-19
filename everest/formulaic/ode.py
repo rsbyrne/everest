@@ -9,7 +9,7 @@ import inspect as _inspect
 import numpy as _np
 from scipy.integrate import solve_ivp as _solve_ivp
 
-from everest.ptolemaic.atlantean import Kwargs as _Kwargs
+from everest.ptolemaic.ousia import Kwargs as _Kwargs
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.compound import Compound as _Compound
 

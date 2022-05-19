@@ -9,7 +9,7 @@ from everest.utilities import caching as _caching
 
 from everest.ptolemaic.compound import Compound as _Compound
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.atlantean import Kwargs as _Kwargs
+from everest.ptolemaic.ousia import Kwargs as _Kwargs
 
 from everest.algebraic import chora as _chora
 from everest.algebraic.eidos import Eidos as _Eidos

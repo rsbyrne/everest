@@ -9,7 +9,7 @@ import functools as _functools
 from everest.utilities.caching import attr_property as _attr_property
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.atlantean import Funcc as _Funcc
+from everest.ptolemaic.ousia import Funcc as _Funcc
 from everest.ptolemaic.compound import Compound as _Compound
 from everest.ptolemaic.field import Field as _Field
 

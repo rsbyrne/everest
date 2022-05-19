@@ -12,7 +12,7 @@ from everest.ptolemaic.ousia import Ousia as _Ousia
 from .algebraic import (
     Algebraic as _Algebraic, ALGEBRAICMETHODS as _ALGEBRAICMETHODS
     )
-from .armature import Armature as _Armature
+from .charmature import ChArmature as _ChArmature
 
 
 class TrivialException(Exception):
@@ -50,15 +50,15 @@ class Chora(_incision.Incisable, _Algebraic):
         return ChoraChain
 
     @property
-    def __armature_generic__(self, /):
+    def __charmature_generic__(self, /):
         return self.Gen
 
     @property
-    def __armature_variable__(self, /):
+    def __charmature_variable__(self, /):
         return self.Var
 
     def __mod__(self, arg, /):
-        return self.__armature_brace__(self.__incise_trivial__(), arg)
+        return self.__charmature_brace__(self.__incise_trivial__(), arg)
 
     def __rmod__(self, arg, /):
         return NotImplemented
@@ -76,11 +76,11 @@ class Chora(_incision.Incisable, _Algebraic):
         return AbstractMapping(self, other)
 
 
-    class Gen(_Armature, metaclass=_Compound):
+    class Gen(_ChArmature, metaclass=_Compound):
         ...
 
 
-    class Var(_Armature, metaclass=_Ousia):
+    class Var(_ChArmature, metaclass=_Ousia):
 
         __req_slots__ = ('_value',)
         _var_slots__ = ('value',)
@@ -108,7 +108,7 @@ class Chora(_incision.Incisable, _Algebraic):
 
 
     @_incision.Degenerate.register
-    class Degenerate(_incision.Incisable, _Armature, metaclass=_Compound):
+    class Degenerate(_incision.Incisable, _ChArmature, metaclass=_Compound):
 
         arg: object
 
@@ -136,7 +136,7 @@ class Chora(_incision.Incisable, _Algebraic):
 
 
     @_incision.Empty.register
-    class Empty(_incision.Incisable, _Armature, metaclass=_Compound):
+    class Empty(_incision.Incisable, _ChArmature, metaclass=_Compound):
 
         chora: _incision.Incisable
 

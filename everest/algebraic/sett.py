@@ -10,7 +10,7 @@ import types as _types
 from everest.ur import Dat as _Dat
 
 from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.atlantean import Funcc as _Funcc
+from everest.ptolemaic.ousia import Funcc as _Funcc
 from everest.ptolemaic.compound import Compound as _Compound
 from everest.ptolemaic.field import Field as _Field
 

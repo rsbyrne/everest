@@ -19,28 +19,28 @@ from everest.primitive import Primitive as _Primitive
 from .ousia import Ousia as _Ousia
 
 
-class Atlantean(_Ousia):
+class Ousia(_Ousia):
     ...
 
 
 def convert(val, /):
-        if isinstance(val, _Dat):
-            return val
-        if isinstance(val, _np.ndarray):
-            return Arraay(val)
-        if isinstance(val, _collabc.Mapping):
-            return Binding(**val)
-        if isinstance(val, _collabc.Sequence):
-            return Tuuple(val)
-        if isinstance(val, _types.FunctionType):
-            return Fuunction(val)
-        raise TypeError(
-            f"Object {val} of type {type(val)} cannot be converted to a _Dat."
-            )
+    if isinstance(val, _Dat):
+        return val
+    if isinstance(val, _np.ndarray):
+        return Arraay(val)
+    if isinstance(val, _collabc.Mapping):
+        return Binding(**val)
+    if isinstance(val, _collabc.Sequence):
+        return Tuuple(val)
+    if isinstance(val, _types.FunctionType):
+        return Fuunction(val)
+    raise TypeError(
+        f"Object {val} of type {type(val)} cannot be converted to a _Dat."
+        )
 
 
 @_Dat.register
-class AtlanteanBase(metaclass=Atlantean):
+class OusiaBase(metaclass=Ousia):
 
     @classmethod
     def __process_field__(cls, val, /):
@@ -60,7 +60,7 @@ class AtlanteanBase(metaclass=Atlantean):
         return self.epitaph, ()
 
 
-class Funcc(metaclass=Atlantean):
+class Funcc(metaclass=Ousia):
 
     __req_slots__ = ('func',)
 
@@ -84,7 +84,7 @@ class Funcc(metaclass=Atlantean):
         _pretty.pretty_function(self.func, p, cycle, root=root)
 
 
-@AtlanteanBase.register
+@OusiaBase.register
 class Tuuple(tuple):
 
     def __new__(cls, iterable=(), /):
@@ -95,10 +95,10 @@ class Tuuple(tuple):
 
     @property
     def epitaph(self, /):
-        return AtlanteanBase.taphonomy.callsig_epitaph(type(self), tuple(self))
+        return OusiaBase.taphonomy.callsig_epitaph(type(self), tuple(self))
 
 
-class Binding(dict, metaclass=Atlantean):
+class Binding(dict, metaclass=Ousia):
 
     def __init__(self, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -171,7 +171,7 @@ class Kwargs(Binding):
             )
 
 
-class Arraay(metaclass=Atlantean):
+class Arraay(metaclass=Ousia):
 
     __req_slots__ = ('_array',)
 
@@ -210,7 +210,7 @@ class Arraay(metaclass=Atlantean):
         ptolcls = self.__ptolemaic_class__
         content = f"{repr(bytes(self._array))},{repr(str(self.dtype))}"
         return ptolcls.taphonomy(
-            f"""m('everest.ptolemaic.atlantean').Arraay({content})""",
+            f"""m('everest.ptolemaic.ousia').Arraay({content})""",
             {},
             )
 

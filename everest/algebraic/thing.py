@@ -39,11 +39,11 @@ class Thing(_Algebraic, metaclass=_Bythos):
     class Oid(_Chora):
 
         @property
-        def __armature_brace__(self, /):
+        def __charmature_brace__(self, /):
             return self.__ptolemaic_class__.owner.Brace.Oid
 
         @property
-        def __armature_truss__(self, /):
+        def __charmature_truss__(self, /):
             return self.__ptolemaic_class__.owner.Truss.Oid
 
         def __incise_trivial__(self, /):
@@ -75,7 +75,7 @@ class Thing(_Algebraic, metaclass=_Bythos):
                 return incisor
 
             def slyce_tuple(self, incisor: tuple, /):
-                return self.bound.__armature_brace__[tuple(incisor)]
+                return self.bound.__charmature_brace__[tuple(incisor)]
 
 
     class Brace(_Brace):

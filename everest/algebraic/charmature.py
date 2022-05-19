@@ -3,17 +3,10 @@
 ###############################################################################
 
 
-from .atlantean import Atlantean as _Atlantean
-from .pentheros import Pentheros as _Pentheros
+from .algebraic import Algebraic as _Algebraic
 
 
-class Compound(_Pentheros, _Atlantean):
-
-    ...
-
-
-class CompoundBase(metaclass=Compound):
-
+class ChArmature(_Algebraic):
     ...
 
 

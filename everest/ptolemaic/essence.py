@@ -247,11 +247,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             else:
                 bases.append(basetyp)
         return tuple(bases)
-#         out = []
-#         for base in bases:
-#             if base not in out:
-#                 out.append(bases)
-#         return tuple(out)
 
     @classmethod
     def pre_create_class(meta, name, bases, namespace, /):
@@ -346,6 +341,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Initialising the class:
 
+    # def __init__(cls, /, *args, **kwargs):
+    #     _abc.ABCMeta.__init__(cls, *args, **kwargs)
+
     def __init__(cls, /, *args, **kwargs):
         with cls.mutable:
             _abc.ABCMeta.__init__(cls, *args, **kwargs)
@@ -356,10 +354,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             else:
                 func(ns := _RestrictedNamespace(badvals={cls,}))
                 cls.incorporate_namespace(ns)
-            # if (owners := cls.owners):
-            #     cls.__qualname__ = '.'.join(
-            #         ACls.__qualname__ for ACls in (cls.owner, cls)
-            #         )
             cls.__class_init__()
 
 
@@ -470,21 +464,17 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Representations:
 
-    # @_caching.attr_property(dictlook=True)
-    # def __qualname__(cls, /):
-    #     return '.'.join((*cls.owners, cls.__name__))
-
     def __class_repr__(cls, /):
         return f"{type(cls).__name__}:{cls.__qualname__}"
 
     def __class_str__(cls, /):
         return cls.__name__
 
-    @_caching.attr_property(dictlook=True)
+    @_caching.attr_cache(dictlook=True)
     def __repr__(cls, /):
         return cls.__class_repr__()
 
-    @_caching.attr_property(dictlook=True)
+    @_caching.attr_cache(dictlook=True)
     def __str__(cls, /):
         return cls.__ptolemaic_class__.__class_str__()
 

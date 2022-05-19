@@ -5,11 +5,11 @@
 
 from everest.primitive import Primitive as _Primitive
 
-from .atlantean import Atlantean as _Atlantean
+from .ousia import Ousia as _Ousia
 from .composite import Composite as _Composite
 
 
-class Sprite(_Atlantean, _Composite):
+class Sprite(_Ousia, _Composite):
 
     ...
 

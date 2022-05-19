@@ -7,13 +7,28 @@ import types as _types
 import weakref as _weakref
 import collections as _collections
 
-from everest.utilities import pretty as _pretty
+from everest.utilities import pretty as _pretty, caching as _caching
 
+from .sig import Sig as _Sig
 from .ousia import Ousia as _Ousia
+from . import exceptions as _exceptions
 
 
-class Composite(_Ousia):
-    ...
+class Armature(_Ousia):
+
+    @property
+    def __signature__(cls, /):
+        return cls.sig.signature
+
+    @property
+    def fields(cls, /):
+        return cls.sig.sigfields
+
+
+class ProvisionalParams(_types.SimpleNamespace):
+
+    def __iter__(self, /):
+        return iter(self.__dict__.values())
 
 
 class Param:
@@ -27,14 +42,19 @@ class Param:
         return getattr(instance.params, self.name)
 
 
-class CompositeBase(metaclass=Composite):
+class ArmatureBase(metaclass=Armature):
 
     MERGETUPLES = ('__field_names__',)
     __field_names__ = ()
     __req_slots__ = ('params',)
 
     @classmethod
+    def _get_sig(cls, /):
+        return _Sig(cls)
+
+    @classmethod
     def __class_init__(cls, /):
+        cls.__field_names__ = tuple(cls.sig.keys())
         super().__class_init__()
         cls.premade = _weakref.WeakValueDictionary()
         fieldnames = cls.__field_names__
@@ -47,8 +67,20 @@ class CompositeBase(metaclass=Composite):
             )
 
     @classmethod
+    def paramexc(cls, /, *args, message=None, **kwargs):
+        return _exceptions.ParameterisationException(
+            (args, kwargs), cls, message
+            )
+
+    @classmethod
     def __process_field__(cls, val, /):
         return val
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        bound = cls.__signature__.bind(*args, **kwargs)
+        bound.apply_defaults()
+        return ProvisionalParams(**bound.arguments)
 
     def initialise(self, params, /):
         object.__setattr__(self, 'params', params)
@@ -63,6 +95,10 @@ class CompositeBase(metaclass=Composite):
             obj = cls.premade[fieldvals] = \
                 super().instantiate(cls.Params(*fieldvals))
             return obj
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        return cls.instantiate(tuple(cls.parameterise(*args, **kwargs)))
 
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):
@@ -80,7 +116,7 @@ class CompositeBase(metaclass=Composite):
 
     def make_epitaph(self, /):
         ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.getitem_epitaph(ptolcls, self.__field_vals__)
+        return ptolcls.taphonomy.getitem_epitaph(ptolcls, self.params)
 
     def _root_repr(self, /):
         ptolcls = self.__ptolemaic_class__

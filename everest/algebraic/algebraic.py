@@ -7,8 +7,8 @@ from everest.ptolemaic.essence import Essence as _Essence
 
 
 ALGEBRAICMETHODS = (
-    '__armature_brace__', '__armature_truss__',
-    '__armature_variable__', '__armature_generic__'
+    '__charmature_brace__', '__charmature_truss__',
+    '__charmature_variable__', '__charmature_generic__'
     )
 
 
