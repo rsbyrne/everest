@@ -100,7 +100,7 @@ class Field(SmartAttr):
 
     __req_slots__ = ('kind', 'score', 'parameter')
 
-    kindpairs = _types.MappingProxyType(dict(
+    KINDPAIRS = _types.MappingProxyType(dict(
         POS = _pkind['POSITIONAL_ONLY'],
         POSKW = _pkind['POSITIONAL_OR_KEYWORD'],
         ARGS = _pkind['VAR_POSITIONAL'],
@@ -110,14 +110,16 @@ class Field(SmartAttr):
 
     @classmethod
     def process_kind(cls, kind, /):
-        if kind not in cls.kindpairs:
+        if kind is _pempty:
+            return 'POSKW'
+        if kind not in cls.KINDPAIRS:
             raise ValueError(kind)
         return kind
 
-    def __init__(self, /, kind=str, *args, **kwargs):
+    def __init__(self, /, name: str, kind: str = _pempty, *args, **kwargs):
         kind = self.kind = self.process_kind(kind)
-        super().__init__(*args, **kwargs)
-        kindpairs = self.kindpairs
+        super().__init__(name, *args, **kwargs)
+        kindpairs = self.KINDPAIRS
         default = self.default
         if self.degenerate:
             self.score = -1
@@ -138,28 +140,70 @@ class Field(SmartAttr):
             return self
         return getattr(instance.params, self.cachedname, self.default)
 
+    def __class_getitem__(cls, arg, /):
+        return FieldHint('POSKW', arg)
 
-class FieldKind:
+    @classmethod
+    def from_annotation(cls, name, anno, value):
+        if isinstance(anno, FieldAnno):
+            anno = tuple(anno)
+        if isinstance(anno, tuple):
+            return cls(name, *anno, default=value)
+        if anno is cls:
+            return cls(name, default=value)
+        return Field(name=name, hint=anno, default=value)
 
-    def __init__(self, kind, /):
+
+class FieldAnno:
+
+    def __iter__(self, /):
+        return
+        yield
+
+    def __repr__(self, /):
+        return f"{type(self).__qualname__}({', '.join(map(repr, self))})"
+
+
+class FieldKind(FieldAnno):
+
+    def __init__(self, /, kind=_pempty):
         self.kind = kind
 
-    def __call__(self, /, *args, **kwargs):
-        return Field(kind=self.kind, *args, **kwargs)
+    def __iter__(self, /):
+        yield self.kind
 
-    def __getitem__(self, arg, /):
-        return FieldHint(kind=self.kind, hint=arg)
+    def __call__(self, note, /):
+        return FieldNote(*self, note=note)
+
+    def __getitem__(self, hint, /):
+        return FieldHint(*self, hint)
 
 
-class FieldHint:
+with Field.mutable:
+    for kindname in Field.KINDPAIRS:
+        setattr(Field, kindname, FieldKind(kindname))
+del kindname     
 
-    def __init__(self, kind, hint):
+
+class FieldHint(FieldAnno):
+
+    def __init__(self, /, kind=_pempty, hint=_pempty):
         self.kind, self.hint = kind, hint
 
-    def __call__(self, /, *args, **kwargs):
-        return Field(kind=self.kind, hint=self.hint, *args, **kwargs)
+    def __iter__(self, /):
+        yield from (self.kind, self.hint)
 
-    
+    def __call__(self, note, /):
+        return FieldNote(*self, note)
+
+
+class FieldNote(FieldAnno):
+
+    def __init__(self, kind=_pempty, hint=_pempty, note=_pempty):
+        self.kind, self.hint, self.note = kind, hint, note
+
+    def __iter__(self, /):
+        yield from (self.kind, self.hint, self.note)
 
 
 class Fields(_Kwargs):
@@ -215,8 +259,10 @@ class Armature(_Ousia):
     @classmethod
     def process_annotations(meta, ns, /):
         annos = super().process_annotations(ns)
-        for name, (hint, value) in annos.items():
-            ns[name] = Field(*hint, name=name, default=value)
+        ns.update({
+            name: Field.from_annotation(name, annotation, value)
+            for name, (annotation, value) in annos.items()
+            })
         annos.clear()
         return annos
 
