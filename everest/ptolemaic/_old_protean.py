@@ -21,7 +21,7 @@ class ProteanBase(metaclass=Protean):
 
     BasisType = type(None)
 
-    MERGETUPLES = ('__req_slots__', '_var_slots__',)
+    MERGENAMES = ('__req_slots__', '_var_slots__',)
     __req_slots__ = ('basis',)
     _var_slots__ = ()
 

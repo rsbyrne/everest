@@ -10,6 +10,7 @@ import weakref as _weakref
 import types as _types
 import inspect as _inspect
 import functools as _functools
+from collections import abc as _collabc
 
 from everest.utilities import (
     caching as _caching,
@@ -85,18 +86,12 @@ def gather_names_dictlike(bases, namespace, name, /):
             if not key in latter:
                 yield key, mergee[key]
 
-_GATHERMETHNAMES = {
-    _FrozenMap: gather_names_dictlike,
-    }
-
 def merge_names(bases, namespace, name, /, *, mergetyp=tuple):
-    meth = _GATHERMETHNAMES.get(mergetyp, gather_names_tuplelike)
-    namespace[name] = mergetyp(meth(bases, namespace, name))
-
-def merge_names_all(bases, namespace, overname, /, **kwargs):
-    merge_names(bases, namespace, overname)
-    for name in namespace[overname]:
-        merge_names(bases, namespace, name, **kwargs)
+    if issubclass(mergetyp, _collabc.Mapping):
+        meth = gather_names_dictlike
+    else:
+        meth = gather_names_tuplelike
+    return mergetyp(meth(bases, namespace, name))
 
 def expand_bases(bases):
     '''Expands any pseudoclasses from the input list of bases.'''
@@ -151,7 +146,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             setattr(cls, mrobasename, homebase)
             if is_innerclass(homebase, cls):
                 with homebase.mutable:
-                    homebase.__qualname__ = f"{cls.__qualname__}.{mrobasename}"
+                    homebase.__qualname__ = \
+                        f"{cls.__qualname__}.{mrobasename}"
             mrobases = (homebase, *mrobases)
         if not mrobases:
             mrobases = (Essence.BaseTyp,)
@@ -216,24 +212,14 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         pass
 
     @classmethod
-    def process_mergenames(meta, name, bases, namespace, /):
-        bases = (meta, *bases)
-        merge_names_all(bases, namespace, 'MERGETUPLES')
-        merge_names_all(
-            bases, namespace, 'MERGEDICTS',
-            mergetyp=_FrozenMap,
-            )
-        merge_names_all(
-            bases, namespace, 'MERGESETS',
-            mergetyp=frozenset,
-            )
-
-    @classmethod
-    def process_annotations(meta, name, bases, namespace, /):
-        namespace['__annotations__'] = _types.MappingProxyType(
-            namespace.get('__annotations__', empty := {})
-            | namespace.get('__extra_annotations__', empty)
-            )
+    def process_mergenames(meta, name, bases, ns, /):
+        mergenames = ns['MERGENAMES'] = merge_names(bases, ns, 'MERGENAMES')
+        for row in mergenames:
+            if isinstance(row, tuple):
+                name, mergetyp = row
+            else:
+                name, mergetyp = row, tuple
+            ns[name] = merge_names(bases, ns, name, mergetyp=mergetyp)
 
     @classmethod
     def process_bases(meta, name, bases, namespace, /):
@@ -249,24 +235,43 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return tuple(bases)
 
     @classmethod
-    def pre_create_class(meta, name, bases, namespace, /):
-        bases = meta.process_bases(name, bases, namespace)
-        if '__slots__' not in namespace:
-            namespace['__slots__'] = ()
-        meta.process_mergenames(name, bases, namespace)
-        for key, val in tuple(namespace['ADJNAMES'].items()):
-            try:
-                namespace[val] = namespace[key]
-            except KeyError:
-                pass
-            else:
-                del namespace[key]
-        namespace['_clssoftcache'] = {}
-        namespace['_clsweakcache'] = _weakref.WeakValueDictionary()
-        namespace['__weak_dict__'] = _weakref.WeakValueDictionary()
-        namespace['_clsfreezeattr'] = _switch.Switch(False)
-        meta.process_annotations(name, bases, namespace)
-        return name, bases, namespace
+    def process_annotations(meta, ns, /):
+        return {
+            key: (note, ns.pop(key, _inspect._empty))
+            for key, note in ns.pop('__annotations__', {}).items()
+            }
+
+    @classmethod
+    def _yield_namespace_categories(meta, ns, /):
+        return
+        yield
+
+    @classmethod
+    def _categorise_namespace(meta, ns, /):
+        categories = tuple(meta._yield_namespace_categories(ns))
+        for key, val in ns.items():
+            for name, check, store in categories:
+                if check(val):
+                    store[key] = val
+        ns.update(**{
+            name: _FrozenMap(store) for name, check, store in categories
+            })
+
+    @classmethod
+    def pre_create_class(meta, name, bases, ns, /):
+        bases = meta.process_bases(name, bases, ns)
+        if '__slots__' not in ns:
+            ns['__slots__'] = ()
+        ns['__annotations__'] = _types.MappingProxyType(
+            meta.process_annotations(ns)
+            )
+        meta._categorise_namespace(ns)
+        meta.process_mergenames(name, bases, ns)
+        ns['_clssoftcache'] = {}
+        ns['_clsweakcache'] = _weakref.WeakValueDictionary()
+        ns['__weak_dict__'] = _weakref.WeakValueDictionary()
+        ns['_clsfreezeattr'] = _switch.Switch(False)
+        return name, bases, ns
 
     @classmethod
     def get_meta(meta, bases):
@@ -298,22 +303,14 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return meta.__class_construct__(*args, **kwargs)
 
     @classmethod
-    def create_class_object(meta, name, bases, namespace):
-        meta = meta.get_meta(bases)
-        return _abc.ABCMeta.__new__(meta, name, bases, namespace)
-
-    @classmethod
     def __class_construct__(meta,
             name: str, bases: tuple, namespace: dict, /
             ):
-        return meta.create_class_object(*meta.pre_create_class(
+        return _abc.ABCMeta.__new__(meta, *meta.pre_create_class(
             name, bases, namespace
             ))
 
     ### Initialising the class:
-
-    # def __init__(cls, /, *args, **kwargs):
-    #     _abc.ABCMeta.__init__(cls, *args, **kwargs)
 
     def __init__(cls, /, *args, **kwargs):
         with cls.mutable:
@@ -326,6 +323,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 func(ns := _RestrictedNamespace(badvals={cls,}))
                 cls.incorporate_namespace(ns)
             cls.__class_init__()
+            cls.__signature__ = cls._get_signature()
 
 
     def incorporate_namespace(cls, ns, /):
@@ -352,11 +350,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def taphonomy(cls, /):
-        try:
-            return cls.tab._taphonomy
-        except AttributeError:
-            out = cls.tab._taphonomy = _FOCUS.bureau.taphonomy
-            return out
+        return _FOCUS.bureau.taphonomy
 
     ### Implementing the attribute-freezing behaviour for classes:
 
@@ -368,35 +362,19 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def mutable(cls, /):
         return cls.freezeattr.as_(False)
 
-    def __getattr__(cls, name, /):
-        try:
-            return cls.tray[name]
-        except KeyError:
-            raise AttributeError(name)
-
     def __setattr__(cls, name, val, /):
         if cls.freezeattr:
-            try:
-                _ = object.__getattribute__(cls, name)
-            except AttributeError:
-                pass
-            else:
-                raise AttributeError("Cannot alter class attribute while immutable.")
-            cls.tray[name] = val
-        else:
-            super().__setattr__(name, val)
+            raise AttributeError(
+                "Cannot alter class attribute while immutable."
+                )
+        super().__setattr__(name, val)
 
     def __delattr__(cls, name, /):
         if cls.freezeattr:
-            try:
-                _ = object.__getattribute__(cls, name)
-            except AttributeError:
-                pass
-            else:
-                raise AttributeError("Cannot alter class attribute while immutable.")
-            del cls.tray[name]
-        else:
-            super().__delattr__(name)
+            raise AttributeError(
+                "Cannot alter class attribute while immutable."
+                )
+        super().__delattr__(name)
 
     ### Aliases:
 
@@ -437,14 +415,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @property
     def __call__(cls, /):
         return cls.__class_call__
-
-    @property
-    def __signature__(cls, /):
-        return cls.sig
-
-    @_caching.attr_property(dictlook=True)
-    def sig(cls, /):
-        return cls._get_sig()
 
     ### Methods relating to class serialisation:
 
@@ -497,15 +467,14 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
 class EssenceBase(_Ptolemaic, metaclass=Essence):
 
-    MERGETUPLES = ('MROCLASSES', 'OVERCLASSES')
-    MERGEDICTS = ('ADJNAMES',)
+    MERGENAMES = ('MROCLASSES', 'OVERCLASSES')
 
     @classmethod
     def __class_call__(cls, /, *_, **__):
         raise NotImplementedError
 
     @classmethod
-    def _get_sig(cls, /):
+    def _get_signature(cls, /):
         return _inspect.signature(cls.__class_call__)
 
     @classmethod

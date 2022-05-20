@@ -98,7 +98,7 @@ WRAPMETHS = dict(
 
 class Basic(metaclass=Choret):
 
-    MERGETUPLES = ('PREFIXES', 'CHANNELS', 'MULTICHANNELS')
+    MERGENAMES = ('PREFIXES', 'CHANNELS', 'MULTICHANNELS')
     PREFIXES = ('handle', 'trivial', 'slyce', 'retrieve', 'catch', 'fail')
 
     def trivial_ellipsis(self, incisor: EllipsisType, /):

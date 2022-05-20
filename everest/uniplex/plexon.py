@@ -24,7 +24,7 @@ class Attrs(_Namespace):
 
 class Plexon(metaclass=_Essence):
 
-    MERGETUPLES = ('__req_slots__',)
+    MERGENAMES = ('__req_slots__',)
 
     __req_slots__ = ('attrs',)
 

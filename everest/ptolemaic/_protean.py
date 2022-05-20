@@ -38,7 +38,7 @@ class SetView:
 @_Var.register
 class ProteanBase(metaclass=Protean):
 
-    MERGETUPLES = ('_var_slots__',)
+    MERGENAMES = ('_var_slots__',)
 
     __req_slots__ = ('_dependants', '_state',)
 

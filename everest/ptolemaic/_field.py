@@ -12,14 +12,15 @@ from everest import epitaph as _epitaph
 from everest.utilities import pretty as _pretty
 
 from .essence import Essence as _Essence
-from .ousia import Ousia as _Ousia
+from .ousia import Ousia as _Ousia, OusiaBase as _OusiaBase
 
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
 
 
-class ParamKind(_Enum):
+@OusiaBase.register
+class Kind(_Enum):
 
     POS = _pkind['POSITIONAL_ONLY']
     POSKW = _pkind['POSITIONAL_OR_KEYWORD']
@@ -30,7 +31,7 @@ class ParamKind(_Enum):
     __slots__ = ('_epitaph',)
 
     def __repr__(self, /):
-        return f"<ParamKind[{self.name}]>"
+        return f"<Kind[{self.name}]>"
 
     @property
     def epitaph(self, /):
@@ -38,7 +39,7 @@ class ParamKind(_Enum):
             return self._epitaph
         except AttributeError:
             epi = self._epitaph = _epitaph.TAPHONOMY.custom_epitaph(
-                "$A[$a]", A=ParamKind, a=self.name
+                "$A[$a]", A=Kind, a=self.name
                 )
             return epi
 
@@ -50,7 +51,7 @@ class ParamKind(_Enum):
             return cls[arg]
         if isinstance(arg, _pkind):
             return tuple(cls)[arg.value]
-        raise TypeError("Cannot convert to `ParamKind`.")
+        raise TypeError("Cannot convert to `Kind`.")
 
     @property
     def score(self, /):
@@ -89,19 +90,19 @@ class FieldBase(metaclass=_Essence):
     @staticmethod
     def process_kind(kind, /):
         if isinstance(kind, _pkind):
-            return ParamKind.convert(kind)
-        if not isinstance(kind, ParamKind):
-            raise TypeError(f"Kind must be `ParamKind`.")
+            return Kind.convert(kind)
+        if not isinstance(kind, Kind):
+            raise TypeError(f"Kind must be `Kind`.")
         return kind
 
 
 class FieldKind(FieldBase, metaclass=_Ousia):
 
-    kind: ParamKind
+    kind: Kind
 
     __req_slots__ = ('kind',)
 
-    def __init__(self, kind: ParamKind, /, _skipcheck=False):
+    def __init__(self, kind: Kind, /, _skipcheck=False):
         if not _skipcheck:
             kind = self.process_kind(kind)
         self.kind = kind
@@ -140,8 +141,8 @@ class FieldKind(FieldBase, metaclass=_Ousia):
 
 
 with FieldBase.mutable:
-    for kind in ParamKind:
-        setattr(FieldBase, name := kind.name, FieldKind(ParamKind[name]))
+    for kind in Kind:
+        setattr(FieldBase, name := kind.name, FieldKind(Kind[name]))
 
 
 class Field(FieldBase, metaclass=_Ousia):
@@ -178,7 +179,7 @@ class Field(FieldBase, metaclass=_Ousia):
             ))
 
     def __init__(self, /,
-            kind=ParamKind.POSKW, hint=object, value=NotImplemented,
+            kind=Kind.POSKW, hint=object, value=NotImplemented,
             _skipcheck=False,
             ):
         if not _skipcheck:

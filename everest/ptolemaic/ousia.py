@@ -7,10 +7,11 @@ import abc as _abc
 import inspect as _inspect
 import weakref as _weakref
 import types as _types
-from collections import abc as _collabc
+from collections import abc as _collabc, deque as _deque
 
 import numpy as _np
 
+from everest.primitive import Primitive as _Primitive
 from everest.utilities import (
     pretty as _pretty, caching as _caching, reseed as _reseed
     )
@@ -75,64 +76,58 @@ class Ousia(_Essence):
             cls.Concrete = cls.ConcreteMeta(cls)
 
 
-def convert(val, /):
-    if isinstance(val, _Dat):
-        return val
-    if isinstance(val, _np.ndarray):
-        return Arraay(val)
-    if isinstance(val, _collabc.Mapping):
-        return Binding(**val)
-    if isinstance(val, _collabc.Sequence):
-        return Tuuple(val)
-    if isinstance(val, _types.FunctionType):
-        return Fuunction(val)
-    raise TypeError(
-        f"Object {val} of type {type(val)} cannot be converted to a _Dat."
-        )
-
-
 class OusiaBase(metaclass=Ousia):
 
-    MERGETUPLES = ('__req_slots__',)
+    MERGENAMES = ('__req_slots__',)
     __req_slots__ = (
         '__weakref__',
-        'softcache', 'weakcache', 'freezeattr', '_pyhash'
+        'softcache', 'weakcache', 'freezeattr', '_sessioncacheref',
+        '_epitaph',
         )
 
-    @classmethod
-    def __process_field__(cls, val, /):
-        return convert(val)
-
-    ## Configuring the concrete class:
+    ## Configuring the class:
 
     @classmethod
-    def _yield_cache_slots(cls, /):
-        for attr in cls.__dict__.values():
-            if isinstance(attr, property):
-                attr = attr.fget
-            if isinstance(attr, _types.FunctionType):
-                try:
-                    yield attr.__attr_cache_storedname__
-                except AttributeError:
-                    pass
+    def _yield_concrete_slots(cls, /):
+        yield from cls.__req_slots__
+
+    @classmethod
+    def pre_create_concrete(cls, /):
+        return (
+            f"Concrete_{cls.__ptolemaic_class__.__name__}",
+            (cls,),
+            dict(
+                __slots__=tuple(sorted(set(cls._yield_concrete_slots()))),
+                _basecls=cls,
+                __class_init__=lambda: None,
+                ),
+            )
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.__cache_slots__ = tuple(cls._yield_cache_slots())
-
-    @classmethod
-    def pre_create_concrete(cls, /):
-        name = f"Concrete_{cls.__ptolemaic_class__.__name__}"
-        bases = (cls,)
-        namespace = dict(
-            __slots__=(*cls.__req_slots__, *cls.__cache_slots__),
-            _basecls=cls,
-            __class_init__=lambda: None,
-            )
-        return name, bases, namespace
+        cls.premade = _weakref.WeakValueDictionary()
 
     ### Object creation:
+
+    @classmethod
+    def _process_field(cls, val, /):
+        if isinstance(val, _Primitive):
+            return val
+        if isinstance(val, OusiaBase):
+            return val
+        if isinstance(val, _np.ndarray):
+            return Arraay(val)
+        if isinstance(val, _collabc.Mapping):
+            return Binding(**val)
+        if isinstance(val, _collabc.Sequence):
+            return Tuuple(val)
+        if isinstance(val, _types.FunctionType):
+            return Fuunction(val)
+        raise TypeError(
+            f"Object {val} of type {type(val)} "
+            f"cannot be converted to an Ousia."
+            )
 
     def initialise(self, /, *args, **kwargs):
         self.__init__(*args, **kwargs)
@@ -141,21 +136,18 @@ class OusiaBase(metaclass=Ousia):
     def instantiate(cls, /, *args, **kwargs):
         Concrete = cls.Concrete
         obj = Concrete.__new__(Concrete)
-        switch = _Switch(False)
-        object.__setattr__(obj, 'freezeattr', switch)
+        object.__setattr__(obj, 'freezeattr', switch := _Switch(False))
         object.__setattr__(obj, 'softcache', {})
         object.__setattr__(obj, 'weakcache', _weakref.WeakValueDictionary())
-        object.__setattr__(obj, '_pyhash', _reseed.rdigits(16))
         obj.initialise(*args, **kwargs)
+        object.__setattr__(obj, '_epitaph', obj.make_epitaph())
         switch.toggle(True)
         return obj
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return cls.instantiate(*args, **kwargs)
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        pass
+        obj = cls.instantiate(*args, **kwargs)
+        return cls.premade.setdefault(hash(obj), obj)
 
     ### Some aliases:
 
@@ -170,14 +162,26 @@ class OusiaBase(metaclass=Ousia):
     ### Storage:
 
     @property
-    @_caching.weak_cache()
-    def tray(self, /):
-        return _FOCUS.request_session_storer(self)
+    # @_caching.weak_cache()
+    def _sessioncache(self, /):
+        try:
+            out = object.__getattribute__(self, '_sessioncacheref')()
+            if out is None:
+                raise AttributeError
+            return out
+        except AttributeError:
+            if not self.freezeattr:
+                raise AttributeError(
+                    "Cannot request session cache when object is mutable."
+                    )
+            out = _FOCUS.request_session_storer(self)
+            object.__setattr__(self, '_sessioncacheref', _weakref.ref(out))
+            return out
 
-    @property
-    @_caching.weak_cache()
-    def drawer(self, /):
-        return _FOCUS.request_bureau_storer(self)
+    # @property
+    # @_caching.weak_cache()
+    # def drawer(self, /):
+    #     return _FOCUS.request_bureau_storer(self)
 
     ### Implementing the attribute-freezing behaviour for instances:
 
@@ -186,24 +190,29 @@ class OusiaBase(metaclass=Ousia):
         return self.freezeattr.as_(False)
 
     def __getattr__(self, name, /):
-        try:
-            return self.tray[name]
-        except KeyError:
-            raise AttributeError(name)
+        if self.freezeattr:
+            try:
+                return self._sessioncache[name]
+            except KeyError as exc:
+                raise AttributeError from exc
 
     def __setattr__(self, name, val, /):
         if self.freezeattr:
             if name in self.__slots__:
-                raise AttributeError("Cannot alter slot attribute while immutable.")
-            self.tray[name] = val
+                raise AttributeError(
+                    "Cannot alter slot attribute while immutable."
+                    )
+            self._sessioncache[name] = val
         else:
             object.__setattr__(self, name, val)
 
     def __delattr__(self, name, /):
         if self.freezeattr:
             if name in self.__slots__:
-                raise AttributeError("Cannot alter slot attribute while immutable.")
-            del self.tray[name]
+                raise AttributeError(
+                    "Cannot alter slot attribute while immutable."
+                    )
+            del self._sessioncache[name]
         else:
             object.__delattr__(self, name)
 
@@ -239,17 +248,13 @@ class OusiaBase(metaclass=Ousia):
             root = self.__ptolemaic_class__.__qualname__
         p.text(f"{root}({self.contentrepr})")
 
-    def __hash__(self, /):
-        return id(self)
-
     @_abc.abstractmethod
     def make_epitaph(self, /):
         raise NotImplementedError
 
     @property
-    @_caching.soft_cache()
     def epitaph(self, /):
-        return self.make_epitaph()
+        return object.__getattribute__(self, '_epitaph')
 
     def __reduce__(self, /):
         return self.epitaph, ()
@@ -266,19 +271,17 @@ class OusiaBase(metaclass=Ousia):
     def hashID(self, /):
         return self.epitaph.hashID
 
-    def __hash__(self, /):
-        return self._pyhash
-
-    ### Rich comparisons to support ordering of objects:
-
     def __eq__(self, other, /):
         return hash(self) == hash(other)
 
     def __lt__(self, other, /):
-        return hash(self) < hash(other)
+        return self.hashint < other
 
     def __gt__(self, other, /):
-        return hash(self) < hash(other)
+        return self.hashint < other
+
+    def __hash__(self, /):
+        return self.hashint
 
 
 class Funcc(metaclass=Ousia):
@@ -305,80 +308,91 @@ class Funcc(metaclass=Ousia):
         _pretty.pretty_function(self.func, p, cycle, root=root)
 
 
-@OusiaBase.register
-class Tuuple(tuple):
+@_collabc.Sequence.register
+class Tuuple(metaclass=Ousia):
 
-    def __new__(cls, iterable=(), /):
-        return super().__new__(cls, map(convert, iterable))
-
-    def __repr__(self, /):
-        return f"Tuuple{super().__repr__()}"
-
-    @property
-    def epitaph(self, /):
-        return OusiaBase.taphonomy.callsig_epitaph(type(self), tuple(self))
-
-
-class Binding(dict, metaclass=Ousia):
+    __req_slots__ = ('_content',)
 
     def __init__(self, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.update({convert(key): convert(val) for key, val in self.items()})
+        self._content = tuple(map(
+            self._process_field, tuple(*args, **kwargs)
+            ))
 
-    @property
-    def __setitem__(self, /):
-        if self.freezeattr:
-            raise NotImplementedError
-        return super().__setitem__
-
-    @property
-    def __delitem__(self, /):
-        if self.freezeattr:
-            raise NotImplementedError
-        return super().__delitem__
-
-    def __repr__(self, /):
-        valpairs = ', '.join(map(':'.join, zip(
-            map(repr, self),
-            map(repr, self.values()),
+    for methname in (
+            '__getitem__', '__len__', '__contains__', '__iter__',
+            '__reversed__', '__index__', '__count__',
+            ):
+        exec('\n'.join((
+            f"@property",
+            f"def {methname}(self, /):",
+            f"    return self._content.{methname}",
             )))
-        return f"<{self.__ptolemaic_class__}{{{valpairs}}}>"
+    del methname
+
+    def _content_repr(self, /):
+        return repr(self._content)
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_dict(self, p, cycle, root=root)
-
-    def __hash__(self, /):
-        return self.hashint
+        _pretty.pretty_tuple(self._content, p, cycle, root=root)
 
     def make_epitaph(self, /):
         ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.callsig_epitaph(ptolcls, dict(self))
+        return ptolcls.taphonomy.callsig_epitaph(ptolcls, self._content)
 
-    @property
-    def hexcode(self, /):
-        return self.epitaph.hexcode
 
-    @property
-    def hashint(self, /):
-        return self.epitaph.hashint
+@_collabc.Mapping.register
+class Binding(metaclass=Ousia):
 
-    @property
-    def hashID(self, /):
-        return self.epitaph.hashID
+    __req_slots__ = ('_content',)
 
-    def __eq__(self, other, /):
-        return hash(self) == hash(other)
+    def __init__(self, /, *args, **kwargs):
+        self._content = {
+            self._process_field(key): self._process_field(val)
+            for key, val in dict(*args, **kwargs).items()
+            }
 
-    def __lt__(self, other, /):
-        return hash(self) < hash(other)
+    for methname in (
+            '__getitem__', '__len__', '__contains__', '__iter__',
+            'keys', 'items', 'values', 'get',
+            ):
+        exec('\n'.join((
+            f"@property",
+            f"def {methname}(self, /):",
+            f"    return self._content.{methname}",
+            )))
+    del methname
 
-    def __gt__(self, other, /):
-        return hash(self) < hash(other)
+    def _content_repr(self, /):
+        return ', '.join(map(':'.join, zip(
+            map(repr, self),
+            map(repr, self.values()),
+            )))
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.__ptolemaic_class__.__qualname__
+        _pretty.pretty_dict(self._content, p, cycle, root=root)
+
+    def make_epitaph(self, /):
+        ptolcls = self.__ptolemaic_class__
+        return ptolcls.taphonomy.callsig_epitaph(ptolcls, **self._content)
 
 
 class Kwargs(Binding):
+
+    def __init__(self, /, *args, **kwargs):
+        self._content = {
+            str(key): self._process_field(val)
+            for key, val in dict(*args, **kwargs).items()
+            }
+
+    def _content_repr(self, /):
+        return ', '.join(map(':'.join, zip(
+            map(str, self),
+            map(repr, self.values()),
+            )))
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
@@ -438,3 +452,52 @@ class Arraay(metaclass=Ousia):
 
 ###############################################################################
 ###############################################################################
+
+
+# @OusiaLike.register
+# class Tuuple(OusiaLike, tuple):
+
+#     def __new__(cls, iterable=(), /):
+#         return super().__new__(cls, map(convert, iterable))
+
+#     def __repr__(self, /):
+#         return f"Tuuple{super().__repr__()}"
+
+#     @property
+#     def epitaph(self, /):
+#         return OusiaBase.taphonomy.callsig_epitaph(type(self), tuple(self))
+
+
+# class Binding(dict, metaclass=Ousia):
+
+#     def __init__(self, /, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.update({convert(key): convert(val) for key, val in self.items()})
+
+#     @property
+#     def __setitem__(self, /):
+#         if self.freezeattr:
+#             raise NotImplementedError
+#         return super().__setitem__
+
+#     @property
+#     def __delitem__(self, /):
+#         if self.freezeattr:
+#             raise NotImplementedError
+#         return super().__delitem__
+
+#     def __repr__(self, /):
+#         valpairs = ', '.join(map(':'.join, zip(
+#             map(repr, self),
+#             map(repr, self.values()),
+#             )))
+#         return f"<{self.__ptolemaic_class__}{{{valpairs}}}>"
+
+#     def _repr_pretty_(self, p, cycle, root=None):
+#         if root is None:
+#             root = self.__ptolemaic_class__.__qualname__
+#         _pretty.pretty_dict(self, p, cycle, root=root)
+
+#     def make_epitaph(self, /):
+#         ptolcls = self.__ptolemaic_class__
+#         return ptolcls.taphonomy.callsig_epitaph(ptolcls, dict(self))

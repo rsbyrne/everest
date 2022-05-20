@@ -25,7 +25,7 @@ from .plexon import (
 
 class PseudoTableLike(_SubPlexon):
 
-    MERGETUPLES = ('_var_slots__',)
+    MERGENAMES = ('_var_slots__',)
 
     __req_slots__ = (
         '_openslc', 'depth',

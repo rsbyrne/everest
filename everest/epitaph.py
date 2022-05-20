@@ -332,6 +332,11 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
             getstrn = self.encode(arg, subencode=subpart)
         return self(f"{self.encode(caller, deps)}[{getstrn}]", deps)
 
+    def getattr_epitaph(self, caller, /, *args):
+        deps = set()
+        subpart = self.sub_part(deps)
+        return self(f"{self.encode(caller, deps)}.{'.'.join(args)}", deps)
+
     def __call__(
             self, content='None', deps=None, hexcode=None, /
             ) -> Epitaph:

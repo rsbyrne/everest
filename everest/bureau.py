@@ -24,7 +24,8 @@ class OpenStorer:
 
     for methname in (
             '__getitem__', '__iter__', '__len__',
-            '__contains__', 'keys', 'items', 'values', 'get', '__eq__', '__ne__',
+            '__contains__', 'keys', 'items', 'values',
+            'get', '__eq__', '__ne__',
             '__setitem__', '__delitem__',
             'pop', 'popitem', 'clear', 'update', 'setdefault',
             ):
@@ -75,6 +76,7 @@ class Cabinet(_weakref.WeakKeyDictionary):
         except KeyError:
             storer = Storer()
             super().__setitem__(requester, storer)
+        assert requester in self, (requester, tuple(self))
         return OpenStorer(storer)
 
     for methname in ('__setitem__', 'setdefault', 'update'):
@@ -145,7 +147,7 @@ class _Focus_(metaclass=_FocusMeta_):
             pass
         else:
             ref = _weakref.ref(currentfocus)
-            del cls._instance
+            del cls._instance, currentfocus
             if ref() is not None:
                 raise RuntimeError
         cls._instance = obj
@@ -169,6 +171,10 @@ class _Focus_(metaclass=_FocusMeta_):
 
     def __repr__(self, /):
         return f"<_Focus_ {id(self)} of {self.session}>"
+
+    def __del__(self, /):
+        self._sessionopenstorers.clear()
+        self._bureauopenstorers.clear()
 
 
 class Session(Cabinet):
@@ -197,6 +203,9 @@ class Session(Cabinet):
 
     def __repr__(self, /):
         return f"<Session {hash(self)} of {self.bureau}>"
+
+    def _repr_pretty_(self, p, cycle, /):
+        return _pretty.pretty_dict(self, p, cycle, root=repr(self))
 
 
 class Bureau(Cabinet):
@@ -243,6 +252,9 @@ class Bureau(Cabinet):
 
     def __repr__(self, /):
         return f"Bureau({self.name})"
+
+    def _repr_pretty_(self, p, cycle, /):
+        return _pretty.pretty_dict(self, p, cycle, root=repr(self))
 
 
 _GLOBALBUREAU = Bureau('GLOBAL').__enter__()
