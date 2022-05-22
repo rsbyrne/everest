@@ -4,7 +4,7 @@
 
 
 import abc as _abc
-
+import inspect as _inspect
 import weakref as _weakref
 from collections import namedtuple as _namedtuple
 
@@ -66,6 +66,25 @@ class Ousia(_Essence):
         with cls.mutable:
             cls.Concrete = cls.ConcreteMeta(cls)
 
+    @property
+    def arity(cls, /):
+        return len(cls.Params._fields)
+
+
+class ProvisionalParams(dict):
+
+    def __setitem__(self, name, val, /):
+        if name not in self:
+            raise KeyError(name)
+        super().__setitem__(name, val)
+
+    @property
+    def __delitem__(self, /):
+        raise AttributeError
+
+    def __iter__(self, /):
+        return iter(self.values())
+
 
 class OusiaBase(metaclass=Ousia):
 
@@ -110,18 +129,22 @@ class OusiaBase(metaclass=Ousia):
             cls._yield_paramnames(),
             )
 
+    @classmethod
+    def _get_signature(cls, /):
+        return _inspect.signature(cls.Params)
+
     ### Object creation:
 
     @classmethod
-    def parameterise(cls, /):
-        return ()
+    def parameterise(cls, /, *args, **kwargs):
+        return ProvisionalParams(cls.Params(*args, **kwargs)._asdict())
 
     def initialise(self, /):
         self.__init__()
 
     @classmethod
-    def instantiate(cls, params, /):
-        params = _DatTuple(params)
+    def instantiate(cls, params: tuple, /):
+        params = cls.Params(*params)
         premade = cls.premade
         Concrete = cls.Concrete
         try:
@@ -130,7 +153,7 @@ class OusiaBase(metaclass=Ousia):
             obj = premade[params] = Concrete.__new__(Concrete)
             switch = _Switch(False)
             object.__setattr__(obj, 'freezeattr', switch)
-            object.__setattr__(obj, 'params', cls.Params(*params))
+            object.__setattr__(obj, 'params', params)
             obj.initialise()
             switch.toggle(True)
             return obj
@@ -141,6 +164,8 @@ class OusiaBase(metaclass=Ousia):
 
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):
+        if cls.arity == 1:
+            arg = (arg,)
         return cls.instantiate(arg)
 
     def remake(self, /, **kwargs):
@@ -253,7 +278,10 @@ class OusiaBase(metaclass=Ousia):
 
     def make_epitaph(self, /):
         ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.getitem_epitaph(ptolcls, self.params)
+        params = self.params
+        if ptolcls.arity == 1:
+            params = params[0]
+        return ptolcls.taphonomy.getitem_epitaph(ptolcls, params)
 
     @property
     def epitaph(self, /):

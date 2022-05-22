@@ -33,7 +33,7 @@ def convert(obj, /):
         return DatTuple(obj)
     if isinstance(obj, _collabc.Mapping):
         return DatDict(obj)
-    raise TypeError(obj)
+    raise TypeError(type(obj))
 
 
 class DatTuple(tuple, Dat):
@@ -44,8 +44,10 @@ class DatTuple(tuple, Dat):
     def __repr__(self, /):
         return type(self).__qualname__ + super().__repr__()
 
-    def _repr_pretty_(self, p, cycle):
-        _pretty.pretty_tuple(self, p, cycle, root=type(self).__qualname__)
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = type(self).__qualname__
+        _pretty.pretty_tuple(self, p, cycle, root=root)
 
 
 class DatDict(dict, Dat):
@@ -71,8 +73,10 @@ class DatDict(dict, Dat):
     def __repr__(self, /):
         return type(self).__qualname__ + super().__repr__()
 
-    def _repr_pretty_(self, p, cycle):
-        _pretty.pretty_dict(self, p, cycle, root=type(self).__qualname__)
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = type(self).__qualname__
+        _pretty.pretty_dict(self, p, cycle, root=root)
 
 
 class DatArray(Dat):
@@ -107,9 +111,12 @@ class DatArray(Dat):
         return f"a({content})"
 
     def _repr_pretty_(self, p, cycle, root=None):
-        _pretty.pretty_array(
-            self._array, p, cycle, root=type(self).__qualname__
-            )
+        if root is None:
+            root = type(self).__qualname__
+        _pretty.pretty_array(self._array, p, cycle, root=root)
+
+    def __hash__(self, /):
+        return hash((bytes(self._array), self.dtype))
 
 
 ###############################################################################

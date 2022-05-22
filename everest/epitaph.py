@@ -42,6 +42,7 @@ class EvalSpace(_collections.UserDict):
         return self.deps[key].decode()
 
 
+@_ur.Dat.register
 class Epitaph(_classtools.Freezable):
 
     __slots__ = (
@@ -154,7 +155,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         '''Wraps a string in a fence, optionally with a 'directive'.'''
         return f"{directive}({arg})"
 
-    def encode_module(self, arg: _types.ModuleType, /, *, subencode=None):
+    def encode_module(self, arg: _types.ModuleType, /, *, deps: set = None):
         return self.enfence(repr(arg.__name__), 'm')
 
     _CONTENTTYPES = (
@@ -165,9 +166,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         _types.BuiltinMethodType,
         )
 
-    def encode_content(self,
-            arg: _CONTENTTYPES, /, *, subencode: _Callable
-            ):
+    def encode_content(self, arg: _CONTENTTYPES, /, *, deps: set = None):
         '''
         Serialises 'content':
         objects that can be reached by qualname paths from a module.
@@ -177,31 +176,28 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
             return arg.__name__
         return f"{self.encode_module(mod)}.{arg.__qualname__}"
 
-    def encode_string(self, arg: str, /, *, subencode=None):
+    def encode_string(self, arg: str, /, *, deps: set = None):
         return repr(arg)
 
-    def encode_primitive(self, arg: _Primitive, /, *, subencode=None):
+    def encode_primitive(self, arg: _Primitive, /, *, deps: set = None):
         return str(arg)
 
-    def encode_tuple(self, arg: tuple, /, *, subencode: _Callable):
-        content = ','.join(map(subencode, arg))
-        if content:
-            content += ','
-        return self.enfence(f"({content})", 't')
+    def encode_tuple(self, arg: tuple, /, *, deps: set = None):
+        subencode = self.sub_part(deps)
+        return self.enfence(f"{','.join(map(subencode, arg))}", 't')
 
-    def encode_dict(self, arg: dict, /, *, subencode: _Callable):
+    def encode_dict(self, arg: dict, /, *, deps: set = None):
+        subencode = self.sub_part(deps)
         pairs = zip(map(subencode, arg), map(subencode, arg.values()))
         strn = "{" + ','.join(map(':'.join, pairs)) + "}"
         return self.enfence(strn, 'd')
 
-    def encode_array(self, arg: _np.ndarray, /, *, subencode: _Callable):
+    def encode_array(self, arg: _np.ndarray, /, *, deps: set = None):
         arg = _ur.DatArray(arg)
         content = f"{repr(bytes(arg._array))},{repr(str(arg.dtype))}"
         return self.enfence(content, 'a')
 
-    def _encode_pickle(self,
-            arg: object, /, *, subencode: _Callable
-            ) -> str:
+    def _encode_pickle(self,arg: object, /, *, deps: set = None) -> str:
         return self.enfence(_pickle.dumps(arg), 'p')
 
     @property
@@ -220,8 +216,8 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
     def decode_dict(self:'d', arg: dict, /) -> _ur.DatDict:
         return _ur.DatDict(arg)
 
-    def decode_tuple(self:'t', arg: tuple, /) -> _ur.DatTuple:
-        return _ur.DatTuple(arg)
+    def decode_tuple(self:'t', /, *args: tuple) -> _ur.DatTuple:
+        return _ur.DatTuple(args)
 
     def decode_array(self:'a', data: bytes, dtype: str, /) -> _ur.DatArray:
         return _ur.DatArray(data, dtype)
@@ -242,14 +238,14 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
     def sub_part(self, deps, /):
         return _functools.partial(self.sub_encode, deps=deps)
 
-    def sub_encode(self, arg: object, /, deps: set):
+    def sub_encode(self, arg: object, /, deps: set = None):
         if hasattr(arg, 'epitaph'):
             epitaph = arg.epitaph
             if isinstance(epitaph, Epitaph):
                 deps.add(epitaph)
                 return f"$_{epitaph}"
         meth = self.encoders[type(arg)]
-        encoded = meth(arg, subencode=self.sub_part(subdeps:=set()))
+        encoded = meth(arg, deps=(subdeps:=set()))
         if subdeps:
             if len(encoded) <= 32:
                 deps.update(subdeps)
@@ -260,8 +256,8 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         else:
             return encoded
 
-    def encode(self, arg: object, /, deps: set) -> str:
-        return self.encoders[type(arg)](arg, subencode=self.sub_part(deps))
+    def encode(self, arg: object, /, deps: set = None) -> str:
+        return self.encoders[type(arg)](arg, deps=deps)
 
     def _repr(self, /):
         kwargs = self.namespace
@@ -316,14 +312,14 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
     def getitem_epitaph(self, caller, arg, /):
         deps = set()
         subpart = self.sub_part(deps)
-        if isinstance(arg, tuple):
-            getstrn = self.encode_tuple(arg, subencode=subpart)
+        if type(arg) is tuple:
+            getstrn = self.encode_tuple(arg, deps=deps).lstrip('t')
             if len(arg) > 0:
-                getstrn = getstrn.strip('()')
-            if len(arg) > 1:
-                getstrn = getstrn.rstrip(',')
+                getstrn = getstrn[1:-1]  # strip brackets
+            if len(arg) == 1:
+                getstrn += ','  # add trailing comma to form tuple
         else:
-            getstrn = self.encode(arg, subencode=subpart)
+            getstrn = self.encode(arg, deps=deps)
         return self(f"{self.encode(caller, deps)}[{getstrn}]", deps)
 
     def getattr_epitaph(self, caller, /, *args):

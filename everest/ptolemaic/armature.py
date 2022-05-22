@@ -19,12 +19,10 @@ _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
 
 
-class SmartAttr(metaclass=_Ousia):
+class SmartAttr(metaclass=_Sprite):
 
-    __req_slots__ = (
-        'hint', 'note', 'default',
-        'args', 'name', 'cachedname', 'degenerate'
-        )
+    __params__ = ('name', 'hint', 'note', 'default')
+    __req_slots__ = ('cachedname', 'degenerate')
 
     @classmethod
     def convert(cls, arg, /):
@@ -61,31 +59,16 @@ class SmartAttr(metaclass=_Ousia):
             return NotImplemented
         return default
 
-    def __init__(self, /,
-            name: str,
-            hint: type = _pempty,
-            note: str = _pempty,
-            default: object = _pempty,
-            ):
-        name = self.name = str(name)
-        self.cachedname = f"_cached_{name}"
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
         hint = self.hint = self.process_hint(hint)
         note = self.note = self.process_note(note)
         default = self.default = self.process_default(default)
+
+    def __init__(self, /):
+        self.cachedname = f"_cached_{name}"
         self.degenerate = not bool(hint)
-        self.args = (name, hint, note, default)
-
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.callsig_epitaph(ptolcls, *self.args)
-
-    def _content_repr(self, /):
-        return ', '.join(map(repr, self.args))
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_tuple(self.args, p, cycle, root=root)
 
 
 class Prop(SmartAttr):
