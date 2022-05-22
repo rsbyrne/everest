@@ -17,11 +17,14 @@ import collections as _collections
 from collections import abc as _collabc
 from string import Template as _Template
 
+import numpy as _np
+
 from everest.utilities import (
     caching as _caching, word as _word, classtools as _classtools,
-    TypeMap as _TypeMap, FrozenMap as _FrozenMap,
+    TypeMap as _TypeMap,
     )
 from everest.primitive import Primitive as _Primitive
+from everest import ur as _ur
 
 
 _Callable = _collabc.Callable
@@ -47,7 +50,7 @@ class Epitaph(_classtools.Freezable):
         )
 
     def __init__(self, content, deps, hexcode, _process_content=False, /):
-        depdict = self.depdict = _types.MappingProxyType({
+        depdict = self.depdict = _ur.DatDict({
             f"_{ind}":dep for ind, dep in enumerate(deps)
             })
         if _process_content and len(depdict) > 1:
@@ -131,11 +134,9 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
                 raise ValueError(
                     "Cannot pass namespace as both arg and kwargs."
                     )
-        namespace = self.namespace = \
-            _types.MappingProxyType(namespace)
+        namespace = self.namespace = _ur.DatDict(namespace)
         self.encoders = _TypeMap(self.yield_encoders())
-        decoders = self.decoders = \
-            _types.MappingProxyType(dict(self.yield_decoders()))
+        decoders = self.decoders = _ur.DatDict(self.yield_decoders())
         self._primitivemeths = {
             self.encode_string, self.encode_primitive,
             self.encode_tuple, self.encode_dict,
@@ -186,24 +187,17 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         content = ','.join(map(subencode, arg))
         if content:
             content += ','
-        return f"({content})"
+        return self.enfence(f"({content})", 't')
 
     def encode_dict(self, arg: dict, /, *, subencode: _Callable):
         pairs = zip(map(subencode, arg), map(subencode, arg.values()))
-        return "{" + ','.join(map(':'.join, pairs)) + "}"
+        strn = "{" + ','.join(map(':'.join, pairs)) + "}"
+        return self.enfence(strn, 'd')
 
-    def encode_frozenmap(self, arg: _FrozenMap, /, *, subencode=_Callable):
-        return self.enfence(self.encode_dict(arg, subencode=subencode), 'f')
-
-    def encode_mappingproxy(self,
-            arg: _types.MappingProxyType, /, *, subencode: _Callable
-            ):
-        return self.enfence(self.encode_dict(arg, subencode=subencode), 'd')
-
-#         return self.enfence(','.join(_itertools.starmap(
-#             "({0},{1})".format,
-#             zip(map(subencode, arg), map(subencode, arg.values()))
-#             )), 'd')
+    def encode_array(self, arg: _np.ndarray, /, *, subencode: _Callable):
+        arg = _ur.DatArray(arg)
+        content = f"{repr(bytes(arg._array))},{repr(str(arg.dtype))}"
+        return self.enfence(content, 'a')
 
     def _encode_pickle(self,
             arg: object, /, *, subencode: _Callable
@@ -223,14 +217,14 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
                 yield hint, meth
         yield object, self._encode_fallback
 
-#     def decode_dict(self:'d', /, *items) -> dict:
-#         return dict(items)
+    def decode_dict(self:'d', arg: dict, /) -> _ur.DatDict:
+        return _ur.DatDict(arg)
 
-    def decode_mappingproxy(self:'d', arg: dict, /) -> _types.MappingProxyType:
-        return _types.MappingProxyType(arg)
+    def decode_tuple(self:'t', arg: tuple, /) -> _ur.DatTuple:
+        return _ur.DatTuple(arg)
 
-    def decode_mappingproxy(self:'f', arg: dict, /) -> _FrozenMap:
-        return _FrozenMap(arg)
+    def decode_array(self:'a', data: bytes, dtype: str, /) -> _ur.DatArray:
+        return _ur.DatArray(data, dtype)
 
     def decode_module(self:'m', name: str, /) -> _types.ModuleType:
         return _import_module(name)

@@ -4,28 +4,19 @@
 
 
 import abc as _abc
-import inspect as _inspect
+
 import weakref as _weakref
-import types as _types
-from collections import abc as _collabc, deque as _deque
+from collections import namedtuple as _namedtuple
 
-import numpy as _np
-
-from everest.primitive import Primitive as _Primitive
-from everest.utilities import (
-    pretty as _pretty, caching as _caching, reseed as _reseed
-    )
+from everest.utilities import pretty as _pretty
 from everest.utilities.switch import Switch as _Switch
 from everest.bureau import FOCUS as _FOCUS
+from everest.ur import DatTuple as _DatTuple
 
 from .essence import Essence as _Essence
 
 
 class ConcreteMeta:
-
-    @classmethod
-    def pre_create_class(meta, name, bases, namespace, /):
-        return name, bases, namespace
 
     @classmethod
     def __meta_call__(meta, basecls, /):
@@ -48,7 +39,7 @@ class ConcreteMeta:
         return cls.__ptolemaic_class__.__signature__
 
     def __call__(cls, /):
-        raise AttributeError
+        raise NotImplementedError
 
     @classmethod
     def __meta_init__(meta, /):
@@ -81,11 +72,18 @@ class OusiaBase(metaclass=Ousia):
     MERGENAMES = ('__req_slots__',)
     __req_slots__ = (
         '__weakref__',
-        'softcache', 'weakcache', 'freezeattr', '_sessioncacheref',
+        'freezeattr',
+        'params',
+        '_sessioncacheref',
         '_epitaph',
-        )
+        )     
 
     ## Configuring the class:
+
+    @classmethod
+    def _yield_paramnames(cls, /):
+        return
+        yield
 
     @classmethod
     def _yield_concrete_slots(cls, /):
@@ -107,47 +105,48 @@ class OusiaBase(metaclass=Ousia):
     def __class_init__(cls, /):
         super().__class_init__()
         cls.premade = _weakref.WeakValueDictionary()
+        cls.Params = _namedtuple(
+            f"{cls.__name__}Params",
+            cls._yield_paramnames(),
+            )
 
     ### Object creation:
 
     @classmethod
-    def _process_field(cls, val, /):
-        if isinstance(val, _Primitive):
-            return val
-        if isinstance(val, OusiaBase):
-            return val
-        if isinstance(val, _np.ndarray):
-            return Arraay(val)
-        if isinstance(val, _collabc.Mapping):
-            return Binding(**val)
-        if isinstance(val, _collabc.Sequence):
-            return Tuuple(val)
-        if isinstance(val, _types.FunctionType):
-            return Fuunction(val)
-        raise TypeError(
-            f"Object {val} of type {type(val)} "
-            f"cannot be converted to an Ousia."
-            )
+    def parameterise(cls, /):
+        return ()
 
-    def initialise(self, /, *args, **kwargs):
-        self.__init__(*args, **kwargs)
+    def initialise(self, /):
+        self.__init__()
 
     @classmethod
-    def instantiate(cls, /, *args, **kwargs):
+    def instantiate(cls, params, /):
+        params = _DatTuple(params)
+        premade = cls.premade
         Concrete = cls.Concrete
-        obj = Concrete.__new__(Concrete)
-        object.__setattr__(obj, 'freezeattr', switch := _Switch(False))
-        object.__setattr__(obj, 'softcache', {})
-        object.__setattr__(obj, 'weakcache', _weakref.WeakValueDictionary())
-        obj.initialise(*args, **kwargs)
-        object.__setattr__(obj, '_epitaph', obj.make_epitaph())
-        switch.toggle(True)
-        return obj
+        try:
+            return premade[params]
+        except KeyError:
+            obj = premade[params] = Concrete.__new__(Concrete)
+            switch = _Switch(False)
+            object.__setattr__(obj, 'freezeattr', switch)
+            object.__setattr__(obj, 'params', cls.Params(*params))
+            obj.initialise()
+            switch.toggle(True)
+            return obj
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        obj = cls.instantiate(*args, **kwargs)
-        return cls.premade.setdefault(hash(obj), obj)
+        return cls.instantiate(cls.parameterise(*args, **kwargs))
+
+    # Special-cased, so no need for @classmethod
+    def __class_getitem__(cls, arg, /):
+        return cls.instantiate(arg)
+
+    def remake(self, /, **kwargs):
+        return self.__ptolemaic_class__.instantiate(
+            tuple({**self.params._asdict(), **kwargs}.values())
+            )
 
     ### Some aliases:
 
@@ -220,20 +219,24 @@ class OusiaBase(metaclass=Ousia):
 
     def _root_repr(self, /):
         ptolcls = self.__ptolemaic_class__
-        return ':'.join(map(str,
-            (type(ptolcls).__qualname__, ptolcls.__qualname__, id(self))
-            ))
+        objs = (
+            type(ptolcls).__qualname__, ptolcls.__qualname__,
+            self.hashID + '_' + str(id(self)),
+            )
+        return ':'.join(map(str, objs))
 
     @property
-    @_caching.soft_cache()
+    # @_caching.soft_cache()
     def rootrepr(self, /):
         return self._root_repr()
 
     def _content_repr(self, /):
-        return ''
+        return ', '.join(
+            f"{key}={repr(val)}" for key, val in self.params._asdict().items()
+            )
 
     @property
-    @_caching.soft_cache()
+    # @_caching.soft_cache()
     def contentrepr(self, /):
         return self._content_repr()
 
@@ -246,15 +249,20 @@ class OusiaBase(metaclass=Ousia):
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.__ptolemaic_class__.__qualname__
-        p.text(f"{root}({self.contentrepr})")
+        _pretty.pretty_kwargs(self.params._asdict(), p, cycle, root=root)
 
-    @_abc.abstractmethod
     def make_epitaph(self, /):
-        raise NotImplementedError
+        ptolcls = self.__ptolemaic_class__
+        return ptolcls.taphonomy.getitem_epitaph(ptolcls, self.params)
 
     @property
     def epitaph(self, /):
-        return object.__getattribute__(self, '_epitaph')
+        try:
+            return object.__getattribute__(self, '_epitaph')
+        except AttributeError:
+            obj = self.make_epitaph()
+            object.__setattr__(self, '_epitaph', obj)
+            return obj
 
     def __reduce__(self, /):
         return self.epitaph, ()
@@ -282,172 +290,6 @@ class OusiaBase(metaclass=Ousia):
 
     def __hash__(self, /):
         return self.hashint
-
-
-class Funcc(metaclass=Ousia):
-
-    __req_slots__ = ('func',)
-
-    def __init__(self, func: _types.FunctionType, /):
-        self.func = func
-
-    @property
-    def __call__(self, /):
-        return self.func
-
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.callsig_epitaph(ptolcls, self.func)
-
-    def _content_repr(self, /):
-        return repr(self.func)
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_function(self.func, p, cycle, root=root)
-
-
-@_collabc.Sequence.register
-class Tuuple(metaclass=Ousia):
-
-    __req_slots__ = ('_content',)
-
-    def __init__(self, /, *args, **kwargs):
-        self._content = tuple(map(
-            self._process_field, tuple(*args, **kwargs)
-            ))
-
-    for methname in (
-            '__getitem__', '__len__', '__contains__', '__iter__',
-            '__reversed__', '__index__', '__count__',
-            ):
-        exec('\n'.join((
-            f"@property",
-            f"def {methname}(self, /):",
-            f"    return self._content.{methname}",
-            )))
-    del methname
-
-    def _content_repr(self, /):
-        return repr(self._content)
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_tuple(self._content, p, cycle, root=root)
-
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.callsig_epitaph(ptolcls, self._content)
-
-
-@_collabc.Mapping.register
-class Binding(metaclass=Ousia):
-
-    __req_slots__ = ('_content',)
-
-    def __init__(self, /, *args, **kwargs):
-        self._content = {
-            self._process_field(key): self._process_field(val)
-            for key, val in dict(*args, **kwargs).items()
-            }
-
-    for methname in (
-            '__getitem__', '__len__', '__contains__', '__iter__',
-            'keys', 'items', 'values', 'get',
-            ):
-        exec('\n'.join((
-            f"@property",
-            f"def {methname}(self, /):",
-            f"    return self._content.{methname}",
-            )))
-    del methname
-
-    def _content_repr(self, /):
-        return ', '.join(map(':'.join, zip(
-            map(repr, self),
-            map(repr, self.values()),
-            )))
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_dict(self._content, p, cycle, root=root)
-
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.callsig_epitaph(ptolcls, **self._content)
-
-
-class Kwargs(Binding):
-
-    def __init__(self, /, *args, **kwargs):
-        self._content = {
-            str(key): self._process_field(val)
-            for key, val in dict(*args, **kwargs).items()
-            }
-
-    def _content_repr(self, /):
-        return ', '.join(map(':'.join, zip(
-            map(str, self),
-            map(repr, self.values()),
-            )))
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_kwargs(self, p, cycle, root=root)
-
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.callsig_epitaph(
-            ptolcls, **self
-            )
-
-
-class Arraay(metaclass=Ousia):
-
-    __req_slots__ = ('_array',)
-
-    def __init__(self, arg, /, dtype=None):
-        if isinstance(arg, bytes):
-            arr = _np.frombuffer(arg, dtype=dtype)
-        else:
-            arr = _np.array(arg, dtype=dtype).copy()
-        object.__setattr__(self, '_array', arr)
-
-    for methname in (
-            'dtype', 'shape', '__len__',
-            ):
-        exec('\n'.join((
-            f"@property",
-            f"def {methname}(self, /):",
-            f"    return self._array.{methname}",
-            )))
-    del methname
-
-    def __getitem__(self, arg, /):
-        out = self._array[arg]
-        if isinstance(out, _np.ndarray):
-            return self.__ptolemaic_class__(out)
-        return out
-
-    def _content_repr(self, /):
-        return _np.array2string(self._array, threshold=100)[:-1]
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_array(self._array, p, cycle, root=root)
-
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        content = f"{repr(bytes(self._array))},{repr(str(self.dtype))}"
-        return ptolcls.taphonomy(
-            f"""m('everest.ptolemaic.ousia').Arraay({content})""",
-            {},
-            )
 
 
 ###############################################################################

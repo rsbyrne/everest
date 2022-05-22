@@ -9,7 +9,10 @@ from collections import namedtuple as _namedtuple
 
 from everest.utilities import pretty as _pretty
 
-from .ousia import Ousia as _Ousia, Kwargs as _Kwargs
+from .ousia import Ousia as _Ousia
+from .sprite import (
+    Sprite as _Sprite, Kwargs as _Kwargs, convert as _sprite_convert
+    )
 
 
 _pkind = _inspect._ParameterKind
@@ -321,59 +324,11 @@ class ArmatureBase(metaclass=Armature):
         bound.apply_defaults()
         return ProvisionalParams(**bound.arguments)
 
-    def initialise(self, params, /):
-        object.__setattr__(self, 'params', params)
-        super().initialise()
-
     @classmethod
-    def instantiate(cls, fieldvals: tuple, /):
-        fieldvals = tuple(map(cls._process_field, fieldvals))
-        try:
-            return cls.premade[fieldvals]
-        except KeyError:
-            obj = cls.premade[fieldvals] = \
-                super().instantiate(cls.Params(*fieldvals))
-            return obj
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        return cls.instantiate(tuple(cls.parameterise(*args, **kwargs)))
-
-    # Special-cased, so no need for @classmethod
-    def __class_getitem__(cls, arg, /):
-        if not isinstance(arg, tuple):
-            try:
-                return super().__class_getitem__(arg)
-            except AttributeError as exc:
-                raise TypeError(cls, type(arg)) from exc
-        return cls.instantiate(arg)
-
-    def remake(self, /, **kwargs):
-        return self.__ptolemaic_class__.instantiate(
-            tuple({**self.params._asdict(), **kwargs}.values())
-            )
-
-    def _root_repr(self, /):
-        ptolcls = self.__ptolemaic_class__
-        objs = (
-            type(ptolcls).__qualname__, ptolcls.__qualname__,
-            self.hashID + '_' + str(id(self)),
-            )
-        return ':'.join(map(str, objs))
-
-    def _content_repr(self, /):
-        return ', '.join(
-            f"{key}={repr(val)}" for key, val in self.params._asdict().items()
-            )
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_kwargs(self.params._asdict(), p, cycle, root=root)
-
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.getitem_epitaph(ptolcls, self.params)
+    def _process_param(cls, val, /):
+        if isinstance(val, ArmatureBase):
+            return val
+        return _sprite_convert(val)
 
 
 ###############################################################################
