@@ -5,11 +5,12 @@
 
 from collections import abc as _collabc
 import inspect as _inspect
+from collections import namedtuple as _namedtuple
 
 from everest.utilities import pretty as _pretty
 from everest import ur as _ur
 
-from .ousia import Ousia as _Ousia, ProvisionalParams as _ProvisionalParams
+from .ousia import Ousia as _Ousia, paramstuple as _paramstuple
 
 
 class Sprite(_Ousia):
@@ -18,17 +19,22 @@ class Sprite(_Ousia):
 
 class SpriteBase(metaclass=Sprite):
 
-    MERGENAMES = ('__params__',)
+    MERGENAMES = ('__params__', '__defaults__')
     __params__ = ()
-
-    @classmethod
-    def _yield_paramnames(cls, /):
-        yield from cls.__params__
+    __defaults__ = ()
 
     @classmethod
     def _yield_concrete_slots(cls, /):
         yield from super()._yield_concrete_slots()
-        yield from cls._yield_paramnames()
+        yield from cls.__params__
+
+    @classmethod
+    def _make_params_type(cls, /):
+        return _paramstuple(
+            cls.__name__,
+            cls.__params__,
+            defaults=cls.__defaults__,
+            )
 
     def initialise(self, /):
         for name, val in self.params._asdict().items():
@@ -113,7 +119,9 @@ class Kwargs(Binding):
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
         dct = cls.__content_type__(*args, **kwargs)
-        return (type(dct)(zip(map(str, dct.keys()), dct.values())),)
+        return (
+            type(dct)(zip(map(str, dct.keys()), dct.values())),
+            )
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:

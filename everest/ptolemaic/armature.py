@@ -9,10 +9,12 @@ from collections import namedtuple as _namedtuple
 
 from everest.utilities import pretty as _pretty
 
-from .ousia import Ousia as _Ousia
-from .sprite import (
-    Sprite as _Sprite, Kwargs as _Kwargs, convert as _sprite_convert
+from .ousia import (
+    Ousia as _Ousia,
+    ProvisionalParams as _ProvisionalParams,
+    paramstuple as _paramstuple,
     )
+from .sprite import Sprite as _Sprite, Kwargs as _Kwargs
 
 
 _pkind = _inspect._ParameterKind
@@ -21,14 +23,27 @@ _pempty = _inspect._empty
 
 class SmartAttr(metaclass=_Sprite):
 
+    MERGENAMES = ('__process_params__',)
     __params__ = ('name', 'hint', 'note', 'default')
+    __defaults__ = tuple(NotImplemented for key in __params__)
     __req_slots__ = ('cachedname', 'degenerate')
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        for name in cls.__params__:
+            params[name] = getattr(cls, f"process_{name}")(params[name])
+        return params
 
     @classmethod
     def convert(cls, arg, /):
         if isinstance(arg, cls):
             return arg
         raise TypeError(type(arg))
+
+    @staticmethod
+    def process_name(name, /):
+        return str(name)
 
     @staticmethod
     def process_hint(hint, /):
@@ -59,16 +74,9 @@ class SmartAttr(metaclass=_Sprite):
             return NotImplemented
         return default
 
-    @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
-        hint = self.hint = self.process_hint(hint)
-        note = self.note = self.process_note(note)
-        default = self.default = self.process_default(default)
-
     def __init__(self, /):
-        self.cachedname = f"_cached_{name}"
-        self.degenerate = not bool(hint)
+        self.cachedname = f"_cached_{self.name}"
+        self.degenerate = not bool(self.hint)
 
 
 class Prop(SmartAttr):
@@ -84,7 +92,9 @@ class Prop(SmartAttr):
 
 class Field(SmartAttr):
 
-    __req_slots__ = ('kind', 'score', 'parameter')
+    __params__ = ('kind',)
+    __defaults__ = tuple(NotImplemented for key in __params__)
+    __req_slots__ = ('score', 'parameter')
 
     KINDPAIRS = _types.MappingProxyType(dict(
         POS = _pkind['POSITIONAL_ONLY'],
@@ -96,15 +106,16 @@ class Field(SmartAttr):
 
     @classmethod
     def process_kind(cls, kind, /):
-        if kind is _pempty:
+        if kind in (_pempty, NotImplemented):
             return 'POSKW'
+        print(kind, type(kind))
         if kind not in cls.KINDPAIRS:
             raise ValueError(kind)
         return kind
 
-    def __init__(self, /, name: str, kind: str = _pempty, *args, **kwargs):
-        kind = self.kind = self.process_kind(kind)
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, /):
+        super().__init__()
+        kind = self.kind
         kindpairs = self.KINDPAIRS
         default = self.default
         if self.degenerate:
@@ -119,7 +130,6 @@ class Field(SmartAttr):
             default=_pempty if (val:=default) is NotImplemented else val,
             annotation=self.hint,
             )
-        self.args = (kind, *self.args)
 
     def __get__(self, instance, owner=None, /):
         if instance is None:
@@ -194,28 +204,37 @@ class FieldNote(FieldAnno):
 
 class Fields(_Kwargs):
 
-    __req_slots__ = ('signature', 'degenerates')
+    __req_slots__ = ('signature', 'defaults', 'degenerates')
 
     @classmethod
     def get_orderscore(cls, pair):
         return pair[1].score
 
     @classmethod
-    def sort_fields(cls, fields):
+    def sort_fields(cls, fields: dict, /):
         return dict(sorted(fields.items(), key=cls.get_orderscore))
 
-    def __init__(self, /, *args, **kwargs):
-        super().__init__(self.sort_fields(dict(*args, **kwargs)))
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        (content,) = super().parameterise(*args, **kwargs)
+        return (cls.__content_type__(cls.sort_fields(content)),)
+
+    def __init__(self, /):
         degenerates = self.degenerates = _types.MappingProxyType({
             name: field.default
             for name, field in self.items()
             if field.degenerate
             })
-        self.signature = _inspect.Signature(
+        signature = self.signature = _inspect.Signature(
             field.parameter
             for name, field in self.items()
             if name not in degenerates
             )
+        self.defaults = _types.MappingProxyType({
+            param.name: param.default
+            for param in signature.parameters.values()
+            if param.default is not param.empty
+            })
 
     def __call__(self, /, *args, **kwargs):
         return tuple({
@@ -232,12 +251,6 @@ class Fields(_Kwargs):
 
 class Comp(SmartAttr):
     ...
-
-
-class ProvisionalParams(_types.SimpleNamespace):
-
-    def __iter__(self, /):
-        return iter(self.__dict__.values())
 
 
 class Armature(_Ousia):
@@ -282,9 +295,9 @@ class ArmatureBase(metaclass=Armature):
         )
 
     @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.Params = _namedtuple(f"{cls.__name__}Params", cls.__fields__)
+    def _make_params_type(cls, /):
+        fields = cls.__fields__
+        return _paramstuple(cls.__name__, fields, defaults=fields.defaults)
 
     @classmethod
     def _get_signature(cls, /):
@@ -296,22 +309,10 @@ class ArmatureBase(metaclass=Armature):
         yield from (prop.cachedname for prop in cls.__props__.values())
 
     @classmethod
-    def paramexc(cls, /, *args, message=None, **kwargs):
-        return _exceptions.ParameterisationException(
-            (args, kwargs), cls, message
-            )
-
-    @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        bound = cls.__signature__.bind(*args, **kwargs)
-        bound.apply_defaults()
-        return ProvisionalParams(**bound.arguments)
-
-    @classmethod
-    def _process_param(cls, val, /):
-        if isinstance(val, ArmatureBase):
-            return val
-        return _sprite_convert(val)
+        return _ProvisionalParams(
+            cls.__signature__.bind(*args, **kwargs).arguments
+            )
 
 
 ###############################################################################

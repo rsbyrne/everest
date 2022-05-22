@@ -6,14 +6,16 @@
 import abc as _abc
 import inspect as _inspect
 import weakref as _weakref
-from collections import namedtuple as _namedtuple
+import collections as _collections
+import functools as _functools
 
 from everest.utilities import pretty as _pretty
 from everest.utilities.switch import Switch as _Switch
 from everest.bureau import FOCUS as _FOCUS
-from everest.ur import DatTuple as _DatTuple
+from everest import ur as _ur
 
 from .essence import Essence as _Essence
+from . import exceptions as _exceptions
 
 
 class ConcreteMeta:
@@ -71,6 +73,19 @@ class Ousia(_Essence):
         return len(cls.Params._fields)
 
 
+class _Params_:
+
+    def __new__(cls, /, *args, **kwargs):
+        tup = super().__new__(cls, *args, **kwargs)
+        return super().__new__(cls, *_ur.DatTuple(tup))
+
+
+@_functools.wraps(_collections.namedtuple)
+def paramstuple(*args, **kwargs):
+    nt = _collections.namedtuple(*args, **kwargs)
+    return type(f"Params_{nt.__name__}", (_Params_, nt), {})
+
+
 class ProvisionalParams(dict):
 
     def __setitem__(self, name, val, /):
@@ -82,10 +97,21 @@ class ProvisionalParams(dict):
     def __delitem__(self, /):
         raise AttributeError
 
+    def __getattr__(self, name, /):
+        return self[name]
+
+    def __setattr__(self, name, val, /):
+        return self.__setitem__(name, val)
+
     def __iter__(self, /):
         return iter(self.values())
 
+    @property
+    def _fields(self, /):
+        return tuple(self.values())
 
+
+@_ur.Dat.register
 class OusiaBase(metaclass=Ousia):
 
     MERGENAMES = ('__req_slots__',)
@@ -98,11 +124,6 @@ class OusiaBase(metaclass=Ousia):
         )     
 
     ## Configuring the class:
-
-    @classmethod
-    def _yield_paramnames(cls, /):
-        return
-        yield
 
     @classmethod
     def _yield_concrete_slots(cls, /):
@@ -124,10 +145,12 @@ class OusiaBase(metaclass=Ousia):
     def __class_init__(cls, /):
         super().__class_init__()
         cls.premade = _weakref.WeakValueDictionary()
-        cls.Params = _namedtuple(
-            f"{cls.__name__}Params",
-            cls._yield_paramnames(),
-            )
+        cls.Params = cls._make_params_type()
+
+    @classmethod
+    @_abc.abstractmethod
+    def _make_params_type(cls, /) -> type:
+        return paramstuple(cls.__name__, ())
 
     @classmethod
     def _get_signature(cls, /):
@@ -136,14 +159,20 @@ class OusiaBase(metaclass=Ousia):
     ### Object creation:
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
+    def parameterise(cls, /, *args, **kwargs) -> _collections.Mapping:
         return ProvisionalParams(cls.Params(*args, **kwargs)._asdict())
+
+    @classmethod
+    def paramexc(cls, /, *args, message=None, **kwargs):
+        return _exceptions.ParameterisationException(
+            (args, kwargs), cls, message
+            )
 
     def initialise(self, /):
         self.__init__()
 
     @classmethod
-    def instantiate(cls, params: tuple, /):
+    def instantiate(cls, params: _collections.Sequence, /):
         params = cls.Params(*params)
         premade = cls.premade
         Concrete = cls.Concrete
@@ -160,6 +189,7 @@ class OusiaBase(metaclass=Ousia):
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
+        
         return cls.instantiate(cls.parameterise(*args, **kwargs))
 
     # Special-cased, so no need for @classmethod

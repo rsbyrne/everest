@@ -17,7 +17,11 @@ class Ur(_abc.ABCMeta):
     ...
 
 
-class Dat(metaclass=Ur):
+class DatMeta(Ur):
+    ...
+
+
+class Dat(metaclass=DatMeta):
     ...
 
 

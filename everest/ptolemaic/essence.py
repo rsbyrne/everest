@@ -20,7 +20,7 @@ from everest.utilities import (
     misc as _misc,
     )
 from everest.bureau import FOCUS as _FOCUS
-from everest.ur import Dat as _Dat
+from everest import ur as _ur
 
 from .ptolemaic import Ptolemaic as _Ptolemaic
 from .pleroma import Pleroma as _Pleroma
@@ -111,7 +111,7 @@ def is_innerclass(inner, outer):
 
 
 @_Ptolemaic.register
-@_Dat.register
+@_ur.Dat.register
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
@@ -217,8 +217,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         for row in mergenames:
             if isinstance(row, tuple):
                 name, mergetyp = row
+                if not issubclass(mergetyp, _ur.Dat):
+                    raise TypeError(mergetyp)
             else:
-                name, mergetyp = row, tuple
+                name, mergetyp = row, _ur.DatTuple
             ns[name] = merge_names(bases, ns, name, mergetyp=mergetyp)
 
     @classmethod
