@@ -129,16 +129,35 @@ class MappMultiOp(MappOp, metaclass=_Armature):
 
     mapps: _Armature.Field.ARGS
 
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        params.mapps = tuple(map(convert, params.mapps))
+        return params
+
 
 class SwitchMapp(MappMultiOp):
 
+    @classmethod
+    def instantiate(cls, params, /):
+        if cls is SwitchMapp:
+            isbrace = tuple(isinstance(mp.domain, _sett.Brace) for mp in params.mapps)
+            if any(isbrace):
+                if all(isbrace):
+                    return BraceSwitchMapp.instantiate(params)
+                raise TypeError(
+                    "Cannot mix bracelike and non-bracelike mapps "
+                    "in a single SwitchMapp."
+                    )
+        return super().instantiate(params)
+
     @_Armature.prop
     def domain(self, /):
-        return _sett.union(*(mp.domain for mp in mapps))
+        return _sett.union(*(mp.domain for mp in self.mapps))
 
     @_Armature.prop
     def codomain(self, /):
-        return _sett.union(*(mp.codomain for mp in mapps))
+        return _sett.union(*(mp.codomain for mp in self.mapps))
 
     @_Armature.prop
     def get_mapp(self, /):

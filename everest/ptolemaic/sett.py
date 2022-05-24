@@ -200,7 +200,7 @@ class MultiOp(Op, metaclass=_Armature):
 
 class Union(MultiOp):
 
-    def get_signaltype(self, arg: type, /):
+    def get_signaltype(self, /):
         return tuple(sett.signaltype for sett in self.setts)
 
     def __contains__(self, arg, /):
