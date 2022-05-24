@@ -287,9 +287,12 @@ class Armature(_Composite):
 
     @classmethod
     def _yield_namespace_categories(meta, ns, /):
-        yield '__props__', meta.Prop.__instancecheck__, ns.get('__props__', {})
-        yield '__fields__', meta.Field.__instancecheck__, ns.get('__fields__', {})
-        yield '__comps__', meta.Comp.__instancecheck__, ns.get('__comps__', {})
+        for name in ('props', 'fields', 'comps'):
+            yield (
+                du := f"__{name}__",
+                getattr(meta, name[:-1].capitalize()).__instancecheck__,
+                ns.get(du, {}),
+                )
 
     @classmethod
     def pre_create_class(meta, name, bases, ns, /):

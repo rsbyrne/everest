@@ -138,19 +138,6 @@ class MappMultiOp(MappOp, metaclass=_Armature):
 
 class SwitchMapp(MappMultiOp):
 
-    @classmethod
-    def instantiate(cls, params, /):
-        if cls is SwitchMapp:
-            isbrace = tuple(isinstance(mp.domain, _sett.Brace) for mp in params.mapps)
-            if any(isbrace):
-                if all(isbrace):
-                    return BraceSwitchMapp.instantiate(params)
-                raise TypeError(
-                    "Cannot mix bracelike and non-bracelike mapps "
-                    "in a single SwitchMapp."
-                    )
-        return super().instantiate(params)
-
     @_Armature.prop
     def domain(self, /):
         return _sett.union(*(mp.domain for mp in self.mapps))
@@ -159,24 +146,18 @@ class SwitchMapp(MappMultiOp):
     def codomain(self, /):
         return _sett.union(*(mp.codomain for mp in self.mapps))
 
-    @_Armature.prop
-    def get_mapp(self, /):
-        checkmapps = tuple(
-            (mapp.signaltype, mapp) for mapp in self.mapps
-            )
-        @_functools.lru_cache
-        def _get_mapp_(arg: type, /):
-            for typ, mapp in checkmapps:
-                if issubclass(arg, typ):
-                    return mapp
-            raise MappError(arg)
-        return _get_mapp_
-
     def __getitem__(self, arg, /):
-        return self.get_mapp(type(arg))[arg]
+        for mapp in self.mapps:
+            if arg in mapp.domain:
+                return mapp[arg]
+        raise MappError(arg)
 
 
 class BraceSwitchMapp(SwitchMapp):
+
+    @_Armature.prop
+    def domain(self, /):
+        return _sett.union(*(mp.domain for mp in self.mapps))
 
     def __getitem__(self, arg, /):
         return self.get_mapp(tuple(map(type, arg)))[arg]
@@ -235,3 +216,56 @@ _MappModuleMate_(__name__)
 
 ###############################################################################
 ###############################################################################
+
+
+# class SwitchMapp(MappMultiOp):
+
+#     @classmethod
+#     def instantiate(cls, params, /):
+#         if cls is SwitchMapp:
+#             isbrace = tuple(
+#                 isinstance(mp.domain, _sett.Brace)
+#                 for mp in params.mapps
+#                 )
+#             if any(isbrace):
+#                 if all(isbrace):
+#                     return BraceSwitchMapp.instantiate(params)
+#                 raise TypeError(
+#                     "Cannot mix bracelike and non-bracelike mapps "
+#                     "in a single SwitchMapp."
+#                     )
+#         return super().instantiate(params)
+
+#     @_Armature.prop
+#     def domain(self, /):
+#         return _sett.union(*(mp.domain for mp in self.mapps))
+
+#     @_Armature.prop
+#     def codomain(self, /):
+#         return _sett.union(*(mp.codomain for mp in self.mapps))
+
+#     @_Armature.prop
+#     def get_mapp(self, /):
+#         checkmapps = tuple(
+#             (mapp.signaltype, mapp) for mapp in self.mapps
+#             )
+#         @_functools.lru_cache
+#         def _func_(arg: type, /):
+#             for typ, mapp in checkmapps:
+#                 if issubclass(arg, typ):
+#                     return mapp
+#             raise MappError(arg)
+#         return _func_
+
+#     def __getitem__(self, arg, /):
+#         return self.get_mapp(type(arg))[arg]
+
+
+# class BraceSwitchMapp(SwitchMapp):
+
+#     @_Armature.prop
+#     def domain(self, /):
+#         return _sett.union(*(mp.domain for mp in self.mapps))
+
+#     def __getitem__(self, arg, /):
+#         return self.get_mapp(tuple(map(type, arg)))[arg]

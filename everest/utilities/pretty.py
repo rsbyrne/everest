@@ -23,14 +23,12 @@ def pretty(obj, p, cycle, root=''):
         meth(obj, p, cycle, root=root)
 
 
-def pretty_function(obj, p, cycle, /, root='Function'):
-    if cycle:
-        p.text(root + '(...)')
-        return
-    with p.group(4, root + '(', ')'):
-        p.text(obj.__module__)
-        p.text('.')
-        p.text(obj.__qualname__)
+def pretty_function(obj, p, cycle, /, root=''):
+    if root:
+        raise ValueError
+    p.text(obj.__module__)
+    p.text('.')
+    p.text(obj.__qualname__)
 
 
 def pretty_kwargs(obj, p, cycle, /, root=''):
@@ -54,6 +52,37 @@ def pretty_kwargs(obj, p, cycle, /, root=''):
             p.text(' = ')
             pretty(val, p, cycle)
             p.text(',')
+        p.breakable()
+
+
+def pretty_argskwargs(obj, p, cycle, /, root=''):
+    args, kwargs = obj
+    if cycle:
+        p.text(root + '(...)')
+        return
+    if not (args or kwargs):
+        p.text(root + '()')
+        return
+    with p.group(4, root + '(', ')'):
+        if args:
+            for val in args:
+                p.breakable()
+                pretty(val, p, cycle)
+                p.text(',')
+        if kwargs:
+            kwargit = iter(kwargs.items())
+            p.breakable()
+            key, val = next(kwargit)
+            p.text(key)
+            p.text(' = ')
+            pretty(val, p, cycle)
+            p.text(',')
+            for key, val in kwargit:
+                p.breakable()
+                p.text(key)
+                p.text(' = ')
+                pretty(val, p, cycle)
+                p.text(',')
         p.breakable()
 
 

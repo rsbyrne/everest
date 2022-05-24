@@ -127,9 +127,13 @@ class CompositeBase(metaclass=Composite):
         return f"{self.rootrepr}({self.contentrepr})"
 
     def _repr_pretty_(self, p, cycle, root=None):
+        bound = self.__signature__.bind_partial()
+        bound.arguments.update(self.params._asdict())
         if root is None:
             root = self.rootrepr
-        _pretty.pretty_kwargs(self.params._asdict(), p, cycle, root=root)
+        _pretty.pretty_argskwargs(
+            (bound.args, bound.kwargs), p, cycle, root=root
+            )
 
     def make_epitaph(self, /):
         ptolcls = self.__ptolemaic_class__

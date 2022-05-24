@@ -15,6 +15,10 @@ from .essence import Essence as _Essence
 from .enumm import Enumm as _Enumm
 from .sprite import ModuleMate as _ModuleMate
 from .armature import Armature as _Armature, Field as _Field
+from .utilities import (
+    TypeIntersection as _TypeIntersection,
+    TypeBrace as _TypeBrace,
+    )
 
 
 def convert(arg, /):
@@ -126,17 +130,6 @@ class TypeSett(Sett, metaclass=_Armature):
         return isinstance(arg, self.typ)
 
 
-class TypeBrace:
-
-    __slots__ = ('types',)
-
-    def __init__(self, types: tuple[type], /):
-        self.types = tuple(types)
-
-    def __subclasscheck__(self, arg: tuple, /):
-        return all(issubclass(a, b) for a, b in zip(arg, self.types))
-
-
 class Brace(Sett, metaclass=_Armature):
 
     setts: _Armature.Field.POS[_collabc.Iterable]
@@ -148,7 +141,7 @@ class Brace(Sett, metaclass=_Armature):
         return params
 
     def get_signaltype(self, /):
-        return TypeBrace(sett.signaltype for sett in self.setts)
+        return _TypeBrace(*(sett.signaltype for sett in self.setts))
 
     def __contains__(self, arg, /):
         return all(
@@ -210,24 +203,10 @@ class Union(MultiOp):
         return False
 
 
-class TypeIntersection:
-
-    __slots__ = ('types',)
-
-    def __init__(self, types: tuple[type], /):
-        self.types = tuple(types)
-
-    def __subclasscheck__(self, arg: type, /):
-        for typ in self.types:
-            if not issubclass(arg, typ):
-                return False
-        return True
-
-
 class Intersection(MultiOp):
 
     def get_signaltype(self, /):
-        return TypeIntersection(sett.signaltype for sett in self.setts)
+        return _TypeIntersection(*(sett.signaltype for sett in self.setts))
 
     def __contains__(self, arg, /):
         for sett in self.setts:
