@@ -3,15 +3,16 @@
 ###############################################################################
 
 
-import abc as _abc
+from .sett import Sett as _Sett
+from .mapp import Mapp as _Mapp
 
-from everest import ur as _ur
+
+class Chora(_Sett, _Mapp):
+    ...
 
 
-@_ur.Dat.register
-class Ptolemaic(metaclass=_abc.ABCMeta):
 
-    __slots__ = ()
+
 
 
 ###############################################################################

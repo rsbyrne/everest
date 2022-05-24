@@ -4,18 +4,16 @@
 
 
 import abc as _abc
-import inspect as _inspect
-import weakref as _weakref
-import collections as _collections
-import functools as _functools
 
-from everest.utilities import pretty as _pretty
+import weakref as _weakref
+from collections import abc as _collabc
+
+from everest.utilities import pretty as _pretty, reseed as _reseed
 from everest.utilities.switch import Switch as _Switch
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
 
 from .essence import Essence as _Essence
-from . import exceptions as _exceptions
 
 
 class ConcreteMeta:
@@ -73,44 +71,6 @@ class Ousia(_Essence):
         return len(cls.Params._fields)
 
 
-class _Params_:
-
-    def __new__(cls, /, *args, **kwargs):
-        tup = super().__new__(cls, *args, **kwargs)
-        return super().__new__(cls, *_ur.DatTuple(tup))
-
-
-@_functools.wraps(_collections.namedtuple)
-def paramstuple(*args, **kwargs):
-    nt = _collections.namedtuple(*args, **kwargs)
-    return type(f"Params_{nt.__name__}", (_Params_, nt), {})
-
-
-class ProvisionalParams(dict):
-
-    def __setitem__(self, name, val, /):
-        if name not in self:
-            raise KeyError(name)
-        super().__setitem__(name, val)
-
-    @property
-    def __delitem__(self, /):
-        raise AttributeError
-
-    def __getattr__(self, name, /):
-        return self[name]
-
-    def __setattr__(self, name, val, /):
-        return self.__setitem__(name, val)
-
-    def __iter__(self, /):
-        return iter(self.values())
-
-    @property
-    def _fields(self, /):
-        return tuple(self.values())
-
-
 @_ur.Dat.register
 class OusiaBase(metaclass=Ousia):
 
@@ -119,6 +79,7 @@ class OusiaBase(metaclass=Ousia):
         '__weakref__',
         'freezeattr',
         'params',
+        '_pyhash',
         '_sessioncacheref',
         '_epitaph',
         )     
@@ -141,67 +102,31 @@ class OusiaBase(metaclass=Ousia):
                 ),
             )
 
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.premade = _weakref.WeakValueDictionary()
-        cls.Params = cls._make_params_type()
-
-    @classmethod
-    @_abc.abstractmethod
-    def _make_params_type(cls, /) -> type:
-        return paramstuple(cls.__name__, ())
-
-    @classmethod
-    def _get_signature(cls, /):
-        return _inspect.signature(cls.Params)
-
     ### Object creation:
 
-    @classmethod
-    def parameterise(cls, /, *args, **kwargs) -> _collections.Mapping:
-        return ProvisionalParams(cls.Params(*args, **kwargs)._asdict())
-
-    @classmethod
-    def paramexc(cls, /, *args, message=None, **kwargs):
-        return _exceptions.ParameterisationException(
-            (args, kwargs), cls, message
-            )
-
-    def initialise(self, /):
+    def initialise(self, params, /):
+        object.__setattr__(self, '_pyhash', _reseed.rdigits(16))
+        switch = _Switch(False)
+        object.__setattr__(self, 'freezeattr', switch)
+        for key, val in params.items():
+            setattr(self, key, val)
         self.__init__()
+        switch.toggle(True)
 
     @classmethod
-    def instantiate(cls, params: _collections.Sequence, /):
-        params = cls.Params(*params)
-        premade = cls.premade
+    def parameterise(cls, /, *args, **kwargs) -> _collabc.Mapping:
+        return dict(*args, **kwargs)
+
+    @classmethod
+    def instantiate(cls, params, /):
         Concrete = cls.Concrete
-        try:
-            return premade[params]
-        except KeyError:
-            obj = premade[params] = Concrete.__new__(Concrete)
-            switch = _Switch(False)
-            object.__setattr__(obj, 'freezeattr', switch)
-            object.__setattr__(obj, 'params', params)
-            obj.initialise()
-            switch.toggle(True)
-            return obj
+        obj = Concrete.__new__(Concrete)
+        obj.initialise(params)
+        return obj
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        
         return cls.instantiate(cls.parameterise(*args, **kwargs))
-
-    # Special-cased, so no need for @classmethod
-    def __class_getitem__(cls, arg, /):
-        if cls.arity == 1:
-            arg = (arg,)
-        return cls.instantiate(arg)
-
-    def remake(self, /, **kwargs):
-        return self.__ptolemaic_class__.instantiate(
-            tuple({**self.params._asdict(), **kwargs}.values())
-            )
 
     ### Some aliases:
 
@@ -224,12 +149,15 @@ class OusiaBase(metaclass=Ousia):
                 raise AttributeError
             return out
         except AttributeError:
-            if not self.freezeattr:
-                raise AttributeError(
-                    "Cannot request session cache when object is mutable."
-                    )
             out = _FOCUS.request_session_storer(self)
-            object.__setattr__(self, '_sessioncacheref', _weakref.ref(out))
+            try:
+                object.__setattr__(
+                    self, '_sessioncacheref', _weakref.ref(out)
+                    )
+            except AttributeError:
+                raise RuntimeError(
+                    "Could not set the session cache on this object."
+                    )
             return out
 
     # @property
@@ -244,83 +172,66 @@ class OusiaBase(metaclass=Ousia):
         return self.freezeattr.as_(False)
 
     def __getattr__(self, name, /):
-        if self.freezeattr:
-            try:
-                return self._sessioncache[name]
-            except KeyError as exc:
-                raise AttributeError from exc
+        if name in self.__slots__:
+            raise AttributeError(name)
+        try:
+            return self._sessioncache[name]
+        except KeyError as exc:
+            raise AttributeError from exc
 
     def __setattr__(self, name, val, /):
         if self.freezeattr:
             if name in self.__slots__:
-                raise AttributeError(
-                    "Cannot alter slot attribute while immutable."
-                    )
-            self._sessioncache[name] = val
+                raise AttributeError(name)
         else:
-            object.__setattr__(self, name, val)
+            try:
+                return super().__setattr__(name, val)
+            except AttributeError:
+                pass
+        self._sessioncache[name] = val
 
-    def __delattr__(self, name, /):
+    def __delattr__(self, name, val, /):
         if self.freezeattr:
             if name in self.__slots__:
-                raise AttributeError(
-                    "Cannot alter slot attribute while immutable."
-                    )
-            del self._sessioncache[name]
+                raise AttributeError(name)
         else:
-            object.__delattr__(self, name)
+            try:
+                return super().__delattr__(name)
+            except AttributeError:
+                pass
+        try:
+            del self._sessioncache[name]
+        except KeyError as exc:
+            raise AttributeError from exc
 
     ### Representations:
 
     def _root_repr(self, /):
-        ptolcls = self.__ptolemaic_class__
-        objs = (
-            type(ptolcls).__qualname__, ptolcls.__qualname__,
-            self.hashID + '_' + str(id(self)),
-            )
-        return ':'.join(map(str, objs))
+        return self.__ptolemaic_class__.__qualname__
 
     @property
     # @_caching.soft_cache()
     def rootrepr(self, /):
         return self._root_repr()
 
-    def _content_repr(self, /):
-        return ', '.join(
-            f"{key}={repr(val)}" for key, val in self.params._asdict().items()
-            )
-
-    @property
-    # @_caching.soft_cache()
-    def contentrepr(self, /):
-        return self._content_repr()
-
-    def __str__(self, /):
-        return f"{self.rootrepr}({self.contentrepr})"
-
     def __repr__(self, /):
-        return f"<{self.rootrepr}>"
+        return f"<{self.rootrepr}, id={id(self)},"
 
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_kwargs(self.params._asdict(), p, cycle, root=root)
-
+    @_abc.abstractmethod
     def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        params = self.params
-        if ptolcls.arity == 1:
-            params = params[0]
-        return ptolcls.taphonomy.getitem_epitaph(ptolcls, params)
+        raise NotImplementedError
 
     @property
     def epitaph(self, /):
         try:
             return object.__getattribute__(self, '_epitaph')
         except AttributeError:
-            obj = self.make_epitaph()
-            object.__setattr__(self, '_epitaph', obj)
-            return obj
+            with self.mutable:
+                try:
+                    obj = self._epitaph = self.make_epitaph()
+                except Exception as exc:
+                    raise RuntimeError from exc
+                return obj
 
     def __reduce__(self, /):
         return self.epitaph, ()
@@ -347,7 +258,7 @@ class OusiaBase(metaclass=Ousia):
         return self.hashint < other
 
     def __hash__(self, /):
-        return self.hashint
+        return object.__getattribute__(self, '_pyhash')
 
 
 ###############################################################################

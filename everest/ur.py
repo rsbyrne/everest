@@ -28,22 +28,49 @@ class Dat(metaclass=DatMeta):
 _ = Dat.register(_Primitive)
 
 
+def convert_type(typ: type, /):
+    if issubclass(typ, Dat):
+        return typ
+    if issubclass(typ, _np.ndarray):
+        return DatArray
+    if issubclass(typ, _collabc.Mapping):
+        return DatDict
+    if issubclass(typ, _collabc.Iterable):
+        return DatTuple
+    raise TypeError(typ)
+
 def convert(obj, /):
     if isinstance(obj, Dat):
         return obj
-    if isinstance(obj, _np.ndarray):
-        return DatArray(obj)
-    if isinstance(obj, _collabc.Sequence):
-        return DatTuple(obj)
-    if isinstance(obj, _collabc.Mapping):
-        return DatDict(obj)
-    raise TypeError(type(obj))
+    return convert_type(type(obj))(obj)
 
 
 class DatTuple(tuple, Dat):
 
     def __new__(cls, iterable=(), /):
         return super().__new__(cls, map(convert, iterable))
+
+    def __repr__(self, /):
+        return type(self).__qualname__ + super().__repr__()
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = type(self).__qualname__
+        _pretty.pretty_tuple(self, p, cycle, root=root)
+
+
+class DatUniqueTuple(tuple, Dat):
+
+    @classmethod
+    def _yield_unique(cls, iterable, /):
+        seen = set()
+        for item in iterable:
+            if item not in seen:
+                yield item
+                seen.add(item)
+
+    def __new__(cls, iterable=(), /):
+        return super().__new__(cls, cls._yield_unique(map(convert, iterable)))
 
     def __repr__(self, /):
         return type(self).__qualname__ + super().__repr__()

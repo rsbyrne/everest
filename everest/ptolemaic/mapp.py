@@ -5,19 +5,27 @@
 
 import abc as _abc
 import functools as _functools
+import inspect as _inspect
+from collections import abc as _collabc
 
-from everest.utilities.caching import attr_property as _attr_property
-
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ousia import Funcc as _Funcc
-from everest.ptolemaic.compound import Compound as _Compound
-from everest.ptolemaic.field import Field as _Field
-
-from .sett import Sett as _Sett, SettUnion as _SettUnion
+from .essence import Essence as _Essence
+from .sprite import ModuleMate as _ModuleMate
+from .armature import Armature as _Armature
+from . import sett as _sett
 
 
 class MappError(RuntimeError):
     ...
+
+
+def convert(arg, /):
+    if isinstance(arg, Mapp):
+        return arg
+    if isinstance(arg, _collabc.Iterable):
+        return SwitchMapp(*arg)
+    if isinstance(arg, _collabc.Callable):
+        return DefMapp(arg)
+    raise TypeError(type(arg))
 
 
 class Mapp(metaclass=_Essence):
@@ -36,11 +44,9 @@ class Mapp(metaclass=_Essence):
     def codomain(self, /):
         raise NotImplementedError
 
-    @classmethod
-    def __class_call__(cls, arg, /):
-        if cls is not Mapp:
-            raise NotImplementedError
-        return DefMapp(arg)
+    @property
+    def signaltype(self, /):
+        return self.domain.signaltype
 
     def __matmul__(self, arg, /):
         if isinstance(arg, Mapp):
@@ -51,37 +57,56 @@ class Mapp(metaclass=_Essence):
         return NotImplemented
 
 
-class DefMapp(_Funcc, Mapp):
+class DefMapp(Mapp, metaclass=_Armature):
 
-    @property
-    def __getitem__(self, /):
-        return self.func
+    func: _Armature.Field.POS[_collabc.Callable]
 
-    @_attr_property
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        func = params.func
+        parameters = tuple(_inspect.signature(func).parameters.values())
+        if not all(pm.kind.value == 0 for pm in parameters):
+            message = (
+                "Functions being converted to Mapps "
+                "must have only positional arguments."
+                )
+            raise cls.paramexc(func, message=message)
+        return params
+
+    @_Armature.prop
     def domain(self, /):
-        return _Sett(self.__getitem__.__annotations__.get('arg', None))
+        setts = tuple(
+            _sett(pm.annotation)
+            for pm in _inspect.signature(self.func).parameters.values()
+            )
+        if len(setts) == 1:
+            return setts[0]
+        return _sett.Brace(setts)
 
-    @_attr_property
+    @_Armature.prop
     def codomain(self, /):
-        return _Sett(self.__getitem__.__annotations__.get('return', None))
+        return _sett(self.func.__annotations__.get('return', None))
+
+    @_Armature.prop
+    def __getitem__(self, /):
+        func = self.func
+        if len(_inspect.signature(func).parameters) == 1:
+            getitem = func
+        else:
+            getitem = lambda x: func(*x)
+        return getitem
 
 
 class MappOp(Mapp):
-
-    @property
-    def domain(self, /):
-        return self._domain
-
-    @property
-    def codomain(self, /):
-        return self._codomain
+    ...
 
 
-class ModifiedMapp(_Compound.Base):
+class ModifiedMapp(MappOp, metaclass=_Armature):
 
-    mapp: _Field.POS[Mapp]
-    domain: Field[_Sett] = None
-    codomain: Field[_Sett] = None
+    mapp: _Armature.Field.POS[Mapp]
+    domain: _Armature.Field[_sett.Sett] = None
+    codomain: _Armature.Field[_sett.Sett] = None
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -100,40 +125,55 @@ class ModifiedMapp(_Compound.Base):
         return out
 
 
-class MappMultiOp(_Compound.BaseTyp, MappOp):
+class MappMultiOp(MappOp, metaclass=_Armature):
 
-    mapps: _Field.ARGS
+    mapps: _Armature.Field.ARGS
 
 
 class SwitchMapp(MappMultiOp):
 
-    @_attr_property
-    def get_mapper(self, /):
-        mapps = self.mapps
-        checkmapps = ((mapp.domain.__contains_like__, mapp) for mapp in mapps)
-        @_functools.lru_cache()
-        def _get_mapper(arg: type, /):
-            for check, mapp in checkmapps:
-                if check(arg):
+    @_Armature.prop
+    def domain(self, /):
+        return _sett.union(*(mp.domain for mp in mapps))
+
+    @_Armature.prop
+    def codomain(self, /):
+        return _sett.union(*(mp.codomain for mp in mapps))
+
+    @_Armature.prop
+    def get_mapp(self, /):
+        checkmapps = tuple(
+            (mapp.signaltype, mapp) for mapp in self.mapps
+            )
+        @_functools.lru_cache
+        def _get_mapp_(arg: type, /):
+            for typ, mapp in checkmapps:
+                if issubclass(arg, typ):
                     return mapp
             raise MappError(arg)
-        return _get_mapper
+        return _get_mapp_
 
     def __getitem__(self, arg, /):
-        return self.get_mapper(type(arg))[arg]
+        return self.get_mapp(type(arg))[arg]
 
-    @_attr_property
-    def domain(self, /):
-        return _SettUnion(*(mp.domain for mp in self.mapps))
 
-    @_attr_property
-    def codomain(self, /):
-        return _SettUnion(*(mp.codomain for mp in self.mapps))
+class BraceSwitchMapp(SwitchMapp):
+
+    def __getitem__(self, arg, /):
+        return self.get_mapp(tuple(map(type, arg)))[arg]
 
 
 class ComposedMapp(MappMultiOp):
 
-    mapps: _Field.ARGS
+    mapps: _Armature.Field.ARGS
+
+    @_Armature.prop
+    def domain(self, /):
+        return self.mapps[0].domain
+
+    @_Armature.prop
+    def codomain(self, /):
+        return self.mapps[-1].codomain
 
     @classmethod
     def _unpack_args(cls, args, /):
@@ -146,21 +186,32 @@ class ComposedMapp(MappMultiOp):
                 raise RuntimeError(arg)
 
     @classmethod
-    def parameterise(cls, /, *args):
-        return super().parameterise(*cls._unpack_args(args))
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        params.mapps = cls._unpack_args(params.mapps)
+        return params
 
     def __getitem__(self, arg, /):
         for mapp in self.mapps:
             arg = mapp[arg]
         return arg
 
-    @_attr_property
-    def domain(self, /):
-        return mapps[0].domain
 
-    @_attr_property
-    def codomain(self, /):
-        return mapps[-1].codomain
+class _MappModuleMate_(_ModuleMate):
+
+    def __call__(self, arg, /):
+        if arg is self:
+            arg = Mapp
+        return convert(arg)
+
+    def __instancecheck__(self, arg, /):
+        return isinstance(arg, Mapp)
+
+    def __subclasscheck__(self, arg, /):
+        return issubclass(arg, Mapp)
+
+
+_MappModuleMate_(__name__)
 
 
 ###############################################################################

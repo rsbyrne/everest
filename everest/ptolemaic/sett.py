@@ -5,21 +5,25 @@
 
 import abc as _abc
 from collections import abc as _collabc
+import inspect as _inspect
 import types as _types
+import sys as _sys
 
 from everest.ur import Dat as _Dat
 
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.ousia import Funcc as _Funcc
-from everest.ptolemaic.compound import Compound as _Compound
-from everest.ptolemaic.field import Field as _Field
+from .essence import Essence as _Essence
+from .enumm import Enumm as _Enumm
+from .sprite import ModuleMate as _ModuleMate
+from .armature import Armature as _Armature, Field as _Field
 
 
 def convert(arg, /):
-    if arg is None:
-        return UNIVERSE
     if isinstance(arg, Sett):
         return arg
+    if arg is Sett:
+        return POWER
+    if arg in (None, _inspect._empty):
+        return UNIVERSE
     if isinstance(arg, _collabc.Container):
         return ContainerSett(arg)
     if isinstance(arg, type):
@@ -31,17 +35,16 @@ def convert(arg, /):
 
 class Sett(metaclass=_Essence):
 
-    def __contains_like__(self, arg: type, /):
-        return issubclass(arg, object)
+    __req_slots__ = ('signaltype',)
+
+    def __init__(self, /):
+        self.signaltype = self.get_signaltype()
+
+    def get_signaltype(self, /):
+        return object
 
     @_abc.abstractmethod
     def __contains__(self, arg, /):
-        raise NotImplementedError
-
-    @classmethod
-    def __class_call__(cls, arg, /):
-        if cls is Sett:
-            return convert(arg)
         raise NotImplementedError
 
     def __or__(self, other, /):
@@ -73,40 +76,94 @@ class Sett(metaclass=_Essence):
         return SettInverse(self)
 
 
-class FuncSett(_Funcc, Sett):
+class Setts(Sett, metaclass=_Enumm):
+
+    __enumerators__ = dict(
+        UNIVERSE=_Dat.__instancecheck__,
+        NULL=(lambda x: False),
+        POWER=Sett.__instancecheck__,
+        )
+
+    def __contains__(self, arg, /):
+        return self.val(arg)
+
+
+globals().update({enum.name: enum for enum in Setts})
+
+
+class FuncSett(Sett, metaclass=_Armature):
+
+    func: _Armature.Field.POS[_collabc.Callable]
+
+    def get_signaltype(self, /):
+        return next(iter(self.func.__annotations__.values(), object))
 
     @property
     def __contains__(self, /):
         return self.func
 
 
-class ContainerSett(_Compound.BaseTyp, Sett):
+class ContainerSett(Sett, metaclass=_Armature):
 
-    container: _Field.POS[_collabc.Container]
+    container: _Armature.Field.POS[_collabc.Container]
+
+    def get_signaltype(self, /):
+        return tuple(sorted(set(map(type, self.container))))
 
     @property
     def __contains__(self, /):
         return self.container.__contains__
 
 
-class TypeSett(_Compound.BaseTyp, Sett):
+class TypeSett(Sett, metaclass=_Armature):
 
-    typ: _Field.POS[type]
+    typ: _Armature.Field.POS[type]
 
-    def __contains_like__(self, arg: type, /):
-        return issubclass(arg, self.typ)
+    def get_signaltype(self, /):
+        return self.typ
 
     def __contains__(self, arg, /):
         return isinstance(arg, self.typ)
 
 
-class SettOp(Sett):
+class TypeBrace:
+
+    __slots__ = ('types',)
+
+    def __init__(self, types: tuple[type], /):
+        self.types = tuple(types)
+
+    def __subclasscheck__(self, arg: tuple, /):
+        return all(issubclass(a, b) for a, b in zip(arg, self.types))
+
+
+class Brace(Sett, metaclass=_Armature):
+
+    setts: _Armature.Field.POS[_collabc.Iterable]
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        params.setts = tuple(map(convert, params.setts))
+        return params
+
+    def get_signaltype(self, /):
+        return TypeBrace(sett.signaltype for sett in self.setts)
+
+    def __contains__(self, arg, /):
+        return all(
+            subarg in sett
+            for sett, subarg in zip(self.setts, arg)
+            )
+
+
+class Op(Sett):
     ...
 
 
-class SettInverse(_Compound.BaseTyp, SettOp):
+class Inverse(Op, metaclass=_Armature):
 
-    sett: _Field.POS[Sett]
+    sett: _Armature.Field.POS[Sett]
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -121,31 +178,30 @@ class SettInverse(_Compound.BaseTyp, SettOp):
         return self.sett
 
 
-class SettMultiOp(_Compound.BaseTyp, SettOp):
+class MultiOp(Op, metaclass=_Armature):
     
-    setts: _Field.ARGS
+    setts: _Armature.Field.ARGS[Sett]
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
         out = super().__class_call__(*args, **kwargs)
         if (nsetts := len(setts := out.setts)) == 0:
-            return EMPTY
+            return Setts.NULL
         elif nsetts == 1:
             return setts[0]
         return out
 
     @classmethod
-    def parameterise(cls, /, *setts):
-        return super().parameterise(*(sorted(set(map(convert, setts)))))
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        params.setts = tuple(sorted(set(map(convert, params.setts))))
+        return params
 
 
-class SettUnion(SettMultiOp):
+class Union(MultiOp):
 
-    def __contains_like__(self, arg: type, /):
-        for sett in self.setts:
-            if sett.__contains_like__(arg):
-                return True
-        return False
+    def get_signaltype(self, arg: type, /):
+        return tuple(sett.signaltype for sett in self.setts)
 
     def __contains__(self, arg, /):
         for sett in self.setts:
@@ -154,13 +210,24 @@ class SettUnion(SettMultiOp):
         return False
 
 
-class SettIntersection(SettMultiOp):
+class TypeIntersection:
 
-    def __contains_like__(self, arg: type, /):
-        for sett in self.setts:
-            if not sett.__contains_like__(arg):
+    __slots__ = ('types',)
+
+    def __init__(self, types: tuple[type], /):
+        self.types = tuple(types)
+
+    def __subclasscheck__(self, arg: type, /):
+        for typ in self.types:
+            if not issubclass(arg, typ):
                 return False
         return True
+
+
+class Intersection(MultiOp):
+
+    def get_signaltype(self, /):
+        return TypeIntersection(sett.signaltype for sett in self.setts)
 
     def __contains__(self, arg, /):
         for sett in self.setts:
@@ -169,13 +236,26 @@ class SettIntersection(SettMultiOp):
         return True
 
 
-@Sett
-def UNIVERSE(arg, /):
-    return isinstance(arg, _Dat)
+inverse = Inverse.__class_call__
+union = Union.__class_call__
+intersection = Intersection.__class_call__
 
-@Sett
-def NULL(arg, /):
-    return False
+
+class _SettModuleMate_(_ModuleMate):
+
+    def __call__(self, arg, /):
+        if arg is self:
+            arg = Sett
+        return convert(arg)
+
+    def __instancecheck__(self, arg, /):
+        return isinstance(arg, Sett)
+
+    def __subclasscheck__(self, arg, /):
+        return issubclass(arg, Sett)
+
+
+_SettModuleMate_(__name__)
 
 
 ###############################################################################

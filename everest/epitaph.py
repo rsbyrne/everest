@@ -20,7 +20,7 @@ from string import Template as _Template
 import numpy as _np
 
 from everest.utilities import (
-    caching as _caching, word as _word, classtools as _classtools,
+    word as _word, classtools as _classtools,
     TypeMap as _TypeMap,
     )
 from everest.primitive import Primitive as _Primitive
@@ -47,7 +47,7 @@ class Epitaph(_classtools.Freezable):
 
     __slots__ = (
         'depdict', 'hexcode', 'content', 'taph', 'deps', 'args',
-        '__weakref__', '_freezeattr', '_softcache',
+        '__weakref__', '_freezeattr', '_hashint', '_hashID',
         )
 
     def __init__(self, content, deps, hexcode, _process_content=False, /):
@@ -63,15 +63,9 @@ class Epitaph(_classtools.Freezable):
         self.taph = deps[0]
         self.deps = deps
         self.args = (self.content, self.deps, self.hexcode)
-        self._softcache = dict()
         self.freezeattr = True
 
     @property
-    def softcache(self, /):
-        return self._softcache
-
-    @property
-    @_caching.soft_cache()
     def degenerate(self, /):
         return len() >= len(self.content)
 
@@ -95,14 +89,22 @@ class Epitaph(_classtools.Freezable):
         return self.taph, self.args
 
     @property
-    @_caching.soft_cache()
     def hashint(self, /):
-        return int(self.hexcode, 16)
+        try:
+            return self._hashint
+        except AttributeError:
+            with self.mutable:
+                out = self._hashint = int(self.hexcode, 16)
+            return out
 
     @property
-    @_caching.soft_cache()
     def hashID(self, /):
-        return _word.get_random_proper(2, seed=self.hexcode)
+        try:
+            return self._hashID
+        except AttributeError:
+            with self.mutable:
+                out = self._hashID = _word.get_random_proper(2, seed=self.hexcode)
+            return out
 
     @property
     def __call__(self, /):
@@ -123,7 +125,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
    
     __slots__ = (
         'encoders', 'decoders',
-        '_primitivemeths', 'evalspace', '_softcache', 'namespace',
+        '_primitivemeths', 'evalspace', 'namespace',
         '_freezeattr',
         )
 
@@ -135,21 +137,18 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
                 raise ValueError(
                     "Cannot pass namespace as both arg and kwargs."
                     )
-        namespace = self.namespace = _ur.DatDict(namespace)
+        namespace = self.namespace = _types.MappingProxyType(namespace)
         self.encoders = _TypeMap(self.yield_encoders())
-        decoders = self.decoders = _ur.DatDict(self.yield_decoders())
+        decoders = self.decoders = _types.MappingProxyType(dict(
+            self.yield_decoders()
+            ))
         self._primitivemeths = {
             self.encode_string, self.encode_primitive,
             self.encode_tuple, self.encode_dict,
             }
         self.evalspace = _collections.ChainMap(decoders, namespace)
         super().__init__()
-        self._softcache = dict()
         self.freezeattr = True
-
-    @property
-    def softcache(self, /):
-        return self._softcache
 
     def enfence(self, arg: str, /, directive=''):
         '''Wraps a string in a fence, optionally with a 'directive'.'''
@@ -257,19 +256,16 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
             return encoded
 
     def encode(self, arg: object, /, deps: set = None) -> str:
+        # arg = _ur.convert(arg)
         return self.encoders[type(arg)](arg, deps=deps)
 
-    def _repr(self, /):
+    def __repr__(self, /):
         kwargs = self.namespace
         substr = ','.join(map(
             '='.join,
             zip(map(repr, kwargs), map(repr, kwargs.values()))
             ))
         return f"{self.__class__.__qualname__}({substr})"
-
-    @_caching.soft_cache()
-    def __repr__(self, /):
-        return self._repr()
 
     def get_hexcode(self, content: str, /) -> str:
         return _hashlib.sha3_256(

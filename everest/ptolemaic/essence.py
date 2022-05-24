@@ -5,7 +5,6 @@
 
 import abc as _abc
 import itertools as _itertools
-import more_itertools as _mitertools
 import weakref as _weakref
 import types as _types
 import inspect as _inspect
@@ -15,52 +14,13 @@ from collections import abc as _collabc
 from everest.utilities import (
     caching as _caching,
     switch as _switch,
-    FrozenMap as _FrozenMap,
     RestrictedNamespace as _RestrictedNamespace,
-    misc as _misc,
     )
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
 
 from .ptolemaic import Ptolemaic as _Ptolemaic
 from .pleroma import Pleroma as _Pleroma
-from . import exceptions as _exceptions
-
-
-class MROClassNotFound(
-        _exceptions.PtolemaicLayoutException,
-        _exceptions.PtolemaicExceptionRaisedBy,
-        AttributeError,
-        ):
-
-    def __init__(self, /, mroname, *args, **kwargs):
-        self.mroname = mroname
-        super().__init__(*args, **kwargs)
-
-    def message(self, /):
-        yield from super().message()
-        yield f"when no bases could be found for mro name {self.mroname}"
-
-
-class MROSubClassRecursion(
-        _exceptions.PtolemaicLayoutException,
-        _exceptions.PtolemaicExceptionRaisedBy,
-        TypeError,
-        ):
-
-    def __init__(self, /, mroname, *args, **kwargs):
-        self.mroname = mroname
-        super().__init__(*args, **kwargs)
-
-    def message(self, /):
-        yield from super().message()
-        yield f"when attempting to recursively subclass {self.mroname}"
-
-
-def ordered_set(itr):
-    return tuple(_mitertools.unique_everseen(itr))
-
-_mprox = _types.MappingProxyType
 
 
 ### Implementing mergetuples and mergedicts:
@@ -72,26 +32,16 @@ def yield_mergees(bases, namespace, name, /):
     if name in namespace:
         yield namespace[name]
 
-def gather_names_tuplelike(bases, namespace, name, /):
-    mergees = tuple(yield_mergees(bases, namespace, name))
-    for i, mergee in enumerate(mergees):
-        latter = set(_itertools.chain.from_iterable(mergees[i+1:]))
-        yield from (val for val in mergee if not val in latter)
-
-def gather_names_dictlike(bases, namespace, name, /):
-    mergees = tuple(yield_mergees(bases, namespace, name))
-    for i, mergee in enumerate(mergees):
-        latter = set(_itertools.chain.from_iterable(mergees[i+1:]))
-        for key in mergee:
-            if not key in latter:
-                yield key, mergee[key]
-
-def merge_names(bases, namespace, name, /, *, mergetyp=tuple):
+def merge_names(bases, namespace, name, /, *, mergetyp):
     if issubclass(mergetyp, _collabc.Mapping):
-        meth = gather_names_dictlike
+        iterable = (_itertools.chain.from_iterable(
+            mp.items() for mp in yield_mergees(bases, namespace, name)
+            ))
     else:
-        meth = gather_names_tuplelike
-    return mergetyp(meth(bases, namespace, name))
+        iterable = _itertools.chain.from_iterable(
+        yield_mergees(bases, namespace, name)
+        )
+    return mergetyp(iterable)
 
 def expand_bases(bases):
     '''Expands any pseudoclasses from the input list of bases.'''
@@ -111,7 +61,6 @@ def is_innerclass(inner, outer):
 
 
 @_Ptolemaic.register
-@_ur.Dat.register
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
@@ -213,14 +162,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def process_mergenames(meta, name, bases, ns, /):
-        mergenames = ns['MERGENAMES'] = merge_names(bases, ns, 'MERGENAMES')
+        mergenames = ns['MERGENAMES'] = merge_names(
+            bases, ns, 'MERGENAMES', mergetyp=_ur.DatUniqueTuple
+            )
         for row in mergenames:
             if isinstance(row, tuple):
                 name, mergetyp = row
-                if not issubclass(mergetyp, _ur.Dat):
-                    raise TypeError(mergetyp)
+                mergetyp = _ur.convert_type(mergetyp)
             else:
-                name, mergetyp = row, _ur.DatTuple
+                name, mergetyp = row, _ur.DatUniqueTuple
             ns[name] = merge_names(bases, ns, name, mergetyp=mergetyp)
 
     @classmethod
@@ -256,7 +206,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 if check(val):
                     store[key] = val
         ns.update(**{
-            name: _FrozenMap(store) for name, check, store in categories
+            name: _types.MappingProxyType({**store})
+            for name, check, store in categories
             })
 
     @classmethod

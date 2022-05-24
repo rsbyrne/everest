@@ -6,20 +6,21 @@
 from collections import abc as _collabc
 import inspect as _inspect
 from collections import namedtuple as _namedtuple
+import sys as _sys
 
 from everest.utilities import pretty as _pretty
 from everest import ur as _ur
 
-from .ousia import Ousia as _Ousia, paramstuple as _paramstuple
+from .composite import Composite as _Composite, paramstuple as _paramstuple
 
 
-class Sprite(_Ousia):
+class Sprite(_Composite):
     ...
 
 
 class SpriteBase(metaclass=Sprite):
 
-    MERGENAMES = ('__params__', '__defaults__')
+    MERGENAMES = ('__params__', ('__defaults__', tuple))
     __params__ = ()
     __defaults__ = ()
 
@@ -36,31 +37,9 @@ class SpriteBase(metaclass=Sprite):
             defaults=cls.__defaults__,
             )
 
-    def initialise(self, /):
-        for name, val in self.params._asdict().items():
-            setattr(self, name, val)
-        super().initialise()
-
-
-class Funcc(metaclass=Sprite):
-
-    __params__ = ('func',)
-
-    @property
-    def __call__(self, /):
-        return self.func
-
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.callsig_epitaph(ptolcls, self.func)
-
-    def _content_repr(self, /):
-        return repr(self.func)
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_function(self.func, p, cycle, root=root)
+    @classmethod
+    def _get_signature(cls, /):
+        return _inspect.signature(cls.Params)
 
 
 @_collabc.Collection.register
@@ -95,7 +74,7 @@ class ContentProxy(metaclass=Sprite):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self.__ptolemaic_class__.__qualname__
+            root = self.rootrepr
         return self.content._repr_pretty_(p, cycle, root=root)
 
 
@@ -141,6 +120,38 @@ class Arraay(ContentProxy):
         '__getitem__', 'dtype', 'shape',
         '__reversed__', '__index__', '__count__',
         )
+
+
+class ModuleMate(metaclass=Sprite):
+
+    __params__ = ('module',)
+
+    @classmethod
+    def __class_call__(cls, name, /):
+        _sys.modules[name] = \
+            super().__class_call__(_sys.modules[name])
+
+    def __init__(self, /):
+        _sys.modules[self.module.__name__] = self
+
+    def __getattr__(self, name, /):
+        try:
+            super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
+
+    def make_epitaph(self, /):
+        ptolcls = self.__ptolemaic_class__
+        return ptolcls.taphonomy(self.module)
+
+    def __repr__(self, /):
+        return self.module.__name__
+
+    def __str__(self, /):
+        return self.module.__name__
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        p.text(repr(self))
 
 
 ###############################################################################
