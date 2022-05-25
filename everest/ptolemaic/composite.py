@@ -19,20 +19,10 @@ class CompositeBase(metaclass=Composite):
 
     __req_slots__ = ('params',)
 
-    @classmethod
-    def construct(cls, params: _collabc.Sequence, /):
-        return super().construct(params=params, **params._asdict())
-
     def remake(self, /, **kwargs):
-        return self.__ptolemaic_class__.instantiate(
+        return self.__ptolemaic_class__.retrieve(
             tuple({**self.params._asdict(), **kwargs}.values())
             )
-
-    # Special-cased, so no need for @classmethod
-    def __class_getitem__(cls, arg, /):
-        if cls.arity == 1:
-            arg = (arg,)
-        return cls.instantiate(arg)
 
     def _content_repr(self, /):
         return ', '.join(
@@ -57,11 +47,7 @@ class CompositeBase(metaclass=Composite):
             )
 
     def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        params = self.params
-        if ptolcls.arity == 1:
-            params = params[0]
-        return ptolcls.taphonomy.getitem_epitaph(ptolcls, params)
+        return self.__ptolemaic_class__.construct_epitaph(self.params)
 
 
 ###############################################################################

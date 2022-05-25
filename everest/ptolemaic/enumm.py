@@ -12,7 +12,8 @@ class Enumm(_Ousia):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cls.add_enumerators()
+        with cls.mutable:
+            cls.add_enumerators()
 
     def __iter__(self, /):
         return iter(self.enumerators)

@@ -91,9 +91,6 @@ class SmartAttr(metaclass=_Sprite):
             return self
         return getattr(instance, self.cachedname, self.default)
 
-    def __set__(self, instance, value, /):
-        setattr(instance, self.cachedname, value)
-
 
 class Fields(_Kwargs):
 
@@ -196,6 +193,11 @@ class Field(SmartAttr):
         if anno is cls:
             return cls(name, default=value)
         return cls(name, anno, default=value)
+
+    def __get__(self, instance, owner=None, /):
+        if instance is None:
+            return self
+        return getattr(instance.params, self.name)
 
 
 class FieldAnno:
@@ -309,12 +311,6 @@ class TektonBase(metaclass=Tekton):
     @classmethod
     def _get_signature(cls, /):
         return cls.__fields__.signature
-
-    @classmethod
-    def _yield_concrete_slots(cls, /):
-        yield from cls.__req_slots__
-        yield from (field.cachedname for field in cls.__fields__.values())
-        yield from (prop.cachedname for prop in cls.__props__.values())
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):

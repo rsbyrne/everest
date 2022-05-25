@@ -65,6 +65,10 @@ class Pentheros(_Essence):
     def construct(cls, /, *_, **__):
         raise NotImplementedError
 
+    @property
+    def arity(cls, /):
+        return len(cls.Params._fields)
+
 
 class PentherosBase(metaclass=Pentheros):
 
@@ -110,14 +114,13 @@ class PentherosBase(metaclass=Pentheros):
     def __class_getitem__(cls, arg, /):
         if cls.arity == 1:
             arg = (arg,)
-        return cls.instantiate(arg)
+        return cls.retrieve(arg)
 
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        params = self.params
-        if ptolcls.arity == 1:
+    @classmethod
+    def construct_epitaph(cls, params, /):
+        if cls.arity == 1:
             params = params[0]
-        return ptolcls.taphonomy.getitem_epitaph(ptolcls, params)
+        return cls.taphonomy.getitem_epitaph(cls, params)
 
 
 ###############################################################################

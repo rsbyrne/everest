@@ -270,17 +270,17 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Initialising the class:
 
     def __init__(cls, /, *args, **kwargs):
-        with cls.mutable:
-            _abc.ABCMeta.__init__(cls, *args, **kwargs)
-            try:
-                func = cls.__dict__['__class_delayed_eval__']
-            except KeyError:
-                pass
-            else:
-                func(ns := _RestrictedNamespace(badvals={cls,}))
-                cls.incorporate_namespace(ns)
-            cls.__class_init__()
-            cls.__signature__ = cls._get_signature()
+        _abc.ABCMeta.__init__(cls, *args, **kwargs)
+        try:
+            func = cls.__dict__['__class_delayed_eval__']
+        except KeyError:
+            pass
+        else:
+            func(ns := _RestrictedNamespace(badvals={cls,}))
+            cls.incorporate_namespace(ns)
+        cls.__class_init__()
+        cls.__signature__ = cls._get_signature()
+        cls.freezeattr.toggle(True)
 
 
     def incorporate_namespace(cls, ns, /):
@@ -379,9 +379,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def metacls(cls, /):
         return type(cls.__ptolemaic_class__)
 
-    @_caching.attr_property(dictlook=True)
+    @property
     def epitaph(cls, /):
-        return cls.taphonomy.auto_epitaph(cls.__ptolemaic_class__)
+        try:
+            return cls.__dict__['_epitaph']
+        except KeyError:
+            epi = cls.taphonomy.auto_epitaph(cls)
+            with cls.mutable:
+                setattr(cls, '_epitaph', epi)
+            return epi
 
     ### Operations:
 
@@ -396,11 +402,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __class_str__(cls, /):
         return cls.__name__
 
-    @_caching.attr_cache(dictlook=True)
     def __repr__(cls, /):
-        return cls.__class_repr__()
+        return cls.__ptolemaic_class__.__class_repr__()
 
-    @_caching.attr_cache(dictlook=True)
     def __str__(cls, /):
         return cls.__ptolemaic_class__.__class_str__()
 

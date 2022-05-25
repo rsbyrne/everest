@@ -32,12 +32,11 @@ class Prop(_SmartAttr):
                 setattr(instance, self.cachedname, value)
             return value
 
-    def __set__(self, instance, value, /):
-        raise NotImplementedError
-
 
 class Comp(_SmartAttr):
-    ...
+
+    def __set__(self, instance, value, /):
+        setattr(instance, self.cachedname, value)
 
 
 class Armature(_Tekton, _Composite):
@@ -54,7 +53,15 @@ class Armature(_Tekton, _Composite):
 
 
 class ArmatureBase(metaclass=Armature):
-    ...
+
+    @classmethod
+    def _yield_concrete_slots(cls, /):
+        yield from cls.__req_slots__
+        yield from (prop.cachedname for prop in cls.__props__.values())
+
+    @classmethod
+    def construct(cls, params: _collabc.Sequence, /):
+        return super().construct(params=params)
 
 
 ###############################################################################

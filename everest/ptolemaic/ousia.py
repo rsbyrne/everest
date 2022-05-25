@@ -66,10 +66,6 @@ class Ousia(_Essence):
         with cls.mutable:
             cls.Concrete = cls.ConcreteMeta(cls)
 
-    @property
-    def arity(cls, /):
-        return len(cls.Params._fields)
-
 
 @_ur.Dat.register
 class OusiaBase(metaclass=Ousia):
@@ -102,15 +98,6 @@ class OusiaBase(metaclass=Ousia):
             )
 
     ### Object creation:
-
-    # def initialise(self, params, /):
-    #     for key, val in params.items():
-    #         setattr(self, key, val)
-    #     self.__init__()
-
-    # @classmethod
-    # def parameterise(cls, /, *args, **kwargs) -> _collabc.Mapping:
-    #     return dict(*args, **kwargs)
 
     def initialise(self, /, **attrs):
         for key, val in attrs.items():
