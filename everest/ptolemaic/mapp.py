@@ -24,7 +24,7 @@ def convert(arg, /):
     if isinstance(arg, _collabc.Iterable):
         return SwitchMapp(*arg)
     if isinstance(arg, _collabc.Callable):
-        return DefMapp(arg)
+        return CallMapp(arg)
     raise TypeError(type(arg))
 
 
@@ -44,10 +44,6 @@ class Mapp(metaclass=_Essence):
     def codomain(self, /):
         raise NotImplementedError
 
-    @property
-    def signaltype(self, /):
-        return self.domain.signaltype
-
     def __matmul__(self, arg, /):
         if isinstance(arg, Mapp):
             return ComposedMapp(arg, self)
@@ -57,7 +53,7 @@ class Mapp(metaclass=_Essence):
         return NotImplemented
 
 
-class DefMapp(Mapp, metaclass=_Armature):
+class CallMapp(Mapp, metaclass=_Armature):
 
     func: _Armature.Field.POS[_collabc.Callable]
 
@@ -111,10 +107,13 @@ class ModifiedMapp(MappOp, metaclass=_Armature):
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
         params = super().parameterise(*args, **kwargs)
-        mapp = params.mapp
+        mapp = params.mapp = convert(params.mapp)
         for methname in ('domain', 'codomain'):
-            if getattr(params, methname) is None:
+            obj = getattr(params, methname)
+            if obj is None:
                 setattr(params, methname, getattr(mapp, methname))
+            else:
+                setattr(params, methname, _sett(obj))
         return params
 
     def __getitem__(self, arg, /):
@@ -152,15 +151,23 @@ class SwitchMapp(MappMultiOp):
                 return mapp[arg]
         raise MappError(arg)
 
+#     @_Armature.prop
+#     def get_mapp(self, /):
+#         checkmapps = tuple(
+#             (mapp.signaltype, mapp) for mapp in self.mapps
+#             )
+#         @_functools.lru_cache
+#         def _func_(arg: type, /):
+#             for typ, mapp in checkmapps:
+#                 if issubclass(arg, typ):
+#                     return mapp
+#             raise MappError(arg)
+#         return _func_
 
-class BraceSwitchMapp(SwitchMapp):
-
-    @_Armature.prop
-    def domain(self, /):
-        return _sett.union(*(mp.domain for mp in self.mapps))
-
-    def __getitem__(self, arg, /):
-        return self.get_mapp(tuple(map(type, arg)))[arg]
+#     def __getitem__(self, arg, /):
+#         return self.get_mapp(
+#             getattr(arg, 'signaltype', type(arg))
+#             )[arg]
 
 
 class ComposedMapp(MappMultiOp):

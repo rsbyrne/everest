@@ -161,17 +161,21 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         pass
 
     @classmethod
-    def process_mergenames(meta, name, bases, ns, /):
+    def process_mergename(meta, bases, ns, mergename, /):
+        if isinstance(mergename, tuple):
+            mergename, mergetyp = mergename
+            mergetyp = _ur.convert_type(mergetyp)
+        else:
+            mergename, mergetyp = mergename, _ur.DatUniqueTuple
+        ns[mergename] = merge_names(bases, ns, mergename, mergetyp=mergetyp)
+
+    @classmethod
+    def process_mergenames(meta, bases, ns, /):
         mergenames = ns['MERGENAMES'] = merge_names(
             bases, ns, 'MERGENAMES', mergetyp=_ur.DatUniqueTuple
             )
-        for row in mergenames:
-            if isinstance(row, tuple):
-                name, mergetyp = row
-                mergetyp = _ur.convert_type(mergetyp)
-            else:
-                name, mergetyp = row, _ur.DatUniqueTuple
-            ns[name] = merge_names(bases, ns, name, mergetyp=mergetyp)
+        for mergename in mergenames:
+            meta.process_mergename(bases, ns, mergename)
 
     @classmethod
     def process_bases(meta, name, bases, namespace, /):
@@ -219,7 +223,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             meta.process_annotations(ns)
             )
         meta._categorise_namespace(ns)
-        meta.process_mergenames(name, bases, ns)
+        meta.process_mergenames(bases, ns)
         ns['_clssoftcache'] = {}
         ns['_clsweakcache'] = _weakref.WeakValueDictionary()
         ns['__weak_dict__'] = _weakref.WeakValueDictionary()

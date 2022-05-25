@@ -14,7 +14,7 @@ from everest.ur import Dat as _Dat
 from .essence import Essence as _Essence
 from .enumm import Enumm as _Enumm
 from .sprite import ModuleMate as _ModuleMate
-from .armature import Armature as _Armature, Field as _Field
+from .armature import Armature as _Armature
 from .utilities import (
     TypeIntersection as _TypeIntersection,
     TypeBrace as _TypeBrace,
@@ -124,15 +124,25 @@ class TypeSett(Sett, metaclass=_Armature):
     typ: _Armature.Field.POS[type]
 
     def get_signaltype(self, /):
-        return self.typ
+        typ = self.typ
+        return _TypeBrace(typ) if hasattr(typ, '__args__') else typ
 
     def __contains__(self, arg, /):
-        return isinstance(arg, self.typ)
+        return isinstance(arg, self.signaltype)
 
 
 class Brace(Sett, metaclass=_Armature):
 
     setts: _Armature.Field.POS[_collabc.Iterable]
+    overtype: _Armature.Field.KW[type] = tuple
+
+    __req_slots__ = ('_generic',)
+
+    def __init__(self, /):
+        self._generic = self.overtype[tuple(
+            sett.signaltype for sett in self.setts
+            )]
+        super().__init__()
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -141,7 +151,7 @@ class Brace(Sett, metaclass=_Armature):
         return params
 
     def get_signaltype(self, /):
-        return _TypeBrace(*(sett.signaltype for sett in self.setts))
+        return _TypeBrace(self._generic)
 
     def __contains__(self, arg, /):
         return all(

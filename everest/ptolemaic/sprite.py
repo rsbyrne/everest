@@ -11,7 +11,8 @@ import sys as _sys
 from everest.utilities import pretty as _pretty
 from everest import ur as _ur
 
-from .composite import Composite as _Composite, paramstuple as _paramstuple
+from .pentheros import paramstuple as _paramstuple
+from .composite import Composite as _Composite
 
 
 class Sprite(_Composite):

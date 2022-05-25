@@ -78,7 +78,6 @@ class OusiaBase(metaclass=Ousia):
     __req_slots__ = (
         '__weakref__',
         'freezeattr',
-        'params',
         '_pyhash',
         '_sessioncacheref',
         '_epitaph',
@@ -104,29 +103,34 @@ class OusiaBase(metaclass=Ousia):
 
     ### Object creation:
 
-    def initialise(self, params, /):
-        object.__setattr__(self, '_pyhash', _reseed.rdigits(16))
-        switch = _Switch(False)
-        object.__setattr__(self, 'freezeattr', switch)
-        for key, val in params.items():
+    # def initialise(self, params, /):
+    #     for key, val in params.items():
+    #         setattr(self, key, val)
+    #     self.__init__()
+
+    # @classmethod
+    # def parameterise(cls, /, *args, **kwargs) -> _collabc.Mapping:
+    #     return dict(*args, **kwargs)
+
+    def initialise(self, /, **attrs):
+        for key, val in attrs.items():
             setattr(self, key, val)
         self.__init__()
-        switch.toggle(True)
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs) -> _collabc.Mapping:
-        return dict(*args, **kwargs)
-
-    @classmethod
-    def instantiate(cls, params, /):
+    def construct(cls, /, **attrs):
         Concrete = cls.Concrete
         obj = Concrete.__new__(Concrete)
-        obj.initialise(params)
+        object.__setattr__(obj, '_pyhash', _reseed.rdigits(16))
+        switch = _Switch(False)
+        object.__setattr__(obj, 'freezeattr', switch)
+        obj.initialise(**attrs)
+        switch.toggle(True)
         return obj
 
     @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        return cls.instantiate(cls.parameterise(*args, **kwargs))
+    def __class_call__(cls, /, **attrs):
+        return cls.construct(**attrs)
 
     ### Some aliases:
 
@@ -215,7 +219,7 @@ class OusiaBase(metaclass=Ousia):
         return self._root_repr()
 
     def __repr__(self, /):
-        return f"<{self.rootrepr}, id={id(self)},"
+        return f"<{self.rootrepr}, id={id(self)}>"
 
     @_abc.abstractmethod
     def make_epitaph(self, /):

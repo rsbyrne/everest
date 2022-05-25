@@ -3,34 +3,42 @@
 ###############################################################################
 
 
-class MultiType(type):
+class TypeBrace(type):
 
-    def __new__(meta, /, *types):
-        name = meta.__name__ + '_'.join(typ.__name__ for typ in types)
-        return type.__new__(meta, name, (), dict(types=types))
+    def __new__(meta, typ, /):
+        name = f"{meta.__name__}({typ})"
+        args = typ.__args__
+        typ = typ.__origin__
+        return type.__new__(meta, name, (), dict(args=args, typ=typ))
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(cls.__name__, cls.__bases__, cls.__dict__)
 
-
-
-
-class TypeBrace(MultiType):
-
-    def __subclasscheck__(cls, arg: tuple, /):
+    def __subclasscheck__(cls, typ: type, /):
         try:
-            return all(issubclass(a, b) for a, b in zip(arg, cls.types))
-        except TypeError:
+            args = typ.__args__
+            typ = typ.__origin__
+        except AttributeError:
             return False
+        if issubclass(typ, cls.typ):
+            return all(
+                issubclass(a, b)
+                for a, b in zip(args, cls.args)
+                )
+        return False
 
     def __instancecheck__(cls, arg: tuple, /):
-        try:
-            return cls.__subclasscheck__(map(type, arg))
-        except TypeError:
-            return False
+        return cls.__subclasscheck__(type(arg)[tuple(map(type, arg))])
 
 
-class TypeIntersection(MultiType):
+class TypeIntersection(type):
+
+    def __new__(meta, /, *types):
+        name = f"{meta.__name__}({types})"
+        return type.__new__(meta, name, (), dict(types=types))
+
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(cls.__name__, cls.__bases__, cls.__dict__)
 
     def __subclasscheck__(cls, arg: type, /):
         for typ in cls.types:
