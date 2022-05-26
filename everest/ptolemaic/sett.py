@@ -15,10 +15,6 @@ from .essence import Essence as _Essence
 from .enumm import Enumm as _Enumm
 from .sprite import ModuleMate as _ModuleMate
 from .armature import Armature as _Armature
-from .utilities import (
-    TypeIntersection as _TypeIntersection,
-    TypeBrace as _TypeBrace,
-    )
 
 
 def convert(arg, /):
@@ -47,9 +43,31 @@ class Sett(metaclass=_Essence):
     def get_signaltype(self, /):
         return object
 
-    @_abc.abstractmethod
+    def __sett_contains__(self, arg, /):
+        return NotImplemented
+
     def __contains__(self, arg, /):
-        raise NotImplementedError
+        out = self.__sett_contains__(arg)
+        if out is NotImplemented:
+            try:
+                meth = arg.__constitutes__
+            except AttributeError:
+                raise NotImplementedError
+            out = meth(arg)
+        return bool(out)
+
+    def __sett_includes__(self, arg, /):
+        return NotImplemented
+
+    def __includes__(self, arg, /):
+        out = self.__sett_includes__(arg)
+        if out is NotImplemented:
+            try:
+                meth = arg.__comprises__
+            except AttributeError:
+                raise NotImplementedError
+            out = meth(arg)
+        return bool(out)
 
     def __or__(self, other, /):
         if isinstance(other, SettUnion):
@@ -88,7 +106,7 @@ class Setts(Sett, metaclass=_Enumm):
         POWER=Sett.__instancecheck__,
         )
 
-    def __contains__(self, arg, /):
+    def __sett_contains__(self, arg, /):
         return self.val(arg)
 
 
@@ -103,7 +121,7 @@ class FuncSett(Sett, metaclass=_Armature):
         return next(iter(self.func.__annotations__.values(), object))
 
     @property
-    def __contains__(self, /):
+    def __sett_contains__(self, /):
         return self.func
 
 
@@ -115,8 +133,11 @@ class ContainerSett(Sett, metaclass=_Armature):
         return tuple(sorted(set(map(type, self.container))))
 
     @property
-    def __contains__(self, /):
+    def __sett_contains__(self, /):
         return self.container.__contains__
+
+    def __sett_includes__(self, arg, /):
+        return all(map(self.container.__contains__, arg))
 
 
 class TypeSett(Sett, metaclass=_Armature):
@@ -127,36 +148,48 @@ class TypeSett(Sett, metaclass=_Armature):
         typ = self.typ
         return _TypeBrace(typ) if hasattr(typ, '__args__') else typ
 
-    def __contains__(self, arg, /):
+    def __sett_contains__(self, arg, /):
         return isinstance(arg, self.signaltype)
+
+    def __sett_includes__(self, arg, /):
+        return issubclass(arg, self.typ)
 
 
 class Brace(Sett, metaclass=_Armature):
 
     setts: _Armature.Field.POS[_collabc.Iterable]
-    overtype: _Armature.Field.KW[type] = tuple
-
-    __req_slots__ = ('_generic',)
-
-    def __init__(self, /):
-        self._generic = self.overtype[tuple(
-            sett.signaltype for sett in self.setts
-            )]
-        super().__init__()
+    oversett: _Armature.Field.KW[Sett] = tuple
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
         params = super().parameterise(*args, **kwargs)
         params.setts = tuple(map(convert, params.setts))
+        params.oversett = convert(params.oversett)
         return params
 
-    def get_signaltype(self, /):
-        return _TypeBrace(self._generic)
+    @_Armature.prop
+    def breadth(self, /):
+        return len(self.setts)
 
-    def __contains__(self, arg, /):
+    def get_signaltype(self, /):
+        return self.oversett.signaltype
+
+    def __sett_contains__(self, arg, /):
+        if arg in self.oversett:
+            return all(
+                subarg in sett
+                for sett, subarg in zip(self.setts, arg)
+                )
+        return False
+
+    def __sett_includes__(self, arg, /):
+        if not isinstance(arg, Brace):
+            return False
+        if arg.breadth != self.breadth:
+            return False
         return all(
-            subarg in sett
-            for sett, subarg in zip(self.setts, arg)
+            asett.__includes__(bsett)
+            for asett, bsett in zip(self.setts, arg.setts)
             )
 
 
@@ -174,8 +207,11 @@ class Inverse(Op, metaclass=_Armature):
         params.sett = convert(params.sett)
         return bound
 
-    def __contains__(self, arg, /):
+    def __sett_contains__(self, arg, /):
         return arg not in self.sett
+
+    def __sett_includes__(self, arg, /):
+        return not self.sett.__includes__(arg)
 
     def __inverse__(self, /):
         return self.sett
@@ -204,25 +240,59 @@ class MultiOp(Op, metaclass=_Armature):
 class Union(MultiOp):
 
     def get_signaltype(self, /):
-        return tuple(sett.signaltype for sett in self.setts)
+        typs = tuple(sorted(set(sett.signaltype for sett in self.setts)))
+        if len(typs) == 1:
+            return typs[0]
+        return typs
 
-    def __contains__(self, arg, /):
+    def __sett_contains__(self, arg, /):
         for sett in self.setts:
             if arg in sett:
                 return True
         return False
 
+    def __sett_includes__(self, arg, /):
+        for sett in self.setts:
+            if sett.__includes__(arg):
+                return True
+        return NotImplemented
+
+
+class _TypeIntersection_(type):
+
+    def __new__(meta, /, *types):
+        name = f"{meta.__name__}({types})"
+        return type.__new__(meta, name, (), dict(types=types))
+
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(cls.__name__, cls.__bases__, cls.__dict__)
+
+    def __subclasscheck__(cls, arg: type, /):
+        for typ in cls.types:
+            if not issubclass(arg, typ):
+                return False
+        return True
+
+    def __instancecheck__(cls, arg: object, /):
+        return cls.__subclasscheck__(type(arg))
+
 
 class Intersection(MultiOp):
 
     def get_signaltype(self, /):
-        return _TypeIntersection(*(sett.signaltype for sett in self.setts))
+        typs = tuple(sorted(set(sett.signaltype for sett in self.setts)))
+        if len(typs) == 1:
+            return typs[0]
+        return _TypeIntersection_(*typs)
 
-    def __contains__(self, arg, /):
+    def __sett_contains__(self, arg, /):
         for sett in self.setts:
             if arg not in sett:
                 return False
         return True
+
+    def __sett_includes__(self, arg, /):
+        return all(sett.__includes__(arg) for sett in self.setts)
 
 
 inverse = Inverse.__class_call__

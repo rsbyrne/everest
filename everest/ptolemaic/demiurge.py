@@ -7,15 +7,15 @@ from .essence import Essence as _Essence
 from .tekton import Tekton as _Tekton
 
 
-class Idealiser(_Tekton):
+class Demiurge(_Tekton):
     ...
 
 
-class IdealiserBase(metaclass=Idealiser):
+class DemiurgeBase(metaclass=Idealiser):
 
     MROCLASSES = ('Ideal',)
 
-    class Ideal(metaclass=_Essence):
+    class Demiurge(metaclass=_Essence):
         ...
 
     @classmethod

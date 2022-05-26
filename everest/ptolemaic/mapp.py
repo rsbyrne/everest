@@ -5,6 +5,7 @@
 
 import abc as _abc
 import functools as _functools
+import itertools as _itertools
 import inspect as _inspect
 from collections import abc as _collabc
 
@@ -22,7 +23,7 @@ def convert(arg, /):
     if isinstance(arg, Mapp):
         return arg
     if isinstance(arg, _collabc.Iterable):
-        return SwitchMapp(*arg)
+        return SwitchMapp(arg)
     if isinstance(arg, _collabc.Callable):
         return CallMapp(arg)
     raise TypeError(type(arg))
@@ -50,7 +51,9 @@ class Mapp(metaclass=_Essence):
         raise TypeError(type(arg))
 
     def __rmatmul__(self, arg, /):
-        return NotImplemented
+        if isinstance(arg, Mapp):
+            return ComposedMapp(self, arg)
+        raise TypeError(type(arg))
 
 
 class CallMapp(Mapp, metaclass=_Armature):
@@ -94,6 +97,77 @@ class CallMapp(Mapp, metaclass=_Armature):
         return getitem
 
 
+class SwitchMapp(Mapp, metaclass=_Armature):
+
+    mapps: _Armature.Field.POS[_collabc.Iterable]
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        params.mapps = tuple(map(convert, params.mapps))
+        return params
+
+    @_Armature.prop
+    def domain(self, /):
+        return _sett.union(*(mp.domain for mp in self.mapps))
+
+    @_Armature.prop
+    def codomain(self, /):
+        return _sett.union(*(mp.codomain for mp in self.mapps))
+
+    @_Armature.prop
+    def get_mapp(self, /):
+        checkmapps = tuple(
+            (mapp.domain.signaltype, mapp) for mapp in self.mapps
+            )
+        @_functools.lru_cache
+        def func(typ: type, /):
+            for checktyp, mapp in checkmapps:
+                if issubclass(typ, checktyp):
+                    return mapp
+            raise MappError(typ)
+        return func
+
+    def __getitem__(self, arg, /):
+        return self.get_mapp(type(arg))[arg]
+
+
+class BraceSwitchMapp(SwitchMapp):
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        mapps = params.mapps
+        domains = tuple(mapp.domain for mapp in mapps)
+        if not all(map(_sett.Brace.__instancecheck__, domains)):
+            raise cls.paramexc(
+                mapps, "All mapps in a BraceSwitchMapp must be of Brace type."
+                )
+        if len(set(domain.breadth for domain in domains)) != 1:
+            raise cls.paramexc(mapps, (
+                "All mapps in a BraceSwitchMapp must have domains "
+                "of the same shape."
+                ))
+        return params
+
+    @_Armature.prop
+    def get_mapp(self, /):
+        checkmapps = tuple(
+            (tuple(sett.signaltype for sett in mapp.domain.setts), mapp)
+            for mapp in self.mapps
+            )
+        @_functools.lru_cache
+        def _func_(*typs):
+            for checktyps, mapp in checkmapps:
+                if all(_itertools.starmap(issubclass, zip(typs, checktyps))):
+                    return mapp
+            raise MappError(typs)
+        return _func_
+
+    def __getitem__(self, arg, /):
+        return self.get_mapp(*map(type, arg))[arg]
+
+
 class MappOp(Mapp):
     ...
 
@@ -117,8 +191,6 @@ class ModifiedMapp(MappOp, metaclass=_Armature):
         return params
 
     def __getitem__(self, arg, /):
-        if arg not in self.domain:
-            raise MappError
         out = self.mapp[arg]
         assert out in self.codomain
         return out
@@ -133,41 +205,6 @@ class MappMultiOp(MappOp, metaclass=_Armature):
         params = super().parameterise(*args, **kwargs)
         params.mapps = tuple(map(convert, params.mapps))
         return params
-
-
-class SwitchMapp(MappMultiOp):
-
-    @_Armature.prop
-    def domain(self, /):
-        return _sett.union(*(mp.domain for mp in self.mapps))
-
-    @_Armature.prop
-    def codomain(self, /):
-        return _sett.union(*(mp.codomain for mp in self.mapps))
-
-    def __getitem__(self, arg, /):
-        for mapp in self.mapps:
-            if arg in mapp.domain:
-                return mapp[arg]
-        raise MappError(arg)
-
-#     @_Armature.prop
-#     def get_mapp(self, /):
-#         checkmapps = tuple(
-#             (mapp.signaltype, mapp) for mapp in self.mapps
-#             )
-#         @_functools.lru_cache
-#         def _func_(arg: type, /):
-#             for typ, mapp in checkmapps:
-#                 if issubclass(arg, typ):
-#                     return mapp
-#             raise MappError(arg)
-#         return _func_
-
-#     def __getitem__(self, arg, /):
-#         return self.get_mapp(
-#             getattr(arg, 'signaltype', type(arg))
-#             )[arg]
 
 
 class ComposedMapp(MappMultiOp):
