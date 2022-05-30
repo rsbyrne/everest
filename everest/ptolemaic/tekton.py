@@ -22,7 +22,7 @@ _pempty = _inspect._empty
 
 class SmartAttr(metaclass=_Sprite):
 
-    __params__ = ('name', 'hint', 'note', 'default')
+    __params__ = ('name', 'hint', 'note')
     __defaults__ = tuple(NotImplemented for key in __params__)
     __req_slots__ = ('cachedname', 'degenerate')
 
@@ -74,12 +74,6 @@ class SmartAttr(metaclass=_Sprite):
         if note in (_pempty, NotImplemented):
             return '?'
         return str(note)
-
-    @staticmethod
-    def process_default(default, /):
-        if default is _pempty:
-            return NotImplemented
-        return default
 
     def __init__(self, /):
         super().__init__()
@@ -142,7 +136,7 @@ class Fields(_Kwargs):
 
 class Field(SmartAttr):
 
-    __params__ = ('kind',)
+    __params__ = ('default', 'kind',)
     __defaults__ = tuple(NotImplemented for key in __params__)
     __req_slots__ = ('score', 'parameter')
 
@@ -155,6 +149,12 @@ class Field(SmartAttr):
         KW = _pkind['KEYWORD_ONLY'],
         KWARGS = _pkind['VAR_KEYWORD'],
         ))
+
+    @staticmethod
+    def process_default(default, /):
+        if default is _pempty:
+            return NotImplemented
+        return default
 
     @classmethod
     def process_kind(cls, kind, /):
@@ -198,6 +198,9 @@ class Field(SmartAttr):
         if instance is None:
             return self
         return getattr(instance.params, self.name)
+
+    def __set__(self, instance, value, /):
+        pass
 
 
 class FieldAnno:

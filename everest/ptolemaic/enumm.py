@@ -10,11 +10,6 @@ from .ousia import Ousia as _Ousia
 
 class Enumm(_Ousia):
 
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        with cls.mutable:
-            cls.add_enumerators()
-
     def __iter__(self, /):
         return iter(self.enumerators)
 
@@ -24,6 +19,11 @@ class EnummBase(metaclass=_Ousia):
     __req_slots__ = ('serial', 'name', 'value')
     MERGENAMES = (('__enumerators__', dict),)
     __enumerators__ = {}
+
+    @classmethod
+    def __class_deep_init__(cls, /):
+        super().__class_deep_init__()
+        cls.add_enumerators()
 
     @classmethod
     def add_enumerators(cls, /):

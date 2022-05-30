@@ -115,57 +115,11 @@ class SwitchMapp(Mapp, metaclass=_Armature):
     def codomain(self, /):
         return _sett.union(*(mp.codomain for mp in self.mapps))
 
-    @_Armature.prop
-    def get_mapp(self, /):
-        checkmapps = tuple(
-            (mapp.domain.signaltype, mapp) for mapp in self.mapps
-            )
-        @_functools.lru_cache
-        def func(typ: type, /):
-            for checktyp, mapp in checkmapps:
-                if issubclass(typ, checktyp):
-                    return mapp
-            raise MappError(typ)
-        return func
-
     def __getitem__(self, arg, /):
-        return self.get_mapp(type(arg))[arg]
-
-
-class BraceSwitchMapp(SwitchMapp):
-
-    @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
-        mapps = params.mapps
-        domains = tuple(mapp.domain for mapp in mapps)
-        if not all(map(_sett.Brace.__instancecheck__, domains)):
-            raise cls.paramexc(
-                mapps, "All mapps in a BraceSwitchMapp must be of Brace type."
-                )
-        if len(set(domain.breadth for domain in domains)) != 1:
-            raise cls.paramexc(mapps, (
-                "All mapps in a BraceSwitchMapp must have domains "
-                "of the same shape."
-                ))
-        return params
-
-    @_Armature.prop
-    def get_mapp(self, /):
-        checkmapps = tuple(
-            (tuple(sett.signaltype for sett in mapp.domain.setts), mapp)
-            for mapp in self.mapps
-            )
-        @_functools.lru_cache
-        def _func_(*typs):
-            for checktyps, mapp in checkmapps:
-                if all(_itertools.starmap(issubclass, zip(typs, checktyps))):
-                    return mapp
-            raise MappError(typs)
-        return _func_
-
-    def __getitem__(self, arg, /):
-        return self.get_mapp(*map(type, arg))[arg]
+        for mapp in self.mapps:
+            if arg in mapp.domain:
+                return mapp[arg]
+        raise MapError(arg)
 
 
 class MappOp(Mapp):
@@ -262,23 +216,15 @@ _MappModuleMate_(__name__)
 ###############################################################################
 
 
-# class SwitchMapp(MappMultiOp):
+# class SwitchMapp(Mapp, metaclass=_Armature):
+
+#     mapps: _Armature.Field.POS[_collabc.Iterable]
 
 #     @classmethod
-#     def instantiate(cls, params, /):
-#         if cls is SwitchMapp:
-#             isbrace = tuple(
-#                 isinstance(mp.domain, _sett.Brace)
-#                 for mp in params.mapps
-#                 )
-#             if any(isbrace):
-#                 if all(isbrace):
-#                     return BraceSwitchMapp.instantiate(params)
-#                 raise TypeError(
-#                     "Cannot mix bracelike and non-bracelike mapps "
-#                     "in a single SwitchMapp."
-#                     )
-#         return super().instantiate(params)
+#     def parameterise(cls, /, *args, **kwargs):
+#         params = super().parameterise(*args, **kwargs)
+#         params.mapps = tuple(map(convert, params.mapps))
+#         return params
 
 #     @_Armature.prop
 #     def domain(self, /):
@@ -291,15 +237,15 @@ _MappModuleMate_(__name__)
 #     @_Armature.prop
 #     def get_mapp(self, /):
 #         checkmapps = tuple(
-#             (mapp.signaltype, mapp) for mapp in self.mapps
+#             (mapp.domain.signaltype, mapp) for mapp in self.mapps
 #             )
 #         @_functools.lru_cache
-#         def _func_(arg: type, /):
-#             for typ, mapp in checkmapps:
-#                 if issubclass(arg, typ):
+#         def func(typ: type, /):
+#             for checktyp, mapp in checkmapps:
+#                 if issubclass(typ, checktyp):
 #                     return mapp
-#             raise MappError(arg)
-#         return _func_
+#             raise MappError(typ)
+#         return func
 
 #     def __getitem__(self, arg, /):
 #         return self.get_mapp(type(arg))[arg]
@@ -307,9 +253,88 @@ _MappModuleMate_(__name__)
 
 # class BraceSwitchMapp(SwitchMapp):
 
+#     @classmethod
+#     def parameterise(cls, /, *args, **kwargs):
+#         params = super().parameterise(*args, **kwargs)
+#         mapps = params.mapps
+#         domains = tuple(mapp.domain for mapp in mapps)
+#         if not all(map(_sett.Brace.__instancecheck__, domains)):
+#             raise cls.paramexc(
+#                 mapps, "All mapps in a BraceSwitchMapp must be of Brace type."
+#                 )
+#         if len(set(domain.breadth for domain in domains)) != 1:
+#             raise cls.paramexc(mapps, (
+#                 "All mapps in a BraceSwitchMapp must have domains "
+#                 "of the same shape."
+#                 ))
+#         return params
+
 #     @_Armature.prop
-#     def domain(self, /):
-#         return _sett.union(*(mp.domain for mp in self.mapps))
+#     def get_mapp(self, /):
+#         checkmapps = tuple(
+#             (tuple(sett.signaltype for sett in mapp.domain.setts), mapp)
+#             for mapp in self.mapps
+#             )
+#         @_functools.lru_cache
+#         def _func_(*typs):
+#             for checktyps, mapp in checkmapps:
+#                 if all(_itertools.starmap(issubclass, zip(typs, checktyps))):
+#                     return mapp
+#             raise MappError(typs)
+#         return _func_
 
 #     def __getitem__(self, arg, /):
-#         return self.get_mapp(tuple(map(type, arg)))[arg]
+#         return self.get_mapp(*map(type, arg))[arg]
+
+
+#     @_Armature.prop
+#     def get_mapp(self, /):
+#         checkmapps = tuple(
+#             (mapp.domain.signaltype, mapp) for mapp in self.mapps
+#             )
+#         @_functools.lru_cache
+#         def func(typ: type, /):
+#             for checktyp, mapp in checkmapps:
+#                 if issubclass(typ, checktyp):
+#                     return mapp
+#             raise MappError(typ)
+#         return func
+
+#     def __getitem__(self, arg, /):
+#         return self.get_mapp(type(arg))[arg]
+
+
+# class BraceSwitchMapp(SwitchMapp):
+
+#     @classmethod
+#     def parameterise(cls, /, *args, **kwargs):
+#         params = super().parameterise(*args, **kwargs)
+#         mapps = params.mapps
+#         domains = tuple(mapp.domain for mapp in mapps)
+#         if not all(map(_sett.Brace.__instancecheck__, domains)):
+#             raise cls.paramexc(
+#                 mapps, "All mapps in a BraceSwitchMapp must be of Brace type."
+#                 )
+#         if len(set(domain.breadth for domain in domains)) != 1:
+#             raise cls.paramexc(mapps, (
+#                 "All mapps in a BraceSwitchMapp must have domains "
+#                 "of the same shape."
+#                 ))
+#         return params
+
+#     @_Armature.prop
+#     def get_mapp(self, /):
+#         checkmapps = tuple(
+#             (tuple(sett.signaltype for sett in mapp.domain.setts), mapp)
+#             for mapp in self.mapps
+#             )
+#         @_functools.lru_cache
+#         def _func_(*typs):
+#             for checktyps, mapp in checkmapps:
+#                 if all(_itertools.starmap(issubclass, zip(typs, checktyps))):
+#                     return mapp
+#             raise MappError(typs)
+#         return _func_
+
+#     def __getitem__(self, arg, /):
+#         return self.get_mapp(*map(type, arg))[arg]

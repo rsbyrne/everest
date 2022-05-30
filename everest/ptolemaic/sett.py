@@ -9,7 +9,7 @@ import inspect as _inspect
 import types as _types
 import sys as _sys
 
-from everest.ur import Dat as _Dat
+from everest import ur as _ur
 
 from .essence import Essence as _Essence
 from .enumm import Enumm as _Enumm
@@ -101,7 +101,7 @@ class Sett(metaclass=_Essence):
 class Setts(Sett, metaclass=_Enumm):
 
     __enumerators__ = dict(
-        UNIVERSE=_Dat.__instancecheck__,
+        UNIVERSE=_ur.Dat.__instancecheck__,
         NULL=(lambda x: False),
         POWER=Sett.__instancecheck__,
         )
@@ -144,12 +144,19 @@ class TypeSett(Sett, metaclass=_Armature):
 
     typ: _Armature.Field.POS[type]
 
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        typ = params.typ
+        if isinstance(typ, _types.GenericAlias):
+            params.typ = _ur.TypeBrace(typ.__origin__, typ.__args__)
+        return params
+
     def get_signaltype(self, /):
-        typ = self.typ
-        return _TypeBrace(typ) if hasattr(typ, '__args__') else typ
+        return self.typ
 
     def __sett_contains__(self, arg, /):
-        return isinstance(arg, self.signaltype)
+        return isinstance(arg, self.typ)
 
     def __sett_includes__(self, arg, /):
         return issubclass(arg, self.typ)
@@ -158,13 +165,12 @@ class TypeSett(Sett, metaclass=_Armature):
 class Brace(Sett, metaclass=_Armature):
 
     setts: _Armature.Field.POS[_collabc.Iterable]
-    oversett: _Armature.Field.KW[Sett] = tuple
+    typ: _Armature.Field.KW[type] = tuple
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
         params = super().parameterise(*args, **kwargs)
         params.setts = tuple(map(convert, params.setts))
-        params.oversett = convert(params.oversett)
         return params
 
     @_Armature.prop
@@ -172,7 +178,10 @@ class Brace(Sett, metaclass=_Armature):
         return len(self.setts)
 
     def get_signaltype(self, /):
-        return self.oversett.signaltype
+        return _ur.TypeBrace(
+            self.typ,
+            tuple(sett.signaltype for sett in self.setts),
+            )
 
     def __sett_contains__(self, arg, /):
         if arg in self.oversett:
@@ -258,32 +267,13 @@ class Union(MultiOp):
         return NotImplemented
 
 
-class _TypeIntersection_(type):
-
-    def __new__(meta, /, *types):
-        name = f"{meta.__name__}({types})"
-        return type.__new__(meta, name, (), dict(types=types))
-
-    def __init__(cls, /, *args, **kwargs):
-        super().__init__(cls.__name__, cls.__bases__, cls.__dict__)
-
-    def __subclasscheck__(cls, arg: type, /):
-        for typ in cls.types:
-            if not issubclass(arg, typ):
-                return False
-        return True
-
-    def __instancecheck__(cls, arg: object, /):
-        return cls.__subclasscheck__(type(arg))
-
-
 class Intersection(MultiOp):
 
     def get_signaltype(self, /):
         typs = tuple(sorted(set(sett.signaltype for sett in self.setts)))
         if len(typs) == 1:
             return typs[0]
-        return _TypeIntersection_(*typs)
+        return _ur.TypeIntersection(*typs)
 
     def __sett_contains__(self, arg, /):
         for sett in self.setts:

@@ -15,6 +15,7 @@ from everest.utilities import (
     caching as _caching,
     switch as _switch,
     RestrictedNamespace as _RestrictedNamespace,
+    ARITHMOPS as _ARITHMOPS, REVOPS as _REVOPS,
     )
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
@@ -60,6 +61,21 @@ def is_innerclass(inner, outer):
     return '.'.join(inner.__qualname__.split('.')[:-1]) == outer.__qualname__
 
 
+class ClassBodyProcessor(dict):
+
+    def __init__(self, meta, name, bases, /):
+        self._preprocess = meta._process_namespace_entry
+        bases = meta.process_bases(name, bases)
+        self.name, self.bases = name, bases
+        super().__init__()
+
+    def __setitem__(self, name, val, /):
+        super().__setitem__(*self._preprocess(self, name, val))
+
+    def __repr__(self, /):
+        return f"ClassBodyProcessor({super().__repr__()})"
+
+
 @_Ptolemaic.register
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
@@ -67,94 +83,176 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     pure instances of itself are 'pure kinds' that cannot be instantiated.
     '''
 
+#     ### Descriptor stuff:
+
+#     def __set_name__(cls, owner, name, /):
+#         try:
+#             meth = cls.__class_set_name__
+#         except AttributeError:
+#             pass
+#         else:
+#             meth(owner, name)
+
+#     def __get__(cls, instance, owner=None, /):
+#         try:
+#             meth = cls.__class_get__
+#         except AttributeError:
+#             return cls
+#         else:
+#             return meth(instance, owner)
+
+#     def __set__(cls, instance, value, /):
+#         try:
+#             meth = cls.__class_set__
+#         except AttributeError as exc:
+#             raise AttributeError from exc
+#         else:
+#             return cls.__class_set__(instance, value)
+
+#     def __delete__(cls, instance, /):
+#         try:
+#             meth = cls.__class_delete__
+#         except AttributeError as exc:
+#             raise AttributeError from exc
+#         else:
+#             return meth(instance)
+
+#     ### Arithmetic:
+
+#     for methname in _itertools.chain(_ARITHMOPS, _REVOPS):
+#         exec('\n'.join((
+#             f"@property",
+#             f"def {methname}(cls, /):",
+#             f"    try:",
+#             f"        return cls.__class_{methname.strip('_')}__",
+#             f"    except AttributeError:",
+#             f"        raise NotImplementedError",
+#             )))
+#     del methname
+
     ### Implementing mroclasses:
 
     def _gather_mrobases(cls, name: str, /):
         for base in cls.__bases__:
-            if not isinstance(base, Essence):
-                continue
-            if name in base.MROCLASSES:
-                yield getattr(base, f"_mrofused_{name}")
-            elif hasattr(base, name):
+            try:
                 candidate = getattr(base, name)
-                if not isinstance(candidate, Essence):
-                    continue
+            except AttributeError:
+                continue
+            try:
+                yield candidate.__mroclass__
+            except AttributeError:
                 yield candidate
+            # if not isinstance(base, Essence):
+            #     continue
+            # # if name in base.MROCLASSES:
+            # #     yield getattr(base, f"_mrofused_{name}")
+            # elif hasattr(base, name):
+            #     yield getattr(base, name).__mroclass__
 
-    def _add_mroclass(cls, name: str, /):
-        mrobases = tuple(cls._gather_mrobases(name))
-        if not all(isinstance(base, Essence) for base in mrobases):
-            raise TypeError("All mroclass bases must be Essences.", mrobases)
+    @property
+    def __mroclass__(cls, /):
+        return cls.__dict__.get('_mroclass', cls.__ptolemaic_class__)
+
+    def _make_mroclass(cls, name: str, /):
+        bases = tuple(cls._gather_mrobases(name))
+        if not all(isinstance(base, Essence) for base in bases):
+            raise TypeError("All mroclass bases must be Essences.", bases)
         if name in cls.__dict__:
-            homebase = cls.__dict__[name]
+            homebase = cls.__dict__[name].__mroclass__
             if not isinstance(homebase, Essence):
                 raise TypeError(
                     "All mroclass bases must be Essences.", homebase
                     )
-            mrobasename = f"_mrobase_{name}"
-            setattr(cls, mrobasename, homebase)
+            mrobasename = f"<mrobase_{name}>"
+            # setattr(cls, mrobasename, homebase)
             if is_innerclass(homebase, cls):
                 with homebase.mutable:
                     homebase.__qualname__ = \
                         f"{cls.__qualname__}.{mrobasename}"
-            mrobases = (homebase, *mrobases)
-        if not mrobases:
-            mrobases = (Essence.BaseTyp,)
+            bases = (homebase, *bases)
+        if not bases:
+            bases = (Essence.BaseTyp,)
             # return
-        mrofusedname = f"_mrofused_{name}"
+        mrofusedname = f"<mrofused_{name}>"
         ns = {
-            '_ptolemaic_owners': (*cls.owners, cls),
+            '_ptolemaic_contexts': (*cls.contexts, cls),
             '__module__': cls.__module__,
             '__qualname__': f"{cls.__qualname__}.{mrofusedname}",
             }
-        fused = type(name, mrobases, ns)
-        setattr(cls, mrofusedname, fused)
-        newbases = (fused, *(
+        fused = type(name, bases, ns)
+        # setattr(cls, mrofusedname, fused)
+        bases = (fused, *(
             getattr(cls, oname)
             for oname in fused.OVERCLASSES
             if hasattr(cls, oname)
             ))
         ns = {
-            '_ptolemaic_owners': (*cls.owners, cls),
+            '_ptolemaic_owners': (*cls.contexts, cls),
             '__module__': cls.__module__,
             '__qualname__': f"{cls.__qualname__}.{name}",
+            '_mroclass': fused,
             }
-        final = type(name, newbases, ns)
+        final = type(name, bases, ns)
         setattr(cls, name, final)
+        try:
+            meth = final.__set_name__
+        except AttributeError:
+            pass
+        else:
+            meth(cls, name)
+        return final
+
+    def _add_mroclass(cls, name: str, /):
+        setattr(cls, name, cls._make_mroclass(name))
 
     def _add_mroclasses(cls, /):
         for name in cls.MROCLASSES:
             cls._add_mroclass(name)
 
-    def _add_subclasses(cls, /):
-        pass
-
     @property
-    def owners(cls, _default=(), /):
+    def contexts(cls, _default=(), /):
         return cls.__ptolemaic_class__.__dict__.get(
-            '_ptolemaic_owners', _default
+            '_ptolemaic_contexts', _default
             )
 
     @property
-    def owner(cls, /):
+    def context(cls, /):
         try:
-            return cls.owners[-1]
+            return cls.contexts[-1]
         except IndexError:
             return None
 
     @property
-    def trueowner(cls, /):
+    def truecontext(cls, /):
         try:
-            return cls.owners[0]
+            return cls.contexts[0]
         except IndexError:
             return None
 
     ### Creating the object that is the class itself:
 
     @classmethod
-    def __prepare__(meta, name, bases, /, *args, **kwargs):
+    def process_bases(meta, name, bases, /):
+        bases = list(expand_bases(bases))
+        for basetyp in meta.basetypes:
+            if basetyp is object:
+                continue
+            for base in bases:
+                if basetyp in base.__mro__:
+                    break
+            else:
+                bases.append(basetyp)
+        return tuple(bases)
+
+    @classmethod
+    def __prepare__(*args, **kwargs):
         '''Called before class body evaluation as the namespace.'''
-        return dict()
+        return ClassBodyProcessor(*args)
+
+    @classmethod
+    def _process_namespace_entry(cls, processor, name, val, /):
+        # print(name, val)
+        return name, val
 
     @classmethod
     def __meta_init__(meta, /):
@@ -176,19 +274,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             )
         for mergename in mergenames:
             meta.process_mergename(bases, ns, mergename)
-
-    @classmethod
-    def process_bases(meta, name, bases, namespace, /):
-        bases = list(expand_bases(bases))
-        for basetyp in meta.basetypes:
-            if basetyp is object:
-                continue
-            for base in bases:
-                if basetyp in base.__mro__:
-                    break
-            else:
-                bases.append(basetyp)
-        return tuple(bases)
 
     @classmethod
     def process_annotations(meta, ns, /):
@@ -216,12 +301,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def pre_create_class(meta, name, bases, ns, /):
-        bases = meta.process_bases(name, bases, ns)
+        ns = dict(ns)
         if '__slots__' not in ns:
             ns['__slots__'] = ()
-        ns['__annotations__'] = _types.MappingProxyType(
-            meta.process_annotations(ns)
-            )
+        ns['__annotations__'] = _ur.DatDict(meta.process_annotations(ns))
         meta._categorise_namespace(ns)
         meta.process_mergenames(bases, ns)
         ns['_clssoftcache'] = {}
@@ -249,39 +332,35 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         elif not argn:
             return meta.decorate(arg0, **kwargs)
         args = (arg0, *argn)
-        out = meta.__class_construct__(*args, **kwargs)
+        out = meta.__class_construct__(*args)
         meta.__init__(out, *args, **kwargs)
         return out
 
-    def __new__(meta, /, *args, **kwargs):
+    def __new__(meta, /, *args):
         '''Called when using the type constructor directly, '''
-        '''e.g. type(name, bases, namespace) -'''
+        '''e.g. type(name, bases, namespace); '''
         '''__init__ is called implicitly.'''
-        return meta.__class_construct__(*args, **kwargs)
+        return meta.__class_construct__(*args)
 
     @classmethod
-    def __class_construct__(meta,
-            name: str, bases: tuple, namespace: dict, /
-            ):
-        return _abc.ABCMeta.__new__(meta, *meta.pre_create_class(
-            name, bases, namespace
-            ))
+    def __class_construct__(meta, name: str, bases: tuple, ns: dict, /):
+        if isinstance(ns, ClassBodyProcessor):
+            processor = ns
+        else:
+            processor = ClassBodyProcessor(meta, name, bases)
+            processor.update(ns)
+        bases = processor.bases
+        ns = dict(processor)
+        return _abc.ABCMeta.__new__(
+            meta, *meta.pre_create_class(name, bases, ns)
+            )
 
     ### Initialising the class:
 
-    def __init__(cls, /, *args, **kwargs):
-        _abc.ABCMeta.__init__(cls, *args, **kwargs)
-        try:
-            func = cls.__dict__['__class_delayed_eval__']
-        except KeyError:
-            pass
-        else:
-            func(ns := _RestrictedNamespace(badvals={cls,}))
-            cls.incorporate_namespace(ns)
-        cls.__class_init__()
-        cls.__signature__ = cls._get_signature()
+    def __init__(cls, name, bases, ns, /):
+        _abc.ABCMeta.__init__(cls, name, bases, ns)
+        cls.__class_deep_init__()
         cls.freezeattr.toggle(True)
-
 
     def incorporate_namespace(cls, ns, /):
         for key, val in ns.items():
@@ -431,16 +510,29 @@ class EssenceBase(_Ptolemaic, metaclass=Essence):
     MERGENAMES = ('MROCLASSES', 'OVERCLASSES')
 
     @classmethod
-    def __class_call__(cls, /, *_, **__):
-        raise NotImplementedError
+    def _get_signature(cls, /):
+        try:
+            func = cls.__class_call__
+        except AttributeError:
+            func = lambda: None
+        return _inspect.signature(func)
 
     @classmethod
-    def _get_signature(cls, /):
-        return _inspect.signature(cls.__class_call__)
+    def __class_deep_init__(cls, /):
+        try:
+            func = cls.__dict__['__class_delayed_eval__']
+        except KeyError:
+            pass
+        else:
+            func(ns := _RestrictedNamespace(badvals={cls,}))
+            cls.incorporate_namespace(ns)
+        cls._add_mroclasses()
+        cls.__class_init__()
+        cls.__signature__ = cls._get_signature()
 
     @classmethod
     def __class_init__(cls, /):
-        cls._add_mroclasses()
+        pass
 
 
 ###############################################################################

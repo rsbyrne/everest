@@ -103,7 +103,9 @@ class Epitaph(_classtools.Freezable):
             return self._hashID
         except AttributeError:
             with self.mutable:
-                out = self._hashID = _word.get_random_proper(2, seed=self.hexcode)
+                out = self._hashID = _word.get_random_proper(
+                    2, seed=self.hexcode
+                    )
             return out
 
     @property
@@ -137,7 +139,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
                 raise ValueError(
                     "Cannot pass namespace as both arg and kwargs."
                     )
-        namespace = self.namespace = _types.MappingProxyType(namespace)
+        namespace = self.namespace = _ur.DatDict(namespace)
         self.encoders = _TypeMap(self.yield_encoders())
         decoders = self.decoders = _types.MappingProxyType(dict(
             self.yield_decoders()
@@ -156,6 +158,12 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
 
     def encode_module(self, arg: _types.ModuleType, /, *, deps: set = None):
         return self.enfence(repr(arg.__name__), 'm')
+
+    def encode_pseudotype(self, arg: _ur.PseudoType, /, *, deps: set = None):
+        return ''.join((
+            self.encode_content(type(arg), deps=deps),
+            self.encode_tuple(arg.args, deps=deps),
+            ))
 
     _CONTENTTYPES = (
         type,
@@ -181,15 +189,26 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
     def encode_primitive(self, arg: _Primitive, /, *, deps: set = None):
         return str(arg)
 
+    def encode_dtuple(self, arg: _ur.DatTuple, /, *, deps: set = None):
+        return 't' + self.encode_tuple(arg, deps=deps)
+
     def encode_tuple(self, arg: tuple, /, *, deps: set = None):
-        subencode = self.sub_part(deps)
-        return self.enfence(f"{','.join(map(subencode, arg))}", 't')
+        if not arg:
+            return '()'
+        content =','.join(map(self.sub_part(deps), arg))
+        if len(arg) == 1:
+            content += ','
+        return self.enfence(content)
+
+    def encode_ddict(self, arg: _ur.DatDict, /, *, deps: set = None):
+        return self.enfence(self.encode_dict(arg, deps=deps), 'd')
 
     def encode_dict(self, arg: dict, /, *, deps: set = None):
-        subencode = self.sub_part(deps)
-        pairs = zip(map(subencode, arg), map(subencode, arg.values()))
-        strn = "{" + ','.join(map(':'.join, pairs)) + "}"
-        return self.enfence(strn, 'd')
+        pairs = zip(
+            map(subencode, arg),
+            map(self.sub_part(deps), arg.values()),
+            )
+        return "{" + ','.join(map(':'.join, pairs)) + "}"
 
     def encode_array(self, arg: _np.ndarray, /, *, deps: set = None):
         arg = _ur.DatArray(arg)
@@ -212,10 +231,10 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
                 yield hint, meth
         yield object, self._encode_fallback
 
-    def decode_dict(self:'d', arg: dict, /) -> _ur.DatDict:
+    def decode_ddict(self:'d', arg: dict, /) -> _ur.DatDict:
         return _ur.DatDict(arg)
 
-    def decode_tuple(self:'t', /, *args: tuple) -> _ur.DatTuple:
+    def decode_dtuple(self:'t', /, *args: tuple) -> _ur.DatTuple:
         return _ur.DatTuple(args)
 
     def decode_array(self:'a', data: bytes, dtype: str, /) -> _ur.DatArray:
@@ -305,23 +324,21 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         strn, subs = self.posformat_callsig(caller, *args, **kwargs)
         return self.custom_epitaph(strn, **subs)
 
-    def getitem_epitaph(self, caller, arg, /):
+    def getitem_epitaph(self, obj, arg, /):
         deps = set()
-        subpart = self.sub_part(deps)
         if type(arg) is tuple:
-            getstrn = self.encode_tuple(arg, deps=deps).lstrip('t')
+            getstrn = self.encode_tuple(arg, deps=deps)
             if len(arg) > 0:
                 getstrn = getstrn[1:-1]  # strip brackets
             if len(arg) == 1:
                 getstrn += ','  # add trailing comma to form tuple
         else:
-            getstrn = self.encode(arg, deps=deps)
-        return self(f"{self.encode(caller, deps)}[{getstrn}]", deps)
+            getstrn = self.sub_encode(arg, deps)
+        return self(f"{self.sub_encode(obj, deps)}[{getstrn}]", deps)
 
-    def getattr_epitaph(self, caller, /, *args):
+    def getattr_epitaph(self, obj, /, *args):
         deps = set()
-        subpart = self.sub_part(deps)
-        return self(f"{self.encode(caller, deps)}.{'.'.join(args)}", deps)
+        return self(f"{self.sub_encode(obj, deps)}.{'.'.join(args)}", deps)
 
     def __call__(
             self, content='None', deps=None, hexcode=None, /
@@ -341,7 +358,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         return epitaph
 
     def __reduce__(self, /):
-        return self.__class__, (self.namespace.content,)
+        return self.__class__, (dict(self.namespace),)
 
 
 ###############################################################################

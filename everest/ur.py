@@ -150,5 +150,57 @@ class DatArray(Dat):
         return hash((bytes(self._array), self.dtype))
 
 
+class PseudoType(type):
+    def __new__(meta, /, *args):
+        name = f"{meta.__name__}{args}"
+        return type.__new__(meta, name, (), dict(args=args))
+
+
+class TypeIntersection(PseudoType):
+
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(cls.__name__, cls.__bases__, cls.__dict__)
+
+    def __subclasscheck__(cls, arg: type, /):
+        for typ in cls.args:
+            if not issubclass(arg, typ):
+                return False
+        return True
+
+    def __instancecheck__(cls, arg: object, /):
+        return cls.__subclasscheck__(type(arg))
+
+
+class TypeBrace(PseudoType):
+
+    def __new__(meta, overtyp, subtyps: tuple):
+        subtyps = tuple(subtyps)
+        return super().__new__(meta, overtyp, subtyps)
+
+    def __init__(cls, /, *args, **kwargs):
+        super().__init__(cls.__name__, cls.__bases__, cls.__dict__)
+        cls.__origin__, cls.__args__ = cls.args
+
+    def __subclasscheck__(cls, typ: type, /):
+        try:
+            args = typ.__args__
+            typ = typ.__origin__
+        except AttributeError:
+            return False
+        if issubclass(typ, cls.__origin__):
+            return all(
+                issubclass(a, b)
+                for a, b in zip(args, cls.__args__)
+                )
+        return False
+
+    def __instancecheck__(cls, arg: tuple, /):
+        try:
+            args = tuple(map(type, arg))
+        except TypeError:
+            return False
+        return cls.__subclasscheck__(type(arg)[args])
+
+
 ###############################################################################
 ###############################################################################

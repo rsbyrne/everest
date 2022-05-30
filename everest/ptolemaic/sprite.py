@@ -42,10 +42,6 @@ class SpriteBase(metaclass=Sprite):
     def _get_signature(cls, /):
         return _inspect.signature(cls.Params)
 
-    @classmethod
-    def construct(cls, params: _collabc.Sequence, /):
-        return super().construct(params=params, **params._asdict())
-
 
 @_collabc.Collection.register
 class ContentProxy(metaclass=Sprite):
@@ -123,7 +119,7 @@ class Arraay(ContentProxy):
     __content_type__ = _ur.DatArray
     __content_meths__ = (
         '__getitem__', 'dtype', 'shape',
-        '__reversed__', '__index__', '__count__',
+        '__reversed__', 'index', 'count',
         )
 
 

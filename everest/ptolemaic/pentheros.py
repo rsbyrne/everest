@@ -118,8 +118,7 @@ class PentherosBase(metaclass=Pentheros):
 
     @classmethod
     def construct_epitaph(cls, params, /):
-        if cls.arity == 1:
-            params = params[0]
+        params = params[0] if cls.arity == 1 else tuple(params)
         return cls.taphonomy.getitem_epitaph(cls, params)
 
 
