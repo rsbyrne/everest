@@ -3,6 +3,7 @@
 ###############################################################################
 
 
+import abc as _abc
 from collections import abc as _collabc
 
 from everest.utilities import pretty as _pretty
@@ -18,6 +19,10 @@ class Composite(_Pentheros, _Ousia):
 class CompositeBase(metaclass=Composite):
 
     __req_slots__ = ('params',)
+
+    def set_params(self, params, /):
+        super().set_params(params)
+        self.params = params
 
     def remake(self, /, **kwargs):
         return self.__ptolemaic_class__.retrieve(

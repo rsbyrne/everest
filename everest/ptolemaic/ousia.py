@@ -62,7 +62,7 @@ class OusiaBase(metaclass=Ousia):
     __req_slots__ = (
         '__weakref__',
         'freezeattr', '_pyhash', '_sessioncacheref', '_epitaph',
-        'params', '_dependants',
+        '_dependants',
         )
 
     ## Configuring the class:
@@ -92,6 +92,11 @@ class OusiaBase(metaclass=Ousia):
 
     ### Object creation:
 
+    def set_params(self, params: _collabc.Mapping, /):
+        for param in params.values():
+            if isinstance(param, OusiaBase):
+                param.add_dependant(param)
+
     @classmethod
     def construct(cls,
             params: _collabc.Mapping = _ur.DatDict(), /,    
@@ -104,11 +109,7 @@ class OusiaBase(metaclass=Ousia):
         obj._epitaph = _epitaph
         obj._pyhash = _reseed.rdigits(16)
         obj._dependants = _weakref.WeakSet()
-        obj.params = params
-        for key, val in params.items():
-            if isinstance(val, OusiaBase):
-                val.add_dependant(obj)
-            setattr(obj, key, val)
+        obj.set_params(params)
         obj.__init__(*args, **kwargs)
         switch.toggle(True)
         return obj
@@ -199,8 +200,9 @@ class OusiaBase(metaclass=Ousia):
     def __repr__(self, /):
         return f"<{self.rootrepr}, id={id(self)}>"
 
+    @_abc.abstractmethod
     def make_epitaph(self, /):
-        return cls.taphonomy.getitem_epitaph(cls, dict(params))
+        raise NotImplementedError
 
     @property
     def epitaph(self, /):

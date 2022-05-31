@@ -11,7 +11,7 @@ import abc as _abc
 
 from everest import ur as _ur
 
-from .sprite import Tuuple as _Tuuple
+from .sprite import Kwargs as _Kwargs
 from .tekton import Tekton as _Tekton, SmartAttr as _SmartAttr
 from .composite import Composite as _Composite
 
@@ -24,6 +24,10 @@ class Cacher(_SmartAttr):
     __params__ = ('func',)
     __defaults__ = tuple(NotImplemented for key in __params__)
 
+    @classmethod
+    def get_cachedname(cls, name, /):
+        return f"_cached_{name}"
+
     @staticmethod
     def process_func(func, /):
         if isinstance(func, (str, _collabc.Callable)):
@@ -31,40 +35,39 @@ class Cacher(_SmartAttr):
         raise TypeError(type(func))
 
     @_abc.abstractmethod
-    def _cache_val(self, instance, value, /):
+    def _set_cache(self, instance, value, /):
         raise NotImplementedError
 
-    def __get__(self, instance, owner=None, /):
-        if instance is None:
-            return self
+    def __bound_get__(self, instance, name, /):
+        cachedname = self.get_cachedname(name)
         try:
-            return getattr(instance, self.cachedname)
+            return getattr(instance, cachedname)
         except AttributeError:
             func = self.func
             if isinstance(func, str):
-                func = getattr(owner, func)
+                func = getattr(type(instance), func)
             try:
                 value = func(instance)
             except Exception as exc:
                 raise RuntimeError from exc
-            self._cache_val(instance, value)
+            self._set_cache(instance, cachedname, value)
             return value
 
 
 class Prop(Cacher):
 
-    def _cache_val(self, instance, value, /):
+    def _set_cache(self, instance, cachedname, value, /):
         with instance.mutable:
-            setattr(instance, self.cachedname, value)
+            setattr(instance, cachedname, value)
 
 
 class Comp(Cacher):
 
-    def _cache_val(self, instance, value, /):
-        instance.__vardict__[self.cachedname] = value
+    def _set_cache(self, instance, cachedname, value, /):
+        instance.__vardict__[cachedname] = value
 
 
-class Organs(_Tuuple):
+class Organs(_Kwargs):
 
     def __get__(self, instance, owner=None, /):
         if instance is None:
@@ -72,7 +75,10 @@ class Organs(_Tuuple):
         try:
             return instance._organs
         except AttributeError:
-            organs = tuple(organ.__get__(instance, owner) for organ in self)
+            organs = _ur.DatDict(
+                organ.__bound_get__(instance, nm)
+                for nm, organ in self.items()
+                )
             with instance.mutable:
                 instance._organs = organs
             return organs
@@ -88,6 +94,10 @@ class Organ(_SmartAttr):
     # @property
     # def __mroclass__(self, /):
     #     return self.hint
+
+    @classmethod
+    def get_cachedname(cls, name, /):
+        return f"_cached_{name}"
 
     @staticmethod
     def process_hint(hint, /):
@@ -115,23 +125,22 @@ class Organ(_SmartAttr):
                 val = getattr(instance, altnm)
             yield nm, val
 
-    def make_organ(self, instance, owner):
+    def make_organ(self, instance, name, /):
         typ = self.hint
         if isinstance(typ, str):
-            typ = getattr(owner, typ)
+            typ = getattr(type(instance), typ)
         params = typ.Params(**dict(self._yield_arguments(instance, typ)))
-        epi = typ.taphonomy.getattr_epitaph(instance, self.name)
+        epi = typ.taphonomy.getattr_epitaph(instance, name)
         return typ.construct(params, _epitaph=epi)
 
-    def __get__(self, instance, owner=None, /):
-        if instance is None:
-            return self
+    def __bound_get__(self, instance, name, /):
+        cachedname = self.get_cachedname(name)
         try:
-            return getattr(instance, self.cachedname)
+            return getattr(instance, cachedname)
         except AttributeError:
-            organ = self.make_organ(instance, owner)
+            organ = self.make_organ(instance, name)
             with instance.mutable:
-                setattr(instance, self.cachedname, organ)
+                setattr(instance, cachedname, organ)
             return organ
 
 
@@ -148,9 +157,8 @@ class Armature(_Tekton, _Composite):
     def prop(meta, body, arg: _collabc.Callable = None, /, **kwargs):
         if arg is None:
             return _functools.partial(meta.prop, body, **kwargs)
-        nm, altname = meta._smartattr_namemangle(body, arg)
+        altname = meta._smartattr_namemangle(body, arg)
         return meta.Prop(
-            name=nm,
             hint=arg.__annotations__.get('return', NotImplemented),
             note=arg.__doc__,
             func=altname,
@@ -161,9 +169,8 @@ class Armature(_Tekton, _Composite):
     def comp(meta, body, arg: _collabc.Callable = None, /, **kwargs):
         if arg is None:
             return _functools.partial(meta.comp, body, **kwargs)
-        nm, altname = meta._smartattr_namemangle(body, arg)
+        altname = meta._smartattr_namemangle(body, arg)
         return meta.Comp(
-            name=nm,
             hint=arg.__annotations__.get('return', NotImplemented),
             note=arg.__doc__,
             func=altname,
@@ -174,8 +181,12 @@ class Armature(_Tekton, _Composite):
     def organ(meta, body, arg: 'Armature' = None, /, **kwargs):
         if arg is None:
             return _functools.partial(meta.organ, body, **kwargs)
-        nm, altname = meta._smartattr_namemangle(body, arg)
-        return meta.Organ(nm, altname, ligatures=kwargs)
+        if not isinstance(arg, Armature):
+            raise TypeError(
+                f"Organ types must be Armatures or greater: {type(arg)}"
+                )
+        altname = meta._smartattr_namemangle(body, arg)
+        return meta.Organ(hint=altname, ligatures=kwargs)
 
 
 class ArmatureBase(metaclass=Armature):
@@ -185,8 +196,10 @@ class ArmatureBase(metaclass=Armature):
     @classmethod
     def _yield_concrete_slots(cls, /):
         yield from super()._yield_concrete_slots()
-        for smartattr in _itertools.chain(cls.__props__, cls.__organs__):
-            yield smartattr.cachedname
+        for nm, sm in _itertools.chain.from_iterable(
+                obj.items() for obj in (cls.__props__, cls.__organs__)
+                ):
+            yield sm.get_cachedname(nm)
 
 
 ###############################################################################

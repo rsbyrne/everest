@@ -17,20 +17,24 @@ from .pentheros import (
     ProvisionalParams as _ProvisionalParams,
     paramstuple as _paramstuple,
     )
-from .sprite import Sprite as _Sprite, Tuuple as _Tuuple
+from .sprite import Sprite as _Sprite, Kwargs as _Kwargs
+from .utilities import (
+    BindableObject as _BindableObject,
+    BoundObject as _BoundObject,
+    )
 
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
 
 
-class SmartAttr(metaclass=_Sprite):
+class SmartAttr(_BindableObject, metaclass=_Sprite):
 
-    __params__ = ('name', 'hint', 'note')
+    __params__ = ('hint', 'note')
     __defaults__ = tuple(NotImplemented for key in __params__)
     __req_slots__ = ('cachedname', 'degenerate')
 
-    MERGETYPE = _ur.DatTuple
+    MERGETYPE = _ur.DatDict
 
     @classmethod
     def __class_init__(cls, /):
@@ -49,12 +53,6 @@ class SmartAttr(metaclass=_Sprite):
         if isinstance(arg, cls):
             return arg
         raise TypeError(type(arg))
-
-    @staticmethod
-    def process_name(name, /):
-        if name in (_pempty, NotImplemented):
-            return 'anon'
-        return str(name)
 
     @staticmethod
     def process_hint(hint, /):
@@ -81,32 +79,31 @@ class SmartAttr(metaclass=_Sprite):
 
     def __init__(self, /):
         super().__init__()
-        self.cachedname = f"_cached_{self.name}"
         self.degenerate = not bool(self.hint)
 
-    def __get__(self, instance, owner=None, /):
-        if instance is None:
-            return self
-        return getattr(instance, self.cachedname, self.default)
 
-
-class Fields(_Tuuple):
+class Fields(_Kwargs):
 
     __req_slots__ = ('signature', 'defaults', 'degenerates')
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
         (fields,) = super().parameterise(*args, **kwargs)
-        return (cls.__content_type__(sorted(fields, key=(lambda x: x.score))),)
+        return (
+            cls.__content_type__(
+                sorted(fields.items(), key=(lambda x: x[1].score))
+                ),
+            )
 
     def __init__(self, /):
         super().__init__()
         degenerates = self.degenerates = _ur.DatDict({
-            field.name: field.default
-            for field in self if field.degenerate
+            name: field.default
+            for name, field in self.items() if field.degenerate
             })
         signature = self.signature = _inspect.Signature(
-            field.parameter for field in self if field.name not in degenerates
+            field.get_parameter(name)
+            for name, field in self.items() if name not in degenerates
             )
         self.defaults = _ur.DatDict({
             param.name: param.default
@@ -136,7 +133,7 @@ class Field(SmartAttr):
 
     __params__ = ('default', 'kind',)
     __defaults__ = tuple(NotImplemented for key in __params__)
-    __req_slots__ = ('score', 'parameter')
+    __req_slots__ = ('score',)
 
     MERGETYPE = Fields
 
@@ -165,18 +162,19 @@ class Field(SmartAttr):
     def __init__(self, /):
         super().__init__()
         kind = self.kind
-        kindpairs = self.KINDPAIRS
         default = self.default
         if self.degenerate:
             self.score = -1
         else:
             self.score = sum((
-                tuple(kindpairs).index(kind),
+                tuple(self.KINDPAIRS).index(kind),
                 (0 if default is NotImplemented else 0.5),
                 ))
-        self.parameter = _inspect.Parameter(
-            self.name, kindpairs[kind],
-            default=_pempty if (val:=default) is NotImplemented else val,
+
+    def get_parameter(self, name, /):
+        return _inspect.Parameter(
+            name, self.KINDPAIRS[self.kind],
+            default=_pempty if (val:=self.default) is NotImplemented else val,
             annotation=self.hint,
             )
 
@@ -184,21 +182,16 @@ class Field(SmartAttr):
         return FieldHint('POSKW', arg)
 
     @classmethod
-    def from_annotation(cls, name, anno, value):
+    def from_annotation(cls, anno, value):
         if isinstance(anno, FieldAnno):
             hint, note, kind = anno
-            return cls(name, hint, note, value, kind)
+            return cls(hint, note, value, kind)
         if anno is cls:
-            return cls(name, default=value)
-        return cls(name, anno, default=value)
+            return cls(default=value)
+        return cls(anno, default=value)
 
-    def __get__(self, instance, owner=None, /):
-        if instance is None:
-            return self
-        return getattr(instance.params, self.name)
-
-    def __set__(self, instance, value, /):
-        pass
+    def __bound_get__(self, instance, name, /):
+        return getattr(instance.params, name)
 
 
 class FieldAnno:
@@ -270,7 +263,7 @@ class Tekton(_Pentheros):
     def process_annotations(meta, ns, /):
         annos = super().process_annotations(ns)
         ns.update({
-            name: Field.from_annotation(name, annotation, value)
+            name: Field.from_annotation(annotation, value)
             for name, (annotation, value) in annos.items()
             })
         annos.clear()
@@ -283,11 +276,12 @@ class Tekton(_Pentheros):
 
     @classmethod
     def _categorise_namespace(meta, ns, /):
-        nms = tuple(typ._mergename for typ in meta._smartattrtypes)
-        pre = tuple(ns.pop(nm, ()) for nm in nms)
+        typs = meta._smartattrtypes
+        nms = tuple(typ._mergename for typ in typs)
+        pres = tuple(ns.pop(nm, _ur.DatDict()) for nm in nms)
         super()._categorise_namespace(ns)
-        for tup, nm in zip(pre, nms):
-            ns[nm] = _ur.DatTuple((*tup, *ns[nm].values()))
+        for pre, nm in zip(pres, nms):
+            ns[nm] = _ur.DatDict(**pre, **ns[nm])
 
     @classmethod
     def process_mergenames(meta, bases, ns, /):
@@ -299,7 +293,10 @@ class Tekton(_Pentheros):
     def pre_create_class(meta, name, bases, ns, /):
         name, bases, ns = super().pre_create_class(name, bases, ns)
         for typ in meta._smartattrtypes:
-            ns.update({sm.name: sm for sm in ns[typ._mergename]})
+            # ns.update({sm.name: sm for sm in ns[typ._mergename]})
+            ns.update({
+                nm: _BoundObject(sm) for nm, sm in ns[typ._mergename].items()
+                })
         return name, bases, ns
 
     @classmethod
@@ -322,21 +319,21 @@ class Tekton(_Pentheros):
                 )
         altname = f'_{nm}'
         body.safe_set(altname, arg)
-        return nm, altname
+        return altname
 
     @classmethod
     def field(meta, body, arg: Field = None, /, **kwargs):
         if arg is None:
             return _functools.partial(meta.field, body, **kwargs)
-        nm, altname = meta._smartattr_namemangle(body, arg)
-        return meta.Field(nm, altname, **kwargs)
+        altname = meta._smartattr_namemangle(body, arg)
+        return meta.Field(hint=altname, **kwargs)
 
 
 class TektonBase(metaclass=Tekton):
 
     @classmethod
     def _make_params_type(cls, /):
-        return _paramstuple(cls.__name__, (fld.name for fld in cls.__fields__))
+        return _paramstuple(cls.__name__, cls.__fields__)
 
     @classmethod
     def _get_signature(cls, /):

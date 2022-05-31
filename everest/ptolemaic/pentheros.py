@@ -25,6 +25,14 @@ class _Params_:
     def items(self, /):
         return self._asdict().items
 
+    @property
+    def values(self, /):
+        return self._asdict().values
+
+    @property
+    def keys(self, /):
+        return self._asdict().keys
+
 
 @_functools.wraps(_namedtuple)
 def paramstuple(*args, **kwargs):

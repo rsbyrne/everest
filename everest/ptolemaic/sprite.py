@@ -42,6 +42,11 @@ class SpriteBase(metaclass=Sprite):
     def _get_signature(cls, /):
         return _inspect.signature(cls.Params)
 
+    def set_params(self, params, /):
+        super().set_params(params)
+        for key, val in params.items():
+            setattr(self, key, val)
+
 
 @_collabc.Collection.register
 class ContentProxy(metaclass=Sprite):
