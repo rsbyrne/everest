@@ -61,19 +61,42 @@ def is_innerclass(inner, outer):
     return '.'.join(inner.__qualname__.split('.')[:-1]) == outer.__qualname__
 
 
-class ClassBodyProcessor(dict):
+class ClassBody(dict):
 
     def __init__(self, meta, name, bases, /):
-        self._preprocess = meta._process_namespace_entry
-        bases = meta.process_bases(name, bases)
-        self.name, self.bases = name, bases
+        self._preprocess = meta._process_bodyitem
+        special = self.special = dict(
+            BODY = self,
+            NAME = name,
+            BASES = meta.process_bases(name, bases),
+            **dict(meta._yield_special_bodyitems(self)),
+            )
+        self.protected = set(special)
         super().__init__()
 
+    def __getitem__(self, name, /):
+        try:
+            return self.special[name]
+        except KeyError:
+            return super().__getitem__(name)
+
     def __setitem__(self, name, val, /):
+        if name in self.protected:
+            raise RuntimeError(
+                "Cannot override protected names in class body."
+                )
         super().__setitem__(*self._preprocess(self, name, val))
 
+    def safe_set(self, name, val, /):
+        if name in self:
+            raise RuntimeError(
+                "Cannot safe-set a name that is already in use."
+                )
+        self.__setitem__(name, val)
+        self.protected.add(name)
+
     def __repr__(self, /):
-        return f"ClassBodyProcessor({super().__repr__()})"
+        return f"ClassBody({super().__repr__()})"
 
 
 @_Ptolemaic.register
@@ -142,12 +165,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 yield candidate.__mroclass__
             except AttributeError:
                 yield candidate
-            # if not isinstance(base, Essence):
-            #     continue
-            # # if name in base.MROCLASSES:
-            # #     yield getattr(base, f"_mrofused_{name}")
-            # elif hasattr(base, name):
-            #     yield getattr(base, name).__mroclass__
 
     @property
     def __mroclass__(cls, /):
@@ -158,7 +175,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         if not all(isinstance(base, Essence) for base in bases):
             raise TypeError("All mroclass bases must be Essences.", bases)
         if name in cls.__dict__:
-            homebase = cls.__dict__[name].__mroclass__
+            homebase = cls.__dict__[name]
+            try:
+                homebase = homebase.__mroclass__
+            except AttributeError:
+                raise TypeError(homebase)
             if not isinstance(homebase, Essence):
                 raise TypeError(
                     "All mroclass bases must be Essences.", homebase
@@ -247,12 +268,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def __prepare__(*args, **kwargs):
         '''Called before class body evaluation as the namespace.'''
-        return ClassBodyProcessor(*args)
+        return ClassBody(*args)
 
     @classmethod
-    def _process_namespace_entry(cls, processor, name, val, /):
-        # print(name, val)
+    def _process_bodyitem(meta, processor, name, val, /):
         return name, val
+
+    @classmethod
+    def _yield_special_bodyitems(meta, body, /):
+        yield 'META', meta
 
     @classmethod
     def __meta_init__(meta, /):
@@ -283,21 +307,25 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             }
 
     @classmethod
-    def _yield_namespace_categories(meta, ns, /):
+    def _yield_namespace_categories(meta, /):
         return
         yield
 
     @classmethod
     def _categorise_namespace(meta, ns, /):
-        categories = tuple(meta._yield_namespace_categories(ns))
-        for key, val in ns.items():
-            for name, check, store in categories:
-                if check(val):
-                    store[key] = val
-        ns.update(**{
-            name: _types.MappingProxyType({**store})
-            for name, check, store in categories
+        categories = tuple(meta._yield_namespace_categories())
+        if not categories:
+            return
+        dcttyp = _ur.DatDict
+        cats = dcttyp({
+            name: dcttyp({key: val for key, val in ns.items() if check(val)})
+            for name, check in categories
             })
+        allkeys = set.union(*map(set, cats.values()))
+        newns = {key: val for key, val in ns.items() if key not in allkeys}
+        ns.clear()
+        ns.update(newns)
+        ns.update(cats)
 
     @classmethod
     def pre_create_class(meta, name, bases, ns, /):
@@ -307,8 +335,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         ns['__annotations__'] = _ur.DatDict(meta.process_annotations(ns))
         meta._categorise_namespace(ns)
         meta.process_mergenames(bases, ns)
-        ns['_clssoftcache'] = {}
-        ns['_clsweakcache'] = _weakref.WeakValueDictionary()
         ns['__weak_dict__'] = _weakref.WeakValueDictionary()
         ns['_clsfreezeattr'] = _switch.Switch(False)
         return name, bases, ns
@@ -344,13 +370,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def __class_construct__(meta, name: str, bases: tuple, ns: dict, /):
-        if isinstance(ns, ClassBodyProcessor):
-            processor = ns
+        if isinstance(ns, ClassBody):
+            bases = ns.special['BASES']
+            ns = dict(ns)
         else:
-            processor = ClassBodyProcessor(meta, name, bases)
-            processor.update(ns)
-        bases = processor.bases
-        ns = dict(processor)
+            bases = meta.process_bases(name, bases)
         return _abc.ABCMeta.__new__(
             meta, *meta.pre_create_class(name, bases, ns)
             )
@@ -367,14 +391,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             setattr(cls, key, val)
 
     ### Storage:
-
-    @property
-    def softcache(cls, /):
-        return cls._clssoftcache
-
-    @property
-    def weakcache(cls, /):
-        return cls._clsweakcache
 
     @_caching.attr_property(weak=True, dictlook=True)
     def tray(cls, /):

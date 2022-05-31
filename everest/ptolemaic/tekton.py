@@ -5,15 +5,19 @@
 
 import inspect as _inspect
 import types as _types
+from collections import abc as _collabc
+import itertools as _itertools
+import functools as _functools
 
 from everest.utilities import pretty as _pretty
+from everest import ur as _ur
 
 from .pentheros import (
     Pentheros as _Pentheros,
     ProvisionalParams as _ProvisionalParams,
     paramstuple as _paramstuple,
     )
-from .sprite import Sprite as _Sprite, Kwargs as _Kwargs
+from .sprite import Sprite as _Sprite, Tuuple as _Tuuple
 
 
 _pkind = _inspect._ParameterKind
@@ -26,7 +30,7 @@ class SmartAttr(metaclass=_Sprite):
     __defaults__ = tuple(NotImplemented for key in __params__)
     __req_slots__ = ('cachedname', 'degenerate')
 
-    MERGETYPE = _Kwargs
+    MERGETYPE = _ur.DatTuple
 
     @classmethod
     def __class_init__(cls, /):
@@ -86,36 +90,25 @@ class SmartAttr(metaclass=_Sprite):
         return getattr(instance, self.cachedname, self.default)
 
 
-class Fields(_Kwargs):
+class Fields(_Tuuple):
 
     __req_slots__ = ('signature', 'defaults', 'degenerates')
 
     @classmethod
-    def get_orderscore(cls, pair):
-        return pair[1].score
-
-    @classmethod
-    def sort_fields(cls, fields: dict, /):
-        return dict(sorted(fields.items(), key=cls.get_orderscore))
-
-    @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        (content,) = super().parameterise(*args, **kwargs)
-        return (cls.__content_type__(cls.sort_fields(content)),)
+        (fields,) = super().parameterise(*args, **kwargs)
+        return (cls.__content_type__(sorted(fields, key=(lambda x: x.score))),)
 
     def __init__(self, /):
         super().__init__()
-        degenerates = self.degenerates = _types.MappingProxyType({
-            name: field.default
-            for name, field in self.items()
-            if field.degenerate
+        degenerates = self.degenerates = _ur.DatDict({
+            field.name: field.default
+            for field in self if field.degenerate
             })
         signature = self.signature = _inspect.Signature(
-            field.parameter
-            for name, field in self.items()
-            if name not in degenerates
+            field.parameter for field in self if field.name not in degenerates
             )
-        self.defaults = _types.MappingProxyType({
+        self.defaults = _ur.DatDict({
             param.name: param.default
             for param in signature.parameters.values()
             if param.default is not param.empty
@@ -128,10 +121,15 @@ class Fields(_Kwargs):
             }.values())
 
     def __contains__(self, fieldvals: tuple) -> bool:
-        for val, field in zip(fieldvals, self.values()):
+        for val, field in zip(fieldvals, self):
             if val not in field:
                 return False
         return True
+
+    def __get__(self, instance, owner=None, /):
+        if instance is None:
+            return self
+        return instance.params
 
 
 class Field(SmartAttr):
@@ -142,13 +140,13 @@ class Field(SmartAttr):
 
     MERGETYPE = Fields
 
-    KINDPAIRS = _types.MappingProxyType(dict(
+    KINDPAIRS = _ur.DatDict(
         POS = _pkind['POSITIONAL_ONLY'],
         POSKW = _pkind['POSITIONAL_OR_KEYWORD'],
         ARGS = _pkind['VAR_POSITIONAL'],
         KW = _pkind['KEYWORD_ONLY'],
         KWARGS = _pkind['VAR_KEYWORD'],
-        ))
+        )
 
     @staticmethod
     def process_default(default, /):
@@ -267,7 +265,6 @@ class Tekton(_Pentheros):
         typs = meta._smartattrtypes = tuple(meta._yield_smartattrtypes())
         for typ in typs:
             setattr(meta, typ.__name__, typ)
-        
 
     @classmethod
     def process_annotations(meta, ns, /):
@@ -280,11 +277,17 @@ class Tekton(_Pentheros):
         return annos
 
     @classmethod
-    def _yield_namespace_categories(meta, ns, /):
-        return (
-            (mn := typ._mergename, typ.__instancecheck__, ns.get(mn, {}))
-            for typ in meta._smartattrtypes
-            )
+    def _yield_namespace_categories(meta, /):
+        for typ in meta._smartattrtypes:
+            yield (typ._mergename, typ.__instancecheck__)
+
+    @classmethod
+    def _categorise_namespace(meta, ns, /):
+        nms = tuple(typ._mergename for typ in meta._smartattrtypes)
+        pre = tuple(ns.pop(nm, ()) for nm in nms)
+        super()._categorise_namespace(ns)
+        for tup, nm in zip(pre, nms):
+            ns[nm] = _ur.DatTuple((*tup, *ns[nm].values()))
 
     @classmethod
     def process_mergenames(meta, bases, ns, /):
@@ -296,20 +299,44 @@ class Tekton(_Pentheros):
     def pre_create_class(meta, name, bases, ns, /):
         name, bases, ns = super().pre_create_class(name, bases, ns)
         for typ in meta._smartattrtypes:
-            cat = ns[typ._mergename]
-            if not all(val.name == key for key, val in cat.items()):
-                raise RuntimeError(
-                    "Names of `SmartAttrs` must match their assigned names."
-                    )
-            ns.update(cat)
+            ns.update({sm.name: sm for sm in ns[typ._mergename]})
         return name, bases, ns
+
+    @classmethod
+    def _yield_special_bodyitems(meta, body, /):
+        yield from super()._yield_special_bodyitems(body)
+        for typ in meta._smartattrtypes:
+            nm = typ.__name__.lower()
+            try:
+                meth = getattr(meta, nm)
+            except AttributeError:
+                continue
+            yield nm, _functools.partial(meth, body)
+
+    @classmethod
+    def _smartattr_namemangle(meta, body, arg, /):
+        nm = arg.__name__
+        if nm.startswith('_'):
+            raise RuntimeError(
+                "Smart Attribute name cannot start with an underscore."
+                )
+        altname = f'_{nm}'
+        body.safe_set(altname, arg)
+        return nm, altname
+
+    @classmethod
+    def field(meta, body, arg: Field = None, /, **kwargs):
+        if arg is None:
+            return _functools.partial(meta.field, body, **kwargs)
+        nm, altname = meta._smartattr_namemangle(body, arg)
+        return meta.Field(nm, altname, **kwargs)
 
 
 class TektonBase(metaclass=Tekton):
 
     @classmethod
     def _make_params_type(cls, /):
-        return _paramstuple(cls.__name__, cls.__fields__)
+        return _paramstuple(cls.__name__, (fld.name for fld in cls.__fields__))
 
     @classmethod
     def _get_signature(cls, /):

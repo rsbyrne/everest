@@ -62,7 +62,7 @@ class OusiaBase(metaclass=Ousia):
     __req_slots__ = (
         '__weakref__',
         'freezeattr', '_pyhash', '_sessioncacheref', '_epitaph',
-        'params',
+        'params', '_dependants',
         )
 
     ## Configuring the class:
@@ -103,8 +103,11 @@ class OusiaBase(metaclass=Ousia):
         object.__setattr__(obj, 'freezeattr', switch)
         obj._epitaph = _epitaph
         obj._pyhash = _reseed.rdigits(16)
+        obj._dependants = _weakref.WeakSet()
         obj.params = params
         for key, val in params.items():
+            if isinstance(val, OusiaBase):
+                val.add_dependant(obj)
             setattr(obj, key, val)
         obj.__init__(*args, **kwargs)
         switch.toggle(True)
@@ -140,6 +143,18 @@ class OusiaBase(metaclass=Ousia):
                     )
             return out
 
+    @property
+    def dependants(self, /):
+        return tuple(sorted(self._dependants))
+
+    def add_dependant(self, other, /):
+        self._dependants.add(other)
+
+    def reset(self, /):
+        self.__vardict__.clear()
+        for dep in self.dependants:
+            dep.reset()
+
     # @property
     # @_caching.weak_cache()
     # def drawer(self, /):
@@ -152,30 +167,23 @@ class OusiaBase(metaclass=Ousia):
         return self.freezeattr.as_(False)
 
     def __getattr__(self, name, /):
-        if name in self.__var_slots__:
-            try:
-                return self.__vardict__[name]
-            except KeyError as exc:
-                raise AttributeError from exc
-        raise AttributeError(name)
+        if name in self.__slots__:
+            raise AttributeError(name)
+        try:
+            return self.__vardict__[name]
+        except KeyError as exc:
+            raise AttributeError from exc
 
     def __setattr__(self, name, val, /):
-        if name in self.__var_slots__:
-            self.__vardict__[name] = val
         if name in self.__slots__:
             if self.freezeattr:
-                raise AttributeError(name)
+                raise AttributeError(name, "Cannot set slot while frozen.")
         super().__setattr__(name, val)
 
     def __delattr__(self, name, /):
-        if name in self.__var_slots__:
-            try:
-                del self.__vardict__[name]
-            except KeyError as exc:
-                raise AttributeError from exc
         if name in self.__slots__:
             if self.freezeattr:
-                raise AttributeError(name)
+                raise AttributeError(name, "Cannot delete slot while frozen.")
         super().__delattr__(name)
 
     ### Representations:

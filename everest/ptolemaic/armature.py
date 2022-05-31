@@ -4,21 +4,35 @@
 
 
 from collections import abc as _collabc
+import functools as _functools
+import inspect as _inspect
+import itertools as _itertools
+import abc as _abc
 
 from everest import ur as _ur
 
+from .sprite import Tuuple as _Tuuple
 from .tekton import Tekton as _Tekton, SmartAttr as _SmartAttr
 from .composite import Composite as _Composite
 
 
-class Prop(_SmartAttr):
+_pempty = _inspect._empty
+
+
+class Cacher(_SmartAttr):
 
     __params__ = ('func',)
     __defaults__ = tuple(NotImplemented for key in __params__)
 
     @staticmethod
     def process_func(func, /):
-        return func
+        if isinstance(func, (str, _collabc.Callable)):
+            return func
+        raise TypeError(type(func))
+
+    @_abc.abstractmethod
+    def _cache_val(self, instance, value, /):
+        raise NotImplementedError
 
     def __get__(self, instance, owner=None, /):
         if instance is None:
@@ -26,13 +40,42 @@ class Prop(_SmartAttr):
         try:
             return getattr(instance, self.cachedname)
         except AttributeError:
+            func = self.func
+            if isinstance(func, str):
+                func = getattr(owner, func)
             try:
-                value = self.func(instance)
+                value = func(instance)
             except Exception as exc:
                 raise RuntimeError from exc
-            with instance.mutable:
-                setattr(instance, self.cachedname, value)
+            self._cache_val(instance, value)
             return value
+
+
+class Prop(Cacher):
+
+    def _cache_val(self, instance, value, /):
+        with instance.mutable:
+            setattr(instance, self.cachedname, value)
+
+
+class Comp(Cacher):
+
+    def _cache_val(self, instance, value, /):
+        instance.__vardict__[self.cachedname] = value
+
+
+class Organs(_Tuuple):
+
+    def __get__(self, instance, owner=None, /):
+        if instance is None:
+            return self
+        try:
+            return instance._organs
+        except AttributeError:
+            organs = tuple(organ.__get__(instance, owner) for organ in self)
+            with instance.mutable:
+                instance._organs = organs
+            return organs
 
 
 class Organ(_SmartAttr):
@@ -40,19 +83,45 @@ class Organ(_SmartAttr):
     __params__ = ('ligatures',)
     __defaults__ = (_ur.DatDict(),)
 
+    MERGETYPE = Organs
+
     # @property
     # def __mroclass__(self, /):
     #     return self.hint
 
     @staticmethod
     def process_hint(hint, /):
-        if not isinstance(hint, Armature):
-            raise ValueError(hint)
+        if not isinstance(hint, (Armature, str)):
+            raise TypeError(type(hint))
         return hint
 
     @staticmethod
     def process_ligatures(ligatures, /):
-        return _ur.DatDict(ligatures)   
+        return _ur.DatDict(ligatures)
+
+    def _yield_arguments(self, instance, typ, /):
+        ligatures = self.ligatures
+        for nm, pm in typ.__signature__.parameters.items():
+            try:
+                altnm = ligatures[nm]
+            except KeyError:
+                try:
+                    val = getattr(instance, nm)
+                except AttributeError:
+                    val = pm.default
+                    if val is _pempty:
+                        raise RuntimeError(f"Organ missing argument: {nm}")
+            else:
+                val = getattr(instance, altnm)
+            yield nm, val
+
+    def make_organ(self, instance, owner):
+        typ = self.hint
+        if isinstance(typ, str):
+            typ = getattr(owner, typ)
+        params = typ.Params(**dict(self._yield_arguments(instance, typ)))
+        epi = typ.taphonomy.getattr_epitaph(instance, self.name)
+        return typ.construct(params, _epitaph=epi)
 
     def __get__(self, instance, owner=None, /):
         if instance is None:
@@ -60,20 +129,10 @@ class Organ(_SmartAttr):
         try:
             return getattr(instance, self.cachedname)
         except AttributeError:
-            typ = self.hint
-            bound = typ.__signature__.bind(**self.ligatures)
-            bound.apply_defaults()
-            params = typ.Params(**bound.arguments)
-            epi = typ.taphonomy.getattr_epitaph(instance, self.name)
-            out = typ.construct(params, _epitaph=epi)
+            organ = self.make_organ(instance, owner)
             with instance.mutable:
-                setattr(instance, self.cachedname, out)
-            return out
-
-class Comp(_SmartAttr):
-
-    def __set__(self, instance, value, /):
-        setattr(instance, self.cachedname, value)
+                setattr(instance, self.cachedname, organ)
+            return organ
 
 
 class Armature(_Tekton, _Composite):
@@ -86,41 +145,48 @@ class Armature(_Tekton, _Composite):
         yield Organ
 
     @classmethod
-    def prop(meta, func: _collabc.Callable, /):
-        return meta.Prop(name=func.__name__, func=func)
+    def prop(meta, body, arg: _collabc.Callable = None, /, **kwargs):
+        if arg is None:
+            return _functools.partial(meta.prop, body, **kwargs)
+        nm, altname = meta._smartattr_namemangle(body, arg)
+        return meta.Prop(
+            name=nm,
+            hint=arg.__annotations__.get('return', NotImplemented),
+            note=arg.__doc__,
+            func=altname,
+            **kwargs,
+            )
 
     @classmethod
-    def organ(meta, typ: 'Armature' = None, /, **ligatures):
-        if typ is None:
-            return _functools.partial(**ligatures)
-        return meta.Organ(name=typ.__name__, hint=typ, ligatures=ligatures)
+    def comp(meta, body, arg: _collabc.Callable = None, /, **kwargs):
+        if arg is None:
+            return _functools.partial(meta.comp, body, **kwargs)
+        nm, altname = meta._smartattr_namemangle(body, arg)
+        return meta.Comp(
+            name=nm,
+            hint=arg.__annotations__.get('return', NotImplemented),
+            note=arg.__doc__,
+            func=altname,
+            **kwargs,
+            )
+
+    @classmethod
+    def organ(meta, body, arg: 'Armature' = None, /, **kwargs):
+        if arg is None:
+            return _functools.partial(meta.organ, body, **kwargs)
+        nm, altname = meta._smartattr_namemangle(body, arg)
+        return meta.Organ(nm, altname, ligatures=kwargs)
 
 
 class ArmatureBase(metaclass=Armature):
 
+    __req_slots__ = ('_organs',)
+
     @classmethod
     def _yield_concrete_slots(cls, /):
         yield from super()._yield_concrete_slots()
-        for smartattr in cls.__props__.values():
+        for smartattr in _itertools.chain(cls.__props__, cls.__organs__):
             yield smartattr.cachedname
-        for smartattr in cls.__organs__.values():
-            yield smartattr.cachedname
-
-#     @classmethod
-#     def __class_set_name__(cls, owner, name, /):
-
-
-#     @classmethod
-#     def __class_get__(cls, instance, owner=None, /):
-#         if instance is None:
-#             return cls
-#         try:
-#             return 
-
-    # @classmethod
-    # def create_organ(cls, name, hint, note, ligatures, /):
-
-
 
 
 ###############################################################################
