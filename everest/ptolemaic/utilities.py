@@ -11,7 +11,7 @@ class BindableObject(metaclass=_abc.ABCMeta):
     __slots__ = ()
 
     @_abc.abstractmethod
-    def __bound_get__(self, instance: object, name: str, /):
+    def __bound_get__(self, instance: object, owner: type, name: str, /):
         raise NotImplementedError
 
     def __bound_set__(self, instance, name, value, /):
@@ -44,7 +44,7 @@ class BoundObject:
             name = self.name
         except AttributeError:
             raise RuntimeError("NameBinding has not had its name set.")
-        return self.obj.__bound_get__(instance, name)
+        return self.obj.__bound_get__(instance, owner, name)
 
     def __set__(self, instance, value, /):
         try:

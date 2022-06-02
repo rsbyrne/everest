@@ -3,6 +3,7 @@
 ###############################################################################
 
 
+import abc as _abc
 import inspect as _inspect
 import types as _types
 from collections import abc as _collabc
@@ -26,6 +27,25 @@ from .utilities import (
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
+
+
+class Getter(metaclass=_Sprite):
+
+    @_abc.abstractmethod
+    def __call__(self, instance, owner, /):
+        raise NotImplementedError
+
+
+class OwnerGet(Getter):
+
+    __params__ = ('name', 'default')
+    __defaults__ = (NotImplemented,)
+
+    def __call__(self, instance, owner, /):
+        name, default = self.name, self.default
+        if default is NotImplemented:
+            return getattr(owner, name)
+        return getattr(owner, name, default)
 
 
 class SmartAttr(_BindableObject, metaclass=_Sprite):
@@ -65,7 +85,7 @@ class SmartAttr(_BindableObject, metaclass=_Sprite):
         if isinstance(hint, type):
             return hint
         if isinstance(hint, str):
-            return hint
+            return OwnerGet(hint)
         raise TypeError(
             f"The `Field` hint must be a type or a tuple of types:",
             hint,
@@ -190,7 +210,7 @@ class Field(SmartAttr):
             return cls(default=value)
         return cls(anno, default=value)
 
-    def __bound_get__(self, instance, name, /):
+    def __bound_get__(self, instance, owner, name, /):
         return getattr(instance.params, name)
 
 
@@ -302,7 +322,9 @@ class Tekton(_Pentheros):
     @classmethod
     def _yield_special_bodyitems(meta, body, /):
         yield from super()._yield_special_bodyitems(body)
+        yield 'get', OwnerGet
         for typ in meta._smartattrtypes:
+            yield typ.__name__, typ
             nm = typ.__name__.lower()
             try:
                 meth = getattr(meta, nm)
@@ -312,12 +334,7 @@ class Tekton(_Pentheros):
 
     @classmethod
     def _smartattr_namemangle(meta, body, arg, /):
-        nm = arg.__name__
-        if nm.startswith('_'):
-            raise RuntimeError(
-                "Smart Attribute name cannot start with an underscore."
-                )
-        altname = f'_{nm}'
+        altname = f'_sm_{arg.__name__}'
         body.safe_set(altname, arg)
         return altname
 

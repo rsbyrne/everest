@@ -115,7 +115,7 @@ globals().update({enum.name: enum for enum in Setts})
 
 class FuncSett(Sett, metaclass=_Armature):
 
-    func: _Armature.Field.POS[_collabc.Callable]
+    func: _.Field.POS[_collabc.Callable]
 
     def get_signaltype(self, /):
         return next(iter(self.func.__annotations__.values(), object))
@@ -127,7 +127,7 @@ class FuncSett(Sett, metaclass=_Armature):
 
 class ContainerSett(Sett, metaclass=_Armature):
 
-    container: _Armature.Field.POS[_collabc.Container]
+    container: _.Field.POS[_collabc.Container]
 
     def get_signaltype(self, /):
         return tuple(sorted(set(map(type, self.container))))
@@ -142,7 +142,7 @@ class ContainerSett(Sett, metaclass=_Armature):
 
 class TypeSett(Sett, metaclass=_Armature):
 
-    typ: _Armature.Field.POS[type]
+    typ: _.Field.POS[type]
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -164,8 +164,8 @@ class TypeSett(Sett, metaclass=_Armature):
 
 class Brace(Sett, metaclass=_Armature):
 
-    setts: _Armature.Field.POS[_collabc.Iterable]
-    typ: _Armature.Field.KW[type] = tuple
+    setts: _.Field.POS[_collabc.Iterable]
+    typ: _.Field.KW[type] = tuple
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -173,7 +173,7 @@ class Brace(Sett, metaclass=_Armature):
         params.setts = tuple(map(convert, params.setts))
         return params
 
-    @_Armature.prop
+    @_.cached
     def breadth(self, /):
         return len(self.setts)
 
@@ -208,7 +208,7 @@ class Op(Sett):
 
 class Inverse(Op, metaclass=_Armature):
 
-    sett: _Armature.Field.POS[Sett]
+    sett: _.Field.POS[Sett]
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -228,7 +228,7 @@ class Inverse(Op, metaclass=_Armature):
 
 class MultiOp(Op, metaclass=_Armature):
     
-    setts: _Armature.Field.ARGS[Sett]
+    setts: _.Field.ARGS[Sett]
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):

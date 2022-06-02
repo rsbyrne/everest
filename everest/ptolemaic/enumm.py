@@ -20,6 +20,11 @@ class EnummBase(metaclass=_Ousia):
     MERGENAMES = (('__enumerators__', dict),)
     __enumerators__ = {}
 
+    def set_params(self, params, /):
+        super().set_params(params)
+        for name, param in params.items():
+            setattr(self, name, param)
+
     @classmethod
     def __class_deep_init__(cls, /):
         super().__class_deep_init__()

@@ -58,7 +58,7 @@ class Mapp(metaclass=_Essence):
 
 class CallMapp(Mapp, metaclass=_Armature):
 
-    func: _Armature.Field.POS[_collabc.Callable]
+    func: _.Field.POS[_collabc.Callable]
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -73,7 +73,7 @@ class CallMapp(Mapp, metaclass=_Armature):
             raise cls.paramexc(func, message=message)
         return params
 
-    @_Armature.prop
+    @_.cached
     def domain(self, /):
         setts = tuple(
             _sett(pm.annotation)
@@ -83,11 +83,11 @@ class CallMapp(Mapp, metaclass=_Armature):
             return setts[0]
         return _sett.Brace(setts)
 
-    @_Armature.prop
+    @_.cached
     def codomain(self, /):
         return _sett(self.func.__annotations__.get('return', None))
 
-    @_Armature.prop
+    @_.cached
     def __getitem__(self, /):
         func = self.func
         if len(_inspect.signature(func).parameters) == 1:
@@ -99,7 +99,7 @@ class CallMapp(Mapp, metaclass=_Armature):
 
 class SwitchMapp(Mapp, metaclass=_Armature):
 
-    mapps: _Armature.Field.POS[_collabc.Iterable]
+    mapps: _.Field.POS[_collabc.Iterable]
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -107,11 +107,11 @@ class SwitchMapp(Mapp, metaclass=_Armature):
         params.mapps = tuple(map(convert, params.mapps))
         return params
 
-    @_Armature.prop
+    @_.cached
     def domain(self, /):
         return _sett.union(*(mp.domain for mp in self.mapps))
 
-    @_Armature.prop
+    @_.cached
     def codomain(self, /):
         return _sett.union(*(mp.codomain for mp in self.mapps))
 
@@ -128,9 +128,9 @@ class MappOp(Mapp):
 
 class ModifiedMapp(MappOp, metaclass=_Armature):
 
-    mapp: _Armature.Field.POS[Mapp]
-    domain: _Armature.Field[_sett.Sett] = None
-    codomain: _Armature.Field[_sett.Sett] = None
+    mapp: _.Field.POS[Mapp]
+    domain: _.Field[_sett.Sett] = None
+    codomain: _.Field[_sett.Sett] = None
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -152,7 +152,7 @@ class ModifiedMapp(MappOp, metaclass=_Armature):
 
 class MappMultiOp(MappOp, metaclass=_Armature):
 
-    mapps: _Armature.Field.ARGS
+    mapps: _.Field.ARGS
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -163,13 +163,13 @@ class MappMultiOp(MappOp, metaclass=_Armature):
 
 class ComposedMapp(MappMultiOp):
 
-    mapps: _Armature.Field.ARGS
+    mapps: _.Field.ARGS
 
-    @_Armature.prop
+    @_.cached
     def domain(self, /):
         return self.mapps[0].domain
 
-    @_Armature.prop
+    @_.cached
     def codomain(self, /):
         return self.mapps[-1].codomain
 

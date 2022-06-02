@@ -64,24 +64,27 @@ def is_innerclass(inner, outer):
 class ClassBody(dict):
 
     def __init__(self, meta, name, bases, /):
+        self.__dict__.update(meta._yield_special_bodyitems(self))
         self._preprocess = meta._process_bodyitem
-        special = self.special = dict(
-            BODY = self,
-            NAME = name,
-            BASES = meta.process_bases(name, bases),
-            **dict(meta._yield_special_bodyitems(self)),
-            )
-        self.protected = set(special)
+        self.meta = meta
+        self.name = name
+        self.bases = meta.process_bases(name, bases)
+        self._protected = set(('_',))
+        self.suspended = _switch.Switch(False)
         super().__init__()
 
+    def suspend(cls, /):
+        return cls.suspended.as_(True)
+
     def __getitem__(self, name, /):
-        try:
-            return self.special[name]
-        except KeyError:
-            return super().__getitem__(name)
+        if name == '_':
+            return self
+        return super().__getitem__(name)
 
     def __setitem__(self, name, val, /):
-        if name in self.protected:
+        if self.suspended:
+            return
+        if name in self._protected:
             raise RuntimeError(
                 "Cannot override protected names in class body."
                 )
@@ -93,7 +96,7 @@ class ClassBody(dict):
                 "Cannot safe-set a name that is already in use."
                 )
         self.__setitem__(name, val)
-        self.protected.add(name)
+        self._protected.add(name)
 
     def __repr__(self, /):
         return f"ClassBody({super().__repr__()})"
@@ -276,7 +279,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def _yield_special_bodyitems(meta, body, /):
-        yield 'META', meta
+        return
+        yield
 
     @classmethod
     def __meta_init__(meta, /):
@@ -371,7 +375,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def __class_construct__(meta, name: str, bases: tuple, ns: dict, /):
         if isinstance(ns, ClassBody):
-            bases = ns.special['BASES']
+            bases = ns.bases
             ns = dict(ns)
         else:
             bases = meta.process_bases(name, bases)
