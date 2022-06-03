@@ -13,7 +13,7 @@ from everest import ur as _ur
 
 from .essence import Essence as _Essence
 from .enumm import Enumm as _Enumm
-from .sprite import ModuleMate as _ModuleMate
+from .content import ModuleMate as _ModuleMate
 from .armature import Armature as _Armature
 
 

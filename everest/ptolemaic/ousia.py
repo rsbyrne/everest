@@ -59,13 +59,19 @@ class ConcreteBase:
 class OusiaBase(metaclass=Ousia):
 
     MERGENAMES = ('__req_slots__', '__var_slots__')
-    __req_slots__ = (
+
+    __slots__ = (
         '__weakref__',
         'freezeattr', '_pyhash', '_sessioncacheref', '_epitaph',
         '_dependants',
         )
 
     ## Configuring the class:
+
+    @classmethod
+    def pre_create_class(meta, name, bases, ns, /):
+        ns['__req_slots__'] = ns.pop('__slots__', ())
+        return super().pre_create_class(name, bases, ns)
 
     @classmethod
     def _yield_concrete_slots(cls, /):

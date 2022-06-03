@@ -3,14 +3,9 @@
 ###############################################################################
 
 
-import abc as _abc
 import inspect as _inspect
-import types as _types
-from collections import abc as _collabc
-import itertools as _itertools
 import functools as _functools
 
-from everest.utilities import pretty as _pretty
 from everest import ur as _ur
 
 from .pentheros import (
@@ -18,105 +13,18 @@ from .pentheros import (
     ProvisionalParams as _ProvisionalParams,
     paramstuple as _paramstuple,
     )
-from .sprite import Sprite as _Sprite, Kwargs as _Kwargs
-from .utilities import (
-    BindableObject as _BindableObject,
-    BoundObject as _BoundObject,
-    )
+from .content import Kwargs as _Kwargs
+from .utilities import BoundObject as _BoundObject
+from . import smartattr as _smartattr
 
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
 
 
-class Getter(metaclass=_Sprite):
-
-    @_abc.abstractmethod
-    def __call__(self, instance, owner, /):
-        raise NotImplementedError
-
-
-class OwnerGet(Getter):
-
-    __params__ = ('name', 'default')
-    __defaults__ = (NotImplemented,)
-
-    def __call__(self, instance, owner, /):
-        name, default = self.name, self.default
-        if default is NotImplemented:
-            return getattr(owner, name)
-        return getattr(owner, name, default)
-
-
-class InstanceGet(Getter):
-
-    __params__ = ('name', 'default')
-    __defaults__ = (NotImplemented,)
-
-    def __call__(self, instance, owner, /):
-        name, default = self.name, self.default
-        if default is NotImplemented:
-            return getattr(instance, name)
-        return getattr(instance, name, default)
-
-
-class SmartAttr(_BindableObject, metaclass=_Sprite):
-
-    __params__ = ('hint', 'note')
-    __defaults__ = tuple(NotImplemented for key in __params__)
-    __req_slots__ = ('cachedname', 'degenerate')
-
-    MERGETYPE = _ur.DatDict
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls._mergename = f"__{cls.__name__.lower()}s__"
-
-    @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
-        for name in cls.__params__:
-            params[name] = getattr(cls, f"process_{name}")(params[name])
-        return params
-
-    @classmethod
-    def convert(cls, arg, /):
-        if isinstance(arg, cls):
-            return arg
-        raise TypeError(type(arg))
-
-    @staticmethod
-    def process_hint(hint, /):
-        if hint in (_pempty, NotImplemented):
-            return object
-        if isinstance(hint, tuple):
-            if len(hint) < 1:
-                raise TypeError("Hint cannot be an empty tuple.")
-            return hint
-        if isinstance(hint, type):
-            return hint
-        if isinstance(hint, str):
-            return OwnerGet(hint)
-        raise TypeError(
-            f"The `Field` hint must be a type or a tuple of types:",
-            hint,
-            )
-
-    @staticmethod
-    def process_note(note, /):
-        if note in (_pempty, NotImplemented):
-            return '?'
-        return str(note)
-
-    def __init__(self, /):
-        super().__init__()
-        self.degenerate = not bool(self.hint)
-
-
 class Fields(_Kwargs):
 
-    __req_slots__ = ('signature', 'defaults', 'degenerates')
+    __slots__ = ('signature', 'defaults', 'degenerates')
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -161,11 +69,12 @@ class Fields(_Kwargs):
         return instance.params
 
 
-class Field(SmartAttr):
+class Field(_smartattr.SmartAttr):
 
-    __params__ = ('default', 'kind',)
-    __defaults__ = tuple(NotImplemented for key in __params__)
-    __req_slots__ = ('score',)
+    __slots__ = ('score',)
+
+    default: object
+    kind: object
 
     MERGETYPE = Fields
 
@@ -178,18 +87,18 @@ class Field(SmartAttr):
         )
 
     @staticmethod
-    def process_default(default, /):
-        if default is _pempty:
+    def process_default(arg, /):
+        if arg is _pempty:
             return NotImplemented
-        return default
+        return arg
 
     @classmethod
-    def process_kind(cls, kind, /):
-        if kind in (_pempty, NotImplemented):
+    def process_kind(cls, arg, /):
+        if arg in (_pempty, NotImplemented):
             return 'POSKW'
-        if kind not in cls.KINDPAIRS:
-            raise ValueError(kind)
-        return kind
+        if arg not in cls.KINDPAIRS:
+            raise ValueError(arg)
+        return arg
 
     def __init__(self, /):
         super().__init__()
@@ -210,8 +119,8 @@ class Field(SmartAttr):
             annotation=self.hint,
             )
 
-    def __class_getitem__(cls, arg, /):
-        return FieldHint('POSKW', arg)
+    # def __class_getitem__(cls, arg, /):
+    #     return FieldHint('POSKW', arg)
 
     @classmethod
     def from_annotation(cls, anno, value):
@@ -336,8 +245,8 @@ class Tekton(_Pentheros):
     @classmethod
     def _yield_special_bodyitems(meta, body, /):
         yield from super()._yield_special_bodyitems(body)
-        yield 'oget', OwnerGet
-        yield 'get', InstanceGet
+        yield 'oget', _smartattr.OwnerGet
+        yield 'get', _smartattr.InstanceGet
         for typ in meta._smartattrtypes:
             yield typ.__name__, typ
             nm = typ.__name__.lower()

@@ -16,9 +16,10 @@ class Enumm(_Ousia):
 
 class EnummBase(metaclass=_Ousia):
 
-    __req_slots__ = ('serial', 'name', 'value')
     MERGENAMES = (('__enumerators__', dict),)
     __enumerators__ = {}
+
+    __slots__ = ('serial', 'name', 'value')
 
     def set_params(self, params, /):
         super().set_params(params)

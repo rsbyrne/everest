@@ -481,11 +481,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @property
     def epitaph(cls, /):
         try:
-            return cls.__dict__['_epitaph']
+            return cls.__dict__['_clsepitaph']
         except KeyError:
             epi = cls.taphonomy.auto_epitaph(cls)
             with cls.mutable:
-                setattr(cls, '_epitaph', epi)
+                setattr(cls, '_clsepitaph', epi)
             return epi
 
     ### Operations:

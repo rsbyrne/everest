@@ -10,7 +10,7 @@ import inspect as _inspect
 from collections import abc as _collabc
 
 from .essence import Essence as _Essence
-from .sprite import ModuleMate as _ModuleMate
+from .content import ModuleMate as _ModuleMate
 from .armature import Armature as _Armature
 from . import sett as _sett
 
@@ -129,8 +129,8 @@ class MappOp(Mapp):
 class ModifiedMapp(MappOp, metaclass=_Armature):
 
     mapp: _.Field.POS[Mapp]
-    domain: _.Field[_sett.Sett] = None
-    codomain: _.Field[_sett.Sett] = None
+    domain: _.Field.POSKW[_sett.Sett] = None
+    codomain: _.Field.POSKW[_sett.Sett] = None
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
