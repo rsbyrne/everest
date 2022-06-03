@@ -38,8 +38,8 @@ class BoundObject:
         self.name = name
 
     def __get__(self, instance, owner, /):
-        if instance is None:
-            return self.obj
+        # if instance is None:
+        #     return self.obj
         try:
             name = self.name
         except AttributeError:

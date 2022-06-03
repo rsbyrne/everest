@@ -48,6 +48,18 @@ class OwnerGet(Getter):
         return getattr(owner, name, default)
 
 
+class InstanceGet(Getter):
+
+    __params__ = ('name', 'default')
+    __defaults__ = (NotImplemented,)
+
+    def __call__(self, instance, owner, /):
+        name, default = self.name, self.default
+        if default is NotImplemented:
+            return getattr(instance, name)
+        return getattr(instance, name, default)
+
+
 class SmartAttr(_BindableObject, metaclass=_Sprite):
 
     __params__ = ('hint', 'note')
@@ -211,6 +223,8 @@ class Field(SmartAttr):
         return cls(anno, default=value)
 
     def __bound_get__(self, instance, owner, name, /):
+        if instance is None:
+            return self.hint
         return getattr(instance.params, name)
 
 
@@ -322,7 +336,8 @@ class Tekton(_Pentheros):
     @classmethod
     def _yield_special_bodyitems(meta, body, /):
         yield from super()._yield_special_bodyitems(body)
-        yield 'get', OwnerGet
+        yield 'oget', OwnerGet
+        yield 'get', InstanceGet
         for typ in meta._smartattrtypes:
             yield typ.__name__, typ
             nm = typ.__name__.lower()

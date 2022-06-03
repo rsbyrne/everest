@@ -21,7 +21,7 @@ class Sprite(_Composite):
 
 class SpriteBase(metaclass=Sprite):
 
-    MERGENAMES = ('__params__', ('__defaults__', tuple))
+    MERGENAMES = ('__params__', ('__defaults__', _ur.DatTuple))
     __params__ = ()
     __defaults__ = ()
 

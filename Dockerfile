@@ -163,7 +163,8 @@ RUN pip3 install -U --no-cache-dir \
 RUN pip3 install -U --no-cache-dir \
   mpmath \
   sympy \
-  more-itertools
+  more-itertools \
+  networkx
 
 # Productivity
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
@@ -171,12 +172,8 @@ RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   npm \
   && rm -rf /var/lib/apt/lists/*
 RUN pip3 install -U --no-cache-dir \
-#  flake8 \
-  jupyterlab
-#  jupyterlab-lsp \
-#  'python-lsp-server[all]' \
-#  pyls-flake8
-#RUN jupyter labextension install jupyterlab-flake8
+  jupyterlab \
+  ipywidgets
 
 # Cryptography
 RUN pip3 install -U --no-cache-dir \
@@ -185,6 +182,13 @@ RUN pip3 install -U --no-cache-dir \
 # Cython
 RUN pip3 install -U --no-cache-dir \
   cython
+
+# Extra stuff (reshuffle later)
+# RUN pip3 install -U --no-cache-dir \
+#   ipywidgets \
+#   networkx \
+#   ipycytoscape \
+#   networkit
 
 # Finish
 RUN apt update -y && apt upgrade -y
