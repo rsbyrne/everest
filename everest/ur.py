@@ -5,50 +5,50 @@
 
 import abc as _abc
 from collections import abc as _collabc
+import types as _types
+from enum import Enum as _Enum
+import functools as _functools
 
 import numpy as _np
 
 from everest.utilities import pretty as _pretty
 
-from .primitive import Primitive as _Primitive
 
-
-class Ur(_abc.ABCMeta):
+class UrMeta(_abc.ABCMeta):
     ...
 
 
-class DatMeta(Ur):
-    ...
+class Ur(metaclass=UrMeta):
+
+    __slots__ = ()
 
 
-class Dat(metaclass=DatMeta):
-    ...
+class CollectionBase(metaclass=_abc.ABCMeta):
+
+    __slots__ = ()
+
+    def __init_subclass__(cls, /, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if issubclass(cls, Ur):
+            if not all(
+                    hasattr(cls, attr)
+                    for attr in ('convert', 'convert_type')
+                    ):
+                raise TypeError(cls)
+
+    def __setattr__(self, name, val, /):
+        raise AttributeError
+
+    def __delattr__(self, name, /):
+        raise AttributeError
 
 
-_ = Dat.register(_Primitive)
+class TupleBase(tuple, CollectionBase):
 
-
-def convert_type(typ: type, /):
-    if issubclass(typ, Dat):
-        return typ
-    if issubclass(typ, _np.ndarray):
-        return DatArray
-    if issubclass(typ, _collabc.Mapping):
-        return DatDict
-    if issubclass(typ, _collabc.Iterable):
-        return DatTuple
-    raise TypeError(typ)
-
-def convert(obj, /):
-    if isinstance(obj, Dat):
-        return obj
-    return convert_type(type(obj))(obj)
-
-
-class DatTuple(tuple, Dat):
+    __slots__ = ()
 
     def __new__(cls, iterable=(), /):
-        return super().__new__(cls, map(convert, iterable))
+        return super().__new__(cls, map(cls.convert, iterable))
 
     def __repr__(self, /):
         return type(self).__qualname__ + super().__repr__()
@@ -59,7 +59,9 @@ class DatTuple(tuple, Dat):
         _pretty.pretty_tuple(self, p, cycle, root=root)
 
 
-class DatUniqueTuple(tuple, Dat):
+class UniqueTupleBase(tuple, CollectionBase):
+
+    __slots__ = ()
 
     @classmethod
     def _yield_unique(cls, iterable, /):
@@ -70,7 +72,9 @@ class DatUniqueTuple(tuple, Dat):
                 seen.add(item)
 
     def __new__(cls, iterable=(), /):
-        return super().__new__(cls, cls._yield_unique(map(convert, iterable)))
+        return super().__new__(cls, cls._yield_unique(
+            map(cls.convert, iterable)
+            ))
 
     def __repr__(self, /):
         return type(self).__qualname__ + super().__repr__()
@@ -81,10 +85,11 @@ class DatUniqueTuple(tuple, Dat):
         _pretty.pretty_tuple(self, p, cycle, root=root)
 
 
-class DatDict(dict, Dat):
+class DictBase(dict, CollectionBase):
 
     def __init__(self, /, *args, **kwargs):
         pre = dict(*args, **kwargs)
+        convert = self.convert
         super().__init__(zip(
             map(convert, pre.keys()),
             map(convert, pre.values())
@@ -110,7 +115,7 @@ class DatDict(dict, Dat):
         _pretty.pretty_dict(self, p, cycle, root=root)
 
 
-class DatArray(Dat):
+class ArrayBase(CollectionBase):
 
     __slots__ = ('_array',)
 
@@ -148,6 +153,122 @@ class DatArray(Dat):
 
     def __hash__(self, /):
         return hash((bytes(self._array), self.dtype))
+
+
+class DatMeta(UrMeta):
+    ...
+
+
+class Dat(Ur, metaclass=DatMeta):
+
+    __slots__ = ()
+
+    @classmethod
+    @_functools.lru_cache()
+    def convert_type(cls, typ: type, /):
+        if issubclass(typ, Dat):
+            return typ
+        if issubclass(typ, _np.ndarray):
+            return DatArray
+        if issubclass(typ, _collabc.Mapping):
+            return DatDict
+        if issubclass(typ, _collabc.Iterable):
+            return DatTuple
+        raise TypeError(typ)
+
+    @classmethod
+    def convert(cls, obj, /):
+        if isinstance(obj, Dat):
+            return obj
+        return cls.convert_type(type(obj))(obj)
+
+
+class DatTuple(TupleBase, Dat):
+
+    __slots__ = ()
+
+
+class DatUniqueTuple(UniqueTupleBase, Dat):
+
+    __slots__ = ()
+
+
+class DatDict(DictBase, Dat):
+
+    __slots__ = ()
+
+
+class DatArray(ArrayBase, Dat):
+
+    __slots__ = ()
+
+
+class Primitive(Dat):
+    '''
+    The abstract base class of all Python types
+    that are acceptables as inputs
+    to the Ptolemaic system.
+    '''
+
+    TYPS = (
+        int,
+        float,
+        complex,
+        str,
+        bytes,
+        bool,
+        frozenset,
+        type(None),
+        type(Ellipsis),
+        type(NotImplemented),
+        _Enum,
+        type,
+        _types.ModuleType,
+        _types.FunctionType,
+        _types.MethodType,
+        _types.BuiltinFunctionType,
+        _types.BuiltinMethodType,
+        )
+
+    @classmethod
+    @_functools.lru_cache()
+    def convert_type(cls, typ: type, /):
+        if issubclass(typ, Primitive):
+            return typ
+        if issubclass(typ, _collabc.Mapping):
+            return PrimitiveDict
+        if issubclass(typ, _collabc.Iterable):
+            return PrimitiveTuple
+        raise TypeError(typ)
+
+    @classmethod
+    def convert(cls, obj, /):
+        if isinstance(obj, Primitive):
+            return obj
+        return cls.convert_type(type(obj))(obj)
+
+
+for typ in Primitive.TYPS:
+    Primitive.register(typ)
+del typ
+
+
+@DatTuple.register
+class PrimitiveTuple(TupleBase, Primitive):
+
+    __slots__ = ()
+
+
+@DatUniqueTuple.register
+class PrimitiveUniqueTuple(UniqueTupleBase, Primitive):
+
+    __slots__ = ()
+
+
+@DatDict.register
+class PrimitiveDict(DictBase, Primitive):
+
+    __slots__ = ()
 
 
 class PseudoType(type):

@@ -5,11 +5,6 @@
 
 import inspect as _inspect
 import collections as _collections
-from types import (
-    MappingProxyType as _MappingProxyType,
-    SimpleNamespace as _SimpleNamespace,
-    )
-import weakref as _weakref
 
 from everest.utilities import pretty as _pretty
 from everest import ur as _ur
@@ -28,7 +23,7 @@ class Sprite(_Ousia):
         params = dict(ns.pop('__params__'))
         annos = ns.pop('__annotations__')
         params.update(
-            (nm, (hint, (NotImplemented if val is _pempty else val)))
+            (nm, (hint, val))
             for nm, (hint, val) in annos.items()
             )
         ns['__params__'] = _ur.DatDict(params)
@@ -51,9 +46,6 @@ class SpriteBase(metaclass=Sprite):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        premade = _weakref.WeakValueDictionary()
-        cls._premade = premade
-        cls.premade = _MappingProxyType(premade)
         pms = cls.__params__
         hints, defaults = cls.fieldhints, cls.fieldefaults = tuple(
             _ur.DatDict(zip(pms, vals))
@@ -71,32 +63,13 @@ class SpriteBase(metaclass=Sprite):
         return _inspect.signature(cls.Params)
 
     def set_params(self, params, /):
-        self.params = params
+        params = self.params = self.Params(*params)
         for name, param in params._asdict().items():
             setattr(self, name, param)
 
     @classmethod
-    def retrieve(cls, params: tuple, /):
-        premade = cls._premade
-        try:
-            return premade[params]
-        except KeyError:
-            obj = premade[params] = cls.construct(cls.Params(*params))
-            return obj
-
-    @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        return _SimpleNamespace(**cls.Params(*args, **kwargs)._asdict())
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        return cls.retrieve(tuple(
-            cls.parameterise(*args, **kwargs).__dict__.values()
-            ))
-
-    @classmethod
-    def __class_getitem__(cls, params: tuple, /):
-        return cls.retrieve(params)
+        return super().parameterise(**cls.Params(*args, **kwargs)._asdict())
 
     def make_epitaph(self, /):
         cls = self.__ptolemaic_class__

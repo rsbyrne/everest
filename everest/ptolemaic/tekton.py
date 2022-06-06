@@ -6,8 +6,7 @@
 import abc as _abc
 import inspect as _inspect
 import functools as _functools
-import types as _types
-import weakref as _weakref
+from types import SimpleNamespace as _SimpleNamespace
 from collections import abc as _collabc, namedtuple as _namedtuple
 
 from everest import ur as _ur
@@ -16,7 +15,6 @@ from .essence import Essence as _Essence
 from .content import Kwargs as _Kwargs
 from .utilities import BoundObject as _BoundObject
 from . import smartattr as _smartattr
-from . import exceptions as _exceptions
 
 
 _pkind = _inspect._ParameterKind
@@ -281,43 +279,16 @@ class TektonBase(metaclass=Tekton):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        premade = cls._premade = _weakref.WeakValueDictionary()
-        cls.premade = _types.MappingProxyType(premade)
         Params = cls.Params = _namedtuple(
             f"Params_{cls.__name__}", cls.__fields__
             )
         cls.arity = len(Params._fields)
 
     @classmethod
-    def retrieve(cls, params: _collabc.Sequence, /):
-        params = cls.Params(*params)
-        premade = cls._premade
-        try:
-            return premade[params]
-        except KeyError:
-            out = premade[params] = cls.construct(params)
-            return out
-
-    @classmethod
     def parameterise(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
-        return _types.SimpleNamespace(**bound.arguments)
-
-    @classmethod
-    def paramexc(cls, /, *args, message=None, **kwargs):
-        return _exceptions.ParameterisationException(
-            (args, kwargs), cls, message
-            )
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        return cls.retrieve(tuple(
-            cls.parameterise(*args, **kwargs).__dict__.values()
-            ))
-
-    def __class_getitem__(cls, params: tuple, /):
-        return cls.retrieve(params)
+        return _SimpleNamespace(**bound.arguments)
 
 
 ###############################################################################

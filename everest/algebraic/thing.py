@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from everest.primitive import Primitive as _Primitive
+from everest.ur import Primitive as _Primitive
 from everest import incision as _incision
 
 from everest.ptolemaic.compound import Compound as _Compound

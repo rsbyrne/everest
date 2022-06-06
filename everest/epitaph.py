@@ -23,7 +23,6 @@ from everest.utilities import (
     word as _word, classtools as _classtools,
     TypeMap as _TypeMap,
     )
-from everest.primitive import Primitive as _Primitive
 from everest import ur as _ur
 from everest.armature import Armature as _Armature
 
@@ -187,7 +186,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
     def encode_string(self, arg: str, /, *, deps: set = None):
         return repr(arg)
 
-    def encode_primitive(self, arg: _Primitive, /, *, deps: set = None):
+    def encode_primitive(self, arg: _ur.Primitive, /, *, deps: set = None):
         return str(arg)
 
     def encode_dtuple(self, arg: _ur.DatTuple, /, *, deps: set = None):
@@ -283,7 +282,6 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
             return encoded
 
     def encode(self, arg: object, /, deps: set = None) -> str:
-        # arg = _ur.convert(arg)
         return self.encoders[type(arg)](arg, deps=deps)
 
     def __repr__(self, /):

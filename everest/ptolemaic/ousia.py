@@ -13,19 +13,7 @@ from everest.utilities.switch import Switch as _Switch
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
 
-from .essence import Essence as _Essence
-
-
-class Ousia(_Essence):
-
-    @property
-    def Concrete(cls, /):
-        try:
-            return cls.__dict__['_Concrete']
-        except KeyError:
-            with cls.mutable:
-                out = cls._Concrete = cls.create_concrete()
-            return out
+from .urgon import Urgon as _Urgon
 
 
 class ConcreteBase:
@@ -50,10 +38,29 @@ class ConcreteBase:
         return (cls.__ptolemaic_class__,)
 
 
-@_ur.Dat.register
+class Ousia(_Urgon):
+
+    @property
+    def Concrete(cls, /):
+        cls = cls.__ptolemaic_class__
+        try:
+            return cls.__dict__['_Concrete']
+        except KeyError:
+            with cls.mutable:
+                out = cls._Concrete = _abc.ABCMeta.__new__(
+                    type(cls), *cls.pre_create_concrete()
+                    )
+            return out
+
+    @classmethod
+    def pre_create_class(meta, name, bases, ns, /):
+        ns['__req_slots__'] = ns.pop('__slots__', ())
+        return super().pre_create_class(name, bases, ns)
+
+
 class OusiaBase(metaclass=Ousia):
 
-    MERGENAMES = ('__req_slots__', '__var_slots__')
+    MERGENAMES = ('__req_slots__',)
 
     __slots__ = (
         '__weakref__',
@@ -64,18 +71,14 @@ class OusiaBase(metaclass=Ousia):
     ## Configuring the class:
 
     @classmethod
-    def pre_create_class(meta, name, bases, ns, /):
-        ns['__req_slots__'] = ns.pop('__slots__', ())
-        return super().pre_create_class(name, bases, ns)
-
-    @classmethod
     def _yield_concrete_slots(cls, /):
         yield from ()
 
     @classmethod
     def pre_create_concrete(cls, /):
+        cls = cls.__ptolemaic_class__
         return (
-            f"{cls.__ptolemaic_class__.__name__}_Concrete",
+            f"{cls.__name__}_Concrete",
             (ConcreteBase, cls),
             dict(
                 __slots__=tuple(sorted(set(_itertools.chain(
@@ -83,7 +86,6 @@ class OusiaBase(metaclass=Ousia):
                     cls._yield_concrete_slots(),
                     )))),
                 __ptolemaic_class__=cls,
-                __class_deep_init__=lambda: None,
                 ),
             )
 
@@ -93,35 +95,23 @@ class OusiaBase(metaclass=Ousia):
 
     ### Object creation:
 
-    def set_params(self, params: _collabc.Mapping, /):
-        for param in params.values():
-            if isinstance(param, OusiaBase):
-                param.add_dependant(param)
+    @_abc.abstractmethod
+    def set_params(self, params, /):
+        raise NotImplementedError
 
     @classmethod
-    def construct(cls,
-            params: _collabc.Mapping = _ur.DatDict(), /,    
-            *args, _epitaph=None, **kwargs,
-            ):
+    def construct(cls, params: tuple, /, *args, _epitaph=None, **kwargs):
         Concrete = cls.Concrete
         obj = Concrete.__new__(Concrete)
         switch = _Switch(False)
         object.__setattr__(obj, 'freezeattr', switch)
         obj._epitaph = _epitaph
         obj._pyhash = _reseed.rdigits(16)
-        obj._dependants = _weakref.WeakSet()
+        # obj._dependants = _weakref.WeakSet()
         obj.set_params(params)
         obj.__init__(*args, **kwargs)
         switch.toggle(True)
         return obj
-
-    @classmethod
-    def __class_call__(cls, /, **params):
-        return cls.construct(_ur.DatDict(params))
-
-    # Special-cased, so no need for @classmethod
-    def __class_getitem__(cls, params, /):
-        return cls.construct(_ur.DatDict(params))
 
     ### Storage:
 
@@ -145,12 +135,12 @@ class OusiaBase(metaclass=Ousia):
                     )
             return out
 
-    @property
-    def dependants(self, /):
-        return tuple(sorted(self._dependants))
+#     @property
+#     def dependants(self, /):
+#         return tuple(sorted(self._dependants))
 
-    def add_dependant(self, other, /):
-        self._dependants.add(other)
+#     def add_dependant(self, other, /):
+#         self._dependants.add(other)
 
     def reset(self, /):
         self.__vardict__.clear()

@@ -130,7 +130,7 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
 
     __slots__ = ('__weakref__', '_objfreezeattr', 'params', '_epitaph')
 
-    param_convert = _ur.convert
+    param_convert = _ur.Dat.convert
 
     @classmethod
     def __class_init__(cls, /):

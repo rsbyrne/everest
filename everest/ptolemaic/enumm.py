@@ -18,13 +18,12 @@ class EnummBase(metaclass=_Ousia):
 
     MERGENAMES = (('__enumerators__', dict),)
     __enumerators__ = {}
-
     __slots__ = ('serial', 'name', 'value')
 
-    def set_params(self, params, /):
-        super().set_params(params)
-        for name, param in params.items():
-            setattr(self, name, param)
+    @classmethod
+    def _yield_concrete_slots(cls, /):
+        yield from super()._yield_concrete_slots()
+        yield from cls.__enumattrs__
 
     @classmethod
     def __class_deep_init__(cls, /):
@@ -39,6 +38,10 @@ class EnummBase(metaclass=_Ousia):
             setattr(cls, name, obj)
             enumerators.append(obj)
         cls.enumerators = tuple(enumerators)
+
+    def set_params(self, params: tuple, /):
+        for key, val in zip(('serial', 'name', 'value'), params):
+            setattr(self, key, val)
 
     def __repr__(self, /):
         return f"{self.rootrepr}.{self.name}"

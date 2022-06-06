@@ -6,7 +6,6 @@
 from collections import abc as _collabc
 import functools as _functools
 import inspect as _inspect
-import itertools as _itertools
 import abc as _abc
 import weakref as _weakref
 
@@ -228,7 +227,7 @@ class SchemaBase(metaclass=Schema):
             yield sm.get_cachedname(nm)
 
     def set_params(self, params, /):
-        self.params = params
+        self.params = self.Params(*params)
 
     def remake(self, /, **kwargs):
         return self.__ptolemaic_class__.retrieve(

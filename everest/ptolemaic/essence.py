@@ -7,7 +7,6 @@ import abc as _abc
 import itertools as _itertools
 import weakref as _weakref
 import types as _types
-import inspect as _inspect
 import functools as _functools
 from collections import abc as _collabc
 
@@ -290,7 +289,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def process_mergename(meta, bases, ns, mergename, /):
         if isinstance(mergename, tuple):
             mergename, mergetyp = mergename
-            mergetyp = _ur.convert_type(mergetyp)
+            mergetyp = _ur.Dat.convert_type(mergetyp)
         else:
             mergename, mergetyp = mergename, _ur.DatUniqueTuple
         ns[mergename] = merge_names(bases, ns, mergename, mergetyp=mergetyp)
@@ -306,7 +305,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def process_annotations(meta, ns, /):
         return {
-            key: (note, ns.pop(key, _inspect._empty))
+            key: (note, ns.pop(key, NotImplemented))
             for key, note in ns.pop('__annotations__', {}).items()
             }
 
@@ -434,9 +433,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Aliases:
 
-    @property
-    def __ptolemaic_class__(cls, /):
-        return cls
+    # @property
+    # def __ptolemaic_class__(cls, /):
+    #     return cls
 
     def get_attributes(cls, /):
         lst = list()
@@ -525,20 +524,14 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.epitaph.hashID
 
 
-class EssenceBase(_Ptolemaic, metaclass=Essence):
+@_Ptolemaic.register
+class EssenceBase(metaclass=Essence):
 
     MERGENAMES = ('MROCLASSES', 'OVERCLASSES')
 
     @classmethod
-    def _get_signature(cls, /):
-        try:
-            func = cls.__class_call__
-        except AttributeError:
-            func = lambda: None
-        return _inspect.signature(func)
-
-    @classmethod
     def __class_deep_init__(cls, /):
+        cls.__ptolemaic_class__ = cls
         try:
             func = cls.__dict__['__class_delayed_eval__']
         except KeyError:
@@ -548,7 +541,6 @@ class EssenceBase(_Ptolemaic, metaclass=Essence):
             cls.incorporate_namespace(ns)
         cls._add_mroclasses()
         cls.__class_init__()
-        cls.__signature__ = cls._get_signature()
 
     @classmethod
     def __class_init__(cls, /):

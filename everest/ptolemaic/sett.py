@@ -164,7 +164,7 @@ class TypeSett(Sett, metaclass=_Sprite):
 
 class Brace(Sett, metaclass=_Sprite):
 
-    setts: collabc.Iterable
+    setts: _collabc.Iterable
     typ: type = tuple
 
     @classmethod
@@ -173,7 +173,7 @@ class Brace(Sett, metaclass=_Sprite):
         params.setts = tuple(map(convert, params.setts))
         return params
 
-    @_.cached
+    @property
     def breadth(self, /):
         return len(self.setts)
 

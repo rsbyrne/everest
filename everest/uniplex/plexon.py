@@ -7,7 +7,7 @@ import weakref as _weakref
 
 from everest.utilities import pretty as _pretty
 
-from everest.primitive import Primitive as _Primitive
+from everest.ur import Primitive as _Primitive
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.namespace import Namespace as _Namespace

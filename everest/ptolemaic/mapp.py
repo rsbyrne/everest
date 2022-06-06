@@ -11,7 +11,7 @@ from collections import abc as _collabc
 
 from .essence import Essence as _Essence
 from .content import ModuleMate as _ModuleMate
-from .armature import Armature as _Armature
+from .sprite import Sprite as _Sprite
 from . import sett as _sett
 
 
@@ -56,9 +56,9 @@ class Mapp(metaclass=_Essence):
         raise TypeError(type(arg))
 
 
-class CallMapp(Mapp, metaclass=_Armature):
+class CallMapp(Mapp, metaclass=_Sprite):
 
-    func: _.Field.POS[_collabc.Callable]
+    func: _collabc.Callable
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -70,10 +70,10 @@ class CallMapp(Mapp, metaclass=_Armature):
                 "Functions being converted to Mapps "
                 "must have only positional arguments."
                 )
-            raise cls.paramexc(func, message=message)
+            raise ValueError(func, message=message)
         return params
 
-    @_.cached
+    @property
     def domain(self, /):
         setts = tuple(
             _sett(pm.annotation)
@@ -83,11 +83,11 @@ class CallMapp(Mapp, metaclass=_Armature):
             return setts[0]
         return _sett.Brace(setts)
 
-    @_.cached
+    @property
     def codomain(self, /):
         return _sett(self.func.__annotations__.get('return', None))
 
-    @_.cached
+    @property
     def __getitem__(self, /):
         func = self.func
         if len(_inspect.signature(func).parameters) == 1:
@@ -97,9 +97,9 @@ class CallMapp(Mapp, metaclass=_Armature):
         return getitem
 
 
-class SwitchMapp(Mapp, metaclass=_Armature):
+class SwitchMapp(Mapp, metaclass=_Sprite):
 
-    mapps: _.Field.POS[_collabc.Iterable]
+    mapps: _collabc.Iterable
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -107,11 +107,11 @@ class SwitchMapp(Mapp, metaclass=_Armature):
         params.mapps = tuple(map(convert, params.mapps))
         return params
 
-    @_.cached
+    @property
     def domain(self, /):
         return _sett.union(*(mp.domain for mp in self.mapps))
 
-    @_.cached
+    @property
     def codomain(self, /):
         return _sett.union(*(mp.codomain for mp in self.mapps))
 
@@ -126,11 +126,11 @@ class MappOp(Mapp):
     ...
 
 
-class ModifiedMapp(MappOp, metaclass=_Armature):
+class ModifiedMapp(MappOp, metaclass=_Sprite):
 
-    mapp: _.Field.POS[Mapp]
-    domain: _.Field.POSKW[_sett.Sett] = None
-    codomain: _.Field.POSKW[_sett.Sett] = None
+    mapp: Mapp
+    domain: _sett.Sett = None
+    codomain: _sett.Sett = None
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -150,9 +150,9 @@ class ModifiedMapp(MappOp, metaclass=_Armature):
         return out
 
 
-class MappMultiOp(MappOp, metaclass=_Armature):
+class MappMultiOp(MappOp, metaclass=_Sprite):
 
-    mapps: _.Field.ARGS
+    mapps: _collabc.Iterable
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -163,13 +163,13 @@ class MappMultiOp(MappOp, metaclass=_Armature):
 
 class ComposedMapp(MappMultiOp):
 
-    mapps: _.Field.ARGS
+    mapps: _collabc.Iterable
 
-    @_.cached
+    @property
     def domain(self, /):
         return self.mapps[0].domain
 
-    @_.cached
+    @property
     def codomain(self, /):
         return self.mapps[-1].codomain
 
@@ -186,7 +186,7 @@ class ComposedMapp(MappMultiOp):
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
         params = super().parameterise(*args, **kwargs)
-        params.mapps = cls._unpack_args(params.mapps)
+        params.mapps = tuple(cls._unpack_args(params.mapps))
         return params
 
     def __getitem__(self, arg, /):
