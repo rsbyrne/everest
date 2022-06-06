@@ -25,6 +25,7 @@ from everest.utilities import (
     )
 from everest.primitive import Primitive as _Primitive
 from everest import ur as _ur
+from everest.armature import Armature as _Armature
 
 
 _Callable = _collabc.Callable
@@ -214,6 +215,13 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         arg = _ur.DatArray(arg)
         content = f"{repr(bytes(arg._array))},{repr(str(arg.dtype))}"
         return self.enfence(content, 'a')
+
+    def encode_armature(self, arg: _Armature, /, *, deps: set = None):
+        typ = self.encode_content(arg.Base, deps=deps)
+        content = self.encode_tuple(arg.params, deps)[1:-1]
+        if not content:
+            content = '()'
+        return f"{typ}[{content}]"       
 
     def _encode_pickle(self,arg: object, /, *, deps: set = None) -> str:
         return self.enfence(_pickle.dumps(arg), 'p')

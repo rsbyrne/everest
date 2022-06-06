@@ -27,15 +27,6 @@ class Ousia(_Essence):
                 out = cls._Concrete = cls.create_concrete()
             return out
 
-    # @property
-    # def Organ(cls, /):
-    #     try:
-    #         return cls._Organ
-    #     except AttributeError:
-    #         with cls.mutable:
-    #             out = cls._Organ = type(*cls.pre_create_organ())
-    #         return out
-
 
 class ConcreteBase:
 
@@ -53,6 +44,10 @@ class ConcreteBase:
             f"        )",
             )))
     del methname
+
+    @classmethod
+    def __mro_entries__(cls, bases: tuple, /):
+        return (cls.__ptolemaic_class__,)
 
 
 @_ur.Dat.register

@@ -28,12 +28,9 @@ class Fields(_Kwargs):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        (fields,) = super().parameterise(*args, **kwargs)
-        return (
-            cls.__content_type__(
-                sorted(fields.items(), key=(lambda x: x[1].score))
-                ),
-            )
+        return dict(content=cls.__content_type__(
+            sorted(dict(*args, **kwargs).items(), key=(lambda x: x[1].score))
+            ))
 
     def __init__(self, /):
         super().__init__()

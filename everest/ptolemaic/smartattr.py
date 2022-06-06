@@ -62,12 +62,11 @@ class SmartAttr(metaclass=_Sprite):
         cls._mergename = f"__{cls.__name__.lower()}s__"
 
     @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        params = cls.Params(*args, **kwargs)
-        return super().__class_call__(*(
-            getattr(cls, f"process_{name}")(val)
-            for name, val in params._asdict().items()
-            ))
+    def parameterise(cls, /, *args, **kwargs):
+        return {
+            name: getattr(cls, f"process_{name}")(val)
+            for name, val in super().parameterise(*args, **kwargs).items()
+            }
 
     @classmethod
     def convert(cls, arg, /):

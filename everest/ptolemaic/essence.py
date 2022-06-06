@@ -333,7 +333,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def pre_create_class(meta, name, bases, ns, /):
-        ns = dict(ns)
         if '__slots__' not in ns:
             ns['__slots__'] = ()
         ns['__annotations__'] = _ur.DatDict(meta.process_annotations(ns))
@@ -355,12 +354,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def __meta_call__(meta, arg0=None, /, *argn, **kwargs):
-        if arg0 is None:
-            if argn:
-                raise ValueError("Must pass all args or none.")
-            return _functools.partial(meta.decorate, **kwargs)
-        elif not argn:
-            return meta.decorate(arg0, **kwargs)
+        if not argn:
+            if arg0 is None:
+                return _functools.partial(meta.decorate, **kwargs)
+            else:
+                return meta.decorate(arg0, **kwargs)
         args = (arg0, *argn)
         out = meta.__class_construct__(*args)
         meta.__init__(out, *args, **kwargs)
@@ -385,7 +383,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Initialising the class:
 
-    def __init__(cls, name, bases, ns, /):
+    def __init__(cls, name, bases, ns, /, *, qualname=None, module=None):
+        ns.setdefault('__qualname__', qualname)
+        ns.setdefault('__module__', module)
         _abc.ABCMeta.__init__(cls, name, bases, ns)
         cls.__class_deep_init__()
         cls.freezeattr.toggle(True)

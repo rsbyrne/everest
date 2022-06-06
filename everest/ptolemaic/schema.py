@@ -162,7 +162,9 @@ class Organ(Ligated):
         typ = self.hint
         if isinstance(typ, _Getter):
             typ = typ(instance, owner)
-        params = typ.Params(**dict(self._yield_arguments(instance, owner, typ)))
+        params = typ.Params(**dict(
+            self._yield_arguments(instance, owner, typ)
+            ))
         epi = typ.taphonomy.getattr_epitaph(instance, name)
         return typ.construct(params, _epitaph=epi)
 
@@ -170,7 +172,7 @@ class Organ(Ligated):
         return instance.__organs__[name]
 
 
-class Armature(_Tekton, _Composite):
+class Schema(_Tekton, _Composite):
 
     @classmethod
     def _yield_smartattrtypes(meta, /):
@@ -204,18 +206,18 @@ class Armature(_Tekton, _Composite):
             )
 
     @classmethod
-    def organ(meta, body, arg: 'Armature' = None, /, **kwargs):
+    def organ(meta, body, arg: 'Schema' = None, /, **kwargs):
         if arg is None:
             return _functools.partial(meta.organ, body, **kwargs)
-        if not isinstance(arg, Armature):
+        if not isinstance(arg, Schema):
             raise TypeError(
-                f"Organ types must be Armatures or greater: {type(arg)}"
+                f"Organ types must be Schemas or greater: {type(arg)}"
                 )
         altname = meta._smartattr_namemangle(body, arg)
         return meta.Organ(hint=altname, ligatures=kwargs)
 
 
-class ArmatureBase(metaclass=Armature):
+class SchemaBase(metaclass=Schema):
 
     __slots__ = ('_boundorgans',)
 

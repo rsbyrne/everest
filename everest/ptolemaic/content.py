@@ -21,9 +21,8 @@ class ContentProxy(metaclass=_Sprite):
     content: object
 
     @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        # return
-        return super().__class_call__(cls.__content_type__(*args, **kwargs))
+    def parameterise(cls, /, *args, **kwargs):
+        return dict(content=cls.__content_type__(*args, **kwargs))
 
     @classmethod
     def __class_init__(cls, /):
@@ -65,10 +64,10 @@ class Binding(ContentProxy):
 class Kwargs(Binding):
 
     @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
+    def parameterise(cls, /, *args, **kwargs):
         dct = cls.__content_type__(*args, **kwargs)
         dct = type(dct)(zip(map(str, dct.keys()), dct.values()))
-        return super().__class_call__(dct)
+        return super().parameterise(dct)
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
