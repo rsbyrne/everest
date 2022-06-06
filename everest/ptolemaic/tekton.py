@@ -3,19 +3,20 @@
 ###############################################################################
 
 
+import abc as _abc
 import inspect as _inspect
 import functools as _functools
+import types as _types
+import weakref as _weakref
+from collections import abc as _collabc, namedtuple as _namedtuple
 
 from everest import ur as _ur
 
-from .pentheros import (
-    Pentheros as _Pentheros,
-    ProvisionalParams as _ProvisionalParams,
-    paramstuple as _paramstuple,
-    )
+from .essence import Essence as _Essence
 from .content import Kwargs as _Kwargs
 from .utilities import BoundObject as _BoundObject
 from . import smartattr as _smartattr
+from . import exceptions as _exceptions
 
 
 _pkind = _inspect._ParameterKind
@@ -28,7 +29,7 @@ class Fields(_Kwargs):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        return dict(content=cls.__content_type__(
+        return super().parameterise(cls.__content_type__(
             sorted(dict(*args, **kwargs).items(), key=(lambda x: x[1].score))
             ))
 
@@ -186,7 +187,7 @@ class FieldNote(FieldAnno):
         yield from (self.hint, self.note, self.kind)
 
 
-class Tekton(_Pentheros):
+class Tekton(_Essence):
 
     @classmethod
     def _yield_smartattrtypes(meta, /):
@@ -266,22 +267,57 @@ class Tekton(_Pentheros):
         altname = meta._smartattr_namemangle(body, arg)
         return meta.Field(hint=altname, **kwargs)
 
+    @_abc.abstractmethod
+    def construct(cls, /, *_, **__):
+        raise NotImplementedError
+
 
 class TektonBase(metaclass=Tekton):
-
-    @classmethod
-    def _make_params_type(cls, /):
-        return _paramstuple(cls.__name__, cls.__fields__)
 
     @classmethod
     def _get_signature(cls, /):
         return cls.__fields__.signature
 
     @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        premade = cls._premade = _weakref.WeakValueDictionary()
+        cls.premade = _types.MappingProxyType(premade)
+        Params = cls.Params = _namedtuple(
+            f"Params_{cls.__name__}", cls.__fields__
+            )
+        cls.arity = len(Params._fields)
+
+    @classmethod
+    def retrieve(cls, params: _collabc.Sequence, /):
+        params = cls.Params(*params)
+        premade = cls._premade
+        try:
+            return premade[params]
+        except KeyError:
+            out = premade[params] = cls.construct(params)
+            return out
+
+    @classmethod
     def parameterise(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
-        return _ProvisionalParams(bound.arguments)
+        return _types.SimpleNamespace(**bound.arguments)
+
+    @classmethod
+    def paramexc(cls, /, *args, message=None, **kwargs):
+        return _exceptions.ParameterisationException(
+            (args, kwargs), cls, message
+            )
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        return cls.retrieve(tuple(
+            cls.parameterise(*args, **kwargs).__dict__.values()
+            ))
+
+    def __class_getitem__(cls, params: tuple, /):
+        return cls.retrieve(params)
 
 
 ###############################################################################

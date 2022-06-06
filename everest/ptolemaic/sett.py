@@ -14,7 +14,7 @@ from everest import ur as _ur
 from .essence import Essence as _Essence
 from .enumm import Enumm as _Enumm
 from .content import ModuleMate as _ModuleMate
-from .armature import Armature as _Armature
+from .sprite import Sprite as _Sprite
 
 
 def convert(arg, /):
@@ -113,9 +113,9 @@ class Setts(Sett, metaclass=_Enumm):
 globals().update({enum.name: enum for enum in Setts})
 
 
-class FuncSett(Sett, metaclass=_Armature):
+class FuncSett(Sett, metaclass=_Sprite):
 
-    func: _.Field.POS[_collabc.Callable]
+    func: _collabc.Callable
 
     def get_signaltype(self, /):
         return next(iter(self.func.__annotations__.values(), object))
@@ -125,9 +125,9 @@ class FuncSett(Sett, metaclass=_Armature):
         return self.func
 
 
-class ContainerSett(Sett, metaclass=_Armature):
+class ContainerSett(Sett, metaclass=_Sprite):
 
-    container: _.Field.POS[_collabc.Container]
+    container: _collabc.Container
 
     def get_signaltype(self, /):
         return tuple(sorted(set(map(type, self.container))))
@@ -140,9 +140,9 @@ class ContainerSett(Sett, metaclass=_Armature):
         return all(map(self.container.__contains__, arg))
 
 
-class TypeSett(Sett, metaclass=_Armature):
+class TypeSett(Sett, metaclass=_Sprite):
 
-    typ: _.Field.POS[type]
+    typ: type
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -162,10 +162,10 @@ class TypeSett(Sett, metaclass=_Armature):
         return issubclass(arg, self.typ)
 
 
-class Brace(Sett, metaclass=_Armature):
+class Brace(Sett, metaclass=_Sprite):
 
-    setts: _.Field.POS[_collabc.Iterable]
-    typ: _.Field.KW[type] = tuple
+    setts: collabc.Iterable
+    typ: type = tuple
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -206,9 +206,9 @@ class Op(Sett):
     ...
 
 
-class Inverse(Op, metaclass=_Armature):
+class Inverse(Op, metaclass=_Sprite):
 
-    sett: _.Field.POS[Sett]
+    sett: Sett
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -226,9 +226,9 @@ class Inverse(Op, metaclass=_Armature):
         return self.sett
 
 
-class MultiOp(Op, metaclass=_Armature):
+class MultiOp(Op, metaclass=_Sprite):
     
-    setts: _.Field.ARGS[Sett]
+    setts: Sett
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):

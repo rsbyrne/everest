@@ -5,7 +5,10 @@
 
 import inspect as _inspect
 import collections as _collections
-import types as _types
+from types import (
+    MappingProxyType as _MappingProxyType,
+    SimpleNamespace as _SimpleNamespace,
+    )
 import weakref as _weakref
 
 from everest.utilities import pretty as _pretty
@@ -50,10 +53,8 @@ class SpriteBase(metaclass=Sprite):
         super().__class_init__()
         premade = _weakref.WeakValueDictionary()
         cls._premade = premade
-        cls.premade = _types.MappingProxyType(premade)
+        cls.premade = _MappingProxyType(premade)
         pms = cls.__params__
-        # hints, notes, defaults = \
-        #     cls.fieldhints, cls.fieldnotes, cls.fieldefaults = 
         hints, defaults = cls.fieldhints, cls.fieldefaults = tuple(
             _ur.DatDict(zip(pms, vals))
             for vals in (zip(*pms.values()) if pms else ((), ()))
@@ -85,11 +86,13 @@ class SpriteBase(metaclass=Sprite):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        return cls.Params(*args, **kwargs)._asdict()
+        return _SimpleNamespace(**cls.Params(*args, **kwargs)._asdict())
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return cls.retrieve(tuple(cls.parameterise(*args, **kwargs).values()))
+        return cls.retrieve(tuple(
+            cls.parameterise(*args, **kwargs).__dict__.values()
+            ))
 
     @classmethod
     def __class_getitem__(cls, params: tuple, /):

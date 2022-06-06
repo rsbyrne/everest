@@ -15,6 +15,9 @@ from .utilities import BindableObject as _BindableObject
 _pempty = _inspect._empty
 
 
+_passthru = lambda x: x
+
+
 class Getter(metaclass=_Sprite):
 
     @_abc.abstractmethod
@@ -63,10 +66,12 @@ class SmartAttr(metaclass=_Sprite):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        return {
-            name: getattr(cls, f"process_{name}")(val)
-            for name, val in super().parameterise(*args, **kwargs).items()
-            }
+        params = super().parameterise(*args, **kwargs)
+        params.__dict__.update(
+            (name, getattr(cls, f"process_{name}", _passthru)(val))
+            for name, val in params.__dict__.items()
+            )
+        return params
 
     @classmethod
     def convert(cls, arg, /):

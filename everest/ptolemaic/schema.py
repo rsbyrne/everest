@@ -18,7 +18,7 @@ from .tekton import Tekton as _Tekton
 from .smartattr import (
     SmartAttr as _SmartAttr, Getter as _Getter, OwnerGet as _OwnerGet
     )
-from .composite import Composite as _Composite
+from .ousia import Ousia as _Ousia
 
 
 _pempty = _inspect._empty
@@ -172,7 +172,7 @@ class Organ(Ligated):
         return instance.__organs__[name]
 
 
-class Schema(_Tekton, _Composite):
+class Schema(_Tekton, _Ousia):
 
     @classmethod
     def _yield_smartattrtypes(meta, /):
@@ -219,13 +219,48 @@ class Schema(_Tekton, _Composite):
 
 class SchemaBase(metaclass=Schema):
 
-    __slots__ = ('_boundorgans',)
+    __slots__ = ('params', '_boundorgans',)
 
     @classmethod
     def _yield_concrete_slots(cls, /):
         yield from super()._yield_concrete_slots()
         for nm, sm in cls.__cacheds__.items():
             yield sm.get_cachedname(nm)
+
+    def set_params(self, params, /):
+        self.params = params
+
+    def remake(self, /, **kwargs):
+        return self.__ptolemaic_class__.retrieve(
+            tuple({**self.params._asdict(), **kwargs}.values())
+            )
+
+    def _content_repr(self, /):
+        return ', '.join(
+            f"{key}={repr(val)}"
+            for key, val in self.params._asdict().items()
+            )
+
+    @property
+    # @_caching.soft_cache()
+    def contentrepr(self, /):
+        return self._content_repr()
+
+    def __str__(self, /):
+        return f"{self.rootrepr}({self.contentrepr})"
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        bound = self.__signature__.bind_partial()
+        bound.arguments.update(self.params._asdict())
+        if root is None:
+            root = self.rootrepr
+        _pretty.pretty_argskwargs(
+            (bound.args, bound.kwargs), p, cycle, root=root
+            )
+
+    def make_epitaph(self, /):
+        cls = self.__ptolemaic_class__
+        return cls.taphonomy.getitem_epitaph(cls, tuple(self.params))
 
 
 ###############################################################################

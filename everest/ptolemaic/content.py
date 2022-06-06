@@ -22,7 +22,7 @@ class ContentProxy(metaclass=_Sprite):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
-        return dict(content=cls.__content_type__(*args, **kwargs))
+        return super().parameterise(cls.__content_type__(*args, **kwargs))
 
     @classmethod
     def __class_init__(cls, /):
