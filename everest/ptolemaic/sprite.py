@@ -18,23 +18,17 @@ _pempty = _inspect._empty
 class Sprite(_Ousia):
 
     @classmethod
-    def pre_create_class(meta, name, bases, ns, /):
-        name, bases, ns = super().pre_create_class(name, bases, ns)
-        params = dict(ns.pop('__params__'))
-        annos = ns.pop('__annotations__')
-        params.update(
-            (nm, (hint, val))
-            for nm, (hint, val) in annos.items()
-            )
-        ns['__params__'] = _ur.DatDict(params)
-        return name, bases, ns
+    def _process_bodyanno(meta, body, name, hint, val, /):
+        body['__params__'][name] = (hint, val)
+        return None, None
+
+    @classmethod
+    def _yield_mergenames(meta, /):
+        yield from super()._yield_mergenames()
+        yield ('__params__', dict, _ur.DatDict)
 
 
 class SpriteBase(metaclass=Sprite):
-
-    MERGENAMES = (
-        ('__params__', dict),
-        )
 
     __slots__ = ('params',)
 
@@ -75,8 +69,11 @@ class SpriteBase(metaclass=Sprite):
         cls = self.__ptolemaic_class__
         return cls.taphonomy.getitem_epitaph(cls, tuple(self.params))
 
-    def __str__(self, /):
-        return f"{self.__ptolemaic_class__.__qualname__}({repr(self.params)})"
+    def _content_repr(self, /):
+        return ', '.join(
+            f"{key}={repr(val)}"
+            for key, val in self.params._asdict().items()
+            )
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:

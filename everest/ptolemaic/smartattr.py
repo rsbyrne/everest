@@ -8,8 +8,12 @@ import inspect as _inspect
 
 from everest import ur as _ur
 
+from .essence import Directive as _Directive
 from .sprite import Sprite as _Sprite
-from .utilities import BindableObject as _BindableObject
+from .utilities import (
+    BindableObject as _BindableObject,
+    BoundObject as _BoundObject,
+    )
 
 
 _pempty = _inspect._empty
@@ -49,6 +53,7 @@ class InstanceGet(Getter):
         return getattr(instance, name, default)
 
 
+@_Directive.register
 @_BindableObject.register
 class SmartAttr(metaclass=_Sprite):
 
@@ -57,12 +62,13 @@ class SmartAttr(metaclass=_Sprite):
     hint: (type, str, tuple)
     note: str
 
-    MERGETYPE = _ur.DatDict
+    __merge_dyntyp__ = dict
+    __merge_fintyp__ = _ur.DatDict
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls._mergename = f"__{cls.__name__.lower()}s__"
+        cls.__merge_name__ = f"__{cls.__name__.lower()}s__"
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -107,7 +113,11 @@ class SmartAttr(metaclass=_Sprite):
         self.degenerate = not bool(self.hint)
 
     @_abc.abstractmethod
-    def __bound_get__(self, instance: object, owner: type, name: str, /):
+    def __bound_get__(self, instance: object, name: str, /):
+        raise NotImplementedError
+
+    @_abc.abstractmethod
+    def __bound_owner_get__(self, owner: type, name: str, /):
         raise NotImplementedError
 
     def __bound_set__(self, instance, name, value, /):
@@ -119,6 +129,10 @@ class SmartAttr(metaclass=_Sprite):
         raise AttributeError(
             f"Can't delete attribute: {instance}, {name}"
             )
+
+    def __directive_call__(self, body, name, /):
+        body[self.__merge_name__][name] = self
+        return name, _BoundObject(self)
 
 
 ###############################################################################

@@ -11,9 +11,8 @@ from collections import abc as _collabc, namedtuple as _namedtuple
 
 from everest import ur as _ur
 
-from .essence import Essence as _Essence
+from .urgon import Urgon as _Urgon
 from .content import Kwargs as _Kwargs
-from .utilities import BoundObject as _BoundObject
 from . import smartattr as _smartattr
 
 
@@ -72,7 +71,7 @@ class Field(_smartattr.SmartAttr):
     default: object
     kind: object
 
-    MERGETYPE = Fields
+    __merge_fintyp__ = Fields
 
     KINDPAIRS = _ur.DatDict(
         POS = _pkind['POSITIONAL_ONLY'],
@@ -127,10 +126,11 @@ class Field(_smartattr.SmartAttr):
             return cls(default=value)
         return cls(anno, default=value)
 
-    def __bound_get__(self, instance, owner, name, /):
-        if instance is None:
-            return self.hint
+    def __bound_get__(self, instance, name, /):
         return getattr(instance.params, name)
+
+    def __bound_owner_get__(self, owner, name, /):
+        return self.hint
 
 
 class FieldAnno:
@@ -185,89 +185,45 @@ class FieldNote(FieldAnno):
         yield from (self.hint, self.note, self.kind)
 
 
-class Tekton(_Essence):
+class Tekton(_Urgon):
+
+    @classmethod
+    def field(meta, body, arg: Field = None, /, **kwargs):
+        if arg is None:
+            return _functools.partial(meta.field, body, **kwargs)
+        altname = f'_sm_{arg.__name__}'
+        body.safe_set(altname, arg)
+        return meta.Field(hint=altname, **kwargs)
+
+    @classmethod
+    def _yield_bodymeths(meta, body, /):
+        yield from super()._yield_bodymeths(body)
+        yield 'get', _smartattr.InstanceGet
+        yield 'oget', _smartattr.OwnerGet
+        for smartattrtype in meta._smartattrtypes:
+            nm = smartattrtype.__name__.lower()
+            yield nm, _functools.partial(getattr(meta, nm), body)
 
     @classmethod
     def _yield_smartattrtypes(meta, /):
         yield Field
 
     @classmethod
+    def _yield_mergenames(meta, /):
+        yield from super()._yield_mergenames()
+        for typ in meta._smartattrtypes:
+            yield typ.__merge_name__, typ.__merge_dyntyp__, typ.__merge_fintyp__
+
+    @classmethod
     def __meta_init__(meta, /):
-        super().__meta_init__()
         typs = meta._smartattrtypes = tuple(meta._yield_smartattrtypes())
         for typ in typs:
             setattr(meta, typ.__name__, typ)
+        super().__meta_init__()
 
     @classmethod
-    def process_annotations(meta, ns, /):
-        annos = super().process_annotations(ns)
-        ns.update({
-            name: Field.from_annotation(annotation, value)
-            for name, (annotation, value) in annos.items()
-            })
-        annos.clear()
-        return annos
-
-    @classmethod
-    def _yield_namespace_categories(meta, /):
-        for typ in meta._smartattrtypes:
-            yield (typ._mergename, typ.__instancecheck__)
-
-    @classmethod
-    def _categorise_namespace(meta, ns, /):
-        typs = meta._smartattrtypes
-        nms = tuple(typ._mergename for typ in typs)
-        pres = tuple(ns.pop(nm, _ur.DatDict()) for nm in nms)
-        super()._categorise_namespace(ns)
-        for pre, nm in zip(pres, nms):
-            ns[nm] = _ur.DatDict(**pre, **ns[nm])
-
-    @classmethod
-    def process_mergenames(meta, bases, ns, /):
-        super().process_mergenames(bases, ns)
-        for typ in meta._smartattrtypes:
-            meta.process_mergename(bases, ns, (typ._mergename, typ.MERGETYPE))
-
-    @classmethod
-    def pre_create_class(meta, name, bases, ns, /):
-        name, bases, ns = super().pre_create_class(name, bases, ns)
-        for typ in meta._smartattrtypes:
-            # ns.update({sm.name: sm for sm in ns[typ._mergename]})
-            ns.update({
-                nm: _BoundObject(sm) for nm, sm in ns[typ._mergename].items()
-                })
-        return name, bases, ns
-
-    @classmethod
-    def _yield_special_bodyitems(meta, body, /):
-        yield from super()._yield_special_bodyitems(body)
-        yield 'oget', _smartattr.OwnerGet
-        yield 'get', _smartattr.InstanceGet
-        for typ in meta._smartattrtypes:
-            yield typ.__name__, typ
-            nm = typ.__name__.lower()
-            try:
-                meth = getattr(meta, nm)
-            except AttributeError:
-                continue
-            yield nm, _functools.partial(meth, body)
-
-    @classmethod
-    def _smartattr_namemangle(meta, body, arg, /):
-        altname = f'_sm_{arg.__name__}'
-        body.safe_set(altname, arg)
-        return altname
-
-    @classmethod
-    def field(meta, body, arg: Field = None, /, **kwargs):
-        if arg is None:
-            return _functools.partial(meta.field, body, **kwargs)
-        altname = meta._smartattr_namemangle(body, arg)
-        return meta.Field(hint=altname, **kwargs)
-
-    @_abc.abstractmethod
-    def construct(cls, /, *_, **__):
-        raise NotImplementedError
+    def _process_bodyanno(meta, body, name, hint, val, /):
+        return name, meta.Field.from_annotation(hint, val)
 
 
 class TektonBase(metaclass=Tekton):
@@ -288,7 +244,7 @@ class TektonBase(metaclass=Tekton):
     def parameterise(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
-        return _SimpleNamespace(**bound.arguments)
+        return super().parameterise(**bound.arguments)
 
 
 ###############################################################################

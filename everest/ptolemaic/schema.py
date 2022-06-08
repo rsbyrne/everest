@@ -43,22 +43,23 @@ class Cacher(_SmartAttr):
     def _set_cache(self, instance, value, /):
         raise NotImplementedError
 
-    def __bound_get__(self, instance, owner, name, /):
-        if instance is None:
-            return self.callobj
+    def __bound_get__(self, instance, name, /):
         cachedname = self.get_cachedname(name)
         try:
             return getattr(instance, cachedname)
         except AttributeError:
             callobj = self.callobj
             if isinstance(callobj, _Getter):
-                callobj = callobj(instance, owner)
+                callobj = callobj(instance, instance.__ptolemaic_class__)
             try:
                 value = callobj(instance)
             except Exception as exc:
                 raise RuntimeError from exc
             self._set_cache(instance, cachedname, value)
             return value
+
+    def __bound_owner_get__(self, owner, name, /):
+        return self.callobj
 
 
 class Cached(Cacher):
@@ -138,7 +139,7 @@ class BoundOrgans(dict):
 
 class Organ(Ligated):
 
-    MERGETYPE = Organs
+    __merge_fintyp__ = Organs
 
     def _yield_arguments(self, instance, owner, typ, /):
         ligatures = self.ligatures
@@ -167,24 +168,21 @@ class Organ(Ligated):
         epi = typ.taphonomy.getattr_epitaph(instance, name)
         return typ.construct(params, _epitaph=epi)
 
-    def __bound_get__(self, instance, owner, name, /):
+    def __bound_get__(self, instance, name, /):
         return instance.__organs__[name]
+
+    def __bound_owner_get__(self, owner, name, /):
+        return self
 
 
 class Schema(_Tekton, _Ousia):
 
     @classmethod
-    def _yield_smartattrtypes(meta, /):
-        yield from super()._yield_smartattrtypes()
-        yield Cached
-        yield Comp
-        yield Organ
-
-    @classmethod
     def cached(meta, body, arg: _collabc.Callable = None, /, **kwargs):
         if arg is None:
             return _functools.partial(meta.cached, body, **kwargs)
-        altname = meta._smartattr_namemangle(body, arg)
+        altname = f'_sm_{arg.__name__}'
+        body.safe_set(altname, arg)
         return meta.Cached(
             hint=arg.__annotations__.get('return', NotImplemented),
             note=arg.__doc__,
@@ -196,7 +194,8 @@ class Schema(_Tekton, _Ousia):
     def comp(meta, body, arg: _collabc.Callable = None, /, **kwargs):
         if arg is None:
             return _functools.partial(meta.comp, body, **kwargs)
-        altname = meta._smartattr_namemangle(body, arg)
+        altname = f'_sm_{arg.__name__}'
+        body.safe_set(altname, arg)
         return meta.Comp(
             hint=arg.__annotations__.get('return', NotImplemented),
             note=arg.__doc__,
@@ -212,8 +211,16 @@ class Schema(_Tekton, _Ousia):
             raise TypeError(
                 f"Organ types must be Schemas or greater: {type(arg)}"
                 )
-        altname = meta._smartattr_namemangle(body, arg)
+        altname = f'_sm_{arg.__name__}'
+        body.safe_set(altname, arg)
         return meta.Organ(hint=altname, ligatures=kwargs)
+
+    @classmethod
+    def _yield_smartattrtypes(meta, /):
+        yield from super()._yield_smartattrtypes()
+        yield Cached
+        yield Comp
+        yield Organ
 
 
 class SchemaBase(metaclass=Schema):
@@ -239,14 +246,6 @@ class SchemaBase(metaclass=Schema):
             f"{key}={repr(val)}"
             for key, val in self.params._asdict().items()
             )
-
-    @property
-    # @_caching.soft_cache()
-    def contentrepr(self, /):
-        return self._content_repr()
-
-    def __str__(self, /):
-        return f"{self.rootrepr}({self.contentrepr})"
 
     def _repr_pretty_(self, p, cycle, root=None):
         bound = self.__signature__.bind_partial()

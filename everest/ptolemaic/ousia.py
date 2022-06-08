@@ -38,7 +38,43 @@ class ConcreteBase:
         return (cls.__ptolemaic_class__,)
 
 
+# class ClassBody(_Urgon.ClassBody):
+
+#     def __init__(self, /, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.extraslots = self['__classbody_added_slots__'] = set()
+
+#     def slotcache(self, arg, /):
+#         name = arg.__name__
+#         self.extraslots.add(name)
+#         self[f"_get_{name}_"] = arg
+#         return self.Flags.NULL
+
+#     def weakcache(self, arg, /):
+#         name = arg.__name__
+#         weakname = f"{name}_weakref"
+#         methname = f"_get_{name}_"
+#         self.extraslots.add(weakname)
+#         self[methname] = arg
+#         @property
+#         def dereferencer(self, /):
+#             ref = object.__getattribute__(self, weakname)
+#             try:
+#                 return ref()
+#             except ReferenceError:
+#                 val = type.__getattribute__(type(self), methname)(self)
+#                 object.__setattr__(self, weakname, _weakref.ref(val))
+#                 return val
+#         self[name] = dereferencer
+#         return self.SKIP
+
+
 class Ousia(_Urgon):
+
+    @classmethod
+    def _yield_mergenames(meta, /):
+        yield from super()._yield_mergenames()
+        yield ('__req_slots__', list, _ur.DatUniqueTuple)
 
     @property
     def Concrete(cls, /):
@@ -53,14 +89,14 @@ class Ousia(_Urgon):
             return out
 
     @classmethod
-    def pre_create_class(meta, name, bases, ns, /):
-        ns['__req_slots__'] = ns.pop('__slots__', ())
-        return super().pre_create_class(name, bases, ns)
+    def _process_bodyitem(meta, body, name, val, /):
+        if name == '__slots__':
+            body['__req_slots__'].extend(val)
+            return None, None
+        return super()._process_bodyitem(body, name, val)
 
 
 class OusiaBase(metaclass=Ousia):
-
-    MERGENAMES = ('__req_slots__',)
 
     __slots__ = (
         '__weakref__',
@@ -93,6 +129,72 @@ class OusiaBase(metaclass=Ousia):
     def create_concrete(cls, /):
         return type(*cls.pre_create_concrete())
 
+#     @classmethod
+#     def _define_attrmethods(cls, /):
+
+#         # getters, setters, deleters = cls.getters, cls.setters, cls.deleters
+#         slots = cls.__req_slots__
+
+#         def __getattr__(self, name, /):
+#             # try:
+#             #     meth = getters[name]
+#             # except KeyError as exc:
+#             #     pass
+#             # else:
+#             #     val = meth(self)
+#             #     setattr(self, name, val)
+#             #     return val
+#             if name in slots:
+#                 raise AttributeError(name)
+#             else:
+#                 return getattr(type(self), name)
+#             # try:
+#             #     return object.__getattribute__(self, '__vardict__')[name]
+#             # except KeyError as exc:
+#             #     pass
+
+#         def __setattr__(self, name, val, /):
+#             # try:
+#             #     meth = setters[name]
+#             # except KeyError as exc:
+#             #     pass
+#             # else:
+#             #     meth(self, val)
+#             #     return
+#             if name in slots:
+#                 if object.__getattribute__(self, 'freezeattr'):
+#                     raise AttributeError(
+#                         name, "Cannot alter slot while frozen."
+#                         )
+#             object.__setattr__(self, name, val)
+
+#         def __delattr__(self, name, /):
+#             # try:
+#             #     meth = deleters[name]
+#             # except KeyError as exc:
+#             #     pass
+#             # else:
+#             #     meth(self)
+#             #     return
+#             if name in slots:
+#                 if object.__getattribute__(self, 'freezeattr'):
+#                     raise AttributeError(
+#                         name, "Cannot alter slot while frozen."
+#                         )
+#             object.__delattr__(self, name)
+
+#         return __getattr__, __setattr__, __delattr__
+        
+
+    # @classmethod
+    # def __class_init__(cls, /):
+    #     super().__class_init__()
+    #     # for nm in ('getters', 'setters', 'deleters'):
+    #     #     meths = cls._yield_affixfiltered(nm, f"_{nm[:3]}_", "_")
+    #     #     setattr(cls, nm, _ur.DatDict(meths))
+    #     cls.__getattr__, cls.__setattr__, cls.__delattr__ = \
+    #         cls._define_attrmethods()
+
     ### Object creation:
 
     @_abc.abstractmethod
@@ -119,16 +221,14 @@ class OusiaBase(metaclass=Ousia):
     # @_caching.weak_cache()
     def __vardict__(self, /):
         try:
-            out = object.__getattribute__(self, '_sessioncacheref')()
+            out = super().__getattribute__('_sessioncacheref')()
             if out is None:
                 raise AttributeError
             return out
         except AttributeError:
             out = _FOCUS.request_session_storer(self)
             try:
-                object.__setattr__(
-                    self, '_sessioncacheref', _weakref.ref(out)
-                    )
+                super().__setattr__('_sessioncacheref', _weakref.ref(out))
             except AttributeError:
                 raise RuntimeError(
                     "Could not set the session cache on this object."
@@ -158,25 +258,21 @@ class OusiaBase(metaclass=Ousia):
     def mutable(self, /):
         return self.freezeattr.as_(False)
 
-    def __getattr__(self, name, /):
-        if name in self.__slots__:
-            raise AttributeError(name)
-        try:
-            return self.__vardict__[name]
-        except KeyError as exc:
-            raise AttributeError from exc
-
     def __setattr__(self, name, val, /):
-        if name in self.__slots__:
-            if self.freezeattr:
-                raise AttributeError(name, "Cannot set slot while frozen.")
-        super().__setattr__(name, val)
+        if name in object.__getattribute__(self, '__slots__'):
+            if object.__getattribute__(self, 'freezeattr'):
+                raise AttributeError(
+                    name, "Cannot alter slot while frozen."
+                    )
+        object.__setattr__(self, name, val)
 
     def __delattr__(self, name, /):
-        if name in self.__slots__:
-            if self.freezeattr:
-                raise AttributeError(name, "Cannot delete slot while frozen.")
-        super().__delattr__(name)
+        if name in object.__getattribute__(self, '__slots__'):
+            if object.__getattribute__(self, 'freezeattr'):
+                raise AttributeError(
+                    name, "Cannot alter slot while frozen."
+                    )
+        object.__delattr__(self, name)
 
     ### Representations:
 
@@ -188,8 +284,20 @@ class OusiaBase(metaclass=Ousia):
     def rootrepr(self, /):
         return self._root_repr()
 
+    @_abc.abstractmethod
+    def _content_repr(self, /):
+        return ''
+
+    @property
+    # @_caching.soft_cache()
+    def contentrepr(self, /):
+        return self._content_repr()
+
     def __repr__(self, /):
         return f"<{self.rootrepr}, id={id(self)}>"
+
+    def __str__(self, /):
+        return f"{self.rootrepr}({self.contentrepr})"
 
     @_abc.abstractmethod
     def make_epitaph(self, /):

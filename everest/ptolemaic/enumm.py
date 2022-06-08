@@ -5,18 +5,24 @@
 
 import abc as _abc
 
+from everest import ur as _ur
+
 from .ousia import Ousia as _Ousia
 
 
 class Enumm(_Ousia):
 
-    def __iter__(self, /):
-        return iter(self.enumerators)
+    @classmethod
+    def _yield_mergenames(meta, /):
+        yield from super()._yield_mergenames()
+        yield ('__enumerators__', dict, _ur.DatDict)
+
+    def __iter__(cls, /):
+        return iter(cls.enumerators)
 
 
 class EnummBase(metaclass=_Ousia):
 
-    MERGENAMES = (('__enumerators__', dict),)
     __enumerators__ = {}
     __slots__ = ('serial', 'name', 'value')
 
