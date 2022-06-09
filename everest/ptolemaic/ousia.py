@@ -9,11 +9,11 @@ import itertools as _itertools
 from collections import abc as _collabc
 
 from everest.utilities import pretty as _pretty, reseed as _reseed
-from everest.utilities.switch import Switch as _Switch
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
 
 from .urgon import Urgon as _Urgon
+from .utilities import Switch as _Switch
 
 
 class ConcreteBase:
@@ -86,21 +86,23 @@ class Ousia(_Urgon):
                 out = cls._Concrete = _abc.ABCMeta.__new__(
                     type(cls), *cls.pre_create_concrete()
                     )
+                out.mutable = False
             return out
 
     @classmethod
-    def _process_bodyitem(meta, body, name, val, /):
-        if name == '__slots__':
-            body['__req_slots__'].extend(val)
-            return None, None
-        return super()._process_bodyitem(body, name, val)
+    def _yield_bodynametriggers(meta, /):
+        yield from super()._yield_bodynametriggers()
+        yield (
+            '__slots__',
+            lambda body, val: (None, body.__setitem__('__req_slots__', val))
+            )
 
 
 class OusiaBase(metaclass=Ousia):
 
     __slots__ = (
         '__weakref__',
-        'freezeattr', '_pyhash', '_sessioncacheref', '_epitaph',
+        '_mutable', '_pyhash', '_sessioncacheref', '_epitaph',
         '_dependants',
         )
 
@@ -122,6 +124,8 @@ class OusiaBase(metaclass=Ousia):
                     cls._yield_concrete_slots(),
                     )))),
                 _get_ptolemaic_class=(lambda: cls),
+                _clsmutable=_Switch(True),
+                _clsiscosmic=False,
                 ),
             )
 
@@ -206,7 +210,7 @@ class OusiaBase(metaclass=Ousia):
         Concrete = cls.Concrete
         obj = Concrete.__new__(Concrete)
         switch = _Switch(False)
-        object.__setattr__(obj, 'freezeattr', switch)
+        object.__setattr__(obj, '_mutable', _Switch(True))
         obj._epitaph = _epitaph
         obj._pyhash = _reseed.rdigits(16)
         # obj._dependants = _weakref.WeakSet()
@@ -256,11 +260,15 @@ class OusiaBase(metaclass=Ousia):
 
     @property
     def mutable(self, /):
-        return self.freezeattr.as_(False)
+        return self._mutable
+
+    @mutable.setter
+    def mutable(self, value, /):
+        self.mutable.toggle(value)
 
     def __setattr__(self, name, val, /):
         if name in object.__getattribute__(self, '__slots__'):
-            if object.__getattribute__(self, 'freezeattr'):
+            if not object.__getattribute__(self, '_mutable'):
                 raise AttributeError(
                     name, "Cannot alter slot while frozen."
                     )
@@ -268,7 +276,7 @@ class OusiaBase(metaclass=Ousia):
 
     def __delattr__(self, name, /):
         if name in object.__getattribute__(self, '__slots__'):
-            if object.__getattribute__(self, 'freezeattr'):
+            if not object.__getattribute__(self, '_mutable'):
                 raise AttributeError(
                     name, "Cannot alter slot while frozen."
                     )

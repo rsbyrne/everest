@@ -196,13 +196,15 @@ class Tekton(_Urgon):
         return meta.Field(hint=altname, **kwargs)
 
     @classmethod
-    def _yield_bodymeths(meta, body, /):
-        yield from super()._yield_bodymeths(body)
-        yield 'get', _smartattr.InstanceGet
-        yield 'oget', _smartattr.OwnerGet
+    def _yield_bodymeths(meta, /):
+        yield from super()._yield_bodymeths()
+        yield 'get', \
+            lambda _, *ar, **kw: _smartattr.InstanceGet(*ar, **kw)
+        yield 'oget', \
+            lambda _, *ar, **kw: _smartattr.OwnerGet(*ar, **kw)
         for smartattrtype in meta._smartattrtypes:
             nm = smartattrtype.__name__.lower()
-            yield nm, _functools.partial(getattr(meta, nm), body)
+            yield nm, getattr(meta, nm)
 
     @classmethod
     def _yield_smartattrtypes(meta, /):

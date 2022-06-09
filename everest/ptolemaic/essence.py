@@ -10,16 +10,12 @@ import types as _types
 import functools as _functools
 from collections import abc as _collabc
 
-from everest.utilities import (
-    caching as _caching,
-    switch as _switch,
-    # ARITHMOPS as _ARITHMOPS, REVOPS as _REVOPS,
-    )
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
 
 from .ptolemaic import Ptolemaic as _Ptolemaic
 from .pleroma import Pleroma as _Pleroma
+from .utilities import Switch as _Switch
 
 
 class AnnotationHandler(dict):
@@ -42,150 +38,154 @@ class Directive(metaclass=_abc.ABCMeta):
         raise NotImplementedError
 
 
-class Skip(Directive):
+# class MROClass(Directive):
 
-    __slots__ = ()
+#     __slots__ = ('kls',)
 
-    def __directive_call__(self, body, name, /):
-        return None, None
+#     def __init__(self, kls=None, /):
+#         self.kls = kls
 
+#     @staticmethod
+#     def _gather_mrobases(bases: tuple, name: str, /):
+#         for base in bases:
+#             try:
+#                 candidate = getattr(base, name)
+#             except AttributeError:
+#                 continue
+#             if candidate is not None:
+#                 yield candidate
 
-class MROClass(Directive):
+#     @staticmethod
+#     def _check_isinnerclass(kls, body, /):
+#         if kls.__module__ != body['__module__']:
+#             return False
+#         stump = '.'.join(kls.__qualname__.split('.')[:-1])
+#         return stump == body['__qualname__']
 
-    __slots__ = ('kls',)
+#     def get_mroclass(self, body, name, /):
+#         bases = body.bases
+#         mrobases = tuple(self._gather_mrobases(bases, name))
+#         kls = self.kls
+#         if kls is None:
+#             if not mrobases:
+#                 raise RuntimeError("No bases provided for mroclass!")
+#             kls = type(
+#                 name,
+#                 mrobases,
+#                 dict(),
+#                 location=(
+#                     body['__module__'],
+#                     f"{body['__qualname__']}.{name}",
+#                     ),
+#                 )
+#         else:
+#             isinner = self._check_isinnerclass(kls, body)
+#             if mrobases:
+#                 klsname = kls.__qualname__.split('.')[-1]
+#                 if (not isinner) or (klsname != name):
+#                     kls = type(
+#                         name,
+#                         (kls, *mrobases),
+#                         dict(),
+#                         location=(
+#                             body['__module__'],
+#                             f"{body['__qualname__']}.{name}",
+#                             ),
+#                         )
+#                 else:
+#                     kls = type(
+#                         name,
+#                         (kls, *mrobases),
+#                         dict(__mrobase__=kls),
+#                         location=(kls.__module__, kls.__qualname__),
+#                         )
+#                     newqn = f"{kls.__qualname__}.__mrobase__"
+#                     type.__setattr__(kls.__mrobase__, '__qualname__', newqn)
+#             elif isinner:
+#                 # Have to deal with this somehow...
+#                 pass
+#         return kls
 
-    def __init__(self, kls=None, /):
-        self.kls = kls
-
-    @staticmethod
-    def _gather_mrobases(bases: tuple, name: str, /):
-        for base in bases:
-            try:
-                candidate = getattr(base, name)
-            except AttributeError:
-                continue
-            if candidate is not None:
-                yield candidate
-
-    @staticmethod
-    def _check_isinnerclass(kls, body, /):
-        if kls.__module__ != body['__module__']:
-            return False
-        stump = '.'.join(kls.__qualname__.split('.')[:-1])
-        return stump == body['__qualname__']
-
-    def get_mroclass(self, body, name, /):
-        bases = body.bases
-        mrobases = tuple(self._gather_mrobases(bases, name))
-        kls = self.kls
-        if kls is None:
-            if not mrobases:
-                raise RuntimeError("No bases provided for mroclass!")
-            kls = type(
-                name,
-                mrobases,
-                dict(
-                    __module__=body['__module__'],
-                    __qualname__=f"{body['__qualname__']}.{name}",
-                    ),
-                body=body,
-                )
-        else:
-            isinner = self._check_isinnerclass(kls, body)
-            if mrobases:
-                klsname = kls.__qualname__.split('.')[-1]
-                if (not isinner) or (klsname != name):
-                    kls = type(
-                        name,
-                        (kls, *mrobases),
-                        dict(
-                            __module__=body['__module__'],
-                            __qualname__=f"{body['__qualname__']}.{name}",
-                            ),
-                        body=body,
-                        )
-                else:
-                    kls = type(
-                        name,
-                        (kls, *mrobases),
-                        dict(
-                            __qualname__=kls.__qualname__,
-                            __module__=kls.__module__,
-                            __mrobase__=kls,
-                            ),
-                        body=body,
-                        )
-                    newqn = f"{kls.__qualname__}.__mrobase__"
-                    type.__setattr__(kls.__mrobase__, '__qualname__', newqn)
-            elif isinner:
-                # Have to deal with this somehow...
-                pass
-        return kls
-
-    def __directive_call__(self, body, name, /):
-        return name, self.get_mroclass(body, name)
+#     def __directive_call__(self, body, name, /):
+#         return name, self.get_mroclass(body, name)
 
 
 class ClassBody(dict):
 
-    SKIP = Skip()
-
     BODIES = _weakref.WeakValueDictionary()
 
-    def __init__(self, meta, name, bases, /, *, location=None):
+    def __init__(
+            self, meta, name, bases, /, *,
+            location=None,
+            mroclasses=(),
+            _bodymeths=_ur.DatDict(),
+            _nametriggers=_ur.DatDict(),
+            _typetriggers=_ur.DatDict(),
+            **kwargs,
+            ):
+        self._nametriggers = {**_nametriggers}
+        # self._typetriggers = {**_typetriggers}
+        self.__dict__.update({
+            name: _functools.partial(meth, self)
+            for name, meth in _bodymeths.items()
+            })
         if location is not None:
             self.module, self.qualname = location
-        self._innerclasses = []
         super().__init__(
             _=self,
             # __name__=name,  # Breaks things in a really interesting way!
             __slots__=(),
-            _clsfreezeattr=_switch.Switch(False),
+            innerclasses=[],
+            _clsiscosmic=None,
+            __class_relname__=name,
+            _clsmutable=_Switch(True),
             )
-        redirect = self._redirect = dict(
+        self._redirects = dict(
             _=self,
             __annotations__=AnnotationHandler(self.__setanno__),
             )
-        self._protected = set(self) | set(redirect)
-        self._triggers = dict(
-            __module__ = lambda val: setattr(self, 'module', val),
-            __qualname__ = lambda val: setattr(self, 'qualname', val),
-            )
-        self.suspended = _switch.Switch(False)
+        self._protected = set(self)
+        self._suspended = _Switch(False)
         self.meta = meta
-        self.__dict__.update(meta._yield_bodymeths(self))
         self.name = name
-        self.bases = meta.process_bases(name, bases)
-
-    def register_innerclass(self, kls, /):
-        self._innerclasses.append(kls)
+        self._rawbases = bases
+        self.mroclasses = tuple(mroclasses)
 
     @property
-    def innerclasses(self, /):
-        return tuple(self._innerclasses)
+    def suspended(self, /):
+        return self._suspended
 
-    def suspend(self, /):
-        return self.suspended.as_(True)
+    @suspended.setter
+    def suspended(cls, val, /):
+        self._suspended.toggle(val)
 
     def __getitem__(self, name, /):
         try:
-            return self._redirect[name]
+            return self._redirects[name]
         except KeyError:
             return super().__getitem__(name)
+
+    def _process_nameval(self, name, val, /):
+        if isinstance(val, Directive):
+            name, val = val.__directive_call__(self, name)
+        try:
+            meth = self._nametriggers[name]
+        except KeyError:
+            pass
+        else:
+            name, val = meth(self, val)
+        # try:
+        #     meth = self._typetriggers[type(val)]
+        # except KeyError:
+        #     pass
+        # else:
+        #     name, val = meth(self, name, val)
+        return name, val
 
     def __setitem__(self, name, val, /):
         if self.suspended:
             return
-        try:
-            meth = self._triggers[name]
-        except KeyError:
-            pass
-        else:
-            meth(val)
-            return
-        if isinstance(val, Directive):
-            name, val = val.__directive_call__(self, name)
-        name, val = self.meta._process_bodyitem(self, name, val)
+        name, val = self._process_nameval(name, val)
         if name is None:
             return
         if name in self._protected:
@@ -194,27 +194,34 @@ class ClassBody(dict):
                 )
         super().__setitem__(name, val)
 
+    def __direct_setitem__(self, name, val, /):
+        super().__setitem__(name, val)
+
     @property
     def module(self, /):
         return self._module
+
     @module.setter
     def module(self, val, /):
         try:
             _ = self.module
         except AttributeError:
             self._module = val
+            super().__setitem__('__module__', val)
         else:
             raise AttributeError
 
     @property
     def qualname(self, /):
         return self._qualname
+
     @qualname.setter
     def qualname(self, val, /):
         try:
             _ = self.qualname
         except AttributeError:
             self._qualname = val
+            super().__setitem__('__qualname__', val)
             self._post_prepare()
         else:
             raise AttributeError
@@ -224,12 +231,22 @@ class ClassBody(dict):
         BODIES = type(self).BODIES
         BODIES[module, qualname] = self
         stump = '.'.join(qualname.split('.')[:-1])
+        name = self.name
+        bases = self.meta.process_bases(name, self._rawbases)
         try:
-            self.outerbody = BODIES[module, stump]
-            self.iscosmic = False
+            obody = BODIES[module, stump]
         except KeyError:
             self.outerbody = None
-            self.iscosmic = True
+            iscosmic = self.iscosmic = True
+        else:
+            self.outerbody = obody
+            iscosmic = self.iscosmic = False
+            # if self.ismroclass:
+            #     mrobases = tuple(obody.meta.gather_mrobases(obody.bases, name))
+            #     bases = (*mrobases, *(bs for bs in bases if bs not in mrobases))
+        self._bases = bases
+        super().__setitem__('_clsiscosmic', iscosmic)
+        self.meta._body_post_prepare(self)
 
     def __setanno__(self, name, val, /):
         self.__setitem__(*self.meta._process_bodyanno(
@@ -244,6 +261,10 @@ class ClassBody(dict):
         self.__setitem__(name, val)
         self._protected.add(name)
 
+    @property
+    def bases(self, /):
+        return self._bases
+
     def __repr__(self, /):
         return f"{type(self).__qualname__}({super().__repr__()})"
 
@@ -255,20 +276,69 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     pure instances of itself are 'pure kinds' that cannot be instantiated.
     '''
 
-    @classmethod
-    def __meta_init__(meta, /):
-        meta.__mergenames__ = _ur.DatUniqueTuple(meta._yield_mergenames())
+    ### Descriptor stuff:
+
+    def __set_name__(cls, owner, name, /):
+        if cls.mutable:
+            cls.__class_relname__ = name
+            cls.__class_corpus__ = owner
+            cls.__qualname__ = owner.__qualname__ + '.' + name
+            owner.register_innerclass(cls)
+
+    @property
+    def __corpus__(cls, /):
+        try:
+            return cls.__dict__['__class_corpus__']
+        except KeyError:
+            return None
+
+    @property
+    def __cosmic__(cls, /):
+        return cls.__corpus__ is None
+
+    @property
+    def __relname__(cls, /):
+        try:
+            return cls.__dict__['__class_relname__']
+        except KeyError:
+            return cls.__qualname__
+
+    ### Meta init:
 
     @classmethod
-    def _yield_bodymeths(meta, body, /):
-        yield 'skip', Skip
-        yield 'mroclass', MROClass
+    def _yield_bodynametriggers(meta, /):
+        yield (
+            f"__module__",
+            lambda body, val: (None, setattr(body, 'module', val))
+            )
+        yield (
+            f"__qualname__",
+            lambda body, val: (None, setattr(body, 'qualname', val))
+            )
+
+    @classmethod
+    def _yield_bodytypetriggers(meta, /):
+        return
+        yield
+
+    @classmethod
+    def _yield_bodymeths(meta, /):
+        return
+        yield
 
     @classmethod
     def _yield_mergenames(meta, /):
         return
         yield
-        # yield from ('MROCLASSES', 'OVERCLASSES')
+
+    @classmethod
+    def __meta_init__(meta, /):
+        meta.__mergenames__ = _ur.DatUniqueTuple(meta._yield_mergenames())
+        meta._bodymeths = dict(meta._yield_bodymeths())
+        meta._bodynametriggers = dict(meta._yield_bodynametriggers())
+        meta._bodytypetriggers = dict(meta._yield_bodytypetriggers())
+
+    ### Class construction:
 
     @classmethod
     def _yield_mergees(meta, bases, name, /):
@@ -278,32 +348,35 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 yield out
 
     @classmethod
-    def _yield_mergednames(meta, body, /):
-        for name, dyntyp, fintyp in meta.__mergenames__:
-            mergees = meta._yield_mergees(body.bases, name)
+    def _body_add_mergednames(meta, body, /):
+        genericfunc = lambda meth, body, val: (None, meth(val))
+        for mname, dyntyp, _ in meta.__mergenames__:
+            mergees = meta._yield_mergees(body.bases, mname)
             if issubclass(dyntyp, _collabc.Mapping):
-                iterable = _itertools.chain.from_iterable(
+                dynobj = dyntyp(_itertools.chain.from_iterable(
                     mp.items() for mp in mergees
-                    )
+                    ))
+                meth = dynobj.update
             else:
-                iterable = _itertools.chain.from_iterable(mergees)
-            yield name, dyntyp(iterable)
+                dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
+                meth = dynobj.extend
+            body[mname] = dynobj
+            body._nametriggers[mname] = _functools.partial(genericfunc, meth)
 
     @classmethod
     def __prepare__(meta, name, bases, /, **kwargs):
         '''Called before class body evaluation as the namespace.'''
-        body =  ClassBody(meta, name, bases, **kwargs)
-        body.update(meta._yield_mergednames(body))
-        return body
+        return ClassBody(
+            meta, name, bases,
+            _bodymeths=meta._bodymeths,
+            _nametriggers=meta._bodynametriggers,
+            _typetriggers=meta._bodytypetriggers,
+            **kwargs,
+            )
 
-    def __finalise__(cls, body, /):
-        cls.innerclasses = body.innerclasses
-        for mname, dyntyp, fintyp in body.meta.__mergenames__:
-            setattr(cls, mname, fintyp(body[mname]))
-        cls.__module__, cls.__qualname__ = body.module, body.qualname
-        iscosmic = cls.iscosmic = body.iscosmic
-        if not iscosmic:
-            body.outerbody.register_innerclass(cls)
+    @classmethod
+    def _body_post_prepare(meta, body, /):
+        meta._body_add_mergednames(body)
 
     @classmethod
     def _process_bodyitem(meta, body, name, val, /):
@@ -312,8 +385,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def _process_bodyanno(meta, body, name, hint, val, /):
         raise TypeError(f"Annotations not supported for {meta}.")
-
-    ### Creating the object that is the class itself:
 
     @classmethod
     def expand_bases(meta, bases):
@@ -338,6 +409,16 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             else:
                 bases.append(basetyp)
         return tuple(bases)
+
+    @classmethod
+    def gather_mrobases(meta, bases: tuple, name: str, /):
+        for base in bases:
+            try:
+                candidate = getattr(base, name)
+            except AttributeError:
+                continue
+            if candidate is not None:
+                yield candidate
 
     @classmethod
     def decorate(meta, obj, /):
@@ -367,9 +448,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def __class_construct__(meta, body: ClassBody, /):
-        out = super().__new__(meta, body.name, body.bases, dict(body))
-        out.__finalise__(body)
-        return out
+        return super().__new__(meta, body.name, body.bases, body)
 
     @property
     def __ptolemaic_class__(cls, /):
@@ -379,14 +458,20 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __init__(cls, /, *args, **kwargs):
         _abc.ABCMeta.__init__(cls, *args, **kwargs)
-        if cls.iscosmic:
+        iscosmic = cls._clsiscosmic
+        del cls._clsiscosmic
+        if iscosmic:
             cls.__class_deep_init__()
             cls.__class_inner_init__()
-            cls.freezeattr.toggle(True)
+            cls.mutable = False
 
-    @property
-    def __corpus__(cls, /):
-        return cls.__class_corpus__
+    @classmethod
+    def _get_qualname(cls, /):
+        try:
+            corpus = cls.__corpus__
+        except AttributeError:
+            return cls.__relname__
+        return corpus.__relname__ + '.' + cls.__relname__
 
     ### Storage:
 
@@ -397,26 +482,27 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Implementing the attribute-freezing behaviour for classes:
 
     @property
-    def freezeattr(cls, /):
-        return cls._clsfreezeattr
-
-    @property
     def mutable(cls, /):
-        return cls.freezeattr.as_(False)
+        return cls.__dict__['_clsmutable']
+    @mutable.setter
+    def mutable(cls, val, /):
+        cls.mutable.toggle(val)
 
     def __setattr__(cls, name, val, /):
-        if cls.freezeattr:
+        if cls.mutable:
+            super().__setattr__(name, val)
+        else:
             raise AttributeError(
                 "Cannot alter class attribute while immutable."
                 )
-        super().__setattr__(name, val)
 
     def __delattr__(cls, name, /):
-        if cls.freezeattr:
+        if cls.mutable:
+            super().__delattr__(name)
+        else:
             raise AttributeError(
                 "Cannot alter class attribute while immutable."
                 )
-        super().__delattr__(name)
 
     ### Aliases:
 
@@ -471,8 +557,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             if corpus is None:
                 epi = cls.taphonomy.auto_epitaph(cls)
             else:
-                nm = cls.__qualname__.split('.')[-1]
-                epi = cls.taphonomy.getattr_epitaph(corpus, nm)
+                epi = cls.taphonomy.getattr_epitaph(
+                    corpus, cls.__relname__
+                    )
             type.__setattr__(cls, '_clsepitaph', epi)
             return epi
 
@@ -519,14 +606,28 @@ class EssenceBase(metaclass=Essence):
     @classmethod
     def __class_inner_init__(cls, /):
         for inner in cls.innerclasses:
-            inner.__class_corpus__ = cls
             inner.__class_deep_init__()
             inner.__class_inner_init__()
-            inner.freezeattr.toggle(True)
+            inner.mutable = False
+
+    @classmethod
+    def register_innerclass(cls, other, /):
+        if cls.mutable:
+            cls.innerclasses.append(other)
+        else:
+            raise RuntimeError(
+                "Cannot register a new inner class "
+                "after a class has been made immutable "
+                "(i.e. after it has been completely initialised): "
+                f"{cls}"
+                )
 
     @classmethod
     def __class_deep_init__(cls, /):
         cls.__class_init__()
+        for mname, _, fintyp in cls.__mergenames__:
+            setattr(cls, mname, fintyp(cls.__dict__[mname]))
+        cls.innerclasses = tuple(cls.__dict__['innerclasses'])
 
     @classmethod
     def __class_init__(cls, /):
