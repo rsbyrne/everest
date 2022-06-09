@@ -121,7 +121,7 @@ class OusiaBase(metaclass=Ousia):
                     cls.__req_slots__,
                     cls._yield_concrete_slots(),
                     )))),
-                __ptolemaic_class__=cls,
+                _get_ptolemaic_class=(lambda: cls),
                 ),
             )
 
@@ -338,6 +338,10 @@ class OusiaBase(metaclass=Ousia):
 
     def __hash__(self, /):
         return object.__getattribute__(self, '_pyhash')
+
+    @property
+    def __ptolemaic_class__(self, /):
+        return type(self)._get_ptolemaic_class()
 
 
 ###############################################################################

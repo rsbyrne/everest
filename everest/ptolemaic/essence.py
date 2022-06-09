@@ -22,22 +22,6 @@ from .ptolemaic import Ptolemaic as _Ptolemaic
 from .pleroma import Pleroma as _Pleroma
 
 
-_SERIAL_ = 0
-
-def get_serial():
-    global _SERIAL_
-    return _SERIAL_
-
-def increment_serial():
-    global _SERIAL_
-    out = _SERIAL_ + 1
-    _SERIAL_ = out
-    return out
-
-_PREMADE_ = _weakref.WeakValueDictionary()
-PREMADE = _types.MappingProxyType(_PREMADE_)
-
-
 class AnnotationHandler(dict):
 
     __slots__ = ('meth',)
@@ -96,8 +80,8 @@ class MROClass(Directive):
         kls = self.kls
         if kls is None:
             if not mrobases:
-                return None
-            return type(
+                raise RuntimeError("No bases provided for mroclass!")
+            kls = type(
                 name,
                 mrobases,
                 dict(
@@ -106,35 +90,39 @@ class MROClass(Directive):
                     ),
                 body=body,
                 )
-        isinner = self._check_isinnerclass(kls, body)
-        if not mrobases:
-            return kls
-        klsname = kls.__qualname__.split('.')[-1]
-        if (not isinner) or (klsname != name):
-            return type(
-                name,
-                (kls, *mrobases),
-                dict(
-                    __module__=body['__module__'],
-                    __qualname__=f"{body['__qualname__']}.{name}",
-                    ),
-                body=body,
-                )
-        kls = type(
-            name,
-            (kls, *mrobases),
-            dict(
-                __qualname__=kls.__qualname__,
-                __module__=kls.__module__,
-                __mrobase__=kls,
-                ),
-            body=body,
-            )
-        newqn = f"{kls.__qualname__}.__mrobase__"
-        type.__setattr__(kls.__mrobase__, '__qualname__', newqn)
+        else:
+            isinner = self._check_isinnerclass(kls, body)
+            if mrobases:
+                klsname = kls.__qualname__.split('.')[-1]
+                if (not isinner) or (klsname != name):
+                    kls = type(
+                        name,
+                        (kls, *mrobases),
+                        dict(
+                            __module__=body['__module__'],
+                            __qualname__=f"{body['__qualname__']}.{name}",
+                            ),
+                        body=body,
+                        )
+                else:
+                    kls = type(
+                        name,
+                        (kls, *mrobases),
+                        dict(
+                            __qualname__=kls.__qualname__,
+                            __module__=kls.__module__,
+                            __mrobase__=kls,
+                            ),
+                        body=body,
+                        )
+                    newqn = f"{kls.__qualname__}.__mrobase__"
+                    type.__setattr__(kls.__mrobase__, '__qualname__', newqn)
+            elif isinner:
+                # Have to deal with this somehow...
+                pass
         return kls
 
-    def __call__(self, body, name, /):
+    def __directive_call__(self, body, name, /):
         return name, self.get_mroclass(body, name)
 
 
@@ -142,17 +130,15 @@ class ClassBody(dict):
 
     SKIP = Skip()
 
-    def __init__(self, meta, name, bases, /, *, body=None):
-        self.body = body
-        global increment_serial
-        serials = self.serials = (
-            *(() if body is None else body.serials),
-            increment_serial(),
-            )
+    BODIES = _weakref.WeakValueDictionary()
+
+    def __init__(self, meta, name, bases, /, *, location=None):
+        if location is not None:
+            self.module, self.qualname = location
+        self._innerclasses = []
         super().__init__(
             _=self,
             # __name__=name,  # Breaks things in a really interesting way!
-            __class_serials__=serials,
             __slots__=(),
             _clsfreezeattr=_switch.Switch(False),
             )
@@ -161,11 +147,22 @@ class ClassBody(dict):
             __annotations__=AnnotationHandler(self.__setanno__),
             )
         self._protected = set(self) | set(redirect)
+        self._triggers = dict(
+            __module__ = lambda val: setattr(self, 'module', val),
+            __qualname__ = lambda val: setattr(self, 'qualname', val),
+            )
         self.suspended = _switch.Switch(False)
         self.meta = meta
         self.__dict__.update(meta._yield_bodymeths(self))
         self.name = name
         self.bases = meta.process_bases(name, bases)
+
+    def register_innerclass(self, kls, /):
+        self._innerclasses.append(kls)
+
+    @property
+    def innerclasses(self, /):
+        return tuple(self._innerclasses)
 
     def suspend(self, /):
         return self.suspended.as_(True)
@@ -176,11 +173,15 @@ class ClassBody(dict):
         except KeyError:
             return super().__getitem__(name)
 
-    def __directsetitem__(self, name, val, /):
-        super().__setitem__(name, val)
-
     def __setitem__(self, name, val, /):
         if self.suspended:
+            return
+        try:
+            meth = self._triggers[name]
+        except KeyError:
+            pass
+        else:
+            meth(val)
             return
         if isinstance(val, Directive):
             name, val = val.__directive_call__(self, name)
@@ -192,6 +193,43 @@ class ClassBody(dict):
                 f"Cannot override protected names in class body: {name}"
                 )
         super().__setitem__(name, val)
+
+    @property
+    def module(self, /):
+        return self._module
+    @module.setter
+    def module(self, val, /):
+        try:
+            _ = self.module
+        except AttributeError:
+            self._module = val
+        else:
+            raise AttributeError
+
+    @property
+    def qualname(self, /):
+        return self._qualname
+    @qualname.setter
+    def qualname(self, val, /):
+        try:
+            _ = self.qualname
+        except AttributeError:
+            self._qualname = val
+            self._post_prepare()
+        else:
+            raise AttributeError
+
+    def _post_prepare(self, /):
+        module, qualname = self.module, self.qualname
+        BODIES = type(self).BODIES
+        BODIES[module, qualname] = self
+        stump = '.'.join(qualname.split('.')[:-1])
+        try:
+            self.outerbody = BODIES[module, stump]
+            self.iscosmic = False
+        except KeyError:
+            self.outerbody = None
+            self.iscosmic = True
 
     def __setanno__(self, name, val, /):
         self.__setitem__(*self.meta._process_bodyanno(
@@ -205,12 +243,6 @@ class ClassBody(dict):
                 )
         self.__setitem__(name, val)
         self._protected.add(name)
-
-    def classcache(self, arg, /):
-        name = arg.__name__
-        self.classslots.add(name)
-        self[f"_class_get_{name}_"] = classmethod(arg)
-        return self.SKIP
 
     def __repr__(self, /):
         return f"{type(self).__qualname__}({super().__repr__()})"
@@ -261,9 +293,17 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __prepare__(meta, name, bases, /, **kwargs):
         '''Called before class body evaluation as the namespace.'''
         body =  ClassBody(meta, name, bases, **kwargs)
-        # for name, obj in meta._yield_mergednames(body)
         body.update(meta._yield_mergednames(body))
         return body
+
+    def __finalise__(cls, body, /):
+        cls.innerclasses = body.innerclasses
+        for mname, dyntyp, fintyp in body.meta.__mergenames__:
+            setattr(cls, mname, fintyp(body[mname]))
+        cls.__module__, cls.__qualname__ = body.module, body.qualname
+        iscosmic = cls.iscosmic = body.iscosmic
+        if not iscosmic:
+            body.outerbody.register_innerclass(cls)
 
     @classmethod
     def _process_bodyitem(meta, body, name, val, /):
@@ -327,53 +367,28 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def __class_construct__(meta, body: ClassBody, /):
-        name, bases, ns = body.name, body.bases, dict(body)
-        for mname, dyntyp, fintyp in meta.__mergenames__:
-            ns[mname] = fintyp(ns[mname])
-        out = super().__new__(meta, name, bases, ns)
-        global _PREMADE_
-        _PREMADE_[out.__class_serials__[-1]] = out
+        out = super().__new__(meta, body.name, body.bases, dict(body))
+        out.__finalise__(body)
         return out
 
     @property
-    def __class_serial__(cls, /):
-        return cls.__class_serials__[-1]
-
-    @property
-    def __class_corpuses__(cls, /):
-        try:
-            return cls._class_corpuses
-        except AttributeError:
-            global _PREMADE_
-            corpuses = tuple(
-                _PREMADE_[serial] for serial in cls.__class_serials__[:-1]
-                )
-            type.__setattr__(cls, '_class_corpuses', corpuses)
-            return corpuses
-
-    @property
-    def __class_corpus__(cls, /):
-        try:
-            return cls.__class_corpuses__[-1]
-        except IndexError:
-            return None
+    def __ptolemaic_class__(cls, /):
+        return cls._get_ptolemaic_class()
 
     ### Initialising the class:
 
     def __init__(cls, /, *args, **kwargs):
         _abc.ABCMeta.__init__(cls, *args, **kwargs)
-        cls.__class_deep_init__()
-        cls.freezeattr.toggle(True)
+        if cls.iscosmic:
+            cls.__class_deep_init__()
+            cls.__class_inner_init__()
+            cls.freezeattr.toggle(True)
+
+    @property
+    def __corpus__(cls, /):
+        return cls.__class_corpus__
 
     ### Storage:
-
-#     @_caching.attr_property(weak=True, dictlook=True)
-#     def tray(cls, /):
-#         return _FOCUS.request_session_storer(cls)
-
-#     @_caching.attr_property(weak=True, dictlook=True)
-#     def drawer(cls, /):
-#         return _FOCUS.request_bureau_storer(cls)
 
     @property
     def taphonomy(cls, /):
@@ -388,13 +403,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @property
     def mutable(cls, /):
         return cls.freezeattr.as_(False)
-
-    # def __getattr__(cls, name, /):
-    #     if name in type.__getattribute__(cls, '__classbody_classslots__'):
-    #         val = type.__getattribute__(cls, f"_class_get_{name}_")()
-    #         super().__setattr__(name, val)
-    #         return val
-    #     raise AttributeError(name)
 
     def __setattr__(cls, name, val, /):
         if cls.freezeattr:
@@ -411,10 +419,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         super().__delattr__(name)
 
     ### Aliases:
-
-    # @property
-    # def __ptolemaic_class__(cls, /):
-    #     return cls
 
     def get_attributes(cls, /):
         lst = list()
@@ -462,7 +466,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         try:
             return cls.__dict__['_clsepitaph']
         except KeyError:
-            corpus = cls.__class_corpus__
+            epi = cls.taphonomy.auto_epitaph(cls)
+            corpus = cls.__corpus__
             if corpus is None:
                 epi = cls.taphonomy.auto_epitaph(cls)
             else:
@@ -512,13 +517,24 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 class EssenceBase(metaclass=Essence):
 
     @classmethod
+    def __class_inner_init__(cls, /):
+        for inner in cls.innerclasses:
+            inner.__class_corpus__ = cls
+            inner.__class_deep_init__()
+            inner.__class_inner_init__()
+            inner.freezeattr.toggle(True)
+
+    @classmethod
     def __class_deep_init__(cls, /):
-        cls.__ptolemaic_class__ = cls
         cls.__class_init__()
 
     @classmethod
     def __class_init__(cls, /):
         pass
+
+    @classmethod
+    def _get_ptolemaic_class(cls, /):
+        return cls
 
 
 ###############################################################################
