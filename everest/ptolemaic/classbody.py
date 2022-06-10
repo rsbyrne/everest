@@ -6,7 +6,7 @@
 import abc as _abc
 import itertools as _itertools
 import weakref as _weakref
-import functools as _functools
+from functools import partial as _partial
 from collections import abc as _collabc
 
 from everest import ur as _ur
@@ -35,7 +35,7 @@ class Directive(metaclass=_abc.ABCMeta):
         raise NotImplementedError
 
 
-class ClassBody(dict):
+class ClassBody(_collabc.MutableMapping):
 
     BODIES = _weakref.WeakValueDictionary()
 
@@ -44,18 +44,20 @@ class ClassBody(dict):
             location=None, _staticmeta_=False,
             **kwargs,
             ):
-        super().__init__(
-            _=self,
+        content = self._content = dict()
+        content.update(
             # __name__=name,  # Breaks things in a really interesting way!
             __slots__=(),
             innerclasses=[],
             _clsiscosmic=None,
             __class_relname__=name,
             _clsmutable=_Switch(True),
+            __mroclasses__=[],
             )
         self._nametriggers = dict(
             __module__=(lambda val: (None, setattr(self, 'module', val))),
             __qualname__=(lambda val: (None, setattr(self, 'qualname', val))),
+            __mroclasses__=self._update_mroclasses,
             )
         self._redirects = dict(
             _=self,
@@ -63,11 +65,11 @@ class ClassBody(dict):
             )
         self._protected = set(self)
         self._suspended = _Switch(False)
-        self._rawmeta = meta
         if _staticmeta_:
             self.meta = meta
         self.name = name
         self._rawbases = bases
+        self._fullyprepared = False
         if location is not None:
             self.module, self.qualname = location
 
@@ -77,6 +79,17 @@ class ClassBody(dict):
     @property
     def protected(self, /):
         return frozenset(self._protected)
+
+    def _update_mroclasses(self, val, /):
+        val = tuple(val)
+        mroclasses = self['__mroclasses__']
+        new = tuple(subval for subval in val if val not in mroclasses)
+        mroclasses.extend(new)
+        self._nametriggers.update(
+            (name, _partial(self._add_innerclass, name))
+            for name in new
+            )
+        return None, None
 
     @property
     def suspended(self, /):
@@ -90,7 +103,7 @@ class ClassBody(dict):
         try:
             return self._redirects[name]
         except KeyError:
-            return super().__getitem__(name)
+            return self._content[name]
 
     def _process_nameval(self, name, val, /):
         if isinstance(val, Directive):
@@ -103,6 +116,23 @@ class ClassBody(dict):
             name, val = meth(val)
         return name, val
 
+    def __iter__(self, /):
+        return iter(self._content)
+
+    def __len__(self, /):
+        return len(self._content)
+
+    @property
+    def keys(self, /):
+        return self._content.keys
+
+    @property
+    def values(self, /):
+        return self._content.values
+
+    def __contains__(self, name, /):
+        return name in self._content
+
     def __setitem__(self, name, val, /):
         if self.suspended:
             return
@@ -111,12 +141,16 @@ class ClassBody(dict):
             return
         if name in self._protected:
             raise RuntimeError(
-                f"Cannot override protected names in class body: {name}"
+                f"Cannot alter protected names in class body: {name}"
                 )
-        super().__setitem__(name, val)
+        self._content[name] = val
 
-    def __direct_setitem__(self, name, val, /):
-        super().__setitem__(name, val)
+    def __delitem__(self, name, /):
+        if name in self._protected:
+            raise RuntimeError(
+                f"Cannot alter protected names in class body: {name}"
+                )
+        del self._content[name]
 
     @property
     def module(self, /):
@@ -128,7 +162,7 @@ class ClassBody(dict):
             _ = self.module
         except AttributeError:
             self._module = val
-            super().__setitem__('__module__', val)
+            self._content['__module__'] = val
         else:
             raise AttributeError
 
@@ -142,7 +176,7 @@ class ClassBody(dict):
             _ = self.qualname
         except AttributeError:
             self._qualname = val
-            super().__setitem__('__qualname__', val)
+            self._content['__qualname__'] = val
             self._post_prepare()
         else:
             raise AttributeError
@@ -153,28 +187,26 @@ class ClassBody(dict):
             return self._ismroclass
         except AttributeError:
             if not self.iscosmic:
-                if self.name in self.outerbody.mroclasses:
+                name, obody = self.name, self.outerbody
+                if name in obody['__mroclasses__']:
                     out = self._ismroclass = True
+                    obody.anticipate_mroclass(name)
                     return out
             out = self._ismroclass = False
             return out
 
-    def _post_prepare_mroclasses(self, /):
-        # if not '__mroclasses__' in self:
-        #     super().__setitem__('__mroclasses__', ())
-        # self.mroclasses = self['__mroclasses__']
-        self.mroclasses = ()
-
     def _post_prepare_bases(self, /):
         out = []
-        bases = self._rawbases
         if self.ismroclass:
             name = self.name
-            for base in self.outerbody.bases:
-                if hasattr(base, name):
-                    if base not in out:
-                        out.append(base)
-        for base in bases:
+            for obase in self.outerbody.bases:
+                try:
+                    mrobase = getattr(obase, name)
+                except AttributeError:
+                    continue
+                if mrobase not in out:
+                    out.append(mrobase)
+        for base in self._rawbases:
             if base not in out:
                 out.append(base)
         self.bases = tuple(out)
@@ -182,14 +214,13 @@ class ClassBody(dict):
     def _post_prepare_meta(self, /):
         if hasattr(self, 'meta'):
             return
-        metas = []
-        for meta in map(type, self.bases):
-            if isinstance(meta, _Pleroma):
-                if not any(issubclass(meta, mt) for mt in metas):
-                    metas.append(meta)
-        if not metas:
-            metas.append(self._rawmeta)
-        self.meta = type("VirtualMeta", tuple(metas), {})
+        metas = tuple(map(type, self.bases))
+        for meta in metas:
+            if all(issubclass(meta, mt) for mt in metas):
+                break
+        else:
+            raise RuntimeError("Could not identify proper metaclass.")
+        self.meta = meta
 
     def _post_prepare_mergednames(self, /):
         bases = self.bases
@@ -209,23 +240,28 @@ class ClassBody(dict):
             else:
                 dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
                 meth = dynobj.extend
-            super().__setitem__(mname, dynobj)
-            self._nametriggers[mname] = _functools.partial(genericfunc, meth)
+            self._content[mname] = dynobj
+            self._nametriggers[mname] = _partial(genericfunc, meth)
 
     def _post_prepare_bodymeths(self, /):
         self.__dict__.update(
-            (name, _functools.partial(meth, self))
+            (name, _partial(meth, self))
             for name, meth in self.meta._yield_bodymeths()
             )
 
     def _post_prepare_nametriggers(self, /):
         self._nametriggers.update(
-            (name, _functools.partial(meth, self))
+            (name, _partial(meth, self))
             for name, meth in self.meta._yield_bodynametriggers()
             )
-        self._nametriggers.update(
-            (name, _functools.partial(self._add_innerclass, name))
-            for name in self.mroclasses
+
+    def _post_prepare_mroclasses(self, /):
+        empty = ()
+        gathered = _ur.DatUniqueTuple(_itertools.chain.from_iterable(
+            getattr(base, '__mroclasses__', empty) for base in self.bases
+            ))
+        self['__mroclasses__'] = (
+            nm for nm in gathered if nm not in self['__mroclasses__']
             )
 
     def _post_prepare(self, /):
@@ -242,28 +278,50 @@ class ClassBody(dict):
         else:
             self.outerbody = obody
             iscosmic = self.iscosmic = False
-        super().__setitem__('_clsiscosmic', iscosmic)
-        self._post_prepare_mroclasses()
+        self._content['_clsiscosmic'] = iscosmic
         self._post_prepare_bases()
         self._post_prepare_meta()
         self._post_prepare_mergednames()
         self._post_prepare_bodymeths()
         self._post_prepare_nametriggers()
+        self._post_prepare_mroclasses()
+        self._fullyprepared = True
 
-    def _add_innerclass(self, name, base, /):
-        super().__setitem__(name, type(
+    def _add_innerclass(self, name, base=None, /):
+        if base is None:
+            base = self.meta._defaultbasetyp
+        self._content[name] = type(
             name, (base,), {},
             location=(self.module, f"{self.qualname}.{name}"),
-            ))
-        self.protect_name(name)
+            )
+        return None, None
+
+    def _add_mroclass(self, name, mroclass, /):
+        self._content[name] = mroclass
+        self._nametriggers[name] = _partial(self._add_innerclass, name)
+        return None, None
+
+    def anticipate_mroclass(self, name, /):
+        self._nametriggers[name] = _partial(self._add_mroclass, name)
+
+    def _finalise_mroclasses(self, /):
+        mroclasses = _ur.DatUniqueTuple(self['__mroclasses__'])
+        self._content['__mroclasses__'] = mroclasses
+        if mroclasses:
+            for mroname in mroclasses:
+                if mroname not in self:
+                    # self[mroname] = default
+                    self._add_innerclass(mroname)
+
+    def _finalise_mergenames(self, /):
+        for mname, _, fintyp in self.mergenames:
+            self._content[mname] = fintyp(self[mname])
 
     def finalise(self, /):
-        for nm in self.mroclasses:
-            if nm not in self:
-                _, body[nm] = self._add_innerclass(nm, body, Essence.BaseTyp)
-        for mname, _, fintyp in self.mergenames:
-            super().__setitem__(mname, fintyp(self[mname]))
-        return self.name, self.bases, dict(self)
+        assert self._fullyprepared
+        self._finalise_mergenames()
+        self._finalise_mroclasses()
+        return self.name, self.bases, self._content
 
     def __setanno__(self, name, val, /):
         self.__setitem__(*self.meta._process_bodyanno(
@@ -279,7 +337,7 @@ class ClassBody(dict):
         self._protected.add(name)
 
     def __repr__(self, /):
-        return f"{type(self).__qualname__}({super().__repr__()})"
+        return f"{type(self).__qualname__}({repr(self._content)})"
 
 
 ###############################################################################

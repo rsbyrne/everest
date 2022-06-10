@@ -7,6 +7,7 @@ import abc as _abc
 import functools as _functools
 
 from everest.bureau import FOCUS as _FOCUS
+from everest import ur as _ur
 
 from .ptolemaic import Ptolemaic as _Ptolemaic
 from .pleroma import Pleroma as _Pleroma
@@ -61,7 +62,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def _yield_mergenames(meta, /):
-        # yield '__mroclasses__', ()
         return
         yield
 
@@ -314,6 +314,10 @@ class _EssenceBase_(metaclass=Essence):
     @classmethod
     def _get_ptolemaic_class(cls, /):
         return cls
+
+
+with Essence.mutable:
+    Essence._defaultbasetyp = Essence.BaseTyp
 
 
 ###############################################################################
