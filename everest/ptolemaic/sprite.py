@@ -28,7 +28,7 @@ class Sprite(_Ousia):
         yield ('__params__', dict, _ur.DatDict)
 
 
-class SpriteBase(metaclass=Sprite):
+class _SpriteBase_(metaclass=Sprite):
 
     __slots__ = ('params',)
 

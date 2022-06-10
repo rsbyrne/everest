@@ -13,6 +13,8 @@ from everest.utilities import (
 
 from everest import epitaph as _epitaph
 
+from .utilities import Switch as _Switch
+
 
 class Pleroma(type):
 
@@ -32,33 +34,35 @@ class Pleroma(type):
         pass
 
     def __init__(meta, /, *args, **kwargs):
+        type.__setattr__(meta, '_metamutable', _Switch(True))
         meta._meta_softcache = {}
         super().__init__(*args, **kwargs)
         meta.__meta_init__()
-        meta.metafreezeattr.toggle(True)
+        meta.mutable = False
 
     @property
-    def metafreezeattr(meta, /):
-        try:
-            return meta.__dict__['_metafreezeattr']
-        except KeyError:
-            super().__setattr__(
-                '_metafreezeattr', switch := _switch.Switch(False)
-                )
-            return switch
+    def mutable(meta, /):
+        return meta.__dict__['_metamutable']
 
-    @property
-    def metamutable(meta, /):
-        return meta.metafreezeattr.as_(False)
+    @mutable.setter
+    def mutable(meta, val, /):
+        meta.mutable.toggle(val)
 
-    def __setattr__(meta, key, val, /):
-        if meta.metafreezeattr:
+    def __setattr__(meta, name, val, /):
+        if meta.mutable:
+            super().__setattr__(name, val)
+        else:
             raise AttributeError(
-                f"Setting attributes on an object of type {type(meta)} "
-                "is forbidden at this time; "
-                f"toggle switch `.metafreezeattr` to override."
+                "Cannot alter class attribute while immutable."
                 )
-        super().__setattr__(key, val)
+
+    def __delattr__(meta, name, /):
+        if meta.mutable:
+            super().__delattr__(name)
+        else:
+            raise AttributeError(
+                "Cannot alter class attribute while immutable."
+                )
 
     def __meta_call__(meta, /, *_, **__):
         raise NotImplementedError
@@ -68,45 +72,25 @@ class Pleroma(type):
         return meta.__meta_call__
 
     @property
-    def pleromabases(meta, /):
-        return tuple(
-            base for base in meta.__mro__ if isinstance(base, Pleroma)
-            )
-
-    @property
     def basetypname(meta, /):
         metaname = meta.__name__
         if metaname.endswith(suffix := 'Meta'):
             return metaname.removesuffix(suffix)
-        return f"{metaname}Base"
-
-    def get_basetyp(meta, /):
-        module = _getmodule(meta)
-        try:
-            return eval(meta.basetypname, {}, module.__dict__)
-        except (NameError, SyntaxError):
-            bases = meta.pleromabases[1:]
-            if bases:
-                return Pleroma.get_basetyp(bases[0])
-            return object
+        return f"_{metaname}Base_"
 
     @property
     def BaseTyp(meta, /):
-        return meta.get_basetyp()
-
-    def yield_basetypes(meta, /):
-        seen = set()
-        seen.add(typ := meta.BaseTyp)
-        yield typ
-        for pleromabase in meta.pleromabases:
-            basetyp = pleromabase.BaseTyp
-            if basetyp not in seen:
-                seen.add(basetyp)
-                yield basetyp
-
-    @property
-    def basetypes(meta, /):
-        return tuple(meta.yield_basetypes())
+        try:
+            return meta.__dict__['_BaseTyp']
+        except KeyError:
+            module = _getmodule(meta)
+            try:
+                basetyp = eval(meta.basetypname, {}, module.__dict__)
+            except (NameError, SyntaxError):
+                raise AttributeError('BaseTyp')
+            else:
+                type.__setattr__(meta, '_BaseTyp', basetyp)
+                return basetyp
 
     @property
     def taphonomy(meta, /):
@@ -118,3 +102,45 @@ class Pleroma(type):
 
 ###############################################################################
 ###############################################################################
+
+
+#     @property
+#     def pleromabases(meta, /):
+#         return tuple(
+#             base for base in meta.__mro__ if isinstance(base, Pleroma)
+#             )
+
+#     @property
+#     def basetypname(meta, /):
+#         metaname = meta.__name__
+#         if metaname.endswith(suffix := 'Meta'):
+#             return metaname.removesuffix(suffix)
+#         return f"{metaname}Base"
+
+#     def get_basetyp(meta, /):
+#         module = _getmodule(meta)
+#         try:
+#             return eval(meta.basetypname, {}, module.__dict__)
+#         except (NameError, SyntaxError):
+#             bases = meta.pleromabases[1:]
+#             if bases:
+#                 return Pleroma.get_basetyp(bases[0])
+#             return object
+
+#     @property
+#     def BaseTyp(meta, /):
+#         return meta.get_basetyp()
+
+#     def yield_basetypes(meta, /):
+#         seen = set()
+#         seen.add(typ := meta.BaseTyp)
+#         yield typ
+#         for pleromabase in meta.pleromabases:
+#             basetyp = pleromabase.BaseTyp
+#             if basetyp not in seen:
+#                 seen.add(basetyp)
+#                 yield basetyp
+
+#     @property
+#     def basetypes(meta, /):
+#         return tuple(meta.yield_basetypes())

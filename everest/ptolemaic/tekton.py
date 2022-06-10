@@ -214,7 +214,8 @@ class Tekton(_Urgon):
     def _yield_mergenames(meta, /):
         yield from super()._yield_mergenames()
         for typ in meta._smartattrtypes:
-            yield typ.__merge_name__, typ.__merge_dyntyp__, typ.__merge_fintyp__
+            yield \
+                typ.__merge_name__, typ.__merge_dyntyp__, typ.__merge_fintyp__
 
     @classmethod
     def __meta_init__(meta, /):
@@ -228,7 +229,7 @@ class Tekton(_Urgon):
         return name, meta.Field.from_annotation(hint, val)
 
 
-class TektonBase(metaclass=Tekton):
+class _TektonBase_(metaclass=Tekton):
 
     @classmethod
     def _get_signature(cls, /):

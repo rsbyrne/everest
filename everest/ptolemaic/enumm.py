@@ -21,7 +21,7 @@ class Enumm(_Ousia):
         return iter(cls.enumerators)
 
 
-class EnummBase(metaclass=_Ousia):
+class _EnummBase_(metaclass=Enumm):
 
     __enumerators__ = {}
     __slots__ = ('serial', 'name', 'value')

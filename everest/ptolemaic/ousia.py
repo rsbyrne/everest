@@ -98,7 +98,7 @@ class Ousia(_Urgon):
             )
 
 
-class OusiaBase(metaclass=Ousia):
+class _OusiaBase_(metaclass=Ousia):
 
     __slots__ = (
         '__weakref__',

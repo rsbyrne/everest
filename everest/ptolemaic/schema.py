@@ -223,7 +223,7 @@ class Schema(_Tekton, _Ousia):
         yield Organ
 
 
-class SchemaBase(metaclass=Schema):
+class _SchemaBase_(metaclass=Schema):
 
     __slots__ = ('params', '_boundorgans',)
 

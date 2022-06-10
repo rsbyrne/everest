@@ -17,7 +17,7 @@ class Urgon(_Essence):
     ...
 
 
-class UrgonBase(metaclass=Urgon):
+class _UrgonBase_(metaclass=Urgon, _isbasetyp_=True):
 
     @classmethod
     def _get_signature(cls, /):

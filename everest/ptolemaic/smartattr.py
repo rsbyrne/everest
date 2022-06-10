@@ -8,7 +8,7 @@ import inspect as _inspect
 
 from everest import ur as _ur
 
-from .essence import Directive as _Directive
+from .classbody import Directive as _Directive
 from .sprite import Sprite as _Sprite
 from .utilities import (
     BindableObject as _BindableObject,
