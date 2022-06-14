@@ -203,6 +203,18 @@ class DatArray(ArrayBase, Dat):
     __slots__ = ()
 
 
+@Dat.register
+class Signifier:
+
+    __slots__ = ('context', 'content')
+
+    def __init__(self, context: Dat, content: str, /):
+        self.context, self.content = Dat.convert(context), str(content)
+
+    def __repr__(self, /):
+        return f"Signifier({self.context}, {self.content})"
+
+
 class Primitive(Dat):
     '''
     The abstract base class of all Python types

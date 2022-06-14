@@ -31,6 +31,7 @@ class _TektonBase_(metaclass=Tekton):
 
     @classmethod
     def __class_init__(cls, /):
+        super().__class_init__()
         Params = cls.Params = _namedtuple(
             f"Params_{cls.__name__}", cls.__fields__
             )

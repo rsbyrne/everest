@@ -208,7 +208,7 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
         return f"<{self.Base.__qualname__}, id={id(self)}>"
 
     def __str__(self, /):
-        return f"{self.Base.__qualname__}({repr(self.params)})"
+        return f"{self.Base.__qualname__}({repr(tuple(self.params))[1:-1]})"
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:

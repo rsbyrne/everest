@@ -3,83 +3,48 @@
 ###############################################################################
 
 
-import functools as _functools
-
 from everest import ur as _ur
 
 from .ousia import Ousia as _Ousia
-from .classbody import Directive as _Directive
-
-
-class AttrHandler(_Directive):
-
-    __slots__ = ('meth',)
-
-    @classmethod
-    def __body_call__(cls, body, arg=None, /, **kwargs):
-        if arg is None:
-            return _functools.partial(cls.__body_call__, body, **kwargs)
-        return cls(arg, **kwargs)
-
-    def __init__(self, meth, /):
-        self.meth = meth
-
-    def __directive_call__(self, body, name, /):
-        body[self.__class__.__name__.lower() + 's'][name] = self.meth
-
-
-class Getter(AttrHandler):
-
-    __slots__ = ('slot',)
-
-    def __init__(self, meth, /, *, slot=False):
-        super().__init__(meth)
-        self.slot = slot
-
-    def __directive_call__(self, body, name, /):
-        super().__directive_call__(body, name)
-        if self.slot:
-            body['__req_slots__'].append(name)
-
-
-class Setter(AttrHandler):
-
-    __slots__ = ()
-
-
-class Deleter(AttrHandler):
-
-    __slots__ = ()
 
 
 class Eidos(_Ousia):
 
-    @classmethod
-    def _yield_mergenames(meta, /):
-        yield from super()._yield_mergenames()
-        yield ('getters', dict, _ur.DatDict)
-        yield ('setters', dict, _ur.DatDict)
-        yield ('deleters', dict, _ur.DatDict)
-
-    @classmethod
-    def _yield_bodymeths(meta, /):
-        yield from super()._yield_bodymeths()
-        yield ('getter', Getter.__body_call__)
-        yield ('setter', Setter.__body_call__)
-        yield ('deleter', Deleter.__body_call__)
+    ...
 
 
 class _EidosBase_(metaclass=Eidos):
 
+    @classmethod
+    def _yield_getters(cls, /):
+        return
+        yield
+
+    @classmethod
+    def _yield_setters(cls, /):
+        return
+        yield
+
+    @classmethod
+    def _yield_deleters(cls, /):
+        return
+        yield
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.getters = _ur.DatDict(cls._yield_getters())
+        cls.setters = _ur.DatDict(cls._yield_setters())
+        cls.deleters = _ur.DatDict(cls._yield_deleters())
 
     def __getattr__(self, name, /):
         cls = self.__ptolemaic_class__
         if name in cls.__req_slots__:
             try:
-                meth = cls.getters[name]
+                getter = cls.getters[name]
             except KeyError as exc:
                 raise AttributeError from exc
-            val = meth(self)
+            val = getter.__bound_get__(self, name)
             object.__setattr__(self, name, val)
             return val
         dct = self.__dict__
@@ -88,10 +53,10 @@ class _EidosBase_(metaclass=Eidos):
         except KeyError:
             pass
         try:
-            meth = cls.getters[name]
+            getter = cls.getters[name]
         except KeyError as exc:
             raise AttributeError from exc
-        val = dct[name] = meth(self)
+        val = dct[name] = getter.__bound_get__(self, name)
         return val
 
     def __setattr__(self, name, val, /):
@@ -103,7 +68,7 @@ class _EidosBase_(metaclass=Eidos):
                 f"{name}"
                 )
         try:
-            meth = cls.setters[name]
+            setter = cls.setters[name]
         except KeyError:
             if name in cls.__req_slots__:
                 if not self.__getattribute__('_mutable'):
@@ -117,11 +82,11 @@ class _EidosBase_(metaclass=Eidos):
                 except AttributeError as exc:
                     self.__dict__[name] = val
         else:
-            meth(self, val)
+            setter.__bound_set__(self, name, val)
 
     def __delattr__(self, name, /):
         try:
-            meth = cls.deleters[name]
+            deleter = cls.deleters[name]
         except KeyError as exc:
             if name in cls.__req_slots__:
                 if not self.__getattribute__('_mutable'):
@@ -138,8 +103,54 @@ class _EidosBase_(metaclass=Eidos):
                     except KeyError as exc:
                         raise AttributeError from exc
         else:
-            meth(self)
+            deleter.__bound_del__(self, name)
 
 
 ###############################################################################
 ###############################################################################
+
+
+# import functools as _functools
+
+# from .classbody import Directive as _Directive
+
+
+# class AttrHandler(_Directive):
+
+#     __slots__ = ('meth',)
+
+#     @classmethod
+#     def __body_call__(cls, body, arg=None, /, **kwargs):
+#         if arg is None:
+#             return _functools.partial(cls.__body_call__, body, **kwargs)
+#         return cls(arg, **kwargs)
+
+#     def __init__(self, meth, /):
+#         self.meth = meth
+
+#     def __directive_call__(self, body, name, /):
+#         body[self.__class__.__name__.lower() + 's'][name] = self.meth
+
+
+# class Getter(AttrHandler):
+
+#     __slots__ = ('slot',)
+
+#     def __init__(self, meth, /, *, slot=False):
+#         super().__init__(meth)
+#         self.slot = slot
+
+#     def __directive_call__(self, body, name, /):
+#         super().__directive_call__(body, name)
+#         if self.slot:
+#             body['__req_slots__'].append(name)
+
+
+# class Setter(AttrHandler):
+
+#     __slots__ = ()
+
+
+# class Deleter(AttrHandler):
+
+#     __slots__ = ()

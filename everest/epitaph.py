@@ -200,6 +200,12 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
             content += ','
         return self.enfence(content)
 
+    def encode_signifier(self, arg: _ur.Signifier, /, *, deps: set = None):
+        return self.enfence(
+            ','.join(map(self.sub_part(deps), (arg.context, arg.content))),
+            's',
+            )
+
     def encode_ddict(self, arg: _ur.DatDict, /, *, deps: set = None):
         return self.enfence(self.encode_dict(arg, deps=deps), 'd')
 
@@ -237,6 +243,9 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
                 hint = meth.__annotations__['arg']
                 yield hint, meth
         yield object, self._encode_fallback
+
+    def decode_signifier(self:'s', /, *args):
+        return _ur.Signifier(*args)
 
     def decode_ddict(self:'d', arg: dict, /) -> _ur.DatDict:
         return _ur.DatDict(arg)

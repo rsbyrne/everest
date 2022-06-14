@@ -3,31 +3,26 @@
 ###############################################################################
 
 
-import abc as _abc
-import inspect as _inspect
 import functools as _functools
 
 from everest import ur as _ur
 
 from .sprite import Sprite as _Sprite
 from .classbody import Directive as _Directive
+from .utilities import BindableObject as _BindableObject
 
 
-_pempty = _inspect._empty
-
-
-_passthru = lambda x: x
-
-
-class SmartAttr(_Directive, metaclass=_Sprite):
+class SmartAttr(_BindableObject, _Directive, metaclass=_Sprite):
 
     __slots__ = ('cachedname', 'degenerate')
 
+    arg: object
     hint: (type, str, tuple)
     note: str
 
     __merge_dyntyp__ = dict
     __merge_fintyp__ = _ur.DatDict
+    _slotcached_ = False
 
     @classmethod
     def __class_init__(cls, /):
@@ -38,52 +33,26 @@ class SmartAttr(_Directive, metaclass=_Sprite):
     def __body_call__(cls, body, arg=None, /, **kwargs):
         if arg is None:
             return _functools.partial(cls.__body_call__, body, **kwargs)
-        return cls(hint=arg, **kwargs)
-
-    @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
-        params.__dict__.update(
-            (name, getattr(cls, f"process_{name}", _passthru)(val))
-            for name, val in params.__dict__.items()
-            )
-        return params
-
-    @classmethod
-    def convert(cls, arg, /):
-        if isinstance(arg, cls):
-            return arg
-        raise TypeError(type(arg))
-
-    @staticmethod
-    def process_hint(hint, /):
-        if hint in (_pempty, NotImplemented):
-            return object
-        if isinstance(hint, tuple):
-            if len(hint) < 1:
-                raise TypeError("Hint cannot be an empty tuple.")
-            return hint
-        if isinstance(hint, type):
-            return hint
-        if isinstance(hint, str):
-            return OwnerGet(hint)
-        raise TypeError(
-            f"The `Field` hint must be a type or a tuple of types:",
-            hint,
-            )
-
-    @staticmethod
-    def process_note(note, /):
-        if note in (_pempty, NotImplemented):
-            return '?'
-        return str(note)
+        return cls(arg=arg, **kwargs)
 
     def __init__(self, /):
         super().__init__()
-        self.degenerate = not bool(self.hint)
+        self.degenerate = not bool(self.arg)
+
+    def __bound_owner_get__(self, owner, name, /):
+        return self
 
     def __directive_call__(self, body, name, /):
         body[self.__merge_name__][name] = self
+        body.enroll_shadow(name)
+        if self._slotcached_:
+            try:
+                slots = body['__req_slots__']
+            except KeyError:
+                pass
+            else:
+                slots.append(name)
+        body[f'_{name}_'] = self.arg
 
 
 ###############################################################################

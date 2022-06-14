@@ -7,20 +7,33 @@ from everest.utilities import pretty as _pretty
 
 from .tekton import Tekton as _Tekton
 from .eidos import Eidos as _Eidos
-from . import organ as _organ
+from .organ import Organ as _Organ
+from .comp import Comp as _Comp, Getter as _Getter
 
 
 class Schema(_Tekton, _Eidos):
 
     @classmethod
+    def _yield_bodymeths(meta, /):
+        yield from super()._yield_bodymeths()
+        yield 'get', _Getter
+
+    @classmethod
     def _yield_smartattrtypes(meta, /):
         yield from super()._yield_smartattrtypes()
-        yield _organ.Organ
+        yield _Organ
+        yield _Comp
 
 
 class _SchemaBase_(metaclass=Schema):
 
     __slots__ = ('_params',)
+
+    @classmethod
+    def _yield_getters(cls, /):
+        yield from super()._yield_getters()
+        for typ in cls._smartattrtypes:
+            yield from getattr(cls, typ.__merge_name__).items()
 
     @property
     def params(self, /):

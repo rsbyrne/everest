@@ -12,6 +12,7 @@ from collections import abc as _collabc
 from everest import ur as _ur
 
 from .pleroma import Pleroma as _Pleroma
+from .shadow import Shadow as _Shadow
 from .utilities import Switch as _Switch
 
 
@@ -65,6 +66,7 @@ class ClassBody(_collabc.MutableMapping):
             # sugar=self._sugar,
             __annotations__=AnnotationHandler(self.__setanno__),
             )
+        self._shadows = set()
         self._protected = set(self)
         if _staticmeta_:
             self.meta = meta
@@ -75,6 +77,10 @@ class ClassBody(_collabc.MutableMapping):
             self.module, self.qualname = location
 
     def protect_name(self, name, /):
+        self._protected.add(name)
+
+    def enroll_shadow(self, name, /):
+        self._shadows.add(name)
         self._protected.add(name)
 
     def _update_mroclasses(self, val, /):
@@ -103,7 +109,12 @@ class ClassBody(_collabc.MutableMapping):
             return self._redirects[name]
         except KeyError:
             pass
-        return self._content[name]
+        try:
+            return self._content[name]
+        except KeyError as exc:
+            if name in self._shadows:
+                return _Shadow(name)
+            raise KeyError from exc
 
     def __iter__(self, /):
         return iter(self._content)
