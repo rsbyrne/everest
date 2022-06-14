@@ -30,7 +30,7 @@ class Sprite(_Ousia):
 
 class _SpriteBase_(metaclass=Sprite):
 
-    __slots__ = ('params',)
+    __slots__ = ('_params',)
 
     @classmethod
     def _yield_concrete_slots(cls, /):
@@ -56,8 +56,13 @@ class _SpriteBase_(metaclass=Sprite):
     def _get_signature(cls, /):
         return _inspect.signature(cls.Params)
 
-    def set_params(self, params, /):
-        params = self.params = self.Params(*params)
+    @property
+    def params(self, /):
+        return self._params
+
+    @params.setter
+    def params(self, value, /):
+        params = self._params = self.Params(*value)
         for name, param in params._asdict().items():
             setattr(self, name, param)
 

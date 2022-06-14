@@ -94,7 +94,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def _process_bodyanno(meta, body, name, hint, val, /):
-        raise RuntimeError
         raise TypeError(f"Annotations not supported for {meta}.")
 
     @classmethod

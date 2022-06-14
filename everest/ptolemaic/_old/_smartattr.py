@@ -5,12 +5,15 @@
 
 import abc as _abc
 import inspect as _inspect
-import functools as _functools
 
 from everest import ur as _ur
 
-from .sprite import Sprite as _Sprite
 from .classbody import Directive as _Directive
+from .sprite import Sprite as _Sprite
+from .utilities import (
+    BindableObject as _BindableObject,
+    BoundObject as _BoundObject,
+    )
 
 
 _pempty = _inspect._empty
@@ -19,7 +22,40 @@ _pempty = _inspect._empty
 _passthru = lambda x: x
 
 
-class SmartAttr(_Directive, metaclass=_Sprite):
+class Getter(metaclass=_Sprite):
+
+    @_abc.abstractmethod
+    def __call__(self, instance, owner, /):
+        raise NotImplementedError
+
+
+class OwnerGet(Getter):
+
+    name: str
+    default: object
+
+    def __call__(self, instance, owner, /):
+        name, default = self.name, self.default
+        if default is NotImplemented:
+            return getattr(owner, name)
+        return getattr(owner, name, default)
+
+
+class InstanceGet(Getter):
+
+    name: str
+    default: object
+
+    def __call__(self, instance, owner, /):
+        name, default = self.name, self.default
+        if default is NotImplemented:
+            return getattr(instance, name)
+        return getattr(instance, name, default)
+
+
+@_Directive.register
+@_BindableObject.register
+class SmartAttr(metaclass=_Sprite):
 
     __slots__ = ('cachedname', 'degenerate')
 
@@ -33,12 +69,6 @@ class SmartAttr(_Directive, metaclass=_Sprite):
     def __class_init__(cls, /):
         super().__class_init__()
         cls.__merge_name__ = f"__{cls.__name__.lower()}s__"
-
-    @classmethod
-    def __body_call__(cls, body, arg=None, /, **kwargs):
-        if arg is None:
-            return _functools.partial(cls.__body_call__, body, **kwargs)
-        return cls(hint=arg, **kwargs)
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -82,8 +112,27 @@ class SmartAttr(_Directive, metaclass=_Sprite):
         super().__init__()
         self.degenerate = not bool(self.hint)
 
-    def __directive_call__(self, body, name, /):
+    @_abc.abstractmethod
+    def __bound_get__(self, instance: object, name: str, /):
+        raise NotImplementedError
+
+    @_abc.abstractmethod
+    def __bound_owner_get__(self, owner: type, name: str, /):
+        raise NotImplementedError
+
+    def __bound_set__(self, instance, name, value, /):
+        raise AttributeError(
+            f"Can't set attribute: {instance}, {name}"
+            )
+
+    def __bound_delete__(self, instance, name, /):
+        raise AttributeError(
+            f"Can't delete attribute: {instance}, {name}"
+            )
+
+    def __call__(self, body, name, /):
         body[self.__merge_name__][name] = self
+        body[name] = _BoundObject(self)
 
 
 ###############################################################################

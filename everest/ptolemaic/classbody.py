@@ -31,7 +31,7 @@ class Directive(metaclass=_abc.ABCMeta):
     __slots__ = ()
 
     @_abc.abstractmethod
-    def __directive_call__(self, body, name, /) -> tuple[str, object]:
+    def __directive_call__(self, body, name, /):
         raise NotImplementedError
 
 
@@ -55,16 +55,17 @@ class ClassBody(_collabc.MutableMapping):
             __mroclasses__=[],
             )
         self._nametriggers = dict(
-            __module__=(lambda val: (None, setattr(self, 'module', val))),
-            __qualname__=(lambda val: (None, setattr(self, 'qualname', val))),
+            __module__=(lambda val: setattr(self, 'module', val)),
+            __qualname__=(lambda val: setattr(self, 'qualname', val)),
             __mroclasses__=self._update_mroclasses,
             )
+        # self._sugar = _Switch(withsugar)
         self._redirects = dict(
             _=self,
+            # sugar=self._sugar,
             __annotations__=AnnotationHandler(self.__setanno__),
             )
         self._protected = set(self)
-        self._suspended = _Switch(False)
         if _staticmeta_:
             self.meta = meta
         self.name = name
@@ -76,10 +77,6 @@ class ClassBody(_collabc.MutableMapping):
     def protect_name(self, name, /):
         self._protected.add(name)
 
-    @property
-    def protected(self, /):
-        return frozenset(self._protected)
-
     def _update_mroclasses(self, val, /):
         val = tuple(val)
         mroclasses = self['__mroclasses__']
@@ -89,32 +86,24 @@ class ClassBody(_collabc.MutableMapping):
             (name, _partial(self._add_innerclass, name))
             for name in new
             )
-        return None, None
 
-    @property
-    def suspended(self, /):
-        return self._suspended
+#     @property
+#     def sugar(self, /):
+#         return self._sugar
 
-    @suspended.setter
-    def suspended(cls, val, /):
-        self._suspended.toggle(val)
+#     @sugar.setter
+#     def sugar(cls, val, /):
+#         self._sugar.toggle(val)
+
+#     def __sugar_getitem__(self, name, /):
+#         return self._sugardict[name]
 
     def __getitem__(self, name, /):
         try:
             return self._redirects[name]
         except KeyError:
-            return self._content[name]
-
-    def _process_nameval(self, name, val, /):
-        if isinstance(val, Directive):
-            name, val = val.__directive_call__(self, name)
-        try:
-            meth = self._nametriggers[name]
-        except KeyError:
             pass
-        else:
-            name, val = meth(val)
-        return name, val
+        return self._content[name]
 
     def __iter__(self, /):
         return iter(self._content)
@@ -134,10 +123,15 @@ class ClassBody(_collabc.MutableMapping):
         return name in self._content
 
     def __setitem__(self, name, val, /):
-        if self.suspended:
+        try:
+            meth = self._nametriggers[name]
+        except KeyError:
+            pass
+        else:
+            meth(val)
             return
-        name, val = self._process_nameval(name, val)
-        if name is None:
+        if isinstance(val, Directive):
+            val.__directive_call__(self, name)
             return
         if name in self._protected:
             raise RuntimeError(
@@ -146,10 +140,6 @@ class ClassBody(_collabc.MutableMapping):
         self._content[name] = val
 
     def __delitem__(self, name, /):
-        if name in self._protected:
-            raise RuntimeError(
-                f"Cannot alter protected names in class body: {name}"
-                )
         del self._content[name]
 
     @property
@@ -244,10 +234,12 @@ class ClassBody(_collabc.MutableMapping):
             self._nametriggers[mname] = _partial(genericfunc, meth)
 
     def _post_prepare_bodymeths(self, /):
-        self.__dict__.update(
+        toadd = dict(
             (name, _partial(meth, self))
             for name, meth in self.meta._yield_bodymeths()
             )
+        self._redirects.update(toadd)
+        self._protected.update(toadd)
 
     def _post_prepare_nametriggers(self, /):
         self._nametriggers.update(
@@ -334,7 +326,7 @@ class ClassBody(_collabc.MutableMapping):
                 "Cannot safe-set a name that is already in use."
                 )
         self.__setitem__(name, val)
-        self._protected.add(name)
+        self.protect_name(name)
 
     def __repr__(self, /):
         return f"{type(self).__qualname__}({repr(self._content)})"

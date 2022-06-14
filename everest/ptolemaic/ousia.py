@@ -6,9 +6,8 @@
 import abc as _abc
 import weakref as _weakref
 import itertools as _itertools
-from collections import abc as _collabc
 
-from everest.utilities import pretty as _pretty, reseed as _reseed
+from everest.utilities import reseed as _reseed
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
 
@@ -38,43 +37,7 @@ class ConcreteBase:
         return (cls.__ptolemaic_class__,)
 
 
-# class ClassBody(_Urgon.ClassBody):
-
-#     def __init__(self, /, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.extraslots = self['__classbody_added_slots__'] = set()
-
-#     def slotcache(self, arg, /):
-#         name = arg.__name__
-#         self.extraslots.add(name)
-#         self[f"_get_{name}_"] = arg
-#         return self.Flags.NULL
-
-#     def weakcache(self, arg, /):
-#         name = arg.__name__
-#         weakname = f"{name}_weakref"
-#         methname = f"_get_{name}_"
-#         self.extraslots.add(weakname)
-#         self[methname] = arg
-#         @property
-#         def dereferencer(self, /):
-#             ref = object.__getattribute__(self, weakname)
-#             try:
-#                 return ref()
-#             except ReferenceError:
-#                 val = type.__getattribute__(type(self), methname)(self)
-#                 object.__setattr__(self, weakname, _weakref.ref(val))
-#                 return val
-#         self[name] = dereferencer
-#         return self.SKIP
-
-
 class Ousia(_Urgon):
-
-    @classmethod
-    def _yield_mergenames(meta, /):
-        yield from super()._yield_mergenames()
-        yield ('__req_slots__', list, _ur.DatUniqueTuple)
 
     @property
     def Concrete(cls, /):
@@ -90,11 +53,16 @@ class Ousia(_Urgon):
             return out
 
     @classmethod
+    def _yield_mergenames(meta, /):
+        yield from super()._yield_mergenames()
+        yield '__req_slots__', list, _ur.DatUniqueTuple
+
+    @classmethod
     def _yield_bodynametriggers(meta, /):
         yield from super()._yield_bodynametriggers()
         yield (
             '__slots__',
-            lambda body, val: (None, body.__setitem__('__req_slots__', val))
+            lambda body, val: body.__setitem__('__req_slots__', val)
             )
 
 
@@ -103,7 +71,7 @@ class _OusiaBase_(metaclass=Ousia):
     __slots__ = (
         '__weakref__',
         '_mutable', '_pyhash', '_sessioncacheref', '_epitaph',
-        '_dependants',
+        '_dependants', '_corpus',
         )
 
     ## Configuring the class:
@@ -132,6 +100,200 @@ class _OusiaBase_(metaclass=Ousia):
     @classmethod
     def create_concrete(cls, /):
         return type(*cls.pre_create_concrete())
+
+    ### Object creation:
+
+    @classmethod
+    def construct(cls,
+            params: tuple, /, *args,
+            _corpus_=None, **kwargs
+            ):
+        Concrete = cls.Concrete
+        obj = Concrete.__new__(Concrete)
+        switch = _Switch(True)
+        object.__setattr__(obj, '_mutable', switch)
+        obj._pyhash = _reseed.rdigits(16)
+        if _corpus_:
+            corpus, relname = _corpus_
+            obj._corpus, obj._relname = _weakref.ref(corpus), relname
+        # obj._dependants = _weakref.WeakSet()
+        obj.params = params
+        obj.__init__(*args, **kwargs)
+        switch.toggle(False)
+        return obj
+
+    @property
+    def __corpus__(self, /):
+        try:
+            return self._corpus()
+        except AttributeError:
+            return None
+
+    @property
+    def __cosmic__(cls, /):
+        return cls.__corpus__ is None
+
+    @property
+    def __relname__(self, /):
+        try:
+            return self._relname
+        except AttributeError:
+            return None
+
+    ### Storage:
+
+    def __getattr__(self, name, /):
+        if name in self.__getattribute__('__slots__'):
+            raise AttributeError(name)
+        try:
+            return self.__dict__[name]
+        except KeyError as exc:
+            raise AttributeError from exc
+
+    def __setattr__(self, name, val, /):
+        if name in self.__getattribute__('__slots__'):
+            if not self.__getattribute__('_mutable'):
+                raise AttributeError(
+                    name, "Cannot alter slot while frozen."
+                    )
+        try:
+            super().__setattr__(name, val)
+        except AttributeError:
+            self.__getattribute__('__dict__')[name] = val
+
+    def __delattr__(self, name, /):
+        if name in self.__getattribute__('__slots__'):
+            if not self.__getattribute__('_mutable'):
+                raise AttributeError(
+                    name, "Cannot alter slot while frozen."
+                    )
+        try:
+            super().__delattr__(name)
+        except AttributeError:
+            dct = self.__getattribute__('__dict__')
+            try:
+                del dct[name]
+            except KeyError as exc:
+                raise AttributeError from exc
+
+    @property
+    # @_caching.weak_cache()
+    def __dict__(self, /):
+        try:
+            out = super().__getattribute__('_sessioncacheref')()
+            if out is None:
+                raise AttributeError
+            return out
+        except AttributeError:
+            out = _FOCUS.request_session_storer(self)
+            try:
+                super().__setattr__('_sessioncacheref', _weakref.ref(out))
+            except AttributeError:
+                raise RuntimeError(
+                    "Could not set the session cache on this object."
+                    )
+            return out
+
+#     @property
+#     def dependants(self, /):
+#         return tuple(sorted(self._dependants))
+
+#     def add_dependant(self, other, /):
+#         self._dependants.add(other)
+
+    def reset(self, /):
+        self.__dict__.clear()
+        for dep in self.dependants:
+            dep.reset()
+
+    # @property
+    # @_caching.weak_cache()
+    # def drawer(self, /):
+    #     return _FOCUS.request_bureau_storer(self)
+
+    ### Implementing the attribute-freezing behaviour for instances:
+
+    @property
+    def mutable(self, /):
+        return self._mutable
+
+    @mutable.setter
+    def mutable(self, value, /):
+        self.mutable.toggle(value)
+
+    ### Representations:
+
+    def _root_repr(self, /):
+        return self.__ptolemaic_class__.__qualname__
+
+    @property
+    # @_caching.soft_cache()
+    def rootrepr(self, /):
+        return self._root_repr()
+
+    @_abc.abstractmethod
+    def _content_repr(self, /):
+        return ''
+
+    @property
+    # @_caching.soft_cache()
+    def contentrepr(self, /):
+        return self._content_repr()
+
+    def __repr__(self, /):
+        return f"<{self.rootrepr}, id={id(self)}>"
+
+    def __str__(self, /):
+        return f"{self.rootrepr}({self.contentrepr})"
+
+    @_abc.abstractmethod
+    def make_epitaph(self, /):
+        raise NotImplementedError
+
+    @property
+    def epitaph(self, /):
+        try:
+            return self._epitaph
+        except AttributeError:
+            epi = self.make_epitaph()
+            super().__setattr__(self, '_epitaph', epi)
+            return epi
+
+    def __reduce__(self, /):
+        return self.epitaph, ()
+
+    @property
+    def hexcode(self, /):
+        return self.epitaph.hexcode
+
+    @property
+    def hashint(self, /):
+        return self.epitaph.hashint
+
+    @property
+    def hashID(self, /):
+        return self.epitaph.hashID
+
+    def __eq__(self, other, /):
+        return hash(self) == hash(other)
+
+    def __lt__(self, other, /):
+        return self.hashint < other
+
+    def __gt__(self, other, /):
+        return self.hashint < other
+
+    def __hash__(self, /):
+        return object.__getattribute__(self, '_pyhash')
+
+    @property
+    def __ptolemaic_class__(self, /):
+        return type(self)._get_ptolemaic_class()
+
+
+###############################################################################
+###############################################################################
+
 
 #     @classmethod
 #     def _define_attrmethods(cls, /):
@@ -198,159 +360,3 @@ class _OusiaBase_(metaclass=Ousia):
     #     #     setattr(cls, nm, _ur.DatDict(meths))
     #     cls.__getattr__, cls.__setattr__, cls.__delattr__ = \
     #         cls._define_attrmethods()
-
-    ### Object creation:
-
-    @_abc.abstractmethod
-    def set_params(self, params, /):
-        raise NotImplementedError
-
-    @classmethod
-    def construct(cls, params: tuple, /, *args, _epitaph=None, **kwargs):
-        Concrete = cls.Concrete
-        obj = Concrete.__new__(Concrete)
-        switch = _Switch(False)
-        object.__setattr__(obj, '_mutable', _Switch(True))
-        obj._epitaph = _epitaph
-        obj._pyhash = _reseed.rdigits(16)
-        # obj._dependants = _weakref.WeakSet()
-        obj.set_params(params)
-        obj.__init__(*args, **kwargs)
-        switch.toggle(True)
-        return obj
-
-    ### Storage:
-
-    @property
-    # @_caching.weak_cache()
-    def __vardict__(self, /):
-        try:
-            out = super().__getattribute__('_sessioncacheref')()
-            if out is None:
-                raise AttributeError
-            return out
-        except AttributeError:
-            out = _FOCUS.request_session_storer(self)
-            try:
-                super().__setattr__('_sessioncacheref', _weakref.ref(out))
-            except AttributeError:
-                raise RuntimeError(
-                    "Could not set the session cache on this object."
-                    )
-            return out
-
-#     @property
-#     def dependants(self, /):
-#         return tuple(sorted(self._dependants))
-
-#     def add_dependant(self, other, /):
-#         self._dependants.add(other)
-
-    def reset(self, /):
-        self.__vardict__.clear()
-        for dep in self.dependants:
-            dep.reset()
-
-    # @property
-    # @_caching.weak_cache()
-    # def drawer(self, /):
-    #     return _FOCUS.request_bureau_storer(self)
-
-    ### Implementing the attribute-freezing behaviour for instances:
-
-    @property
-    def mutable(self, /):
-        return self._mutable
-
-    @mutable.setter
-    def mutable(self, value, /):
-        self.mutable.toggle(value)
-
-    def __setattr__(self, name, val, /):
-        if name in object.__getattribute__(self, '__slots__'):
-            if not object.__getattribute__(self, '_mutable'):
-                raise AttributeError(
-                    name, "Cannot alter slot while frozen."
-                    )
-        object.__setattr__(self, name, val)
-
-    def __delattr__(self, name, /):
-        if name in object.__getattribute__(self, '__slots__'):
-            if not object.__getattribute__(self, '_mutable'):
-                raise AttributeError(
-                    name, "Cannot alter slot while frozen."
-                    )
-        object.__delattr__(self, name)
-
-    ### Representations:
-
-    def _root_repr(self, /):
-        return self.__ptolemaic_class__.__qualname__
-
-    @property
-    # @_caching.soft_cache()
-    def rootrepr(self, /):
-        return self._root_repr()
-
-    @_abc.abstractmethod
-    def _content_repr(self, /):
-        return ''
-
-    @property
-    # @_caching.soft_cache()
-    def contentrepr(self, /):
-        return self._content_repr()
-
-    def __repr__(self, /):
-        return f"<{self.rootrepr}, id={id(self)}>"
-
-    def __str__(self, /):
-        return f"{self.rootrepr}({self.contentrepr})"
-
-    @_abc.abstractmethod
-    def make_epitaph(self, /):
-        raise NotImplementedError
-
-    @property
-    def epitaph(self, /):
-        epi = self._epitaph
-        if epi is None:
-            epi = self.make_epitaph()
-            with self.mutable:
-                self._epitaph = epi
-        return epi
-
-    def __reduce__(self, /):
-        return self.epitaph, ()
-
-    @property
-    def hexcode(self, /):
-        return self.epitaph.hexcode
-
-    @property
-    def hashint(self, /):
-        return self.epitaph.hashint
-
-    @property
-    def hashID(self, /):
-        return self.epitaph.hashID
-
-    def __eq__(self, other, /):
-        return hash(self) == hash(other)
-
-    def __lt__(self, other, /):
-        return self.hashint < other
-
-    def __gt__(self, other, /):
-        return self.hashint < other
-
-    def __hash__(self, /):
-        return object.__getattribute__(self, '_pyhash')
-
-    @property
-    def __ptolemaic_class__(self, /):
-        return type(self)._get_ptolemaic_class()
-
-
-###############################################################################
-###############################################################################

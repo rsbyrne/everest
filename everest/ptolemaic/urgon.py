@@ -14,7 +14,32 @@ from . import exceptions as _exceptions
 
 class Urgon(_Essence):
 
-    ...
+    @classmethod
+    def _yield_bodymeths(meta, /):
+        yield from super()._yield_bodymeths()
+        for typ in meta._smartattrtypes:
+            nm = typ.__name__.lower()
+            yield nm, getattr(typ, '__body_call__')
+    
+    @classmethod
+    def _yield_smartattrtypes(meta, /):
+        return
+        yield
+
+    @classmethod
+    def _yield_mergenames(meta, /):
+        yield from super()._yield_mergenames()
+        for typ in meta._smartattrtypes:
+            yield (
+                typ.__merge_name__,
+                typ.__merge_dyntyp__,
+                typ.__merge_fintyp__,
+                )
+
+    @classmethod
+    def __meta_init__(meta, /):
+        meta._smartattrtypes = tuple(meta._yield_smartattrtypes())
+        super().__meta_init__()
 
 
 class _UrgonBase_(metaclass=Urgon, _isbasetyp_=True):

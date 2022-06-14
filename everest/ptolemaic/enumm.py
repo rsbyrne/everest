@@ -24,7 +24,7 @@ class Enumm(_Ousia):
 class _EnummBase_(metaclass=Enumm):
 
     __enumerators__ = {}
-    __slots__ = ('serial', 'name', 'value')
+    __slots__ = ('_params', 'serial', 'name', 'value')
 
     @classmethod
     def _yield_concrete_slots(cls, /):
@@ -45,7 +45,13 @@ class _EnummBase_(metaclass=Enumm):
             enumerators.append(obj)
         cls.enumerators = tuple(enumerators)
 
-    def set_params(self, params: tuple, /):
+    @property
+    def params(self, /):
+        return self._params
+
+    @params.setter
+    def params(self, value, /):
+        self._params = value
         for key, val in zip(('serial', 'name', 'value'), params):
             setattr(self, key, val)
 
