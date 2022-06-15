@@ -19,7 +19,7 @@ class Tekton(_Urgon):
         yield _field.Field
 
     @classmethod
-    def _process_bodyanno(meta, body, name, hint, val, /):
+    def process_bodyanno(meta, body, name, hint, val, /):
         return name, _field.Field.from_annotation(hint, val)
 
 

@@ -18,7 +18,7 @@ _pempty = _inspect._empty
 class Sprite(_Ousia):
 
     @classmethod
-    def _process_bodyanno(meta, body, name, hint, val, /):
+    def process_bodyanno(meta, body, name, hint, val, /):
         body['__params__'][name] = (hint, val)
         return None, None
 

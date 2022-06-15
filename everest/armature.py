@@ -46,7 +46,7 @@ class Armature(_abc.ABCMeta):
     def _merge_slots(meta, bases, ns, /):
         yield from ns.pop('__slots__', ())
         for base in bases:
-            yield from getattr(base, '__req_slots__')
+            yield from getattr(base, '__req_slots__', ())
 
     def __new__(
             meta, arg0, /, *args,

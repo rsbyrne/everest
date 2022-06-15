@@ -12,7 +12,7 @@ from collections import abc as _collabc
 from everest import ur as _ur
 
 from .pleroma import Pleroma as _Pleroma
-from .shadow import Shadow as _Shadow
+from .shadow import Shadow as _Shadow, Shade as _Shade
 from .utilities import Switch as _Switch
 
 
@@ -36,7 +36,7 @@ class Directive(metaclass=_abc.ABCMeta):
         raise NotImplementedError
 
 
-class ClassBody(_collabc.MutableMapping):
+class ClassBody(dict):
 
     BODIES = _weakref.WeakValueDictionary()
 
@@ -45,20 +45,21 @@ class ClassBody(_collabc.MutableMapping):
             location=None, _staticmeta_=False,
             **kwargs,
             ):
-        content = self._content = dict()
-        content.update(
-            # __name__=name,  # Breaks things in a really interesting way!
-            __slots__=(),
-            innerclasses=[],
-            _clsiscosmic=None,
-            __class_relname__=name,
-            _clsmutable=_Switch(True),
-            __mroclasses__=[],
-            )
+        for nm, val in dict(
+                # __name__=name,  # Breaks things in a really interesting way!
+                __slots__=(),
+                innerclasses=[],
+                _clsiscosmic=None,
+                __class_relname__=name,
+                _clsmutable=_Switch(True),
+                __mroclasses__=[],
+                ).items():
+            super().__setitem__(nm, val)
         self._nametriggers = dict(
             __module__=(lambda val: setattr(self, 'module', val)),
             __qualname__=(lambda val: setattr(self, 'qualname', val)),
             __mroclasses__=self._update_mroclasses,
+            __slots__=self.handle_slots,
             )
         # self._sugar = _Switch(withsugar)
         self._redirects = dict(
@@ -66,7 +67,7 @@ class ClassBody(_collabc.MutableMapping):
             # sugar=self._sugar,
             __annotations__=AnnotationHandler(self.__setanno__),
             )
-        self._shadows = set()
+        self._shades = dict()
         self._protected = set(self)
         if _staticmeta_:
             self.meta = meta
@@ -79,19 +80,23 @@ class ClassBody(_collabc.MutableMapping):
     def protect_name(self, name, /):
         self._protected.add(name)
 
-    def enroll_shadow(self, name, /):
-        self._shadows.add(name)
-        self._protected.add(name)
+    def enroll_shade(self, name, /):
+        self._shades[name] = _Shade(str(name))
+        self.protect_name(name)
 
     def _update_mroclasses(self, val, /):
         val = tuple(val)
-        mroclasses = self['__mroclasses__']
+        mroclasses = super().__getitem__('__mroclasses__')
         new = tuple(subval for subval in val if val not in mroclasses)
         mroclasses.extend(new)
         self._nametriggers.update(
             (name, _partial(self._add_innerclass, name))
             for name in new
             )
+
+    def handle_slots(self, slots, /):
+        if slots:
+            self.meta.handle_slots(self, slots)
 
 #     @property
 #     def sugar(self, /):
@@ -110,28 +115,27 @@ class ClassBody(_collabc.MutableMapping):
         except KeyError:
             pass
         try:
-            return self._content[name]
-        except KeyError as exc:
-            if name in self._shadows:
-                return _Shadow(name)
-            raise KeyError from exc
+            return super().__getitem__(name)
+        except KeyError:
+            pass
+        return self._shades[name]
 
-    def __iter__(self, /):
-        return iter(self._content)
+#     def __iter__(self, /):
+#         return iter(self._content)
 
-    def __len__(self, /):
-        return len(self._content)
+#     def __len__(self, /):
+#         return len(self._content)
 
-    @property
-    def keys(self, /):
-        return self._content.keys
+#     @property
+#     def keys(self, /):
+#         return self._content.keys
 
-    @property
-    def values(self, /):
-        return self._content.values
+#     @property
+#     def values(self, /):
+#         return self._content.values
 
-    def __contains__(self, name, /):
-        return name in self._content
+#     def __contains__(self, name, /):
+#         return name in self._content
 
     def __setitem__(self, name, val, /):
         try:
@@ -141,17 +145,17 @@ class ClassBody(_collabc.MutableMapping):
         else:
             meth(val)
             return
-        if isinstance(val, Directive):
-            val.__directive_call__(self, name)
-            return
         if name in self._protected:
             raise RuntimeError(
                 f"Cannot alter protected names in class body: {name}"
                 )
-        self._content[name] = val
-
-    def __delitem__(self, name, /):
-        del self._content[name]
+        if isinstance(val, _Shadow):
+            self.meta.process_shadow(self, name, val)
+            return
+        if isinstance(val, Directive):
+            val.__directive_call__(self, name)
+            return
+        super().__setitem__(name, val)
 
     @property
     def module(self, /):
@@ -163,7 +167,7 @@ class ClassBody(_collabc.MutableMapping):
             _ = self.module
         except AttributeError:
             self._module = val
-            self._content['__module__'] = val
+            super().__setitem__('__module__', val)
         else:
             raise AttributeError
 
@@ -177,7 +181,7 @@ class ClassBody(_collabc.MutableMapping):
             _ = self.qualname
         except AttributeError:
             self._qualname = val
-            self._content['__qualname__'] = val
+            super().__setitem__('__qualname__', val)
             self._post_prepare()
         else:
             raise AttributeError
@@ -241,7 +245,7 @@ class ClassBody(_collabc.MutableMapping):
             else:
                 dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
                 meth = dynobj.extend
-            self._content[mname] = dynobj
+            super().__setitem__(mname, dynobj)
             self._nametriggers[mname] = _partial(genericfunc, meth)
 
     def _post_prepare_bodymeths(self, /):
@@ -263,8 +267,9 @@ class ClassBody(_collabc.MutableMapping):
         gathered = _ur.DatUniqueTuple(_itertools.chain.from_iterable(
             getattr(base, '__mroclasses__', empty) for base in self.bases
             ))
-        self['__mroclasses__'] = (
-            nm for nm in gathered if nm not in self['__mroclasses__']
+        self._update_mroclasses(
+            nm for nm in gathered
+            if nm not in super().__getitem__('__mroclasses__')
             )
 
     def _post_prepare(self, /):
@@ -281,7 +286,7 @@ class ClassBody(_collabc.MutableMapping):
         else:
             self.outerbody = obody
             iscosmic = self.iscosmic = False
-        self._content['_clsiscosmic'] = iscosmic
+        super().__setitem__('_clsiscosmic', iscosmic)
         self._post_prepare_bases()
         self._post_prepare_meta()
         self._post_prepare_mergednames()
@@ -293,14 +298,14 @@ class ClassBody(_collabc.MutableMapping):
     def _add_innerclass(self, name, base=None, /):
         if base is None:
             base = self.meta._defaultbasetyp
-        self._content[name] = type(
+        super().__setitem__(name, type(
             name, (base,), {},
             location=(self.module, f"{self.qualname}.{name}"),
-            )
+            ))
         return None, None
 
     def _add_mroclass(self, name, mroclass, /):
-        self._content[name] = mroclass
+        super().__setitem__(name, mroclass)
         self._nametriggers[name] = _partial(self._add_innerclass, name)
         return None, None
 
@@ -308,8 +313,8 @@ class ClassBody(_collabc.MutableMapping):
         self._nametriggers[name] = _partial(self._add_mroclass, name)
 
     def _finalise_mroclasses(self, /):
-        mroclasses = _ur.DatUniqueTuple(self['__mroclasses__'])
-        self._content['__mroclasses__'] = mroclasses
+        mroclasses = _ur.DatUniqueTuple(super().__getitem__('__mroclasses__'))
+        super().__setitem__('__mroclasses__', mroclasses)
         if mroclasses:
             for mroname in mroclasses:
                 if mroname not in self:
@@ -318,16 +323,16 @@ class ClassBody(_collabc.MutableMapping):
 
     def _finalise_mergenames(self, /):
         for mname, _, fintyp in self.mergenames:
-            self._content[mname] = fintyp(self[mname])
+            super().__setitem__(mname, fintyp(super().__getitem__(mname)))
 
     def finalise(self, /):
         assert self._fullyprepared
         self._finalise_mergenames()
         self._finalise_mroclasses()
-        return self.name, self.bases, self._content
+        return self.name, self.bases, dict(self)
 
     def __setanno__(self, name, val, /):
-        self.__setitem__(*self.meta._process_bodyanno(
+        self.__setitem__(*self.meta.process_bodyanno(
             self, name, val, self.pop(name, NotImplemented)
             ))
 
@@ -340,7 +345,7 @@ class ClassBody(_collabc.MutableMapping):
         self.protect_name(name)
 
     def __repr__(self, /):
-        return f"{type(self).__qualname__}({repr(self._content)})"
+        return f"{type(self).__qualname__}({super().__repr__()})"
 
 
 ###############################################################################

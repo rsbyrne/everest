@@ -58,12 +58,16 @@ class Ousia(_Urgon):
         yield '__req_slots__', list, _ur.DatUniqueTuple
 
     @classmethod
-    def _yield_bodynametriggers(meta, /):
-        yield from super()._yield_bodynametriggers()
-        yield (
-            '__slots__',
-            lambda body, val: body.__setitem__('__req_slots__', val)
-            )
+    def handle_slots(self, body, slots, /):
+        body['__req_slots__'].extend(slots)
+
+    # @classmethod
+    # def _yield_bodynametriggers(meta, /):
+    #     yield from super()._yield_bodynametriggers()
+    #     yield (
+    #         '__slots__',
+    #         lambda body, val: body.__setitem__('__req_slots__', val)
+    #         )
 
 
 class _OusiaBase_(metaclass=Ousia):

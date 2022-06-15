@@ -93,8 +93,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             )
 
     @classmethod
-    def _process_bodyanno(meta, body, name, hint, val, /):
+    def process_bodyanno(meta, body, name, hint, val, /):
         raise TypeError(f"Annotations not supported for {meta}.")
+
+    @classmethod
+    def process_shadow(meta, body, name, val, /):
+        raise TypeError(f"Shadow magic not supported for {meta}.")
 
     @classmethod
     def decorate(meta, obj, /):

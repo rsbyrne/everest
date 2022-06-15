@@ -13,7 +13,7 @@ from .utilities import BindableObject as _BindableObject
 from .smartattr import SmartAttr as _SmartAttr
 from .sprite import Sprite as _Sprite
 from .content import Kwargs as _Kwargs
-from .shadow import Shadow as _Shadow
+from .shadow import Shade as _Shade
 
 
 _pempty = _inspect._empty
@@ -67,7 +67,7 @@ class Comp(_SmartAttr):
                     if val is _pempty:
                         raise RuntimeError(f"Missing argument: {nm}")
             else:
-                if isinstance(val, _Shadow):
+                if isinstance(val, _Shade):
                     val = val.__get__(instance)
             yield nm, val
 
@@ -79,6 +79,8 @@ class Comp(_SmartAttr):
         return func(*bound.args, **bound.kwargs)
 
     def __directive_call__(self, body, name, /):
+        super().__directive_call__(body, name)
+        # if name in body['__req_slots__']:
 
 
 ###############################################################################

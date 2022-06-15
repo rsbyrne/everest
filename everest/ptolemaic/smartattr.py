@@ -44,7 +44,7 @@ class SmartAttr(_BindableObject, _Directive, metaclass=_Sprite):
 
     def __directive_call__(self, body, name, /):
         body[self.__merge_name__][name] = self
-        body.enroll_shadow(name)
+        body.enroll_shade(name)
         if self._slotcached_:
             try:
                 slots = body['__req_slots__']

@@ -24,6 +24,17 @@ class Schema(_Tekton, _Eidos):
         yield _Organ
         yield _Comp
 
+    @classmethod
+    def process_shadow(meta, body, name, val, /):
+        sigstr = ', '.join(shade.name for shade in val.shades)
+        exec('\n'.join((
+            f"def {name}({sigstr}):",
+            f"    return {val.evalstr}",
+            )))
+        func = eval(name)
+        func.__module__ = body['__module__']
+        body[name] = body['comp'](func)
+
 
 class _SchemaBase_(metaclass=Schema):
 
