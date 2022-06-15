@@ -25,6 +25,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __set_name__(cls, owner, name, /):
         if cls.mutable:
+            try:
+                name = owner.__unmangled_names__[name]
+            except KeyError:
+                pass
+            print(cls, owner, name)
             cls.__class_relname__ = name
             cls.__class_corpus__ = owner
             cls.__qualname__ = owner.__qualname__ + '.' + name
@@ -62,8 +67,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def _yield_mergenames(meta, /):
-        return
-        yield
+        yield '__mangled_names__', dict, _ur.DatDict
 
     @classmethod
     def __meta_init__(meta, /):
@@ -99,6 +103,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def process_shadow(meta, body, name, val, /):
         raise TypeError(f"Shadow magic not supported for {meta}.")
+
+    @classmethod
+    def classbody_finalise(meta, body, /):
+        dct = body['__mangled_names__']
+        body['__unmangled_names__'] = _ur.DatDict(zip(
+            dct.values(), dct.keys()
+            ))
 
     @classmethod
     def decorate(meta, obj, /):
@@ -170,6 +181,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @mutable.setter
     def mutable(cls, val, /):
         cls.mutable.toggle(val)
+
+    def __getattribute__(cls, name, /):
+        try:
+            name = type.__getattribute__(cls, '__mangled_names__')[name]
+        except KeyError:
+            pass
+        return type.__getattribute__(cls, name)
 
     def __setattr__(cls, name, val, /):
         if cls.mutable:

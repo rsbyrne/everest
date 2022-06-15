@@ -52,7 +52,9 @@ class SmartAttr(_BindableObject, _Directive, metaclass=_Sprite):
                 pass
             else:
                 slots.append(name)
-        body[f'_{name}_'] = self.arg
+        altname = f'_{name}_'
+        body[altname] = self.arg
+        body['__mangled_names__'][name] = altname
 
 
 ###############################################################################

@@ -19,14 +19,6 @@ from .shadow import Shade as _Shade
 _pempty = _inspect._empty
 
 
-class Getter(metaclass=_Sprite):
-
-    name: str
-
-    def __get__(self, instance, _=None, /):
-        return getattr(instance, name)
-
-
 class Comps(_Kwargs):
 
     ...

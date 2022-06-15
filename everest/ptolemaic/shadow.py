@@ -73,7 +73,7 @@ class Shadow(metaclass=_Armature):
             ):
         methname = methname.removeprefix('r')
         exec('\n'.join((
-            f"def __{methname}__(self, other, /):",
+            f"def __r{methname}__(self, other, /):",
             f"    return Binary('{_BINARYOPS[methname]}', other, self)",
             )))
         
@@ -151,10 +151,11 @@ class Binary(Operation):
 
     def yield_shades(self, /):
         for arg in (self.arg1, self.arg2):
-            if isinstance(arg, Shade):
-                yield arg
-            else:
-                yield from arg.yield_shades()
+            if isinstance(arg, Shadow):
+                if isinstance(arg, Shade):
+                    yield arg
+                else:
+                    yield from arg.yield_shades()
 
     # def resolve(self, operands, /):
     #     return self.operator(*(
@@ -163,7 +164,7 @@ class Binary(Operation):
     #         ))
 
     def get_evalstr(self, /):
-        return self.op.join(map(get_evalstr, (self.arg1, self.arg2)))
+        return f"({self.op.join(map(get_evalstr, (self.arg1, self.arg2)))})"
 
 
 ###############################################################################

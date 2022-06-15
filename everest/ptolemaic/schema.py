@@ -8,15 +8,24 @@ from everest.utilities import pretty as _pretty
 from .tekton import Tekton as _Tekton
 from .eidos import Eidos as _Eidos
 from .organ import Organ as _Organ
-from .comp import Comp as _Comp, Getter as _Getter
+from .comp import Comp as _Comp
+
+
+# class _DissolvableWrapper:
+
+#     __slots__ = ('content',)
+
+#     def __init__(self, content, /):
+#         self.content = content
+
+#     def __set_name__(cls, owner, name, /):
+#         content = self.content
+#         content.__module__ = owner.__module__
+#         content.__qualname__ = owner.__qualname__ + '.' + name
+#         setattr(owner, name)
 
 
 class Schema(_Tekton, _Eidos):
-
-    @classmethod
-    def _yield_bodymeths(meta, /):
-        yield from super()._yield_bodymeths()
-        yield 'get', _Getter
 
     @classmethod
     def _yield_smartattrtypes(meta, /):
@@ -33,6 +42,7 @@ class Schema(_Tekton, _Eidos):
             )))
         func = eval(name)
         func.__module__ = body['__module__']
+        func.__qualname__ = body['__qualname__'] + '.' + name
         body[name] = body['comp'](func)
 
 

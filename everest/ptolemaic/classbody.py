@@ -98,17 +98,6 @@ class ClassBody(dict):
         if slots:
             self.meta.handle_slots(self, slots)
 
-#     @property
-#     def sugar(self, /):
-#         return self._sugar
-
-#     @sugar.setter
-#     def sugar(cls, val, /):
-#         self._sugar.toggle(val)
-
-#     def __sugar_getitem__(self, name, /):
-#         return self._sugardict[name]
-
     def __getitem__(self, name, /):
         try:
             return self._redirects[name]
@@ -119,23 +108,6 @@ class ClassBody(dict):
         except KeyError:
             pass
         return self._shades[name]
-
-#     def __iter__(self, /):
-#         return iter(self._content)
-
-#     def __len__(self, /):
-#         return len(self._content)
-
-#     @property
-#     def keys(self, /):
-#         return self._content.keys
-
-#     @property
-#     def values(self, /):
-#         return self._content.values
-
-#     def __contains__(self, name, /):
-#         return name in self._content
 
     def __setitem__(self, name, val, /):
         try:
@@ -329,6 +301,7 @@ class ClassBody(dict):
         assert self._fullyprepared
         self._finalise_mergenames()
         self._finalise_mroclasses()
+        self.meta.classbody_finalise(self)
         return self.name, self.bases, dict(self)
 
     def __setanno__(self, name, val, /):
