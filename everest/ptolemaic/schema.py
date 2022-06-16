@@ -35,9 +35,8 @@ class Schema(_Tekton, _Eidos):
 
     @classmethod
     def process_shadow(meta, body, name, val, /):
-        sigstr = ', '.join(shade.name for shade in val.shades)
         exec('\n'.join((
-            f"def {name}({sigstr}):",
+            f"def {name}(self):",
             f"    return {val.evalstr}",
             )))
         func = eval(name)

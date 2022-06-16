@@ -47,17 +47,18 @@ class _EidosBase_(metaclass=Eidos):
             val = getter.__bound_get__(self, name)
             object.__setattr__(self, name, val)
             return val
-        dct = self.__dict__
-        try:
-            return dct[name]
-        except KeyError:
-            pass
-        try:
-            getter = cls.getters[name]
-        except KeyError as exc:
-            raise AttributeError from exc
-        val = dct[name] = getter.__bound_get__(self, name)
-        return val
+        else:
+            dct = self.__dict__
+            try:
+                return dct[name]
+            except KeyError:
+                pass
+            try:
+                getter = cls.getters[name]
+            except KeyError as exc:
+                raise AttributeError from exc
+            val = dct[name] = getter.__bound_get__(self, name)
+            return val
 
     def __setattr__(self, name, val, /):
         cls = self.__ptolemaic_class__
@@ -96,7 +97,7 @@ class _EidosBase_(metaclass=Eidos):
                 object.__delattr__(self, name)
             else:
                 try:
-                    object.__setattr__(self, name, val)
+                    object.__delattr__(self, name)
                 except AttributeError:
                     try:
                         del self.__dict__[name]

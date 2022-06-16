@@ -33,9 +33,9 @@ class _SpriteBase_(metaclass=Sprite):
     __slots__ = ('_params',)
 
     @classmethod
-    def _yield_concrete_slots(cls, /):
-        yield from super()._yield_concrete_slots()
-        yield from cls.Params._fields
+    def classbody_finalise(meta, body, /):
+        super().classbody_finalise(body)
+        body['__req_slots__'].extend(body['__params__'])
 
     @classmethod
     def __class_init__(cls, /):

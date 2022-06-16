@@ -91,10 +91,7 @@ class _OusiaBase_(metaclass=Ousia):
             f"{cls.__name__}_Concrete",
             (ConcreteBase, cls),
             dict(
-                __slots__=tuple(sorted(set(_itertools.chain(
-                    cls.__req_slots__,
-                    cls._yield_concrete_slots(),
-                    )))),
+                __slots__=cls.__req_slots__,
                 _get_ptolemaic_class=(lambda: cls),
                 _clsmutable=_Switch(True),
                 _clsiscosmic=False,

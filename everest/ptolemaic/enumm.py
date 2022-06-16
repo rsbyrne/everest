@@ -27,9 +27,9 @@ class _EnummBase_(metaclass=Enumm):
     __slots__ = ('_params', 'serial', 'name', 'value')
 
     @classmethod
-    def _yield_concrete_slots(cls, /):
-        yield from super()._yield_concrete_slots()
-        yield from cls.__enumattrs__
+    def classbody_finalise(meta, body, /):
+        super().classbody_finalise(body)
+        body['__req_slots__'].extend(body['__enumerators__'])
 
     @classmethod
     def __class_deep_init__(cls, /):
@@ -64,11 +64,6 @@ class _EnummBase_(metaclass=Enumm):
 
     def __class_getitem__(cls, arg: int, /):
         return cls.enumerators[arg]
-
-    @classmethod
-    def _yield_concrete_slots(cls, /):
-        yield from super()._yield_concrete_slots()
-        yield from cls.__enumerators__
 
 
 ###############################################################################

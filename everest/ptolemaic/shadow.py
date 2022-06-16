@@ -94,12 +94,15 @@ class Shadow(metaclass=_Armature):
 class Shade(Shadow):
 
     name: str
+    prefix: str = 'self'
 
     def __get__(self, instance, /):
         return getattr(instance, self.name)
 
     def get_evalstr(self, /):
-        return self.name
+        if (prefix := self.prefix) is None:
+            return self.name
+        return f"{prefix}.{self.name}"
 
 #     def resolve(self, operands, /):
 #         return operands[self.name]

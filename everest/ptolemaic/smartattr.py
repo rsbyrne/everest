@@ -24,16 +24,24 @@ class SmartAttr(_BindableObject, _Directive, metaclass=_Sprite):
     __merge_fintyp__ = _ur.DatDict
     _slotcached_ = False
 
+    @staticmethod
+    def mangle_name(name, /):
+        return f'_{name}_'
+
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         cls.__merge_name__ = f"__{cls.__name__.lower()}s__"
 
     @classmethod
+    def __body_construct__(cls, body, *args, **kwargs):
+        return cls(*args, **kwargs)
+
+    @classmethod
     def __body_call__(cls, body, arg=None, /, **kwargs):
         if arg is None:
             return _functools.partial(cls.__body_call__, body, **kwargs)
-        return cls(arg=arg, **kwargs)
+        return cls.__body_construct__(body, arg=arg, **kwargs)
 
     def __init__(self, /):
         super().__init__()
@@ -52,9 +60,9 @@ class SmartAttr(_BindableObject, _Directive, metaclass=_Sprite):
                 pass
             else:
                 slots.append(name)
-        altname = f'_{name}_'
-        body[altname] = self.arg
-        body['__mangled_names__'][name] = altname
+        mangledname = self.mangle_name(name)
+        body[mangledname] = self.arg
+        body['__mangled_names__'][name] = mangledname
 
 
 ###############################################################################
