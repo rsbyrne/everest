@@ -33,15 +33,15 @@ class _EidosBase_(metaclass=Eidos):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.getters = _ur.DatDict(cls._yield_getters())
-        cls.setters = _ur.DatDict(cls._yield_setters())
-        cls.deleters = _ur.DatDict(cls._yield_deleters())
+        cls._getters = _ur.DatDict(cls._yield_getters())
+        cls._setters = _ur.DatDict(cls._yield_setters())
+        cls._deleters = _ur.DatDict(cls._yield_deleters())
 
     def __getattr__(self, name, /):
         cls = self.__ptolemaic_class__
         if name in cls.__req_slots__:
             try:
-                getter = cls.getters[name]
+                getter = cls._getters[name]
             except KeyError as exc:
                 raise AttributeError from exc
             val = getter.__bound_get__(self, name)
@@ -54,7 +54,7 @@ class _EidosBase_(metaclass=Eidos):
             except KeyError:
                 pass
             try:
-                getter = cls.getters[name]
+                getter = cls._getters[name]
             except KeyError as exc:
                 raise AttributeError from exc
             val = dct[name] = getter.__bound_get__(self, name)
@@ -62,15 +62,21 @@ class _EidosBase_(metaclass=Eidos):
 
     def __setattr__(self, name, val, /):
         cls = self.__ptolemaic_class__
-        if name in cls.getters:
+        if name in cls._getters:
             raise AttributeError(
                 "Cannot manually set a name "
                 "that already has an associated getter method: "
                 f"{name}"
                 )
         try:
-            setter = cls.setters[name]
+            setter = cls._setters[name]
         except KeyError:
+            if not name.startswith('_'):
+                if not isinstance(val, _Ptolemaic):
+                    raise ValueError(
+                        "Cannot set non-Ptolemaics "
+                        "as public attributes of Ptolemaics."
+                        )
             if name in cls.__req_slots__:
                 if not self.__getattribute__('_mutable'):
                     raise AttributeError(
@@ -87,7 +93,7 @@ class _EidosBase_(metaclass=Eidos):
 
     def __delattr__(self, name, /):
         try:
-            deleter = cls.deleters[name]
+            deleter = cls._deleters[name]
         except KeyError as exc:
             if name in cls.__req_slots__:
                 if not self.__getattribute__('_mutable'):

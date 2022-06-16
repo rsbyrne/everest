@@ -6,16 +6,16 @@
 from collections import abc as _collabc
 import sys as _sys
 
-from everest import ur as _ur
 from everest.utilities import pretty as _pretty
 
 from .sprite import Sprite as _Sprite
+from . import ptolemaic as _ptolemaic
 
 
 @_collabc.Collection.register
 class ContentProxy(metaclass=_Sprite):
 
-    __content_type__ = _ur.DatTuple
+    __content_type__ = _ptolemaic.PtolTuple
     __content_meths__ = ()
 
     content: object
@@ -54,7 +54,7 @@ class Tuuple(ContentProxy):
 @_collabc.Mapping.register
 class Binding(ContentProxy):
 
-    __content_type__ = _ur.DatDict
+    __content_type__ = _ptolemaic.PtolDict
     __content_meths__ = (
         '__len__', '__contains__', '__iter__',
         '__getitem__', 'keys', 'items', 'values', 'get',
@@ -82,7 +82,7 @@ class Kwargs(Binding):
 @_collabc.Sequence.register
 class Arraay(ContentProxy):
 
-    __content_type__ = _ur.DatArray
+    __content_type__ = _ptolemaic.PtolArray
     __content_meths__ = (
         '__len__', '__contains__', '__iter__',
         '__getitem__', 'dtype', 'shape',

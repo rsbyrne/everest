@@ -13,6 +13,7 @@ from everest import ur as _ur
 
 from .urgon import Urgon as _Urgon
 from .utilities import Switch as _Switch
+from .ptolemaic import Ptolemaic as _Ptolemaic
 
 
 class ConcreteBase:
@@ -55,10 +56,10 @@ class Ousia(_Urgon):
     @classmethod
     def _yield_mergenames(meta, /):
         yield from super()._yield_mergenames()
-        yield '__req_slots__', list, _ur.DatUniqueTuple
+        yield '__req_slots__', list, _ur.PrimitiveUniTuple
 
     @classmethod
-    def handle_slots(self, body, slots, /):
+    def handle_slots(meta, body, slots, /):
         body['__req_slots__'].extend(slots)
 
     # @classmethod
@@ -81,17 +82,13 @@ class _OusiaBase_(metaclass=Ousia):
     ## Configuring the class:
 
     @classmethod
-    def _yield_concrete_slots(cls, /):
-        yield from ()
-
-    @classmethod
     def pre_create_concrete(cls, /):
         cls = cls.__ptolemaic_class__
         return (
             f"{cls.__name__}_Concrete",
             (ConcreteBase, cls),
             dict(
-                __slots__=cls.__req_slots__,
+                __slots__=tuple(cls.__req_slots__),
                 _get_ptolemaic_class=(lambda: cls),
                 _clsmutable=_Switch(True),
                 _clsiscosmic=False,
@@ -157,6 +154,13 @@ class _OusiaBase_(metaclass=Ousia):
                 raise AttributeError(
                     name, "Cannot alter slot while frozen."
                     )
+        # if not name.startswith('_'):
+        #     if not isinstance(val, _Ptolemaic):
+        #         raise ValueError(
+        #             "Cannot set non-Ptolemaics "
+        #             "as public attributes of Ptolemaics: "
+        #             f"name={name}, val={val}"
+        #             )
         try:
             super().__setattr__(name, val)
         except AttributeError:
@@ -294,70 +298,3 @@ class _OusiaBase_(metaclass=Ousia):
 
 ###############################################################################
 ###############################################################################
-
-
-#     @classmethod
-#     def _define_attrmethods(cls, /):
-
-#         # getters, setters, deleters = cls.getters, cls.setters, cls.deleters
-#         slots = cls.__req_slots__
-
-#         def __getattr__(self, name, /):
-#             # try:
-#             #     meth = getters[name]
-#             # except KeyError as exc:
-#             #     pass
-#             # else:
-#             #     val = meth(self)
-#             #     setattr(self, name, val)
-#             #     return val
-#             if name in slots:
-#                 raise AttributeError(name)
-#             else:
-#                 return getattr(type(self), name)
-#             # try:
-#             #     return object.__getattribute__(self, '__vardict__')[name]
-#             # except KeyError as exc:
-#             #     pass
-
-#         def __setattr__(self, name, val, /):
-#             # try:
-#             #     meth = setters[name]
-#             # except KeyError as exc:
-#             #     pass
-#             # else:
-#             #     meth(self, val)
-#             #     return
-#             if name in slots:
-#                 if object.__getattribute__(self, 'freezeattr'):
-#                     raise AttributeError(
-#                         name, "Cannot alter slot while frozen."
-#                         )
-#             object.__setattr__(self, name, val)
-
-#         def __delattr__(self, name, /):
-#             # try:
-#             #     meth = deleters[name]
-#             # except KeyError as exc:
-#             #     pass
-#             # else:
-#             #     meth(self)
-#             #     return
-#             if name in slots:
-#                 if object.__getattribute__(self, 'freezeattr'):
-#                     raise AttributeError(
-#                         name, "Cannot alter slot while frozen."
-#                         )
-#             object.__delattr__(self, name)
-
-#         return __getattr__, __setattr__, __delattr__
-        
-
-    # @classmethod
-    # def __class_init__(cls, /):
-    #     super().__class_init__()
-    #     # for nm in ('getters', 'setters', 'deleters'):
-    #     #     meths = cls._yield_affixfiltered(nm, f"_{nm[:3]}_", "_")
-    #     #     setattr(cls, nm, _ur.DatDict(meths))
-    #     cls.__getattr__, cls.__setattr__, cls.__delattr__ = \
-    #         cls._define_attrmethods()

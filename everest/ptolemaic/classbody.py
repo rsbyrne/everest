@@ -10,10 +10,11 @@ from functools import partial as _partial
 from collections import abc as _collabc
 
 from everest import ur as _ur
+from everest.switch import Switch as _Switch
 
 from .pleroma import Pleroma as _Pleroma
 from .shadow import Shadow as _Shadow, Shade as _Shade
-from .utilities import Switch as _Switch
+from . import ptolemaic as _ptolemaic
 
 
 class AnnotationHandler(dict):
@@ -203,7 +204,10 @@ class ClassBody(dict):
         bases = self.bases
         meta = self.meta
         mergenames = self.mergenames = \
-            _ur.DatUniqueTuple(meta._yield_mergenames())
+            _ur.DatUniTuple(
+                (nm, dyntyp, _ptolemaic.convert_type(fintyp))
+                for nm, dyntyp, fintyp in meta._yield_mergenames()
+                )
         genericfunc = lambda meth, val: (None, meth(val))
         for mname, dyntyp, _ in mergenames:
             mergees = (
@@ -236,7 +240,7 @@ class ClassBody(dict):
 
     def _post_prepare_mroclasses(self, /):
         empty = ()
-        gathered = _ur.DatUniqueTuple(_itertools.chain.from_iterable(
+        gathered = _ur.DatUniTuple(_itertools.chain.from_iterable(
             getattr(base, '__mroclasses__', empty) for base in self.bases
             ))
         self._update_mroclasses(
@@ -285,7 +289,7 @@ class ClassBody(dict):
         self._nametriggers[name] = _partial(self._add_mroclass, name)
 
     def _finalise_mroclasses(self, /):
-        mroclasses = _ur.DatUniqueTuple(super().__getitem__('__mroclasses__'))
+        mroclasses = _ur.DatUniTuple(super().__getitem__('__mroclasses__'))
         super().__setitem__('__mroclasses__', mroclasses)
         if mroclasses:
             for mroname in mroclasses:

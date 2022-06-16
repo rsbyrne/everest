@@ -8,7 +8,8 @@ from collections import abc as _collabc
 import operator as _operator
 
 from everest import ur as _ur
-from everest.armature import Armature as _Armature
+
+from .sprite import Sprite as _Sprite
 
 
 _UNARYOPS = _ur.DatDict(
@@ -46,7 +47,7 @@ def get_evalstr(obj, /):
     return repr(obj)
 
 
-class Shadow(metaclass=_Armature):
+class Shadow(metaclass=_Sprite):
 
     __slots__ = ('evalstr',)
 
@@ -124,7 +125,7 @@ class Operation(Shadow):
             return self._shades
         except AttributeError:
             with self.mutable:
-                shades = self._shades = _ur.DatUniqueTuple(self.yield_shades())
+                shades = self._shades = _ur.DatUniTuple(self.yield_shades())
             return shades
 
 

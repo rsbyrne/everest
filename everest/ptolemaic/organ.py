@@ -14,6 +14,7 @@ from .smartattr import SmartAttr as _SmartAttr
 from .sprite import Sprite as _Sprite
 from .content import Kwargs as _Kwargs
 from .shadow import Shade as _Shade
+from . import ptolemaic as _ptolemaic
 
 
 _pempty = _inspect._empty
@@ -26,7 +27,7 @@ class Organs(_Kwargs):
 
 class Organ(_SmartAttr):
 
-    ligatures: _collabc.Mapping = _ur.DatDict()
+    ligatures: _collabc.Mapping = _ptolemaic.PtolDict()
 
     __merge_fintyp__ = Organs
     _slotcached_ = True
@@ -34,7 +35,7 @@ class Organ(_SmartAttr):
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
         params = super().parameterise(*args, **kwargs)
-        params.ligatures = _ur.DatDict(params.ligatures)
+        params.ligatures = _ptolemaic.PtolDict(params.ligatures)
         if params.hint is _pempty:
             params.hint = params.arg
         return params

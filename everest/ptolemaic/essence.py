@@ -105,6 +105,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         raise TypeError(f"Shadow magic not supported for {meta}.")
 
     @classmethod
+    def handle_slots(meta, body, slots, /):
+        raise TypeError("Slots not supported under this metaclass.")
+        # print(slots)
+        # dict.__setitem__(body, '__slots__', slots)
+
+    @classmethod
     def classbody_finalise(meta, body, /):
         dct = body['__mangled_names__']
         body['__unmangled_names__'] = _ur.DatDict(zip(

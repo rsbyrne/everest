@@ -62,7 +62,6 @@ class _UrgonBase_(metaclass=Urgon, _isbasetyp_=True):
         super().__class_init__()
         premade = _weakref.WeakValueDictionary()
         cls._premade = premade
-        cls.premade = _types.MappingProxyType(premade)
 
     @classmethod
     @_abc.abstractmethod

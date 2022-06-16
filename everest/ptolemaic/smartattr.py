@@ -10,6 +10,7 @@ from everest import ur as _ur
 from .sprite import Sprite as _Sprite
 from .classbody import Directive as _Directive
 from .utilities import BindableObject as _BindableObject
+from . import ptolemaic as _ptolemaic
 
 
 class SmartAttr(_BindableObject, _Directive, metaclass=_Sprite):
@@ -17,7 +18,7 @@ class SmartAttr(_BindableObject, _Directive, metaclass=_Sprite):
     __slots__ = ('cachedname', 'degenerate')
 
     arg: object
-    hint: (type, str, tuple)
+    hint: (object, str, tuple)
     note: str
 
     __merge_dyntyp__ = dict

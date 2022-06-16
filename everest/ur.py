@@ -59,7 +59,7 @@ class TupleBase(tuple, CollectionBase):
         _pretty.pretty_tuple(self, p, cycle, root=root)
 
 
-class UniqueTupleBase(tuple, CollectionBase):
+class UniTupleBase(tuple, CollectionBase):
 
     __slots__ = ()
 
@@ -86,6 +86,8 @@ class UniqueTupleBase(tuple, CollectionBase):
 
 
 class DictBase(dict, CollectionBase):
+
+    __slots__ = ()
 
     def __init__(self, /, *args, **kwargs):
         pre = dict(*args, **kwargs)
@@ -163,6 +165,16 @@ class Dat(Ur, metaclass=DatMeta):
 
     __slots__ = ()
 
+    TYPS = (
+        _Enum,
+        type,
+        _types.ModuleType,
+        _types.FunctionType,
+        _types.MethodType,
+        _types.BuiltinFunctionType,
+        _types.BuiltinMethodType,
+        )
+
     @classmethod
     @_functools.lru_cache()
     def convert_type(cls, typ: type, /):
@@ -183,12 +195,17 @@ class Dat(Ur, metaclass=DatMeta):
         return cls.convert_type(type(obj))(obj)
 
 
+for typ in Dat.TYPS:
+    Dat.register(typ)
+del typ
+
+
 class DatTuple(TupleBase, Dat):
 
     __slots__ = ()
 
 
-class DatUniqueTuple(UniqueTupleBase, Dat):
+class DatUniTuple(UniTupleBase, Dat):
 
     __slots__ = ()
 
@@ -222,6 +239,8 @@ class Primitive(Dat):
     to the Ptolemaic system.
     '''
 
+    __slots__ = ()
+
     TYPS = (
         int,
         float,
@@ -233,13 +252,6 @@ class Primitive(Dat):
         type(None),
         type(Ellipsis),
         type(NotImplemented),
-        _Enum,
-        type,
-        _types.ModuleType,
-        _types.FunctionType,
-        _types.MethodType,
-        _types.BuiltinFunctionType,
-        _types.BuiltinMethodType,
         )
 
     @classmethod
@@ -271,8 +283,8 @@ class PrimitiveTuple(TupleBase, Primitive):
     __slots__ = ()
 
 
-@DatUniqueTuple.register
-class PrimitiveUniqueTuple(UniqueTupleBase, Primitive):
+@DatUniTuple.register
+class PrimitiveUniTuple(UniTupleBase, Primitive):
 
     __slots__ = ()
 

@@ -61,7 +61,7 @@ class _SchemaBase_(metaclass=Schema):
 
     @params.setter
     def params(self, value, /):
-        self._params = self.__ptolemaic_class__.Params(*value)
+        self._params = self.__ptolemaic_class__._Params(*value)
 
     def remake(self, /, **kwargs):
         return self.__ptolemaic_class__.retrieve(

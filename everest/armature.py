@@ -12,7 +12,8 @@ import itertools as _itertools
 
 from everest import ur as _ur
 from everest.utilities import pretty as _pretty
-from everest.utilities.switch import Switch as _Switch
+from everest.switch import Switch as _Switch
+# from everest.utilities.switch import Switch as _Switch
 
 
 class _ConcreteBase_(metaclass=_abc.ABCMeta):
@@ -48,17 +49,8 @@ class Armature(_abc.ABCMeta):
         for base in bases:
             yield from getattr(base, '__req_slots__', ())
 
-    def __new__(
-            meta, arg0, /, *args,
-            qualname=None, module=None,
-            ):
-        locprovided = not all(obj is None for obj in (qualname, module))
+    def __new__(meta, arg0, /, *args):
         if not args:
-            if locprovided:
-                raise TypeError(
-                    "Location must not be provided " 
-                    "while creating Concrete subclass."
-                    )
             return super().__new__(
                 meta,
                 f"{arg0.__name__}_Concrete",
@@ -66,55 +58,52 @@ class Armature(_abc.ABCMeta):
                 dict(
                     Base=arg0,
                     __slots__=arg0.__req_slots__,
-                    _clsfreezeattr=_Switch(False),
+                    _clsmutable=_Switch(True),
                     )
                 )
         name, bases, ns = arg0, *args
-        ns.setdefault('__qualname__', qualname)
-        ns.setdefault('__module__', module)
+        if not _ConcreteBase_ in bases:
+            if not all(nm in ns for nm in ('__qualname__', '__module__')):
+                raise TypeError(
+                    "Armature-derived classes must be top-level classes."
+                    )
         params = meta._merge_params(bases, ns)
         slots = tuple(sorted(set((*params, *meta._merge_slots(bases, ns)))))
         ns.update(
             __params__=params,
             __slots__=(),
             __req_slots__=slots,
-            _clsfreezeattr=_Switch(False),
+            _clsmutable=_Switch(True),
             )
-        return super().__new__(meta, name, (*bases, _ArmatureBase_), ns)
+        return super().__new__(meta, name, (*bases, meta.BaseTyp), ns)
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not issubclass(cls, _ConcreteBase_):
             cls.__class_init__()
-        cls._clsfreezeattr.toggle(True)
-
-    @property
-    def freezeattr(self, /):
-        return self._clsfreezeattr
-
-    def __setattr__(cls, name, val, /):
-        try:
-            check = cls._clsfreezeattr
-        except AttributeError:
-            pass
-        else:
-            if check:
-                raise TypeError("Cannot alter attribute on Armature.")
-        super().__setattr__(name, val)
-
-    def __delattr__(cls, name, /):
-        try:
-            check = cls._clsfreezeattr
-        except AttributeError:
-            pass
-        else:
-            if check:
-                raise TypeError("Cannot alter attribute on Armature.")
-        super().__delattr__(name)
+        cls._clsmutable.toggle(True)
 
     @property
     def mutable(cls, /):
-        return cls._clsfreezeattr.as_(False)
+        return cls.__dict__['_clsmutable']
+
+    @mutable.setter
+    def mutable(cls, val, /):
+        cls.mutable.toggle(val)
+
+    def __setattr__(cls, name, val, /):
+        if cls.__dict__['_clsmutable']:
+            if not name.startswith('_'):
+                val = cls.convert(val)
+            super().__setattr__(name, val)
+        else:
+            raise TypeError("Cannot alter attribute when immutable.")
+
+    def __delattr__(cls, name, /):
+        if cls.__dict__['_clsmutable']:
+            super().__delattr__(name)
+        else:
+            raise TypeError("Cannot alter attribute when immutable.")
 
     @property
     def __call__(cls, /):
@@ -124,19 +113,19 @@ class Armature(_abc.ABCMeta):
     def taphonomy(cls, /):
         return _FOCUS.bureau.taphonomy
 
+    def convert(cls, obj, /):
+        return _ur.Dat.convert(obj)
+
 
 @_ur.Dat.register
 class _ArmatureBase_(metaclass=_abc.ABCMeta):
 
-    __slots__ = ('__weakref__', '_objfreezeattr', 'params', '_epitaph')
-
-    param_convert = _ur.Dat.convert
+    __slots__ = ('__weakref__', '_mutable', 'params', '_epitaph')
 
     @classmethod
     def __class_init__(cls, /):
         premade = _weakref.WeakValueDictionary()
         cls._premade = premade
-        cls.premade = _types.MappingProxyType(premade)
         pms = cls.__params__
         if pms:
             hints, defaults = zip(*pms.values())
@@ -145,64 +134,59 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
         Params = _namedtuple(
             f"{cls.__qualname__}_Params", pms, defaults=defaults
             )
+        cls._Params = Params
         cls.fieldhints = hints
-        cls.Params = Params
         cls.__signature__ = _inspect.signature(Params)
         cls.arity = len(pms)
         cls.Concrete = Armature(cls)
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return cls.retrieve(cls.Params(
-            *map(cls.param_convert, cls.Params(*args, **kwargs))
+        return cls._retrieve_(cls._Params(
+            *map(cls.convert, cls._Params(*args, **kwargs))
             ))
 
     def __class_getitem__(cls, params, /):
-        return cls.retrieve(cls.Params(*map(cls.param_convert, params)))
+        return cls._retrieve_(cls._Params(*map(cls.convert, params)))
 
     @classmethod
-    def retrieve(cls, params, /):
+    def _retrieve_(cls, params, /):
         premade = cls._premade
         try:
             return premade[params]
         except KeyError:
             Concrete = cls.Concrete
             obj = premade[params] = Concrete.__new__(Concrete)
+            mutable = _Switch(True)
+            object.__setattr__(obj, '_mutable', mutable)
             object.__setattr__(obj, 'params', params)
             for name, val in params._asdict().items():
                 object.__setattr__(obj, name, val)
-            object.__setattr__(obj, '_objfreezeattr', _Switch(True))
-            with obj.mutable:
-                obj.__init__()
+            obj.__init__()
+            mutable.toggle(False)
             return obj
 
     @property
-    def freezeattr(self, /):
-        return self._objfreezeattr
-
-    @property
     def mutable(self, /):
-        return self._objfreezeattr.as_(False)
+        return self._mutable
+
+    @mutable.setter
+    def mutable(self, value, /):
+        self.mutable.toggle(value)
 
     def __setattr__(self, name, val, /):
-        try:
-            check = self._objfreezeattr
-        except AttributeError:
-            pass
+        if object.__getattribute__(self, '_mutable'):
+            if not name.startswith('_'):
+                val = type(self).convert(val)
+            super().__setattr__(name, val)
         else:
-            if check:
-                raise TypeError("Cannot alter attribute on Armature.")
-        super().__setattr__(name, val)
+            raise TypeError("Cannot alter attribute when immutable.")
 
     def __delattr__(self, name, /):
-        try:
-            check = self._objfreezeattr
-        except AttributeError:
-            pass
+        if object.__getattribute__(self, '_mutable'):
+            super().__delattr__(name)
         else:
-            if check:
-                raise TypeError("Cannot alter attribute on Armature.")
-        super().__delattr__(name)
+            raise TypeError("Cannot alter attribute when immutable.")
 
     def __repr__(self, /):
         return f"<{self.Base.__qualname__}, id={id(self)}>"
@@ -220,6 +204,9 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
 
     def __reduce__(self, /):
         return self.Base.__class_getitem__, (tuple(self.params),)
+
+
+Armature.BaseTyp = _ArmatureBase_
 
 
 ###############################################################################
