@@ -53,7 +53,8 @@ class _SchemaBase_(metaclass=Schema):
     def _yield_getters(cls, /):
         yield from super()._yield_getters()
         for typ in cls._smartattrtypes:
-            yield from getattr(cls, typ.__merge_name__).items()
+            for nm, sm in getattr(cls, typ.__merge_name__).items():
+                yield nm, sm.__get__
 
     @property
     def params(self, /):

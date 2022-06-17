@@ -19,15 +19,15 @@ class Tekton(_Urgon):
         yield _field.Field
 
     @classmethod
-    def process_bodyanno(meta, body, name, hint, val, /):
-        return name, _field.Field.from_annotation(hint, val)
+    def body_handle_anno(meta, body, name, hint, val, /):
+        body[name] = _field.Field.from_annotation(hint, val)
 
 
 class _TektonBase_(metaclass=Tekton):
 
     @classmethod
     def _get_signature(cls, /):
-        return cls.__fields__.signature
+        return cls.__fields__._signature
 
     @classmethod
     def __class_init__(cls, /):

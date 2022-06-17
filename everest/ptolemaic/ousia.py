@@ -13,7 +13,6 @@ from everest import ur as _ur
 
 from .urgon import Urgon as _Urgon
 from .utilities import Switch as _Switch
-from .ptolemaic import Ptolemaic as _Ptolemaic
 
 
 class ConcreteBase:
@@ -39,6 +38,12 @@ class ConcreteBase:
 
 
 class Ousia(_Urgon):
+
+    @property
+    def __set_name__(cls, /):
+        if issubclass(cls, ConcreteBase):
+            raise AttributeError
+        return cls.__class_set_name__
 
     @property
     def Concrete(cls, /):
@@ -76,7 +81,8 @@ class _OusiaBase_(metaclass=Ousia):
     __slots__ = (
         '__weakref__',
         '_mutable', '_pyhash', '_sessioncacheref', '_epitaph',
-        '_dependants', '_corpus',
+        '_dependants', '_notions', '_organs',
+        '__corpus__', '__relname__',
         )
 
     ## Configuring the class:
@@ -101,42 +107,80 @@ class _OusiaBase_(metaclass=Ousia):
 
     ### Object creation:
 
+        # if _corpus_:
+        #     corpus, relname = _corpus_
+        #     obj._corpus, obj._relname = _weakref.ref(corpus), relname
+
+    def register_notion(self, other, /):
+        if not self.mutable:
+            raise RuntimeError(
+                "Cannot register notion when immutable."
+                )
+        self._notions.append(other)
+
+    def register_organ(self, other, /):
+        if not self.mutable:
+            raise RuntimeError(
+                "Cannot register organ when immutable."
+                )
+        self._organs.append(other)
+
+    def initialise(self, /):
+        self.__init__()
+        for notion in self._notions:
+            notion.__class_initialise__()
+        for organ in self._organs:
+            organ.initialise()
+        self.mutable = False
+
     @classmethod
-    def construct(cls,
-            params: tuple, /, *args,
-            _corpus_=None, **kwargs
-            ):
+    def _instantiate_(cls, params: tuple, /):
         Concrete = cls.Concrete
         obj = Concrete.__new__(Concrete)
         switch = _Switch(True)
         object.__setattr__(obj, '_mutable', switch)
         obj._pyhash = _reseed.rdigits(16)
-        if _corpus_:
-            corpus, relname = _corpus_
-            obj._corpus, obj._relname = _weakref.ref(corpus), relname
-        # obj._dependants = _weakref.WeakSet()
+        obj._notions, obj._organs = [], []
         obj.params = params
-        obj.__init__(*args, **kwargs)
-        switch.toggle(False)
         return obj
 
-    @property
-    def __corpus__(self, /):
-        try:
-            return self._corpus()
-        except AttributeError:
-            return None
+    @classmethod
+    def instantiate(cls, params: tuple, /):
+        return cls._instantiate_(tuple(map(cls.param_convert, params)))
+
+    @classmethod
+    def _construct_(cls, params: tuple, /):
+        obj = cls.instantiate(params)
+        obj.__corpus__ = None
+        obj.__relname__ = None
+        obj.initialise()
+        return obj
+
+    @classmethod
+    def construct(cls, params: tuple, /):
+        return cls._construct_(tuple(map(cls.param_convert, params)))
+
+    @classmethod
+    def semi_call(cls, *args, **kwargs):
+        return cls.instantiate(tuple(
+            cls.parameterise(*args, **kwargs)
+            .__dict__.values()
+            ))
+
+    def __set_name__(self, owner, name, /):
+        if self.mutable:
+            try:
+                name = owner.__unmangled_names__[name]
+            except (AttributeError, KeyError):
+                pass
+            self.__corpus__ = owner
+            self.__relname__ = name
+            self.initialise()
+            owner.register_organ(self)
 
     @property
-    def __cosmic__(cls, /):
-        return cls.__corpus__ is None
-
-    @property
-    def __relname__(self, /):
-        try:
-            return self._relname
-        except AttributeError:
-            return None
+    def __cosmic__(self, /):
+        return self.__corpus__ is None
 
     ### Storage:
 
@@ -154,17 +198,22 @@ class _OusiaBase_(metaclass=Ousia):
                 raise AttributeError(
                     name, "Cannot alter slot while frozen."
                     )
-        # if not name.startswith('_'):
-        #     if not isinstance(val, _Ptolemaic):
-        #         raise ValueError(
-        #             "Cannot set non-Ptolemaics "
-        #             "as public attributes of Ptolemaics: "
-        #             f"name={name}, val={val}"
-        #             )
-        try:
+            if not name.startswith('_'):
+                type(self).param_convert(val)
+                try:
+                    setname = val.__set_name__
+                except AttributeError:
+                    pass
+                else:
+                    setname(self, name)
             super().__setattr__(name, val)
-        except AttributeError:
-            self.__getattribute__('__dict__')[name] = val
+        else:
+            try:
+                super().__setattr__(name, val)
+            except AttributeError:
+                if not name.startswith('_'):
+                    type(self).param_convert(val)
+                self.__getattribute__('__dict__')[name] = val
 
     def __delattr__(self, name, /):
         if name in self.__getattribute__('__slots__'):
@@ -238,7 +287,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     @_abc.abstractmethod
     def _content_repr(self, /):
-        return ''
+        raise NotImplementedError
 
     @property
     # @_caching.soft_cache()

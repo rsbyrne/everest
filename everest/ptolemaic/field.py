@@ -18,7 +18,7 @@ _pempty = _inspect._empty
 
 class Fields(_Kwargs):
 
-    __slots__ = ('signature', 'defaults', 'degenerates')
+    __slots__ = ('_signature', 'defaults', 'degenerates')
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -32,7 +32,7 @@ class Fields(_Kwargs):
             name: field.default
             for name, field in self.items() if field.degenerate
             })
-        signature = self.signature = _inspect.Signature(
+        signature = self._signature = _inspect.Signature(
             field.get_parameter(name)
             for name, field in self.items() if name not in degenerates
             )
@@ -44,7 +44,7 @@ class Fields(_Kwargs):
 
     def __call__(self, /, *args, **kwargs):
         return tuple({
-            **self.signature.bind(*args, **kwargs).arguments,
+            **self._signature.bind(*args, **kwargs).arguments,
             **self.degenerates
             }.values())
 
@@ -55,9 +55,7 @@ class Fields(_Kwargs):
         return True
 
     def __get__(self, instance, owner=None, /):
-        if instance is None:
-            return self
-        return instance.params
+        return self
 
 
 class Field(_SmartAttr):
@@ -85,9 +83,20 @@ class Field(_SmartAttr):
             params.kind = 'POSKW'
         elif params.kind not in cls.KINDPAIRS:
             raise ValueError(params.kind)
-        if params.hint is NotImplemented:
-            params.hint = params.arg
         return params
+
+    @classmethod
+    def _instantiate_(cls, params: tuple, /):
+        obj = super()._instantiate_(params)
+        degen = obj.degenerate = not bool(obj.hint)
+        if degen:
+            obj.score = -1
+        else:
+            obj.score = sum((
+                tuple(cls.KINDPAIRS).index(obj.kind),
+                (0 if obj.default is NotImplemented else 0.5),
+                ))
+        return obj
 
     def __init__(self, /):
         super().__init__()
@@ -114,14 +123,16 @@ class Field(_SmartAttr):
     @classmethod
     def from_annotation(cls, anno, value):
         if isinstance(anno, FieldAnno):
-            arg, note, kind = anno
-            return cls(arg=arg, note=note, default=value, kind=kind)
+            hint, note, kind = anno
+            return cls.semi_call((hint, note, value, kind))
         if anno is cls:
-            return cls(default=value)
-        return cls(arg=anno, default=value)
+            return cls.semi_call(default=value)
+        return cls.semi_call(hint=anno, default=value)
 
-    def __bound_get__(self, instance, name, /):
-        return getattr(instance.params, name)
+    def __get__(self, instance, owner=None, /):
+        if instance is None:
+            return self
+        return getattr(instance.params, self.__relname__)
 
 
 class FieldAnno:
@@ -146,7 +157,7 @@ class FieldKind(FieldAnno):
         return FieldNote(kind=self.kind, note=note)
 
     def __getitem__(self, arg, /):
-        return FieldHint(kind=self.kind, arg=arg)
+        return FieldHint(kind=self.kind, hint=arg)
 
 
 with Field.mutable:
@@ -157,26 +168,26 @@ del kindname
 
 class FieldHint(FieldAnno):
 
-    def __init__(self, /, kind=NotImplemented, arg=NotImplemented):
-        self.kind, self.arg = kind, arg
+    def __init__(self, /, kind=NotImplemented, hint=NotImplemented):
+        self.kind, self.hint = kind, hint
 
     def __iter__(self, /):
-        yield from (self.arg, NotImplemented, self.kind)
+        yield from (self.hint, NotImplemented, self.kind)
 
     def __call__(self, note, /):
-        return FieldNote(kind=self.kind, arg=self.arg, note=note)
+        return FieldNote(kind=self.kind, hint=self.hint, note=note)
 
 
 class FieldNote(FieldAnno):
 
     def __init__(
             self,
-            kind=NotImplemented, arg=NotImplemented, note=NotImplemented
+            kind=NotImplemented, hint=NotImplemented, note=NotImplemented
             ):
-        self.kind, self.arg, self.note = kind, arg, note
+        self.kind, self.hint, self.note = kind, hint, note
 
     def __iter__(self, /):
-        yield from (self.arg, self.note, self.kind)
+        yield from (self.hint, self.note, self.kind)
 
 
 ###############################################################################

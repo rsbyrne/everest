@@ -17,6 +17,11 @@ class Enumm(_Ousia):
         yield from super()._yield_mergenames()
         yield ('__enumerators__', dict, _ur.DatDict)
 
+    @classmethod
+    def body_handle_anno(meta, body, name, hint, val, /):
+        body['__enumerators__'][name] = (hint, val)
+        body['__req_slots__'].append(name)
+
     def __iter__(cls, /):
         return iter(cls.enumerators)
 
@@ -24,26 +29,22 @@ class Enumm(_Ousia):
 class _EnummBase_(metaclass=Enumm):
 
     __enumerators__ = {}
-    __slots__ = ('_params', 'serial', 'name', 'value')
+    __fields__ = ('serial', 'name', 'hint', 'value')
+    __slots__ = ('_params', *__fields__)
 
     @classmethod
-    def classbody_finalise(meta, body, /):
-        super().classbody_finalise(body)
-        body['__req_slots__'].extend(body['__enumerators__'])
-
-    @classmethod
-    def __class_deep_init__(cls, /):
-        super().__class_deep_init__()
+    def __class_init__(cls, /):
+        super().__class_init__()
         cls.add_enumerators()
 
     @classmethod
     def add_enumerators(cls, /):
         enumerators = []
-        for serial, (name, value) in enumerate(cls.__enumerators__.items()):
-            obj = cls(serial=serial, name=name, value=value)
+        for serial, (name, args) in enumerate(cls.__enumerators__.items()):
+            obj = cls.semi_call(serial, name, *args)
             setattr(cls, name, obj)
             enumerators.append(obj)
-        cls.enumerators = tuple(enumerators)
+        cls.enumerators = enumerators
 
     @property
     def params(self, /):
@@ -52,8 +53,11 @@ class _EnummBase_(metaclass=Enumm):
     @params.setter
     def params(self, value, /):
         self._params = value
-        for key, val in zip(('serial', 'name', 'value'), params):
+        for key, val in zip(self.__fields__, value):
             setattr(self, key, val)
+
+    def _content_repr(self, /):
+        return ', '.join(map(repr, self.params))
 
     def __repr__(self, /):
         return f"{self.rootrepr}.{self.name}"

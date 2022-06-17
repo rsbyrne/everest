@@ -49,7 +49,8 @@ class ClassBody(dict):
         for nm, val in dict(
                 # __name__=name,  # Breaks things in a really interesting way!
                 __slots__=(),
-                innerclasses=[],
+                _clsnotions=[],
+                _clsorgans=[],
                 _clsiscosmic=None,
                 __class_relname__=name,
                 _clsmutable=_Switch(True),
@@ -91,7 +92,7 @@ class ClassBody(dict):
         new = tuple(subval for subval in val if val not in mroclasses)
         mroclasses.extend(new)
         self._nametriggers.update(
-            (name, _partial(self._add_innerclass, name))
+            (name, _partial(self._add_notion, name))
             for name in new
             )
 
@@ -126,9 +127,9 @@ class ClassBody(dict):
             self.meta.process_shadow(self, name, val)
             return
         if isinstance(val, Directive):
-            val.__directive_call__(self, name)
-            return
-        super().__setitem__(name, val)
+            name, val = val.__directive_call__(self, name)
+        if name is not None:
+            super().__setitem__(name, val)
 
     @property
     def module(self, /):
@@ -271,7 +272,7 @@ class ClassBody(dict):
         self._post_prepare_mroclasses()
         self._fullyprepared = True
 
-    def _add_innerclass(self, name, base=None, /):
+    def _add_notion(self, name, base=None, /):
         if base is None:
             base = self.meta._defaultbasetyp
         super().__setitem__(name, type(
@@ -282,7 +283,7 @@ class ClassBody(dict):
 
     def _add_mroclass(self, name, mroclass, /):
         super().__setitem__(name, mroclass)
-        self._nametriggers[name] = _partial(self._add_innerclass, name)
+        self._nametriggers[name] = _partial(self._add_notion, name)
         return None, None
 
     def anticipate_mroclass(self, name, /):
@@ -295,7 +296,7 @@ class ClassBody(dict):
             for mroname in mroclasses:
                 if mroname not in self:
                     # self[mroname] = default
-                    self._add_innerclass(mroname)
+                    self._add_notion(mroname)
 
     def _finalise_mergenames(self, /):
         for mname, _, fintyp in self.mergenames:
@@ -309,9 +310,9 @@ class ClassBody(dict):
         return self.name, self.bases, dict(self)
 
     def __setanno__(self, name, val, /):
-        self.__setitem__(*self.meta.process_bodyanno(
+        self.meta.body_handle_anno(
             self, name, val, self.pop(name, NotImplemented)
-            ))
+            )
 
     def safe_set(self, name, val, /):
         if name in self:

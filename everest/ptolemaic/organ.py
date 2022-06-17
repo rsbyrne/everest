@@ -44,7 +44,7 @@ class Organ(_SmartAttr):
     def __body_call__(cls, body, arg=None, /, **ligatures):
         if arg is None:
             return _functools.partial(cls.__body_call__, body, **ligatures)
-        return cls.__body_construct__(
+        return cls.semi_call(
             body,
             arg=arg,
             hint=_inspect.signature(arg).return_annotation,
@@ -68,7 +68,7 @@ class Organ(_SmartAttr):
                     val = val.__get__(instance)
             yield nm, val
 
-    def __bound_get__(self, instance, name, /):
+    def __get__(self, instance, owner=None, /):
         typ = self.arg
         params = typ.Params(**dict(self._yield_arguments(
             instance, _inspect.signature(typ)

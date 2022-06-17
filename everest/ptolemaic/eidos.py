@@ -6,6 +6,7 @@
 from everest import ur as _ur
 
 from .ousia import Ousia as _Ousia
+from . import ptolemaic as _ptolemaic
 
 
 class Eidos(_Ousia):
@@ -44,7 +45,7 @@ class _EidosBase_(metaclass=Eidos):
                 getter = cls._getters[name]
             except KeyError as exc:
                 raise AttributeError from exc
-            val = getter.__bound_get__(self, name)
+            val = getter(self)
             object.__setattr__(self, name, val)
             return val
         else:
@@ -57,7 +58,7 @@ class _EidosBase_(metaclass=Eidos):
                 getter = cls._getters[name]
             except KeyError as exc:
                 raise AttributeError from exc
-            val = dct[name] = getter.__bound_get__(self, name)
+            val = dct[name] = getter(name)
             return val
 
     def __setattr__(self, name, val, /):
@@ -71,25 +72,23 @@ class _EidosBase_(metaclass=Eidos):
         try:
             setter = cls._setters[name]
         except KeyError:
-            if not name.startswith('_'):
-                if not isinstance(val, _Ptolemaic):
-                    raise ValueError(
-                        "Cannot set non-Ptolemaics "
-                        "as public attributes of Ptolemaics."
-                        )
             if name in cls.__req_slots__:
                 if not self.__getattribute__('_mutable'):
                     raise AttributeError(
                         name, "Cannot alter slot while frozen."
                         )
+                if not name.startswith('_'):
+                    type(self).param_convert(val)
                 object.__setattr__(self, name, val)
             else:
                 try:
                     object.__setattr__(self, name, val)
                 except AttributeError as exc:
+                    if not name.startswith('_'):
+                        type(self).param_convert(val)
                     self.__dict__[name] = val
         else:
-            setter.__bound_set__(self, name, val)
+            setter(self, val)
 
     def __delattr__(self, name, /):
         try:
@@ -110,7 +109,7 @@ class _EidosBase_(metaclass=Eidos):
                     except KeyError as exc:
                         raise AttributeError from exc
         else:
-            deleter.__bound_del__(self, name)
+            deleter(self)
 
 
 ###############################################################################

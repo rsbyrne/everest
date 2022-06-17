@@ -85,6 +85,32 @@ class UniTupleBase(tuple, CollectionBase):
         _pretty.pretty_tuple(self, p, cycle, root=root)
 
 
+class SetBase(tuple, CollectionBase):
+
+    __slots__ = ()
+
+    @classmethod
+    def _yield_unique(cls, iterable, /):
+        seen = set()
+        for item in iterable:
+            if item not in seen:
+                yield item
+                seen.add(item)
+
+    def __new__(cls, iterable=(), /):
+        return super().__new__(cls, sorted(cls._yield_unique(
+            map(cls.convert, iterable)
+            )))
+
+    def __repr__(self, /):
+        return type(self).__qualname__ + super().__repr__()
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = type(self).__qualname__
+        _pretty.pretty_tuple(self, p, cycle, root=root)
+
+
 class DictBase(dict, CollectionBase):
 
     __slots__ = ()
@@ -180,6 +206,8 @@ class Dat(Ur, metaclass=DatMeta):
     def convert_type(cls, typ: type, /):
         if issubclass(typ, Dat):
             return typ
+        if issubclass(typ, set):
+            return DatSet
         if issubclass(typ, _np.ndarray):
             return DatArray
         if issubclass(typ, _collabc.Mapping):
@@ -206,6 +234,11 @@ class DatTuple(TupleBase, Dat):
 
 
 class DatUniTuple(UniTupleBase, Dat):
+
+    __slots__ = ()
+
+
+class DatSet(SetBase, Dat):
 
     __slots__ = ()
 
@@ -259,6 +292,8 @@ class Primitive(Dat):
     def convert_type(cls, typ: type, /):
         if issubclass(typ, Primitive):
             return typ
+        if issubclass(typ, set):
+            return PrimitiveSet
         if issubclass(typ, _collabc.Mapping):
             return PrimitiveDict
         if issubclass(typ, _collabc.Iterable):
@@ -285,6 +320,12 @@ class PrimitiveTuple(TupleBase, Primitive):
 
 @DatUniTuple.register
 class PrimitiveUniTuple(UniTupleBase, Primitive):
+
+    __slots__ = ()
+
+
+@DatSet.register
+class PrimitiveSet(SetBase, Dat):
 
     __slots__ = ()
 

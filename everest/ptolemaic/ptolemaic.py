@@ -15,7 +15,7 @@ _Primitive = _ur.Primitive
 
 
 _PSEUDOINSTANCES = (
-    *_Primitive.TYPS,
+    *map(id, _Primitive.TYPS),
     object,
     )
 
@@ -23,7 +23,7 @@ _PSEUDOINSTANCES = (
 class PtolemaicMeta(_ur.DatMeta):
 
     def __instancecheck__(cls, other, /):
-        if other in _PSEUDOINSTANCES:
+        if id(other) in _PSEUDOINSTANCES:
             return True
         return super().__instancecheck__(other)
 
@@ -37,6 +37,8 @@ class Ptolemaic(_ur.Dat, metaclass=PtolemaicMeta):
     def convert_type(cls, typ: type, /):
         if issubclass(typ, Ptolemaic):
             return typ
+        if issubclass(typ, set):
+            return PtolSet
         if issubclass(typ, _np.ndarray):
             return PtolArray
         if issubclass(typ, _collabc.Mapping):
@@ -70,6 +72,12 @@ class PtolTuple(_ur.TupleBase, Ptolemaic):
 
 @_ur.DatUniTuple.register
 class PtolUniTuple(_ur.UniTupleBase, Ptolemaic):
+
+    __slots__ = ()
+
+
+@_ur.DatSet.register
+class PtolSet(_ur.SetBase, Ptolemaic):
 
     __slots__ = ()
 

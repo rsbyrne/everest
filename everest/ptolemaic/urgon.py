@@ -9,7 +9,6 @@ import types as _types
 import inspect as _inspect
 
 from .essence import Essence as _Essence
-from . import exceptions as _exceptions
 
 
 class Urgon(_Essence):
@@ -53,15 +52,10 @@ class _UrgonBase_(metaclass=Urgon, _isbasetyp_=True):
         return _inspect.signature(func)
 
     @classmethod
-    def __class_deep_init__(cls, /):
-        super().__class_deep_init__()
-        cls.__signature__ = cls._get_signature()
-
-    @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        premade = _weakref.WeakValueDictionary()
-        cls._premade = premade
+        cls.__signature__ = cls._get_signature()
+        cls._premade = _weakref.WeakValueDictionary()
 
     @classmethod
     @_abc.abstractmethod
@@ -71,19 +65,17 @@ class _UrgonBase_(metaclass=Urgon, _isbasetyp_=True):
     parameterise = _types.SimpleNamespace
 
     @classmethod
-    def paramexc(cls, /, *args, message=None, **kwargs):
-        return _exceptions.ParameterisationException(
-            (args, kwargs), cls, message
-            )
-
-    @classmethod
-    def retrieve(cls, params: tuple, /):
+    def _retrieve_(cls, params: tuple, /):
         premade = cls._premade
         try:
             return premade[params]
         except KeyError:
-            obj = premade[params] = cls.construct(params)
+            obj = premade[params] = cls._construct_(params)
             return obj
+
+    @classmethod
+    def retrieve(cls, params: tuple, /):
+        return cls._retrieve_(tuple(map(cls.param_convert, params)))
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
@@ -93,8 +85,8 @@ class _UrgonBase_(metaclass=Urgon, _isbasetyp_=True):
             ))
 
     # Special-cased, so no need for @classmethod
-    def __class_getitem__(cls, params, /):
-        return cls.retrieve(params)
+    def __class_getitem__(cls, arg, /):
+        return cls.retrieve(arg)
 
 
 ###############################################################################

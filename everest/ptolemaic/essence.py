@@ -9,12 +9,12 @@ import functools as _functools
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
 
-from .ptolemaic import Ptolemaic as _Ptolemaic
+from . import ptolemaic as _ptolemaic
 from .pleroma import Pleroma as _Pleroma
 from .classbody import ClassBody as _ClassBody
 
 
-@_Ptolemaic.register
+@_ptolemaic.Ptolemaic.register
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
@@ -23,17 +23,28 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Descriptor stuff:
 
-    def __set_name__(cls, owner, name, /):
+    @property
+    def __set_name__(cls, /):
+        return cls.__class_set_name__
+
+    def __class_set_name__(cls, owner, name, /):
         if cls.mutable:
             try:
                 name = owner.__unmangled_names__[name]
-            except KeyError:
+            except (AttributeError, KeyError):
                 pass
-            print(cls, owner, name)
             cls.__class_relname__ = name
             cls.__class_corpus__ = owner
             cls.__qualname__ = owner.__qualname__ + '.' + name
-            owner.register_innerclass(cls)
+            owner.register_notion(cls)
+
+    @property
+    def register_notion(cls, /):
+        return cls._class_register_notion
+
+    @property
+    def register_organ(cls, /):
+        return cls._class_register_organ
 
     @property
     def __corpus__(cls, /):
@@ -52,6 +63,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             return cls.__dict__['__class_relname__']
         except KeyError:
             return cls.__qualname__
+
 
     ### Meta init:
 
@@ -97,7 +109,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             )
 
     @classmethod
-    def process_bodyanno(meta, body, name, hint, val, /):
+    def body_handle_anno(meta, body, name, hint, val, /):
         raise TypeError(f"Annotations not supported for {meta}.")
 
     @classmethod
@@ -160,9 +172,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         iscosmic = cls._clsiscosmic
         del cls._clsiscosmic
         if iscosmic:
-            cls.__class_deep_init__()
-            cls.__class_inner_init__()
-            cls.mutable = False
+            cls.__class_initialise__()
 
     @classmethod
     def _get_qualname(cls, /):
@@ -197,6 +207,14 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __setattr__(cls, name, val, /):
         if cls.mutable:
+            if not name.startswith('_'):
+                cls.param_convert(val)
+                try:
+                    setname = val.__set_name__
+                except AttributeError:
+                    pass
+                else:
+                    setname(cls, name)
             super().__setattr__(name, val)
         else:
             raise AttributeError(
@@ -306,33 +324,44 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def hashID(cls, /):
         return cls.epitaph.hashID
 
+    @property
+    def param_convert(cls, /):
+        return _ptolemaic.convert
 
-@_Ptolemaic.register
+
+@_ptolemaic.Ptolemaic.register
 class _EssenceBase_(metaclass=Essence):
 
     @classmethod
-    def __class_inner_init__(cls, /):
-        for inner in cls.innerclasses:
-            inner.__class_deep_init__()
-            inner.__class_inner_init__()
-            inner.mutable = False
-
-    @classmethod
-    def register_innerclass(cls, other, /):
+    def _class_register_notion(cls, other, /):
         if cls.mutable:
-            cls.innerclasses.append(other)
+            cls._clsnotions.append(other)
         else:
             raise RuntimeError(
-                "Cannot register a new inner class "
+                "Cannot register a new notion "
                 "after a class has been made immutable "
                 "(i.e. after it has been completely initialised): "
                 f"{cls}"
                 )
 
     @classmethod
-    def __class_deep_init__(cls, /):
+    def _class_register_organ(cls, other, /):
+        if cls.mutable:
+            cls._clsorgans.append(other)
+        else:
+            raise RuntimeError(
+                "Cannot register a new organ "
+                "after a class has been made immutable "
+                "(i.e. after it has been completely initialised): "
+                f"{cls}"
+                )
+
+    @classmethod
+    def __class_initialise__(cls, /):
         cls.__class_init__()
-        cls.innerclasses = tuple(cls.__dict__['innerclasses'])
+        for inner in cls._clsnotions:
+            inner.__class_initialise__()
+        cls.mutable = False
 
     @classmethod
     def __class_init__(cls, /):

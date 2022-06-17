@@ -16,6 +16,9 @@ from everest.switch import Switch as _Switch
 # from everest.utilities.switch import Switch as _Switch
 
 
+_pkind = _inspect._ParameterKind
+
+
 class _ConcreteBase_(metaclass=_abc.ABCMeta):
 
     __slots__ = ()
@@ -30,7 +33,7 @@ class Armature(_abc.ABCMeta):
 
     @classmethod
     def _merge_params(meta, bases, ns, /):
-        nsparams = ns.pop('__params__', {})
+        nsparams = ns.pop('__fields__', {})
         try:
             annos = ns.pop('__annotations__')
         except KeyError:
@@ -38,7 +41,7 @@ class Armature(_abc.ABCMeta):
         else:
             for name, hint in annos.items():
                 nsparams[name] = (hint, ns.pop(name, NotImplemented))
-        baseparams = tuple(getattr(base, '__params__', {}) for base in bases)
+        baseparams = tuple(getattr(base, '__fields__', {}) for base in bases)
         return _ur.DatDict(_itertools.chain.from_iterable(
             params.items() for params in reversed((nsparams, *baseparams))
             ))
@@ -70,7 +73,7 @@ class Armature(_abc.ABCMeta):
         params = meta._merge_params(bases, ns)
         slots = tuple(sorted(set((*params, *meta._merge_slots(bases, ns)))))
         ns.update(
-            __params__=params,
+            __fields__=params,
             __slots__=(),
             __req_slots__=slots,
             _clsmutable=_Switch(True),
@@ -79,7 +82,10 @@ class Armature(_abc.ABCMeta):
 
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not issubclass(cls, _ConcreteBase_):
+        if issubclass(cls, _ConcreteBase_):
+            cls.__ptolemaic_class__ = cls.Base
+        else:
+            cls.__ptolemaic_class__ = cls
             cls.__class_init__()
         cls._clsmutable.toggle(True)
 
@@ -94,7 +100,7 @@ class Armature(_abc.ABCMeta):
     def __setattr__(cls, name, val, /):
         if cls.__dict__['_clsmutable']:
             if not name.startswith('_'):
-                val = cls.convert(val)
+                val = cls.param_convert(val)
             super().__setattr__(name, val)
         else:
             raise TypeError("Cannot alter attribute when immutable.")
@@ -113,8 +119,9 @@ class Armature(_abc.ABCMeta):
     def taphonomy(cls, /):
         return _FOCUS.bureau.taphonomy
 
-    def convert(cls, obj, /):
-        return _ur.Dat.convert(obj)
+    @property
+    def param_convert(cls, /):
+        return _ur.Dat.convert
 
 
 @_ur.Dat.register
@@ -123,48 +130,80 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
     __slots__ = ('__weakref__', '_mutable', 'params', '_epitaph')
 
     @classmethod
-    def __class_init__(cls, /):
-        premade = _weakref.WeakValueDictionary()
-        cls._premade = premade
-        pms = cls.__params__
-        if pms:
-            hints, defaults = zip(*pms.values())
-        else:
-            hints, defaults = (), ()
-        Params = _namedtuple(
-            f"{cls.__qualname__}_Params", pms, defaults=defaults
+    def _get_signature(cls, /):
+        return _inspect.Signature(
+            _inspect.Parameter(
+                name, _pkind['POSITIONAL_OR_KEYWORD'],
+                default=default, annotation=hint
+                )
+            for name, (hint, default) in cls.__fields__.items()
             )
-        cls._Params = Params
-        cls.fieldhints = hints
-        cls.__signature__ = _inspect.signature(Params)
-        cls.arity = len(pms)
+
+    @classmethod
+    def __class_init__(cls, /):
+        cls._premade = _weakref.WeakValueDictionary()
+        cls.__signature__ = cls._get_signature()
+        cls.arity = len(cls.__fields__)
         cls.Concrete = Armature(cls)
 
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        return cls._retrieve_(cls._Params(
-            *map(cls.convert, cls._Params(*args, **kwargs))
-            ))
-
-    def __class_getitem__(cls, params, /):
-        return cls._retrieve_(cls._Params(*map(cls.convert, params)))
+    def initialise(self, /):
+        self.__init__()
+        self.mutable = False
 
     @classmethod
-    def _retrieve_(cls, params, /):
+    def _instantiate_(cls, params: tuple, /):
+        Concrete = cls.Concrete
+        obj = Concrete.__new__(Concrete)
+        mutable = _Switch(True)
+        object.__setattr__(obj, '_mutable', mutable)
+        object.__setattr__(obj, 'params', params)
+        for name, val in zip(cls.__fields__, params):
+            object.__setattr__(obj, name, val)
+        return obj
+
+    @classmethod
+    def instantiate(cls, params: tuple, /):
+        return cls._instantiate_(tuple(map(cls.param_convert, params)))
+
+    @classmethod
+    def _construct_(cls, params: tuple, /):
+        obj = cls._instantiate_(params)
+        obj.initialise()
+        return obj
+
+    @classmethod
+    def construct(cls, params: tuple, /):
+        return cls._construct_(tuple(map(cls.param_convert, params)))
+
+    @classmethod
+    def _retrieve_(cls, params: tuple, /):
         premade = cls._premade
         try:
             return premade[params]
         except KeyError:
-            Concrete = cls.Concrete
-            obj = premade[params] = Concrete.__new__(Concrete)
-            mutable = _Switch(True)
-            object.__setattr__(obj, '_mutable', mutable)
-            object.__setattr__(obj, 'params', params)
-            for name, val in params._asdict().items():
-                object.__setattr__(obj, name, val)
-            obj.__init__()
-            mutable.toggle(False)
+            obj = premade[params] = cls._construct_(params)
             return obj
+
+    @classmethod
+    def retrieve(cls, params: tuple, /):
+        return cls._retrieve_(tuple(map(cls.param_convert, params)))
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        bound = cls.__signature__.bind(*args, **kwargs)
+        bound.apply_defaults()
+        return _types.SimpleNamespace(**bound.arguments)
+
+    @classmethod
+    def __class_call__(cls, /, *args, **kwargs):
+        return cls.retrieve(tuple(
+            cls.parameterise(*args, **kwargs)
+            .__dict__.values()
+            ))
+
+    # Special-cased, so no need for @classmethod
+    def __class_getitem__(cls, arg, /):
+        return cls.retrieve(arg)
 
     @property
     def mutable(self, /):
@@ -175,15 +214,15 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
         self.mutable.toggle(value)
 
     def __setattr__(self, name, val, /):
-        if object.__getattribute__(self, '_mutable'):
+        if self._mutable:
             if not name.startswith('_'):
-                val = type(self).convert(val)
+                val = type(self).param_convert(val)
             super().__setattr__(name, val)
         else:
             raise TypeError("Cannot alter attribute when immutable.")
 
     def __delattr__(self, name, /):
-        if object.__getattribute__(self, '_mutable'):
+        if self._mutable:
             super().__delattr__(name)
         else:
             raise TypeError("Cannot alter attribute when immutable.")
@@ -192,7 +231,7 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
         return f"<{self.Base.__qualname__}, id={id(self)}>"
 
     def __str__(self, /):
-        return f"{self.Base.__qualname__}({repr(tuple(self.params))[1:-1]})"
+        return f"{self.Base.__qualname__}({repr(self.params)[1:-1]})"
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
@@ -203,7 +242,7 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
         return hash((self.Base, self.params))
 
     def __reduce__(self, /):
-        return self.Base.__class_getitem__, (tuple(self.params),)
+        return self.Base.__class_getitem__, (self.params,)
 
 
 Armature.BaseTyp = _ArmatureBase_

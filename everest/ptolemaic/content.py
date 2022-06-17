@@ -5,6 +5,8 @@
 
 from collections import abc as _collabc
 import sys as _sys
+import inspect as _inspect
+import types as _types
 
 from everest.utilities import pretty as _pretty
 
@@ -27,14 +29,13 @@ class ContentProxy(metaclass=_Sprite):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.__signature__ = cls.__content_type__
         for methname in cls.__content_meths__:
             exec('\n'.join((
                 f"@property",
                 f"def {methname}(self, /):",
                 f"    return self.content.{methname}",
                 )))
-            setattr(cls, methname, eval(methname))
+            type.__setattr__(cls, methname, eval(methname))
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
