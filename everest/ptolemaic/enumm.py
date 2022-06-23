@@ -13,8 +13,8 @@ from .ousia import Ousia as _Ousia
 class Enumm(_Ousia):
 
     @classmethod
-    def _yield_mergenames(meta, /):
-        yield from super()._yield_mergenames()
+    def _yield_mergenames(meta, body, /):
+        yield from super()._yield_mergenames(body)
         yield ('__enumerators__', dict, _ur.DatDict)
 
     @classmethod

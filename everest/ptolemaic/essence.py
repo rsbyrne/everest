@@ -12,9 +12,14 @@ from everest import ur as _ur
 from . import ptolemaic as _ptolemaic
 from .pleroma import Pleroma as _Pleroma
 from .classbody import ClassBody as _ClassBody
+from .utilities import (
+    BindableObject as _BindableObject,
+    BoundObject as _BoundObject,
+    )
 
 
 @_ptolemaic.Ptolemaic.register
+@_BindableObject.register
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
@@ -23,20 +28,29 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     ### Descriptor stuff:
 
-    @property
-    def __set_name__(cls, /):
-        return cls.__class_set_name__
+    def __set_name__(cls, owner, name, /):
+        try:
+            meth = cls.__class_set_name__
+        except AttributeError:
+            pass
+        else:
+            meth(owner, name)
 
-    def __class_set_name__(cls, owner, name, /):
-        if cls.mutable:
-            try:
-                name = owner.__unmangled_names__[name]
-            except (AttributeError, KeyError):
-                pass
-            cls.__class_relname__ = name
-            cls.__class_corpus__ = owner
-            cls.__qualname__ = owner.__qualname__ + '.' + name
-            owner.register_notion(cls)
+    @property
+    def __bound_get__(cls, /):
+        return cls.__class_bound_get__
+
+    @property
+    def __bound_owner_get__(cls, /):
+        return cls.__class_bound_owner_get__
+
+    @property
+    def __bound_set__(cls, /):
+        return cls.__class_bound_set__
+
+    @property
+    def __bound_set__(cls, /):
+        return cls.__class_bound_delete__
 
     @property
     def register_notion(cls, /):
@@ -78,8 +92,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         yield
 
     @classmethod
-    def _yield_mergenames(meta, /):
-        yield '__mangled_names__', dict, _ur.DatDict
+    def _yield_mergenames(meta, body, /):
+        return
+        yield
 
     @classmethod
     def __meta_init__(meta, /):
@@ -124,10 +139,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def classbody_finalise(meta, body, /):
-        dct = body['__mangled_names__']
-        body['__unmangled_names__'] = _ur.DatDict(zip(
-            dct.values(), dct.keys()
-            ))
+        pass
 
     @classmethod
     def decorate(meta, obj, /):
@@ -198,12 +210,19 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def mutable(cls, val, /):
         cls.mutable.toggle(val)
 
-    def __getattribute__(cls, name, /):
-        try:
-            name = type.__getattribute__(cls, '__mangled_names__')[name]
-        except KeyError:
-            pass
-        return type.__getattribute__(cls, name)
+    # def __getattribute__(cls, name, /):
+    #     try:
+    #         name = type.__getattribute__(cls, '__mangled_names__')[name]
+    #     except KeyError:
+    #         pass
+    #     return type.__getattribute__(cls, name)
+        # try:
+        #     return type.__getattribute__(cls, name)
+        # except AttributeError:
+        #     try:
+        #         return type.__getattribute__(cls, '__class_altdict__')[name]
+        #     except KeyError as exc:
+        #         raise AttributeError from exc
 
     def __setattr__(cls, name, val, /):
         if cls.mutable:
@@ -331,6 +350,38 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
 @_ptolemaic.Ptolemaic.register
 class _EssenceBase_(metaclass=Essence):
+
+    @classmethod
+    def __class_set_name__(cls, owner, name, /):
+        assert owner.mutable
+        if cls.mutable:
+            cls.__class_relname__ = name
+            cls.__class_corpus__ = owner
+            cls.__qualname__ = owner.__qualname__ + '.' + name
+            owner.register_notion(cls)
+        bound = _BoundObject(cls)
+        type.__setattr__(owner, name, bound)
+        bound.__set_name__(owner, name)
+
+    @classmethod
+    def __class_bound_get__(cls, instance: object, name: str, /):
+        return cls
+
+    @classmethod
+    def __class_bound_owner_get__(cls, owner: type, name: str, /):
+        return cls
+
+    @classmethod
+    def __class_bound_set__(cls, instance, name, value, /):
+        raise AttributeError(
+            f"Can't set attribute: {instance}, {name}"
+            )
+
+    @classmethod
+    def __class_bound_delete__(cls, instance, name, /):
+        raise AttributeError(
+            f"Can't delete attribute: {instance}, {name}"
+            )
 
     @classmethod
     def _class_register_notion(cls, other, /):

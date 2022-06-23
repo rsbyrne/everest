@@ -38,10 +38,6 @@ class _SpriteBase_(_Armature.BaseTyp):
 
     def __set_name__(self, owner, name, /):
         if self.mutable:
-            try:
-                name = owner.__unmangled_names__[name]
-            except (AttributeError, KeyError):
-                pass
             self.__corpus__ = owner
             self.__relname__ = name
             self.initialise()

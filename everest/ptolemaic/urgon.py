@@ -26,8 +26,8 @@ class Urgon(_Essence):
         yield
 
     @classmethod
-    def _yield_mergenames(meta, /):
-        yield from super()._yield_mergenames()
+    def _yield_mergenames(meta, body, /):
+        yield from super()._yield_mergenames(body)
         for typ in meta._smartattrtypes:
             yield (
                 typ.__merge_name__,

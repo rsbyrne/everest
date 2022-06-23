@@ -6,6 +6,7 @@
 import abc as _abc
 import weakref as _weakref
 import itertools as _itertools
+import inspect as _inspect
 
 from everest.utilities import reseed as _reseed
 from everest.bureau import FOCUS as _FOCUS
@@ -59,9 +60,11 @@ class Ousia(_Urgon):
             return out
 
     @classmethod
-    def _yield_mergenames(meta, /):
-        yield from super()._yield_mergenames()
+    def _yield_mergenames(meta, body, /):
+        yield from super()._yield_mergenames(body)
         yield '__req_slots__', list, _ur.PrimitiveUniTuple
+        yield '__props__', list, _ur.PrimitiveUniTuple
+        yield '__organs__', list, _ur.PrimitiveUniTuple
 
     @classmethod
     def handle_slots(meta, body, slots, /):
@@ -85,7 +88,48 @@ class _OusiaBase_(metaclass=Ousia):
         '__corpus__', '__relname__',
         )
 
+    ### Descriptor behaviours for class and instance:
+
+    @classmethod
+    def __class_bound_get__(cls, instance, name, /):
+        if instance is None:
+            return cls
+        if not isinstance(instance, _OusiaBase_):
+            return cls
+        isorgan = name in instance.__organs__
+        isprop = name in instance.__props__
+        if not (isorgan or isprop):
+            return cls
+        signature = _inspect.signature(cls)
+        bound = signature.bind_partial()
+        bound.apply_defaults()
+        arguments = bound.arguments
+        for key in signature.parameters:
+            try:
+                arguments[key] = getattr(instance, key)
+            except AttributeError:
+                arguments.setdefault(key, signature.empty)
+        out = cls.instantiate(tuple(arguments.values()))
+        if isorgan:
+            out.__set_name__(instance, name)
+        else:
+            out.__set_name__(None, None)
+        return out
+
+    def __set_name__(self, owner, name, /):
+        if self.mutable:
+            self.__corpus__ = owner
+            self.__relname__ = name
+            self.initialise()
+            # owner.register_organ(self)
+
     ## Configuring the class:
+
+    @classmethod
+    def _yield_concrete_slots(cls, /):
+        yield from cls.__req_slots__
+        # yield from cls.__props__
+        # yield from cls.__organs__
 
     @classmethod
     def pre_create_concrete(cls, /):
@@ -94,7 +138,7 @@ class _OusiaBase_(metaclass=Ousia):
             f"{cls.__name__}_Concrete",
             (ConcreteBase, cls),
             dict(
-                __slots__=tuple(cls.__req_slots__),
+                __slots__=tuple(sorted(set(cls._yield_concrete_slots()))),
                 _get_ptolemaic_class=(lambda: cls),
                 _clsmutable=_Switch(True),
                 _clsiscosmic=False,
@@ -107,30 +151,8 @@ class _OusiaBase_(metaclass=Ousia):
 
     ### Object creation:
 
-        # if _corpus_:
-        #     corpus, relname = _corpus_
-        #     obj._corpus, obj._relname = _weakref.ref(corpus), relname
-
-    def register_notion(self, other, /):
-        if not self.mutable:
-            raise RuntimeError(
-                "Cannot register notion when immutable."
-                )
-        self._notions.append(other)
-
-    def register_organ(self, other, /):
-        if not self.mutable:
-            raise RuntimeError(
-                "Cannot register organ when immutable."
-                )
-        self._organs.append(other)
-
     def initialise(self, /):
         self.__init__()
-        for notion in self._notions:
-            notion.__class_initialise__()
-        for organ in self._organs:
-            organ.initialise()
         self.mutable = False
 
     @classmethod
@@ -140,7 +162,6 @@ class _OusiaBase_(metaclass=Ousia):
         switch = _Switch(True)
         object.__setattr__(obj, '_mutable', switch)
         obj._pyhash = _reseed.rdigits(16)
-        obj._notions, obj._organs = [], []
         obj.params = params
         return obj
 
@@ -151,32 +172,13 @@ class _OusiaBase_(metaclass=Ousia):
     @classmethod
     def _construct_(cls, params: tuple, /):
         obj = cls.instantiate(params)
-        obj.__corpus__ = None
-        obj.__relname__ = None
+        obj.__corpus__ = obj.__relname__ = None
         obj.initialise()
         return obj
 
     @classmethod
     def construct(cls, params: tuple, /):
         return cls._construct_(tuple(map(cls.param_convert, params)))
-
-    @classmethod
-    def semi_call(cls, *args, **kwargs):
-        return cls.instantiate(tuple(
-            cls.parameterise(*args, **kwargs)
-            .__dict__.values()
-            ))
-
-    def __set_name__(self, owner, name, /):
-        if self.mutable:
-            try:
-                name = owner.__unmangled_names__[name]
-            except (AttributeError, KeyError):
-                pass
-            self.__corpus__ = owner
-            self.__relname__ = name
-            self.initialise()
-            owner.register_organ(self)
 
     @property
     def __cosmic__(self, /):
@@ -186,7 +188,9 @@ class _OusiaBase_(metaclass=Ousia):
 
     def __getattr__(self, name, /):
         if name in self.__getattribute__('__slots__'):
-            raise AttributeError(name)
+            val = getattr(super(), name)
+            super().__setattr__(name, val)
+            return val
         try:
             return self.__dict__[name]
         except KeyError as exc:

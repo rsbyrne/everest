@@ -37,6 +37,39 @@ class Directive(metaclass=_abc.ABCMeta):
         raise NotImplementedError
 
 
+class MRONameHandler:
+
+    __slots__ = ('body', 'content',)
+
+    def __init__(self, /, *args, body, **kwargs):
+        self.body = body
+        content = self.content = list(*args, **kwargs)
+        for name in content:
+            self._register_nametrigger(name)
+
+    def _register_nametrigger(self, name, /):
+        body = self.body
+        body._nametriggers[name] = _partial(body._add_notion, name)
+
+    def append(self, val, /):
+        val = str(val)
+        self.content.append(val)
+        self._register_nametrigger(val)
+
+    def extend(self, val, /):
+        for subval in val:
+            self.append(subval)
+
+    def __iter__(self, /):
+        return iter(self.content)
+
+    def __len__(self, /):
+        return len(self.content)
+
+    def __contains__(self, val, /):
+        return val in self.content
+
+
 class ClassBody(dict):
 
     BODIES = _weakref.WeakValueDictionary()
@@ -60,7 +93,6 @@ class ClassBody(dict):
         self._nametriggers = dict(
             __module__=(lambda val: setattr(self, 'module', val)),
             __qualname__=(lambda val: setattr(self, 'qualname', val)),
-            __mroclasses__=self._update_mroclasses,
             __slots__=self.handle_slots,
             )
         # self._sugar = _Switch(withsugar)
@@ -85,16 +117,6 @@ class ClassBody(dict):
     def enroll_shade(self, name, /):
         self._shades[name] = _Shade(str(name))
         self.protect_name(name)
-
-    def _update_mroclasses(self, val, /):
-        val = tuple(val)
-        mroclasses = super().__getitem__('__mroclasses__')
-        new = tuple(subval for subval in val if val not in mroclasses)
-        mroclasses.extend(new)
-        self._nametriggers.update(
-            (name, _partial(self._add_notion, name))
-            for name in new
-            )
 
     def handle_slots(self, slots, /):
         if slots:
@@ -204,26 +226,34 @@ class ClassBody(dict):
     def _post_prepare_mergednames(self, /):
         bases = self.bases
         meta = self.meta
-        mergenames = self.mergenames = \
-            _ur.DatUniTuple(
-                (nm, dyntyp, _ptolemaic.convert_type(fintyp))
-                for nm, dyntyp, fintyp in meta._yield_mergenames()
+        mrohandler = _partial(MRONameHandler, body=self)
+        mergenames = self.mergenames = tuple(
+            (nm, dyntyp, _ptolemaic.convert_type(fintyp))
+            for nm, dyntyp, fintyp in (
+                ('__mroclasses__', mrohandler, _ur.PrimitiveUniTuple),
+                *meta._yield_mergenames(self),
                 )
-        genericfunc = lambda meth, val: (None, meth(val))
+            )
+        genericfunc = lambda meth, val: meth(val)
+        nametriggers = self._nametriggers
         for mname, dyntyp, _ in mergenames:
             mergees = (
                 getattr(base, mname) for base in bases if hasattr(base, mname)
                 )
-            if issubclass(dyntyp, _collabc.Mapping):
-                dynobj = dyntyp(_itertools.chain.from_iterable(
-                    mp.items() for mp in mergees
-                    ))
-                meth = dynobj.update
+            if isinstance(dyntyp, type):
+                if issubclass(dyntyp, _collabc.Mapping):
+                    dynobj = dyntyp(_itertools.chain.from_iterable(
+                        mp.items() for mp in mergees
+                        ))
+                    meth = dynobj.update
+                else:
+                    dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
+                    meth = dynobj.extend
             else:
                 dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
                 meth = dynobj.extend
             super().__setitem__(mname, dynobj)
-            self._nametriggers[mname] = _partial(genericfunc, meth)
+            nametriggers[mname] = _partial(genericfunc, meth)
 
     def _post_prepare_bodymeths(self, /):
         toadd = dict(
@@ -237,16 +267,6 @@ class ClassBody(dict):
         self._nametriggers.update(
             (name, _partial(meth, self))
             for name, meth in self.meta._yield_bodynametriggers()
-            )
-
-    def _post_prepare_mroclasses(self, /):
-        empty = ()
-        gathered = _ur.DatUniTuple(_itertools.chain.from_iterable(
-            getattr(base, '__mroclasses__', empty) for base in self.bases
-            ))
-        self._update_mroclasses(
-            nm for nm in gathered
-            if nm not in super().__getitem__('__mroclasses__')
             )
 
     def _post_prepare(self, /):
@@ -269,7 +289,6 @@ class ClassBody(dict):
         self._post_prepare_mergednames()
         self._post_prepare_bodymeths()
         self._post_prepare_nametriggers()
-        self._post_prepare_mroclasses()
         self._fullyprepared = True
 
     def _add_notion(self, name, base=None, /):
@@ -290,8 +309,7 @@ class ClassBody(dict):
         self._nametriggers[name] = _partial(self._add_mroclass, name)
 
     def _finalise_mroclasses(self, /):
-        mroclasses = _ur.DatUniTuple(super().__getitem__('__mroclasses__'))
-        super().__setitem__('__mroclasses__', mroclasses)
+        mroclasses = self['__mroclasses__']
         if mroclasses:
             for mroname in mroclasses:
                 if mroname not in self:

@@ -6,7 +6,7 @@
 import abc as _abc
 
 
-from everest.switch import *
+from everest.switch import *  # Need to update Pleroma to remove need for this
 
 
 class BindableObject(metaclass=_abc.ABCMeta):
@@ -41,14 +41,14 @@ class BoundObject:
 
     def __set_name__(self, owner, name, /):
         if hasattr(self, 'name'):
-            raise RuntimeError("Cannot reset name on NameBinding.")
+            raise RuntimeError("Cannot reset name on BoundObject.")
         self.name = name
 
     def __get__(self, instance, owner, /):
         try:
             name = self.name
         except AttributeError:
-            raise RuntimeError("NameBinding has not had its name set.")
+            raise RuntimeError("BoundObject has not had its name set.")
         if instance is None:
             return self.obj.__bound_owner_get__(owner, name)
         return self.obj.__bound_get__(instance, name)
@@ -57,14 +57,14 @@ class BoundObject:
         try:
             name = self.name
         except AttributeError:
-            raise RuntimeError("NameBinding has not had its name set.")
+            raise RuntimeError("BoundObject has not had its name set.")
         return self.obj.__bound_set__(instance, name, value)
 
     def __delete__(self, instance, value, /):
         try:
             name = self.name
         except AttributeError:
-            raise RuntimeError("NameBinding has not had its name set.")
+            raise RuntimeError("BoundObject has not had its name set.")
         return self.obj.__bound_delete__(instance, name)
 
 
