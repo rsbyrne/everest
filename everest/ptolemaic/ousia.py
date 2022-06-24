@@ -11,9 +11,17 @@ import inspect as _inspect
 from everest.utilities import reseed as _reseed
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
+from everest.switch import Switch as _Switch
 
-from .urgon import Urgon as _Urgon
-from .utilities import Switch as _Switch
+from .urgon import Urgon as _Urgon, SmartAttr as _SmartAttr
+
+
+class Organ(_SmartAttr):
+    ...
+
+
+class Prop(_SmartAttr):
+    ...
 
 
 class ConcreteBase:
@@ -40,11 +48,11 @@ class ConcreteBase:
 
 class Ousia(_Urgon):
 
-    @property
-    def __set_name__(cls, /):
-        if issubclass(cls, ConcreteBase):
-            raise AttributeError
-        return cls.__class_set_name__
+    @classmethod
+    def _yield_smartattrtypes(meta, /):
+        yield from super()._yield_smartattrtypes()
+        yield Organ
+        yield Prop
 
     @property
     def Concrete(cls, /):
@@ -63,22 +71,13 @@ class Ousia(_Urgon):
     def _yield_mergenames(meta, body, /):
         yield from super()._yield_mergenames(body)
         yield '__req_slots__', list, _ur.PrimitiveUniTuple
-        yield '__props__', list, _ur.PrimitiveUniTuple
-        yield '__organs__', list, _ur.PrimitiveUniTuple
 
     @classmethod
     def handle_slots(meta, body, slots, /):
         body['__req_slots__'].extend(slots)
 
-    # @classmethod
-    # def _yield_bodynametriggers(meta, /):
-    #     yield from super()._yield_bodynametriggers()
-    #     yield (
-    #         '__slots__',
-    #         lambda body, val: body.__setitem__('__req_slots__', val)
-    #         )
 
-
+# @_BindableObject.register
 class _OusiaBase_(metaclass=Ousia):
 
     __slots__ = (
@@ -91,29 +90,26 @@ class _OusiaBase_(metaclass=Ousia):
     ### Descriptor behaviours for class and instance:
 
     @classmethod
-    def __class_bound_get__(cls, instance, name, /):
-        if instance is None:
-            return cls
-        if not isinstance(instance, _OusiaBase_):
-            return cls
-        isorgan = name in instance.__organs__
-        isprop = name in instance.__props__
-        if not (isorgan or isprop):
-            return cls
+    def _get_ligatures(cls, corpus, /):
         signature = _inspect.signature(cls)
         bound = signature.bind_partial()
         bound.apply_defaults()
         arguments = bound.arguments
         for key in signature.parameters:
             try:
-                arguments[key] = getattr(instance, key)
+                arguments[key] = getattr(corpus, key)
             except AttributeError:
                 arguments.setdefault(key, signature.empty)
-        out = cls.instantiate(tuple(arguments.values()))
-        if isorgan:
-            out.__set_name__(instance, name)
-        else:
-            out.__set_name__(None, None)
+        return tuple(arguments.values())
+
+    @classmethod
+    def __prop_get__(cls, instance, name, /):
+        return cls[cls._get_ligatures(instance)]
+
+    @classmethod
+    def __organ_get__(cls, instance, name, /):
+        out = cls.instantiate(cls._get_ligatures(instance))
+        out.__set_name__(instance, name)
         return out
 
     def __set_name__(self, owner, name, /):
@@ -121,15 +117,14 @@ class _OusiaBase_(metaclass=Ousia):
             self.__corpus__ = owner
             self.__relname__ = name
             self.initialise()
-            # owner.register_organ(self)
 
     ## Configuring the class:
 
     @classmethod
     def _yield_concrete_slots(cls, /):
         yield from cls.__req_slots__
-        # yield from cls.__props__
-        # yield from cls.__organs__
+        yield from cls.__props__
+        yield from cls.__organs__
 
     @classmethod
     def pre_create_concrete(cls, /):
@@ -188,7 +183,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     def __getattr__(self, name, /):
         if name in self.__getattribute__('__slots__'):
-            val = getattr(super(), name)
+            val = getattr(super(type(self), self), name)
             super().__setattr__(name, val)
             return val
         try:
@@ -211,13 +206,13 @@ class _OusiaBase_(metaclass=Ousia):
                 else:
                     setname(self, name)
             super().__setattr__(name, val)
-        else:
-            try:
-                super().__setattr__(name, val)
-            except AttributeError:
-                if not name.startswith('_'):
-                    type(self).param_convert(val)
-                self.__getattribute__('__dict__')[name] = val
+            return
+        try:
+            super().__setattr__(name, val)
+        except AttributeError:
+            if not name.startswith('_'):
+                type(self).param_convert(val)
+            self.__getattribute__('__dict__')[name] = val
 
     def __delattr__(self, name, /):
         if name in self.__getattribute__('__slots__'):
