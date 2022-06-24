@@ -95,7 +95,7 @@ class Shadow(metaclass=_Sprite):
 class Shade(Shadow):
 
     name: str
-    prefix: str = 'self'
+    prefix: str = None
 
     def __get__(self, instance, /):
         return getattr(instance, self.name)
@@ -131,7 +131,7 @@ class Operation(Shadow):
 
 class Unary(Operation):
 
-    arg: object
+    arg: None
 
     def yield_shades(self, /):
         arg = self.arg
@@ -150,8 +150,8 @@ class Unary(Operation):
 class Binary(Operation):
 
     op: str
-    arg1: object
-    arg2: object
+    arg1: None
+    arg2: None
 
     def yield_shades(self, /):
         for arg in (self.arg1, self.arg2):

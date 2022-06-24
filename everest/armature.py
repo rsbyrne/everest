@@ -4,7 +4,7 @@
 
 
 import abc as _abc
-from collections import namedtuple as _namedtuple
+from collections import namedtuple as _namedtuple, abc as _collabc
 import weakref as _weakref
 import types as _types
 import inspect as _inspect
@@ -47,10 +47,19 @@ class Armature(_abc.ABCMeta):
             ))
 
     @classmethod
-    def _merge_slots(meta, bases, ns, /):
-        yield from ns.pop('__slots__', ())
-        for base in bases:
-            yield from getattr(base, '__req_slots__', ())
+    def _get_merged_slots(meta, bases, ns, params, /):
+        out = {}
+        baseslots = (getattr(base, '__req_slots__', {}) for base in (
+            *reversed(bases),
+            *reversed(meta.BaseTyp.__bases__),
+            meta.BaseTyp,
+            ))
+        for slots in (*baseslots, ns.pop('__slots__', {})):
+            if not isinstance(slots, _collabc.Mapping):
+                slots = zip(slots, _itertools.repeat(None))
+            out.update(slots)
+        out.update((key, typ) for key, (typ, _) in params.items())
+        return _ur.DatDict(out)
 
     def __new__(meta, arg0, /, *args):
         if not args:
@@ -71,7 +80,7 @@ class Armature(_abc.ABCMeta):
                     "Armature-derived classes must be top-level classes."
                     )
         params = meta._merge_params(bases, ns)
-        slots = tuple(sorted(set((*params, *meta._merge_slots(bases, ns)))))
+        slots = meta._get_merged_slots(bases, ns, params)
         ns.update(
             __fields__=params,
             __slots__=(),
@@ -127,7 +136,8 @@ class Armature(_abc.ABCMeta):
 @_ur.Dat.register
 class _ArmatureBase_(metaclass=_abc.ABCMeta):
 
-    __slots__ = ('__weakref__', '_mutable', 'params', '_epitaph')
+    __req_slots__ = ('__weakref__', '_mutable', 'params', '_epitaph')
+    __slots__ = ()
 
     @classmethod
     def _get_signature(cls, /):
@@ -144,7 +154,7 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
         cls._premade = _weakref.WeakValueDictionary()
         cls.__signature__ = cls._get_signature()
         cls.arity = len(cls.__fields__)
-        cls.Concrete = Armature(cls)
+        cls.Concrete = type(cls)(cls)
 
     def initialise(self, /):
         self.__init__()

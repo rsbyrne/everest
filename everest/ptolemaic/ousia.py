@@ -6,22 +6,61 @@
 import abc as _abc
 import weakref as _weakref
 import itertools as _itertools
-import inspect as _inspect
+import types as _types
+import functools as _functools
+from collections import abc as _collabc, ChainMap as _ChainMap
 
+from everest.armature import Armature as _Armature
 from everest.utilities import reseed as _reseed
 from everest.bureau import FOCUS as _FOCUS
 from everest import ur as _ur
 from everest.switch import Switch as _Switch
 
-from .urgon import Urgon as _Urgon, SmartAttr as _SmartAttr
+from . import ptolemaic as _ptolemaic
+from .urgon import Urgon as _Urgon
+from .eidos import Eidos as _Eidos, SmartAttr as _SmartAttr
+from .utilities import get_ligatures as _get_ligatures
 
 
 class Organ(_SmartAttr):
-    ...
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        content = params.content
+        if not isinstance(content, _ptolemaic.Kind):
+            raise ValueError(content)
+        if params.hint is None:
+            params.hint = content
+        return params
+
+
+def ligated_function(instance, name, /):
+    func = getattr(instance.__ptolemaic_class__, name).__get__(instance)
+    bound = _get_ligatures(func, instance)
+    return func(*bound.args, **bound.kwargs)
 
 
 class Prop(_SmartAttr):
-    ...
+
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        params = super().parameterise(*args, **kwargs)
+        if params.hint is None:
+            content = params.content
+            if isinstance(content, _ptolemaic.Kind):
+                params.hint = content
+            elif isinstance(content, _types.FunctionType):
+                params.hint = content.__annotations__.get('return', None)
+        return params
+
+    @classmethod
+    def _get_getter_(cls, obj):
+        if isinstance(obj, _ptolemaic.Kind):
+            return super()._get_getter_(obj)
+        if isinstance(obj, _types.FunctionType):
+            return ligated_function
+        raise TypeError(type(obj))
 
 
 class ConcreteBase:
@@ -46,7 +85,8 @@ class ConcreteBase:
         return (cls.__ptolemaic_class__,)
 
 
-class Ousia(_Urgon):
+@_ptolemaic.Kind.register
+class Ousia(_Urgon, _Eidos):
 
     @classmethod
     def _yield_smartattrtypes(meta, /):
@@ -70,45 +110,48 @@ class Ousia(_Urgon):
     @classmethod
     def _yield_mergenames(meta, body, /):
         yield from super()._yield_mergenames(body)
-        yield '__req_slots__', list, _ur.PrimitiveUniTuple
+        yield '__req_slots__', dict, _ptolemaic.PtolDict
 
     @classmethod
     def handle_slots(meta, body, slots, /):
-        body['__req_slots__'].extend(slots)
+        if not isinstance(slots, _collabc.Mapping):
+            slots = zip(slots, _itertools.repeat(None))
+        body['__req_slots__'].update(slots)
+
+    @classmethod
+    def process_shadow(meta, body, name, val, /):
+        exec('\n'.join((
+            f"def {name}(self, {', '.join((sh.name for sh in val.shades))}):",
+            f"    return {val.evalstr}",
+            )))
+        func = eval(name)
+        func.__module__ = body['__module__']
+        func.__qualname__ = body['__qualname__'] + '.' + name
+        body[name] = body['prop'](func)
 
 
-# @_BindableObject.register
+@_ptolemaic.Case.register
 class _OusiaBase_(metaclass=Ousia):
 
     __slots__ = (
         '__weakref__',
         '_mutable', '_pyhash', '_sessioncacheref', '_epitaph',
-        '_dependants', '_notions', '_organs',
         '__corpus__', '__relname__',
         )
 
     ### Descriptor behaviours for class and instance:
 
     @classmethod
-    def _get_ligatures(cls, corpus, /):
-        signature = _inspect.signature(cls)
-        bound = signature.bind_partial()
-        bound.apply_defaults()
-        arguments = bound.arguments
-        for key in signature.parameters:
-            try:
-                arguments[key] = getattr(corpus, key)
-            except AttributeError:
-                arguments.setdefault(key, signature.empty)
-        return tuple(arguments.values())
-
-    @classmethod
     def __prop_get__(cls, instance, name, /):
-        return cls[cls._get_ligatures(instance)]
+        return cls[
+            tuple(_get_ligatures(cls, instance).arguments.values())
+            ]
 
     @classmethod
     def __organ_get__(cls, instance, name, /):
-        out = cls.instantiate(cls._get_ligatures(instance))
+        out = cls.instantiate(
+            tuple(_get_ligatures(cls, instance).arguments.values())
+            )
         out.__set_name__(instance, name)
         return out
 
@@ -121,10 +164,10 @@ class _OusiaBase_(metaclass=Ousia):
     ## Configuring the class:
 
     @classmethod
-    def _yield_concrete_slots(cls, /):
-        yield from cls.__req_slots__
-        yield from cls.__props__
-        yield from cls.__organs__
+    def _yield_slot_sources(cls, /):
+        yield cls.__req_slots__
+        yield cls.__props__
+        yield cls.__organs__
 
     @classmethod
     def pre_create_concrete(cls, /):
@@ -133,7 +176,7 @@ class _OusiaBase_(metaclass=Ousia):
             f"{cls.__name__}_Concrete",
             (ConcreteBase, cls),
             dict(
-                __slots__=tuple(sorted(set(cls._yield_concrete_slots()))),
+                __slots__=_ChainMap(*cls._yield_slot_sources()),
                 _get_ptolemaic_class=(lambda: cls),
                 _clsmutable=_Switch(True),
                 _clsiscosmic=False,
@@ -181,54 +224,6 @@ class _OusiaBase_(metaclass=Ousia):
 
     ### Storage:
 
-    def __getattr__(self, name, /):
-        if name in self.__getattribute__('__slots__'):
-            val = getattr(super(type(self), self), name)
-            super().__setattr__(name, val)
-            return val
-        try:
-            return self.__dict__[name]
-        except KeyError as exc:
-            raise AttributeError from exc
-
-    def __setattr__(self, name, val, /):
-        if name in self.__getattribute__('__slots__'):
-            if not self.__getattribute__('_mutable'):
-                raise AttributeError(
-                    name, "Cannot alter slot while frozen."
-                    )
-            if not name.startswith('_'):
-                type(self).param_convert(val)
-                try:
-                    setname = val.__set_name__
-                except AttributeError:
-                    pass
-                else:
-                    setname(self, name)
-            super().__setattr__(name, val)
-            return
-        try:
-            super().__setattr__(name, val)
-        except AttributeError:
-            if not name.startswith('_'):
-                type(self).param_convert(val)
-            self.__getattribute__('__dict__')[name] = val
-
-    def __delattr__(self, name, /):
-        if name in self.__getattribute__('__slots__'):
-            if not self.__getattribute__('_mutable'):
-                raise AttributeError(
-                    name, "Cannot alter slot while frozen."
-                    )
-        try:
-            super().__delattr__(name)
-        except AttributeError:
-            dct = self.__getattribute__('__dict__')
-            try:
-                del dct[name]
-            except KeyError as exc:
-                raise AttributeError from exc
-
     @property
     # @_caching.weak_cache()
     def __dict__(self, /):
@@ -247,17 +242,90 @@ class _OusiaBase_(metaclass=Ousia):
                     )
             return out
 
+    def reset(self, /):
+        self.__dict__.clear()
+        for dep in self.dependants:
+            dep.reset()
+
+    def __getattr__(self, name, /):
+        typ = type(self)
+        try:
+            meth = typ._getters_[name]
+        except AttributeError as exc:
+            raise RuntimeError from exc
+        except KeyError:
+            pass
+        else:
+            val = meth(self, name)
+            if not name.startswith('_'):
+                val = type(self).param_convert(val)
+            object.__setattr__(self, name, val)
+            return val
+        if name in typ.__slots__:
+            raise AttributeError(name)
+        try:
+            return object.__getattribute__(self, '__dict__')[name]
+        except AttributeError as exc:
+            raise RuntimeError from exc
+        except KeyError as exc:
+            raise AttributeError from exc
+
+    def __setattr__(self, name, val, /):
+        typ = type(self)
+        if not name.startswith('_'):
+            val = typ.param_convert(val)
+        try:
+            meth = typ._setters_[name]
+        except AttributeError as exc:
+            raise RuntimeError from exc
+        except KeyError:
+            if name in typ.__slots__:
+                if self.mutable:
+                    object.__setattr__(self, name, val)
+                else:
+                    raise AttributeError(
+                        name, "Cannot alter slot while frozen."
+                        )
+            else:
+                try:
+                    super().__setattr__(name, val)
+                except AttributeError:
+                    try:
+                        object.__getattribute__(self, '__dict__')[name] = val
+                    except AttributeError as exc:
+                        raise RuntimeError from exc
+        else:
+            meth(self, name, val)
+
+    def __delattr__(self, name, /):
+        typ = type(self)
+        try:
+            meth = typ._deleters_[name]
+        except AttributeError as exc:
+            raise RuntimeError from exc
+        except KeyError:
+            if name in typ.__slots__:
+                if self.mutable:
+                    object.__delattr__(self, name)
+                else:
+                    try:
+                        super().__delattr__(name, val)
+                    except AttributeError:
+                        try:
+                            del object.__getattribute__(self, '__dict__')[name]
+                        except AttributeError as exc:
+                            raise RuntimeError from exc
+                        except KeyError as exc:
+                            raise AttributeError from exc
+        else:
+            meth(self, name)
+
 #     @property
 #     def dependants(self, /):
 #         return tuple(sorted(self._dependants))
 
 #     def add_dependant(self, other, /):
 #         self._dependants.add(other)
-
-    def reset(self, /):
-        self.__dict__.clear()
-        for dep in self.dependants:
-            dep.reset()
 
     # @property
     # @_caching.weak_cache()
@@ -294,7 +362,9 @@ class _OusiaBase_(metaclass=Ousia):
         return self._content_repr()
 
     def __repr__(self, /):
-        return f"<{self.rootrepr}, id={id(self)}>"
+        if self.__cosmic__:
+            return f"<{self.rootrepr}, id={id(self)}>"
+        return f"{self.__corpus__}.{self.__relname__}"
 
     def __str__(self, /):
         return f"{self.rootrepr}({self.contentrepr})"

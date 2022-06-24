@@ -14,10 +14,7 @@ from everest import ur as _ur
 _Primitive = _ur.Primitive
 
 
-_PSEUDOINSTANCES = (
-    *map(id, _Primitive.TYPS),
-    object,
-    )
+_PSEUDOINSTANCES = tuple(map(id, _Primitive.TYPS))
 
 
 class PtolemaicMeta(_ur.DatMeta):
@@ -62,6 +59,32 @@ convert = Ptolemaic.convert
 
 Ptolemaic.register(PtolemaicMeta)
 Ptolemaic.register(_Primitive)
+
+
+class Transcendant(PtolemaicMeta):
+
+    def __call__(cls, /, *_, **__):
+        raise NotImplementedError
+
+
+@Ptolemaic.register
+class Theme(metaclass=Transcendant):
+    ...
+
+
+@Ptolemaic.register
+class Ideal(metaclass=Transcendant):
+    ...
+
+
+@Ptolemaic.register
+class Kind(Ideal):
+    ...
+
+
+@Ptolemaic.register
+class Case(metaclass=Transcendant):
+    ...
 
 
 @_ur.DatTuple.register

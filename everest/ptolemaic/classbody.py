@@ -128,10 +128,10 @@ class ClassBody(dict):
         except KeyError:
             pass
         try:
-            return super().__getitem__(name)
+            return self._shades[name]
         except KeyError:
             pass
-        return self._shades[name]
+        return super().__getitem__(name)
 
     def __setitem__(self, name, val, /):
         try:

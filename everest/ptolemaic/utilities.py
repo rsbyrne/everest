@@ -4,6 +4,7 @@
 
 
 import abc as _abc
+import inspect as _inspect
 
 from everest.switch import *  # Need to update Pleroma to remove need for this
 
@@ -74,6 +75,20 @@ class BoundObject:
             getattr(self.obj, f"__{self.methprefix}_delete__")
             (instance, name, value)
             )
+
+
+def get_ligatures(obj, corpus, /):
+    signature = _inspect.signature(obj)
+    bound = signature.bind_partial()
+    bound.apply_defaults()
+    arguments = bound.arguments
+    for key in signature.parameters:
+        try:
+            arguments[key] = getattr(corpus, key)
+        except AttributeError:
+            if key not in arguments:
+                raise ValueError(f"Missing key: {key}")
+    return bound
 
 
 ###############################################################################

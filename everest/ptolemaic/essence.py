@@ -14,7 +14,7 @@ from .pleroma import Pleroma as _Pleroma
 from .classbody import ClassBody as _ClassBody
 
 
-@_ptolemaic.Ptolemaic.register
+@_ptolemaic.Ideal.register
 class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     '''
     The metaclass of all Ptolemaic types;
@@ -56,7 +56,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             return cls.__dict__['__class_relname__']
         except KeyError:
             return cls.__qualname__
-
 
     ### Meta init:
 
@@ -327,7 +326,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return _ptolemaic.convert
 
 
-@_ptolemaic.Ptolemaic.register
 class _EssenceBase_(metaclass=Essence):
 
     @classmethod

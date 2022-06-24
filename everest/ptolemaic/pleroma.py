@@ -13,9 +13,11 @@ from everest.utilities import (
 
 from everest import epitaph as _epitaph
 
+from . import ptolemaic as _ptolemaic
 from .utilities import Switch as _Switch
 
 
+@_ptolemaic.Theme.register
 class Pleroma(type):
 
 #     def __meta_contains__(meta, _, /):

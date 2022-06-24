@@ -36,13 +36,13 @@ class Schema(_Tekton, _Eidos):
     @classmethod
     def process_shadow(meta, body, name, val, /):
         exec('\n'.join((
-            f"def {name}(self):",
+            f"def {name}(self, {', '.join((sh.name for sh in val.shades))}):",
             f"    return {val.evalstr}",
             )))
         func = eval(name)
         func.__module__ = body['__module__']
         func.__qualname__ = body['__qualname__'] + '.' + name
-        body[name] = body['comp'](func)
+        body[name] = func
 
 
 class _SchemaBase_(metaclass=Schema):
