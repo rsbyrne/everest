@@ -6,17 +6,14 @@
 import inspect as _inspect
 import functools as _functools
 
-from everest import ur as _ur
-
 from .smartattr import SmartAttr as _SmartAttr
-from .content import Kwargs as _Kwargs
 
 
 _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
 
 
-class Fields(_Kwargs):
+class Fields(_SmartAttr.__merge_fintyp__):
 
     __slots__ = ('_signature', 'defaults', 'degenerates')
 
@@ -28,25 +25,10 @@ class Fields(_Kwargs):
 
     def __init__(self, /):
         super().__init__()
-        degenerates = self.degenerates = _ur.DatDict({
+        self.degenerates = {
             name: field.default
             for name, field in self.items() if field.degenerate
-            })
-        signature = self._signature = _inspect.Signature(
-            field.get_parameter(name)
-            for name, field in self.items() if name not in degenerates
-            )
-        self.defaults = _ur.DatDict({
-            param.name: param.default
-            for param in signature.parameters.values()
-            if param.default is not param.empty
-            })
-
-    def __call__(self, /, *args, **kwargs):
-        return tuple({
-            **self._signature.bind(*args, **kwargs).arguments,
-            **self.degenerates
-            }.values())
+            }
 
     def __contains__(self, fieldvals: tuple) -> bool:
         for val, field in zip(fieldvals, self):
@@ -54,18 +36,15 @@ class Fields(_Kwargs):
                 return False
         return True
 
-    def __get__(self, instance, owner=None, /):
-        return self
-
 
 class Field(_SmartAttr):
 
-    __slots__ = ('score',)
+    __slots__ = ('score', 'degenerate')
 
-    default: object
-    kind: object
+    default: None
+    kind: None
 
-    KINDPAIRS = _ur.DatDict(
+    KINDPAIRS = dict(
         POS = _pkind['POSITIONAL_ONLY'],
         POSKW = _pkind['POSITIONAL_OR_KEYWORD'],
         ARGS = _pkind['VAR_POSITIONAL'],
@@ -74,7 +53,6 @@ class Field(_SmartAttr):
         )
 
     __merge_fintyp__ = Fields
-    _slotcached_ = True
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
@@ -85,24 +63,12 @@ class Field(_SmartAttr):
             raise ValueError(params.kind)
         return params
 
-    @classmethod
-    def _instantiate_(cls, params: tuple, /):
-        obj = super()._instantiate_(params)
-        degen = obj.degenerate = not bool(obj.hint)
-        if degen:
-            obj.score = -1
-        else:
-            obj.score = sum((
-                tuple(cls.KINDPAIRS).index(obj.kind),
-                (0 if obj.default is NotImplemented else 0.5),
-                ))
-        return obj
-
     def __init__(self, /):
         super().__init__()
         kind = self.kind
         default = self.default
-        if self.degenerate:
+        degenerate = self.degenerate = False
+        if degenerate:
             self.score = -1
         else:
             self.score = sum((
@@ -124,15 +90,23 @@ class Field(_SmartAttr):
     def from_annotation(cls, anno, value):
         if isinstance(anno, FieldAnno):
             hint, note, kind = anno
-            return cls.semi_call((hint, note, value, kind))
+            return cls(hint=hint, note=note, value=value, kind=kind)
         if anno is cls:
-            return cls.semi_call(default=value)
-        return cls.semi_call(hint=anno, default=value)
+            return cls(default=value)
+        return cls(hint=anno, default=value)
 
-    def __get__(self, instance, owner=None, /):
-        if instance is None:
-            return self
-        return getattr(instance.params, self.__relname__)
+    def _get_getter_(self, obj, name, /):
+        return lambda inst: inst.params[inst._field_indexer(name)]
+
+    def _get_setter_(self, obj, name, /):
+        return super()._get_setter_(None, name)
+
+    def _get_deleter_(self, obj, name, /):
+        return super()._get_deleter_(None, name)
+
+    # def __directive_call__(self, body, name, /):
+    #     super().__directive_call__(body, name)
+    #     return None, None  # i.e. Field eats the attribute.
 
 
 class FieldAnno:

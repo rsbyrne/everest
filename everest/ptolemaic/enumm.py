@@ -14,17 +14,18 @@ from .ousia import Ousia as _Ousia
 class Enumm(_Ousia):
 
     @classmethod
-    def _yield_mergenames(meta, body, /):
-        yield from super()._yield_mergenames(body)
-        yield ('__enumerators__', dict, _ur.DatDict)
+    def _yield_mergenames(meta, /):
+        yield from super()._yield_mergenames()
+        yield ('__enumerators__', dict, _ptolemaic.PtolDict)
 
     @classmethod
     def body_handle_anno(meta, body, name, hint, val, /):
         body['__enumerators__'][name] = (hint, val)
-        body['__req_slots__'][name] = hint
 
     def __iter__(cls, /):
         return iter(cls.enumerators)
+
+    ### Disabling redundant methods:
 
     @property
     def __call__(cls, /):
@@ -50,8 +51,10 @@ class Enumm(_Ousia):
 class _EnummBase_(metaclass=Enumm):
 
     __enumerators__ = {}
-    __fields__ = ('serial', 'name', 'value')
-    __slots__ = ('params', *__fields__)
+    FIELDS = ('serial', 'name', 'value')
+    __slots__ = ('params', *FIELDS)
+
+    ### Class setup:
 
     @classmethod
     def _get_signature(cls, /):
@@ -60,7 +63,8 @@ class _EnummBase_(metaclass=Enumm):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.add_enumerators()
+        if cls.__enumerators__:
+            cls.add_enumerators()
 
     @classmethod
     def add_enumerators(cls, /):
@@ -69,17 +73,13 @@ class _EnummBase_(metaclass=Enumm):
         for serial, (name, (hint, val)) in _it:
             obj = cls._instantiate_(_ptolemaic.convert((serial, name, val)))
             setattr(cls, name, obj)
+            for key, val in zip(_EnummBase_.FIELDS, obj.params):
+                object.__setattr__(obj, key, val)
             obj.__set_name__(cls, name)
             enumerators.append(obj)
         cls.enumerators = enumerators
 
-    def __getattr__(self, name, /):
-        try:
-            val = dict(zip(self.__fields__, self.params))[name]
-        except KeyError as exc:
-            raise AttributeError from exc
-        object.__setattr__(self, name, val)
-        return val
+    ### Representations:
 
     def _content_repr(self, /):
         return ', '.join(map(repr, self.params))

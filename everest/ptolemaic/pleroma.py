@@ -39,6 +39,7 @@ class Pleroma(type):
         type.__setattr__(meta, '_metamutable', _Switch(True))
         meta._meta_softcache = {}
         super().__init__(*args, **kwargs)
+        meta.basetypname = f"_{meta.__name__}Base_"
         meta.__meta_init__()
         meta.mutable = False
 
@@ -72,13 +73,6 @@ class Pleroma(type):
     @property
     def __call__(meta, /):
         return meta.__meta_call__
-
-    @property
-    def basetypname(meta, /):
-        metaname = meta.__name__
-        if metaname.endswith(suffix := 'Meta'):
-            return metaname.removesuffix(suffix)
-        return f"_{metaname}Base_"
 
     @property
     def BaseTyp(meta, /):

@@ -32,14 +32,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             owner.register_notion(cls)
 
     @property
-    def register_notion(cls, /):
-        return cls._class_register_notion
-
-    @property
-    def register_organ(cls, /):
-        return cls._class_register_organ
-
-    @property
     def __corpus__(cls, /):
         try:
             return cls.__dict__['__class_corpus__']
@@ -70,13 +62,18 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         yield
 
     @classmethod
-    def _yield_mergenames(meta, body, /):
+    def _yield_mergenames(meta, /):
+        return
+        yield
+
+    @classmethod
+    def _yield_mroclasses(meta, /):
         return
         yield
 
     @classmethod
     def __meta_init__(meta, /):
-        pass
+        meta.__mroclasses__ = _ur.PrimitiveDict(meta._yield_mroclasses())
 
     ### Class construction:
 
@@ -90,7 +87,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                     basetyp = metabase.BaseTyp
                 except AttributeError:
                     continue
-                if not any(issubclass(base, basetyp) for base in bases):
+                if not any(basetyp is base for base in bases):
                     yield basetyp
 
     @classmethod
@@ -149,7 +146,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def __class_construct__(meta, body: _ClassBody, /):
-        return super().__new__(meta, *body.finalise())
+        return body.finalise()
 
     @property
     def __ptolemaic_class__(cls, /):
@@ -329,24 +326,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 class _EssenceBase_(metaclass=Essence):
 
     @classmethod
-    def _class_register_notion(cls, other, /):
+    def register_notion(cls, other, /):
         if cls.mutable:
             cls._clsnotions.append(other)
         else:
             raise RuntimeError(
                 "Cannot register a new notion "
-                "after a class has been made immutable "
-                "(i.e. after it has been completely initialised): "
-                f"{cls}"
-                )
-
-    @classmethod
-    def _class_register_organ(cls, other, /):
-        if cls.mutable:
-            cls._clsorgans.append(other)
-        else:
-            raise RuntimeError(
-                "Cannot register a new organ "
                 "after a class has been made immutable "
                 "(i.e. after it has been completely initialised): "
                 f"{cls}"

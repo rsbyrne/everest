@@ -18,13 +18,14 @@ _pkind = _inspect._ParameterKind
 class Sprite(_Ousia):
 
     @classmethod
-    def _yield_mergenames(meta, body, /):
-        yield from super()._yield_mergenames(body)
+    def _yield_mergenames(meta, /):
+        yield from super()._yield_mergenames()
         yield '__fields__', dict, _ptolemaic.PtolDict
 
     @classmethod
     def body_handle_anno(meta, body, name, hint, val, /):
         body['__fields__'][name] = (hint, val)
+        body[name] = hint
 
 
 class _SpriteBase_(metaclass=Sprite):
@@ -41,13 +42,14 @@ class _SpriteBase_(metaclass=Sprite):
 
     @classmethod
     def _get_signature(cls, /):
-        return _inspect.Signature(
+        parameters = (
             _inspect.Parameter(
                 name, _pkind['POSITIONAL_OR_KEYWORD'],
                 default=default, annotation=hint
                 )
             for name, (hint, default) in cls.__fields__.items()
             )
+        return _inspect.Signature(parameters, return_annotation=cls)
 
     @classmethod
     def __class_init__(cls, /):

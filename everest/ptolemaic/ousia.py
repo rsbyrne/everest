@@ -13,7 +13,6 @@ from everest.switch import Switch as _Switch
 
 from . import ptolemaic as _ptolemaic
 from .urgon import Urgon as _Urgon
-from .utilities import get_ligatures as _get_ligatures
 
 
 class ConcreteBase:
@@ -55,8 +54,8 @@ class Ousia(_Urgon):
             return out
 
     @classmethod
-    def _yield_mergenames(meta, body, /):
-        yield from super()._yield_mergenames(body)
+    def _yield_mergenames(meta, /):
+        yield from super()._yield_mergenames()
         yield '__req_slots__', dict, _ptolemaic.PtolDict
 
     @classmethod
@@ -76,20 +75,6 @@ class _OusiaBase_(metaclass=Ousia):
         )
 
     ### Descriptor behaviours for class and instance:
-
-    @classmethod
-    def __prop_get__(cls, instance, name, /):
-        return cls[
-            tuple(_get_ligatures(cls, instance).arguments.values())
-            ]
-
-    @classmethod
-    def __organ_get__(cls, instance, name, /):
-        out = cls.instantiate(
-            tuple(_get_ligatures(cls, instance).arguments.values())
-            )
-        out.__set_name__(instance, name)
-        return out
 
     def __set_name__(self, owner, name, /):
         if self.mutable:

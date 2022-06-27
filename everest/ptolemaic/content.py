@@ -6,7 +6,6 @@
 from collections import abc as _collabc
 import sys as _sys
 import inspect as _inspect
-import types as _types
 
 from everest.utilities import pretty as _pretty
 
@@ -20,7 +19,7 @@ class ContentProxy(metaclass=_Sprite):
     __content_type__ = _ptolemaic.PtolTuple
     __content_meths__ = ()
 
-    content: object
+    content: None
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):

@@ -36,38 +36,17 @@ class Directive(metaclass=_abc.ABCMeta):
     def __directive_call__(self, body, name, /):
         raise NotImplementedError
 
-
-class MRONameHandler:
-
-    __slots__ = ('body', 'content',)
-
-    def __init__(self, /, *args, body, **kwargs):
-        self.body = body
-        content = self.content = list(*args, **kwargs)
-        for name in content:
-            self._register_nametrigger(name)
-
-    def _register_nametrigger(self, name, /):
-        body = self.body
-        body._nametriggers[name] = _partial(body._add_notion, name)
-
-    def append(self, val, /):
-        val = str(val)
-        self.content.append(val)
-        self._register_nametrigger(val)
-
-    def extend(self, val, /):
-        for subval in val:
-            self.append(subval)
-
-    def __iter__(self, /):
-        return iter(self.content)
-
-    def __len__(self, /):
-        return len(self.content)
-
-    def __contains__(self, val, /):
-        return val in self.content
+    @classmethod
+    def __subclasshook__(cls, kls, /):
+        if cls is Directive:
+            for methname in cls.__abstractmethods__:
+                for Base in kls.__mro__:
+                    if methname in Base.__dict__:
+                        break
+                else:
+                    return NotImplemented
+            return True
+        return NotImplemented
 
 
 class ClassBody(dict):
@@ -83,11 +62,9 @@ class ClassBody(dict):
                 # __name__=name,  # Breaks things in a really interesting way!
                 __slots__=(),
                 _clsnotions=[],
-                _clsorgans=[],
                 _clsiscosmic=None,
                 __class_relname__=name,
                 _clsmutable=_Switch(True),
-                __mroclasses__=[],
                 ).items():
             super().__setitem__(nm, val)
         self._nametriggers = dict(
@@ -182,35 +159,44 @@ class ClassBody(dict):
         else:
             raise AttributeError
 
-    @property
-    def ismroclass(self, /):
-        try:
-            return self._ismroclass
-        except AttributeError:
-            if not self.iscosmic:
-                name, obody = self.name, self.outerbody
-                if name in obody['__mroclasses__']:
-                    out = self._ismroclass = True
-                    obody.anticipate_mroclass(name)
-                    return out
-            out = self._ismroclass = False
-            return out
+    def _post_prepare_ismroclass(self, /):
+        if self.iscosmic:
+            check = False
+        else:
+            outer = self.outer
+            name, made = self.name, outer.mroclassesmade
+            try:
+                madecheck = made[name]
+            except KeyError:
+                check = False
+            else:
+                if madecheck:
+                    raise RuntimeError("Mroclass already created!")
+                check = True
+                outer.anticipate_mroclass(name)
+        self.ismroclass = check
 
     def _post_prepare_bases(self, /):
-        out = []
+        bases = []
         if self.ismroclass:
-            name = self.name
-            for obase in self.outerbody.bases:
+            name, outer = self.name, self.outer
+            for overclassname in outer.meta.__mroclasses__[name]:
+                try:
+                    base = outer[overclassname]
+                except KeyError:
+                    base = outer.add_notion(overclassname)
+                bases.append(base)
+            for obase in outer.bases:
                 try:
                     mrobase = getattr(obase, name)
                 except AttributeError:
                     continue
-                if mrobase not in out:
-                    out.append(mrobase)
+                if mrobase not in bases:
+                    bases.append(mrobase)
         for base in self._rawbases:
-            if base not in out:
-                out.append(base)
-        self.bases = tuple(out)
+            if base not in bases:
+                bases.append(base)
+        self.bases = tuple(bases)
 
     def _post_prepare_meta(self, /):
         if hasattr(self, 'meta'):
@@ -223,16 +209,15 @@ class ClassBody(dict):
             raise RuntimeError("Could not identify proper metaclass.")
         self.meta = meta
 
+    def _post_prepare_mroclasses(self, /):
+        self.mroclassesmade = {key: False for key in self.meta.__mroclasses__}
+
     def _post_prepare_mergednames(self, /):
         bases = self.bases
         meta = self.meta
-        mrohandler = _partial(MRONameHandler, body=self)
         mergenames = self.mergenames = tuple(
             (nm, dyntyp, _ptolemaic.convert_type(fintyp))
-            for nm, dyntyp, fintyp in (
-                ('__mroclasses__', mrohandler, _ur.PrimitiveUniTuple),
-                *meta._yield_mergenames(self),
-                )
+            for nm, dyntyp, fintyp in meta._yield_mergenames()
             )
         genericfunc = lambda meth, val: meth(val)
         nametriggers = self._nametriggers
@@ -264,9 +249,14 @@ class ClassBody(dict):
         self._protected.update(toadd)
 
     def _post_prepare_nametriggers(self, /):
-        self._nametriggers.update(
+        triggers = self._nametriggers
+        triggers.update(
             (name, _partial(meth, self))
             for name, meth in self.meta._yield_bodynametriggers()
+            )
+        triggers.update(
+            (name, _partial(self.add_mroclass, name))
+            for name in self.mroclassesmade
             )
 
     def _post_prepare(self, /):
@@ -278,54 +268,62 @@ class ClassBody(dict):
         try:
             obody = BODIES[module, stump]
         except KeyError:
-            self.outerbody = None
+            self.outer = None
             iscosmic = self.iscosmic = True
         else:
-            self.outerbody = obody
+            self.outer = obody
             iscosmic = self.iscosmic = False
         super().__setitem__('_clsiscosmic', iscosmic)
+        self._post_prepare_ismroclass()
         self._post_prepare_bases()
         self._post_prepare_meta()
+        self._post_prepare_mroclasses()
         self._post_prepare_mergednames()
         self._post_prepare_bodymeths()
         self._post_prepare_nametriggers()
         self._fullyprepared = True
 
-    def _add_notion(self, name, base=None, /):
+    def add_notion(self, name, base=None, /):
         if base is None:
             base = self.meta._defaultbasetyp
-        super().__setitem__(name, type(
+        out = self[name] = type(
             name, (base,), {},
             location=(self.module, f"{self.qualname}.{name}"),
-            ))
-        return None, None
-
-    def _add_mroclass(self, name, mroclass, /):
-        super().__setitem__(name, mroclass)
-        self._nametriggers[name] = _partial(self._add_notion, name)
-        return None, None
+            )
+        return out
 
     def anticipate_mroclass(self, name, /):
-        self._nametriggers[name] = _partial(self._add_mroclass, name)
+        self._nametriggers[name] = _partial(self.add_mroclass_premade, name)
 
-    def _finalise_mroclasses(self, /):
-        mroclasses = self['__mroclasses__']
-        if mroclasses:
-            for mroname in mroclasses:
-                if mroname not in self:
-                    # self[mroname] = default
-                    self._add_notion(mroname)
+    def add_mroclass_premade(self, name, val, /):
+        super().__setitem__(name, val)
+        self.protect_name(name)
+        self.mroclassesmade[name] = True
+
+    def add_mroclass(self, name, base=None, /):
+        del self._nametriggers[name]
+        out = self.add_notion(name, base)
+        self.mroclassesmade[name] = True
+        self.protect_name(name)
+        return out
 
     def _finalise_mergenames(self, /):
         for mname, _, fintyp in self.mergenames:
             super().__setitem__(mname, fintyp(super().__getitem__(mname)))
 
+    def _finalise_mroclasses(self, /):
+        for mroname, check in self.mroclassesmade.items():
+            if not check:
+                self.add_notion(mroname, self.get(mroname, None))
+
     def finalise(self, /):
-        assert self._fullyprepared
+        assert self._fullyprepared, (self.name,)
         self._finalise_mergenames()
         self._finalise_mroclasses()
         self.meta.classbody_finalise(self)
-        return self.name, self.bases, dict(self)
+        return _abc.ABCMeta.__new__(
+            self.meta, self.name, self.bases, dict(self)
+            )
 
     def __setanno__(self, name, val, /):
         self.meta.body_handle_anno(
