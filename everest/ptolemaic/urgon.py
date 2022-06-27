@@ -9,6 +9,7 @@ import types as _types
 import inspect as _inspect
 
 from .essence import Essence as _Essence
+from . import ptolemaic as _ptolemaic
 
 
 class Urgon(_Essence):
@@ -34,8 +35,12 @@ class _UrgonBase_(metaclass=Urgon):
 
     @classmethod
     @_abc.abstractmethod
-    def construct(cls, params, /):
+    def _construct_(cls, params, /):
         raise NotImplementedError
+
+    @classmethod
+    def construct(cls, params, /):
+        return cls._construct_(_ptolemaic.convert(params))
 
     parameterise = _types.SimpleNamespace
 
@@ -50,7 +55,7 @@ class _UrgonBase_(metaclass=Urgon):
 
     @classmethod
     def retrieve(cls, params: tuple, /):
-        return cls._retrieve_(tuple(map(cls.param_convert, params)))
+        return cls._retrieve_(_ptolemaic.convert(params))
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):

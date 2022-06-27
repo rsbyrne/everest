@@ -104,10 +104,6 @@ class Eidos(_Essence):
 class _EidosBase_(metaclass=Eidos):
 
     @classmethod
-    def _get_attrhandlers(cls, nm, /):
-        return 
-
-    @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         smartattrs = []
@@ -121,115 +117,43 @@ class _EidosBase_(metaclass=Eidos):
             smartattrs.extend(dct)
         cls._smartattrs_ = _ur.PrimitiveUniTuple(smartattrs)
 
+    def __getattr__(self, name, /):
+        kls = self.__ptolemaic_class__
+        try:
+            meth = kls._getters_[name]
+        except AttributeError as exc:
+            raise RuntimeError from exc
+        except KeyError as exc:
+            raise AttributeError from exc
+        else:
+            meth = val(self, name)
+            if not name.startswith('_'):
+                val = _ptolemaic.convert(val)
+            object.__setattr__(self, name, val)
+            return val
+
+    def __setattr__(self, name, val, /):
+        kls = self.__ptolemaic_class__
+        try:
+            meth = kls._setters_[name]
+        except AttributeError as exc:
+            raise RuntimeError from exc
+        except KeyError as exc:
+            super().__setattr__(name, val)
+        else:
+            meth(self, name, val)
+
+    def __delattr__(self, name, /):
+        kls = self.__ptolemaic_class__
+        try:
+            meth = kls._setters_[name]
+        except AttributeError as exc:
+            raise RuntimeError from exc
+        except KeyError as exc:
+            super().__delattr__(name, val)
+        else:
+            meth(self, name)
+
 
 ###############################################################################
 ###############################################################################
-
-
-# from everest import ur as _ur
-
-# from .ousia import Ousia as _Ousia
-# from . import ptolemaic as _ptolemaic
-
-
-# class Eidos(_Ousia):
-
-#     ...
-
-
-# class _EidosBase_(metaclass=Eidos):
-
-#     @classmethod
-#     def _yield_getters(cls, /):
-#         return
-#         yield
-
-#     @classmethod
-#     def _yield_setters(cls, /):
-#         return
-#         yield
-
-#     @classmethod
-#     def _yield_deleters(cls, /):
-#         return
-#         yield
-
-#     @classmethod
-#     def __class_init__(cls, /):
-#         super().__class_init__()
-#         cls._getters = _ur.DatDict(cls._yield_getters())
-#         cls._setters = _ur.DatDict(cls._yield_setters())
-#         cls._deleters = _ur.DatDict(cls._yield_deleters())
-
-#     def __getattr__(self, name, /):
-#         cls = self.__ptolemaic_class__
-#         if name in cls.__req_slots__:
-#             try:
-#                 getter = cls._getters[name]
-#             except KeyError as exc:
-#                 raise AttributeError from exc
-#             val = getter(self)
-#             object.__setattr__(self, name, val)
-#             return val
-#         else:
-#             dct = self.__dict__
-#             try:
-#                 return dct[name]
-#             except KeyError:
-#                 pass
-#             try:
-#                 getter = cls._getters[name]
-#             except KeyError as exc:
-#                 raise AttributeError from exc
-#             val = dct[name] = getter(name)
-#             return val
-
-#     def __setattr__(self, name, val, /):
-#         cls = self.__ptolemaic_class__
-#         if name in cls._getters:
-#             raise AttributeError(
-#                 "Cannot manually set a name "
-#                 "that already has an associated getter method: "
-#                 f"{name}"
-#                 )
-#         try:
-#             setter = cls._setters[name]
-#         except KeyError:
-#             if name in cls.__req_slots__:
-#                 if not self.__getattribute__('_mutable'):
-#                     raise AttributeError(
-#                         name, "Cannot alter slot while frozen."
-#                         )
-#                 if not name.startswith('_'):
-#                     type(self).param_convert(val)
-#                 object.__setattr__(self, name, val)
-#             else:
-#                 try:
-#                     object.__setattr__(self, name, val)
-#                 except AttributeError as exc:
-#                     if not name.startswith('_'):
-#                         type(self).param_convert(val)
-#                     self.__dict__[name] = val
-#         else:
-#             setter(self, val)
-
-#     def __delattr__(self, name, /):
-#         try:
-#             deleter = cls._deleters[name]
-#         except KeyError as exc:
-#             if name in cls.__req_slots__:
-#                 if not self.__getattribute__('_mutable'):
-#                     raise AttributeError(
-#                         name, "Cannot alter slot while frozen."
-#                         )
-#                 object.__delattr__(self, name)
-#             else:
-#                 try:
-#                     object.__delattr__(self, name)
-#                 except AttributeError:
-#                     try:
-#                         del self.__dict__[name]
-#                     except KeyError as exc:
-#                         raise AttributeError from exc
-#         else:
-#             deleter(self)

@@ -8,8 +8,7 @@ from collections import abc as _collabc
 import operator as _operator
 
 from everest import ur as _ur
-
-from .sprite import Sprite as _Sprite
+from everest.armature import Armature as _Armature
 
 
 _UNARYOPS = _ur.DatDict(
@@ -47,7 +46,7 @@ def get_evalstr(obj, /):
     return repr(obj)
 
 
-class Shadow(metaclass=_Sprite):
+class Shadow(metaclass=_Armature):
 
     __slots__ = ('evalstr',)
 

@@ -3,76 +3,90 @@
 ###############################################################################
 
 
-from everest.armature import Armature as _Armature
+import inspect as _inspect
+from types import SimpleNamespace as _SimpleNamespace
+
+from everest.utilities import pretty as _pretty
 
 from . import ptolemaic as _ptolemaic
-from .utilities import get_ligatures as _get_ligatures
+from .ousia import Ousia as _Ousia
 
 
-@_ptolemaic.Theme.register
-class SpriteMeta(type):
-    ...
+_pkind = _inspect._ParameterKind
 
 
-@_ptolemaic.Kind.register
-class Sprite(_Armature, metaclass=SpriteMeta):
-
-    @property
-    def param_convert(cls, /):
-        return _ptolemaic.convert
+class Sprite(_Ousia):
 
     @classmethod
-    def _get_merged_slots(meta, bases, ns, params, /):
-        return _ptolemaic.convert(super()._get_merged_slots(
-            bases, ns, params
-            ))
-
-
-@_ptolemaic.Case.register
-class _SpriteBase_(_Armature.BaseTyp):
-
-    __req_slots__ = ('__corpus__', '__relname__')
-    __slots__ = ()
+    def _yield_mergenames(meta, body, /):
+        yield from super()._yield_mergenames(body)
+        yield '__fields__', dict, _ptolemaic.PtolDict
 
     @classmethod
-    def _construct_(cls, params: tuple, /):
-        obj = cls._instantiate_(params)
-        obj.__corpus__ = None
-        obj.__relname__ = None
-        obj.initialise()
-        return obj
+    def body_handle_anno(meta, body, name, hint, val, /):
+        body['__fields__'][name] = (hint, val)
 
-    def __set_name__(self, owner, name, /):
-        if self.mutable:
-            self.__corpus__ = owner
-            self.__relname__ = name
-            self.initialise()
 
-    @property
-    def __cosmic__(self, /):
-        return self.__corpus__ is None
+class _SpriteBase_(metaclass=Sprite):
+
+    __slots__ = ('params',)
+
+    ### Class setup:
 
     @classmethod
-    def __prop_get__(cls, instance, name, /):
-        return cls[
-            tuple(_get_ligatures(cls, instance).arguments.values())
-            ]
+    def _yield_slots(cls, /):
+        yield from super()._yield_slots()
+        for name, (hint, default) in cls.__fields__.items():
+            yield name, hint
 
     @classmethod
-    def __organ_get__(cls, instance, name, /):
-        out = cls.instantiate(
-            tuple(_get_ligatures(cls, instance).arguments.values())
+    def _get_signature(cls, /):
+        return _inspect.Signature(
+            _inspect.Parameter(
+                name, _pkind['POSITIONAL_OR_KEYWORD'],
+                default=default, annotation=hint
+                )
+            for name, (hint, default) in cls.__fields__.items()
             )
-        out.__set_name__(instance, name)
-        return out
 
-    def __repr__(self, /):
-        if self.__cosmic__:
-            return super().__repr__()
-        return f"{self.__corpus__}.{self.__relname__}"
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.arity = len(cls.__fields__)
 
+    ### Class instantiation:
 
-Sprite.BaseTyp = _SpriteBase_
+    @classmethod
+    def parameterise(cls, /, *args, **kwargs):
+        bound = cls.__signature__.bind(*args, **kwargs)
+        bound.apply_defaults()
+        return _SimpleNamespace(**bound.arguments)
+
+    ### Storage:
+
+    def __getattr__(self, name, /):
+        try:
+            val = dict(zip(self.__fields__, self.params))[name]
+        except KeyError as exc:
+            raise AttributeError from exc
+        object.__setattr__(self, name, val)
+        return val
+
+    ### Representations:
+
+    def _content_repr(self, /):
+        return ', '.join(map(repr, self.params))
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.rootrepr
+        _pretty.pretty_kwargs(
+            dict(zip(self.__fields__, self.params)), p, cycle, root=root
+            )
+
+    def make_epitaph(self, /):
+        cls = self.__ptolemaic_class__
+        return cls.taphonomy.getitem_epitaph(cls, tuple(self.params))
 
 
 ###############################################################################

@@ -3,87 +3,73 @@
 ###############################################################################
 
 
-import inspect as _inspect
-import collections as _collections
+from everest.armature import Armature as _Armature
 
-from everest.utilities import pretty as _pretty
-
-from .ousia import Ousia as _Ousia
 from . import ptolemaic as _ptolemaic
+from .utilities import get_ligatures as _get_ligatures
 
 
-_pempty = _inspect._empty
+@_ptolemaic.Theme.register
+class SpriteMeta(type):
+    ...
 
 
-class Sprite(_Ousia):
-
-    @classmethod
-    def process_bodyanno(meta, body, name, hint, val, /):
-        body['__params__'][name] = (hint, val)
-        return None, None
-
-    @classmethod
-    def _yield_mergenames(meta, /):
-        yield from super()._yield_mergenames()
-        yield ('__params__', dict, _ptolemaic.PtolDict)
-
-
-class _SpriteBase_(metaclass=Sprite):
-
-    __slots__ = ('_params',)
-
-    @classmethod
-    def classbody_finalise(meta, body, /):
-        super().classbody_finalise(body)
-        body['__req_slots__'].extend(body['__params__'])
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        pms = cls.__params__
-        hints, defaults = cls.fieldhints, cls.fieldefaults = tuple(
-            _ptolemaic.PtolDict(zip(pms, vals))
-            for vals in (zip(*pms.values()) if pms else ((), ()))
-            )
-        Params = _collections.namedtuple(
-            f"{cls.__qualname__}_Params", pms, defaults=defaults.values()
-            )
-        cls.Params = Params
-        cls.__signature__ = _inspect.signature(Params)
-        cls.arity = len(pms)
-
-    @classmethod
-    def _get_signature(cls, /):
-        return _inspect.signature(cls.Params)
+@_ptolemaic.Kind.register
+class Sprite(_Armature, metaclass=SpriteMeta):
 
     @property
-    def params(self, /):
-        return self._params
-
-    @params.setter
-    def params(self, value, /):
-        params = self._params = self.Params(*value)
-        for name, param in params._asdict().items():
-            setattr(self, name, param)
+    def param_convert(cls, /):
+        return _ptolemaic.convert
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        return super().parameterise(**cls.Params(*args, **kwargs)._asdict())
+    def _get_merged_slots(meta, bases, ns, params, /):
+        return _ptolemaic.convert(super()._get_merged_slots(
+            bases, ns, params
+            ))
 
-    def make_epitaph(self, /):
-        cls = self.__ptolemaic_class__
-        return cls.taphonomy.getitem_epitaph(cls, tuple(self.params))
 
-    def _content_repr(self, /):
-        return ', '.join(
-            f"{key}={repr(val)}"
-            for key, val in self.params._asdict().items()
+@_ptolemaic.Case.register
+class _SpriteBase_(_Armature.BaseTyp):
+
+    __req_slots__ = ('__corpus__', '__relname__')
+    __slots__ = ()
+
+    @classmethod
+    def _construct_(cls, params: tuple, /):
+        obj = cls._instantiate_(params)
+        obj.__corpus__ = None
+        obj.__relname__ = None
+        obj.initialise()
+        return obj
+
+    def __set_name__(self, owner, name, /):
+        if self.mutable:
+            self.__corpus__ = owner
+            self.__relname__ = name
+            self.initialise()
+
+    @property
+    def __cosmic__(self, /):
+        return self.__corpus__ is None
+
+    @classmethod
+    def __prop_get__(cls, instance, name, /):
+        return cls[
+            tuple(_get_ligatures(cls, instance).arguments.values())
+            ]
+
+    @classmethod
+    def __organ_get__(cls, instance, name, /):
+        out = cls.instantiate(
+            tuple(_get_ligatures(cls, instance).arguments.values())
             )
+        out.__set_name__(instance, name)
+        return out
 
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_tuple(self.params, p, cycle, root=root)
+    def __repr__(self, /):
+        if self.__cosmic__:
+            return super().__repr__()
+        return f"{self.__corpus__}.{self.__relname__}"
 
 
 ###############################################################################

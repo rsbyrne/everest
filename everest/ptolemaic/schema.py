@@ -11,20 +11,6 @@ from .organ import Organ as _Organ
 from .comp import Comp as _Comp
 
 
-# class _DissolvableWrapper:
-
-#     __slots__ = ('content',)
-
-#     def __init__(self, content, /):
-#         self.content = content
-
-#     def __set_name__(cls, owner, name, /):
-#         content = self.content
-#         content.__module__ = owner.__module__
-#         content.__qualname__ = owner.__qualname__ + '.' + name
-#         setattr(owner, name)
-
-
 class Schema(_Tekton, _Eidos):
 
     @classmethod
