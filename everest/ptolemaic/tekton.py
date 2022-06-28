@@ -51,8 +51,10 @@ class _TektonBase_(metaclass=Tekton):
 
     @classmethod
     def parameterise(cls, /, *args, **kwargs):
+        bound = cls.__signature__.bind(*args, **kwargs)
+        bound.apply_defaults()
         return super().parameterise(**{
-            **cls.__signature__.bind(*args, **kwargs).arguments,
+            **bound.arguments,
             **cls.__fields__.degenerates,
             })
 

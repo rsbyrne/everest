@@ -12,56 +12,80 @@ from everest.utilities import pretty as _pretty
 from . import ptolemaic as _ptolemaic
 from .tekton import Tekton as _Tekton
 from .ousia import Ousia as _Ousia
-from .utilities import get_ligatures as _get_ligatures
-from .smartattr import SmartAttr as _SmartAttr
+from .smartattr import (
+    SmartAttr as _SmartAttr,
+    SmartAttrDirective as _SmartAttrDirective,
+    )
+from .shadow import Shade as _Shade
 
 
-def ligated_function(name, instance, /):
-    func = getattr(instance.__ptolemaic_class__, name).__get__(instance)
-    bound = _get_ligatures(func, instance)
-    return func(*bound.args, **bound.kwargs)
+class Prop(_SmartAttr):
 
+    ligatures: dict
+    bindings: dict
 
-class Ligation(_SmartAttr):
-    ...
-#     bindings: dict
-#     kwargs: dict
+    @classmethod
+    def __body_call__(cls, body, arg=None,/, **kwargs):
+        if arg is None:
+            return _partial(cls.__body_call__, body, **kwargs)
+        ligatures, bindings = {}, {}
+        for key, val in kwargs.items():
+            if isinstance(val, _Shade):
+                if val.prefix is not None:
+                    raise NotImplementedError
+                ligatures[key] = val.name
+            else:
+                bindings[key] = val
+        return _SmartAttrDirective(
+            cls, dict(ligatures=ligatures, bindings=bindings), arg
+            )
 
-#     @classmethod
-#     def parameterise(cls, /, *args, **kwargs):
-#         params = super().parameterise(*args, **kwargs)
-#         return params
+    def _get_callble_bound(self, name, callble, corpus, /):
+        signature = _inspect.signature(callble)
+        bound = signature.bind_partial()
+        bound.apply_defaults()
+        arguments = bound.arguments
+        ligatures, bindings = self.ligatures, self.bindings
+        for key in signature.parameters:
+            try:
+                arguments[key] = bindings[key]
+            except KeyError:
+                getkey = ligatures.get(key, key)
+                try:
+                    arguments[key] = getattr(corpus, getkey)
+                except AttributeError:
+                    if key not in arguments:
+                        raise ValueError(f"Missing key: {key}")
+        print(signature, bound)
+        return bound
 
-#     @classmethod
-#     def adjust_params_for_content(cls, params, content, /):
-#         super().adjust_params_for_content(params, content)
-#         sig = _inspect.signature(content)
-        
-
-
-class Organ(Ligation):
-    ...
-    # def _get_getter_(self, obj, name, /):
-    #     if isinstance(o)
-
-
-class Prop(Ligation):
-
-    # @classmethod
-    # def parameterise(cls, /, *args, **kwargs):
-    #     params = super().parameterise(*args, **kwargs)
-    #     if params.hint is None:
-    #         content = params.content
-    #         if isinstance(content, _ptolemaic.Kind):
-    #             params.hint = content
-    #         elif isinstance(content, _types.FunctionType):
-    #             params.hint = content.__annotations__.get('return', None)
-    #     return params
+    def _functionlike_getter(self, name, obj, /):
+        callble = getattr(obj.__ptolemaic_class__, name).__get__(obj)
+        bound = self._get_callble_bound(name, callble, obj)
+        return callble(*bound.args, **bound.kwargs)
 
     def _get_getter_(self, obj, name, /):
-        if isinstance(obj, _types.FunctionType):
-            return _partial(ligated_function, name)
-        return super()._get_getter_(kls, name)
+        return _partial(self._functionlike_getter, name)
+
+
+class Organ(Prop):
+
+    def _kindlike_getter(self, name, obj, /):
+        callble = getattr(obj.__ptolemaic_class__, name)
+        bound = self._get_callble_bound(name, callble, obj)
+        out = callble.instantiate(tuple(bound.arguments.values()))
+        out.__set_name__(obj, name)
+        return out
+
+    def _functionlike_getter(self, name, obj, /):
+        out = super()._functionlike_getter(name, obj)
+        out.__set_name__(obj, name)
+        return out
+
+    def _get_getter_(self, obj, name, /):
+        if isinstance(obj, _ptolemaic.Kind):
+            return _partial(self._kindlike_getter, name)
+        return super()._get_getter_(obj, name)
 
 
 class System(_Tekton, _Ousia):
@@ -92,23 +116,23 @@ class _SystemBase_(metaclass=System):
 
     ### Descriptor-like behaviours:
 
-    @classmethod
-    def __field_get__(cls, name, instance, /):
-        return instance.params[cls._field_indexer(name)]
+    # @classmethod
+    # def __field_get__(cls, name, instance, /):
+    #     return instance.params[cls._field_indexer(name)]
 
-    @classmethod
-    def __prop_get__(cls, name, instance, /):
-        return cls[
-            tuple(_get_ligatures(cls, instance).arguments.values())
-            ]
+#     @classmethod
+#     def __prop_get__(cls, name, instance, /):
+#         return cls[
+#             tuple(_get_ligatures(cls, instance).arguments.values())
+#             ]
 
-    @classmethod
-    def __organ_get__(cls, name, instance, /):
-        out = cls.instantiate(
-            tuple(_get_ligatures(cls, instance).arguments.values())
-            )
-        out.__set_name__(instance, name)
-        return out
+#     @classmethod
+#     def __organ_get__(cls, name, instance, /):
+#         out = cls.instantiate(
+#             tuple(_get_ligatures(cls, instance).arguments.values())
+#             )
+#         out.__set_name__(instance, name)
+#         return out
 
     ### Class setup:
 

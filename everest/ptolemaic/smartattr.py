@@ -76,6 +76,8 @@ class SmartAttr(metaclass=_Sprite):
                 retanno = sig.return_annotation
                 if retanno is not sig.empty:
                     params.hint = retanno
+        if params.note is NotImplemented:
+            params.note = content.__doc__
 
     def __directive_call__(self, body, name, /, content=None):
         body[self.__merge_name__][name] = self
@@ -83,9 +85,9 @@ class SmartAttr(metaclass=_Sprite):
         return name, content
 
     @classmethod
-    def __body_call__(cls, body, arg=None,/, **kwargs):
+    def __body_call__(cls, body, arg=None, /, **kwargs):
         if arg is None:
-            return _partial(cls.__body_call__, **kwargs)
+            return _partial(cls.__body_call__, body, **kwargs)
         return SmartAttrDirective(cls, kwargs, arg)
 
     def _get_getter_(self, obj, name, /):
