@@ -90,36 +90,36 @@ class Arraay(ContentProxy):
         )
 
 
-class ModuleMate(metaclass=_Sprite):
+# class ModuleMate(metaclass=_Sprite):
 
-    module: str
+#     module: str
 
-    @classmethod
-    def __class_call__(cls, name, /):
-        _sys.modules[name] = \
-            super().__class_call__(_sys.modules[name])
+#     @classmethod
+#     def __class_call__(cls, name, /):
+#         _sys.modules[name] = \
+#             super().__class_call__(_sys.modules[name])
 
-    def __init__(self, /):
-        _sys.modules[self.module.__name__] = self
+#     def __init__(self, /):
+#         _sys.modules[self.module.__name__] = self
 
-    def __getattr__(self, name, /):
-        try:
-            super().__getattr__(name)
-        except AttributeError:
-            return getattr(self.module, name)
+#     def __getattr__(self, name, /):
+#         try:
+#             super().__getattr__(name)
+#         except AttributeError:
+#             return getattr(self.module, name)
 
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy(self.module)
+#     def make_epitaph(self, /):
+#         ptolcls = self.__ptolemaic_class__
+#         return ptolcls.taphonomy(self.module)
 
-    def __repr__(self, /):
-        return self.module.__name__
+#     def __repr__(self, /):
+#         return self.module.__name__
 
-    def __str__(self, /):
-        return self.module.__name__
+#     def __str__(self, /):
+#         return self.module.__name__
 
-    def _repr_pretty_(self, p, cycle, root=None):
-        p.text(repr(self))
+#     def _repr_pretty_(self, p, cycle, root=None):
+#         p.text(repr(self))
 
 
 ###############################################################################

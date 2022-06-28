@@ -76,11 +76,17 @@ class _OusiaBase_(metaclass=Ousia):
 
     ### Descriptor behaviours for class and instance:
 
+    def register_innerobj(self, obj, /):
+        pass
+
+    def prepare_innerobj(self, name, obj, /):
+        obj.__set_name__(self, name)
+        obj.initialise()
+
     def __set_name__(self, owner, name, /):
         if self.mutable:
             self.__corpus__ = owner
             self.__relname__ = name
-            self.initialise()
 
     ## Configuring the class:
 

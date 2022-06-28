@@ -45,7 +45,7 @@ class _SpriteBase_(metaclass=Sprite):
         parameters = (
             _inspect.Parameter(
                 name, _pkind['POSITIONAL_OR_KEYWORD'],
-                default=default, annotation=hint
+                default=default, annotation=hint,
                 )
             for name, (hint, default) in cls.__fields__.items()
             )

@@ -56,7 +56,6 @@ class Prop(_SmartAttr):
                 except AttributeError:
                     if key not in arguments:
                         raise ValueError(f"Missing key: {key}")
-        print(signature, bound)
         return bound
 
     def _functionlike_getter(self, name, obj, /):
@@ -74,12 +73,12 @@ class Organ(Prop):
         callble = getattr(obj.__ptolemaic_class__, name)
         bound = self._get_callble_bound(name, callble, obj)
         out = callble.instantiate(tuple(bound.arguments.values()))
-        out.__set_name__(obj, name)
+        out.prepare_innerobj(name, obj)
         return out
 
     def _functionlike_getter(self, name, obj, /):
         out = super()._functionlike_getter(name, obj)
-        out.__set_name__(obj, name)
+        out.add_innerobj(name, obj)
         return out
 
     def _get_getter_(self, obj, name, /):
@@ -113,26 +112,6 @@ class System(_Tekton, _Ousia):
 class _SystemBase_(metaclass=System):
 
     __slots__ = ('params',)
-
-    ### Descriptor-like behaviours:
-
-    # @classmethod
-    # def __field_get__(cls, name, instance, /):
-    #     return instance.params[cls._field_indexer(name)]
-
-#     @classmethod
-#     def __prop_get__(cls, name, instance, /):
-#         return cls[
-#             tuple(_get_ligatures(cls, instance).arguments.values())
-#             ]
-
-#     @classmethod
-#     def __organ_get__(cls, name, instance, /):
-#         out = cls.instantiate(
-#             tuple(_get_ligatures(cls, instance).arguments.values())
-#             )
-#         out.__set_name__(instance, name)
-#         return out
 
     ### Class setup:
 

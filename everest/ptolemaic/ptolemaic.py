@@ -23,6 +23,8 @@ _PSEUDOINSTANCES = tuple(map(id, _Primitive.TYPS))
 class PtolemaicMeta(_ur.DatMeta):
 
     def __instancecheck__(cls, other, /):
+        if cls is not Ptolemaic:
+            return super().__instancecheck__(other)
         typ = type(other)
         if issubclass(typ, cls):
             return True

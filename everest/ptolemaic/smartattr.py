@@ -3,6 +3,7 @@
 ###############################################################################
 
 
+from abc import abstractmethod as _abstractmethod
 from functools import partial as _partial
 import inspect as _inspect
 
@@ -39,9 +40,9 @@ class SmartAttrDirective(metaclass=_Armature):
     content: object = None
 
     def __directive_call__(self, body, name, /):
-        return self.typ(**self.kwargs).__directive_call__(
-            body, name, self.content
-            )
+        content = self.content
+        smartattr = self.typ(content=content, **self.kwargs)
+        return smartattr.__directive_call__(body, name, content)
 
 
 class SmartAttr(metaclass=_Sprite):
@@ -49,8 +50,8 @@ class SmartAttr(metaclass=_Sprite):
     __merge_dyntyp__ = dict
     __merge_fintyp__ = SmartAttrHolder
 
-    hint: None = None
-    note: str = None
+    hint: None
+    note: str
 
     @classmethod
     def __class_init__(cls, /):
@@ -67,9 +68,11 @@ class SmartAttr(metaclass=_Sprite):
 
     @classmethod
     def adjust_params_for_content(cls, params, content, /):
+        if isinstance(content, (staticmethod, classmethod)):
+            content = content.__func__
         if params.hint is NotImplemented:
             try:
-                sig = inspect.signature(arg)
+                sig = _inspect.signature(content)
             except TypeError:
                 pass
             else:

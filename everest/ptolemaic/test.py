@@ -1,36 +1,26 @@
-from everest.ptolemaic.essence import Essence
+###############################################################################
+''''''
+###############################################################################
 
 
-class InnerA(metaclass=Essence):
-    ...
+from . import scroll as _scroll
+from .essence import Essence as _Essence
 
 
-class InnerB(metaclass=Essence):
-    ...
+_scroll.commence()
 
 
-class InnerC(metaclass=Essence):
-    ...
+a = 1
+b = [2, 3]
 
 
-class A(metaclass=Essence):
-
-    inner = _.mroclass(InnerA)
-
-
-class B(metaclass=Essence):
-
-    inner = InnerB
+class A(metaclass=_Essence):
+    class B(metaclass=_Essence):
+        ...
 
 
-class C(B, A):
+_scroll.complete()
 
-    inner = _.mroclass()
 
-    # inner = _.mroclass(InnerC)
-
-    # @_.mroclass
-    # class inner(metaclass=Essence):
-    #     foo = 1
-
-    foo: int = 1
+###############################################################################
+###############################################################################

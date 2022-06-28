@@ -5,6 +5,7 @@
 
 import abc as _abc
 import itertools as _itertools
+import sys as _sys
 import weakref as _weakref
 from functools import partial as _partial
 from collections import abc as _collabc
@@ -61,14 +62,14 @@ class ClassBody(dict):
         for nm, val in dict(
                 # __name__=name,  # Breaks things in a really interesting way!
                 __slots__=(),
-                _clsnotions=[],
+                _clsinnerobjs=[],
                 _clsiscosmic=None,
                 __class_relname__=name,
                 _clsmutable=_Switch(True),
                 ).items():
             super().__setitem__(nm, val)
         self._nametriggers = dict(
-            __module__=(lambda val: setattr(self, 'module', val)),
+            __module__=(lambda val: setattr(self, 'modulename', val)),
             __qualname__=(lambda val: setattr(self, 'qualname', val)),
             __slots__=self.handle_slots,
             )
@@ -86,7 +87,7 @@ class ClassBody(dict):
         self._rawbases = bases
         self._fullyprepared = False
         if location is not None:
-            self.module, self.qualname = location
+            self.modulename, self.qualname = location
 
     def protect_name(self, name, /):
         self._protected.add(name)
@@ -131,15 +132,15 @@ class ClassBody(dict):
             super().__setitem__(name, val)
 
     @property
-    def module(self, /):
-        return self._module
+    def modulename(self, /):
+        return self._modulename
 
-    @module.setter
-    def module(self, val, /):
+    @modulename.setter
+    def modulename(self, val, /):
         try:
-            _ = self.module
+            _ = self.modulename
         except AttributeError:
-            self._module = val
+            self._modulename = val
             super().__setitem__('__module__', val)
         else:
             raise AttributeError
@@ -160,10 +161,10 @@ class ClassBody(dict):
             raise AttributeError
 
     def _post_prepare_ismroclass(self, /):
-        if self.iscosmic:
+        outer = self.outer
+        if outer is None:
             check = False
         else:
-            outer = self.outer
             name, made = self.name, outer.mroclassesmade
             try:
                 madecheck = made[name]
@@ -260,19 +261,26 @@ class ClassBody(dict):
             )
 
     def _post_prepare(self, /):
-        module, qualname = self.module, self.qualname
+        modulename, qualname = self.modulename, self.qualname
+        module = self.module = _sys.modules[modulename]
         BODIES = type(self).BODIES
-        BODIES[module, qualname] = self
+        BODIES[modulename, qualname] = self
         stump = '.'.join(qualname.split('.')[:-1])
         name = self.name
         try:
-            obody = BODIES[module, stump]
+            obody = BODIES[modulename, stump]
         except KeyError:
             self.outer = None
-            iscosmic = self.iscosmic = True
+            try:
+                module._ISSCROLL_
+            except AttributeError:
+                iscosmic = True
+            else:
+                iscosmic = False
         else:
             self.outer = obody
-            iscosmic = self.iscosmic = False
+            iscosmic = False
+        self.iscosmic = iscosmic
         super().__setitem__('_clsiscosmic', iscosmic)
         self._post_prepare_ismroclass()
         self._post_prepare_bases()

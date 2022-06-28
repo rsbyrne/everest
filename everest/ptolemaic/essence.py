@@ -28,8 +28,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         if cls.mutable:
             cls.__class_relname__ = name
             cls.__class_corpus__ = owner
-            cls.__qualname__ = owner.__qualname__ + '.' + name
-            owner.register_notion(cls)
+            if isinstance(owner, Essence):
+                cls.__qualname__ = owner.__qualname__ + '.' + name
+            owner.register_innerobj(cls)
 
     @property
     def __corpus__(cls, /):
@@ -157,17 +158,18 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __init__(cls, /, *args, **kwargs):
         _abc.ABCMeta.__init__(cls, *args, **kwargs)
         iscosmic = cls._clsiscosmic
+        # print(cls.__module__, cls.__qualname__, iscosmic)
         del cls._clsiscosmic
         if iscosmic:
-            cls.__class_initialise__()
+            cls.initialise()
 
-    @classmethod
-    def _get_qualname(cls, /):
-        try:
-            corpus = cls.__corpus__
-        except AttributeError:
-            return cls.__relname__
-        return corpus.__relname__ + '.' + cls.__relname__
+    @property
+    def initialise(cls, /):
+        return cls.__class_initialise__
+
+    @property
+    def register_innerobj(cls, /):
+        return cls._class_register_innerobj
 
     ### Storage:
 
@@ -326,12 +328,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 class _EssenceBase_(metaclass=Essence):
 
     @classmethod
-    def register_notion(cls, other, /):
+    def _class_register_innerobj(cls, other, /):
         if cls.mutable:
-            cls._clsnotions.append(other)
+            cls._clsinnerobjs.append(other)
         else:
             raise RuntimeError(
-                "Cannot register a new notion "
+                "Cannot register a new innerobj "
                 "after a class has been made immutable "
                 "(i.e. after it has been completely initialised): "
                 f"{cls}"
@@ -340,8 +342,8 @@ class _EssenceBase_(metaclass=Essence):
     @classmethod
     def __class_initialise__(cls, /):
         cls.__class_init__()
-        for inner in cls._clsnotions:
-            inner.__class_initialise__()
+        for inner in cls._clsinnerobjs:
+            inner.initialise()
         cls.mutable = False
 
     @classmethod
