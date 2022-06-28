@@ -5,6 +5,7 @@
 
 from functools import partial as _partial
 import types as _types
+import inspect as _inspect
 
 from everest.utilities import pretty as _pretty
 
@@ -15,18 +16,36 @@ from .utilities import get_ligatures as _get_ligatures
 from .smartattr import SmartAttr as _SmartAttr
 
 
-class Organ(_SmartAttr):
-
-    ...
-
-
 def ligated_function(name, instance, /):
     func = getattr(instance.__ptolemaic_class__, name).__get__(instance)
     bound = _get_ligatures(func, instance)
     return func(*bound.args, **bound.kwargs)
 
 
-class Prop(_SmartAttr):
+class Ligation(_SmartAttr):
+    ...
+#     bindings: dict
+#     kwargs: dict
+
+#     @classmethod
+#     def parameterise(cls, /, *args, **kwargs):
+#         params = super().parameterise(*args, **kwargs)
+#         return params
+
+#     @classmethod
+#     def adjust_params_for_content(cls, params, content, /):
+#         super().adjust_params_for_content(params, content)
+#         sig = _inspect.signature(content)
+        
+
+
+class Organ(Ligation):
+    ...
+    # def _get_getter_(self, obj, name, /):
+    #     if isinstance(o)
+
+
+class Prop(Ligation):
 
     # @classmethod
     # def parameterise(cls, /, *args, **kwargs):
@@ -40,11 +59,9 @@ class Prop(_SmartAttr):
     #     return params
 
     def _get_getter_(self, obj, name, /):
-        if isinstance(obj, _ptolemaic.Kind):
-            return super()._get_getter_(kls, name)
         if isinstance(obj, _types.FunctionType):
             return _partial(ligated_function, name)
-        raise TypeError(type(obj))
+        return super()._get_getter_(kls, name)
 
 
 class System(_Tekton, _Ousia):

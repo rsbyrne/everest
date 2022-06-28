@@ -5,6 +5,9 @@
 
 import functools as _functools
 from collections import abc as _collabc
+import types as _types
+import inspect as _inspect
+import itertools as _itertools
 
 import numpy as _np
 
@@ -20,14 +23,49 @@ _PSEUDOINSTANCES = tuple(map(id, _Primitive.TYPS))
 class PtolemaicMeta(_ur.DatMeta):
 
     def __instancecheck__(cls, other, /):
-        if id(other) in _PSEUDOINSTANCES:
+        typ = type(other)
+        if issubclass(typ, cls):
             return True
+        if typ is type:
+            if other in _Primitive.TYPS:
+                return True
+        if issubclass(typ, _types.ModuleType):
+            return cls.check_module
+        if issubclass(typ, _types.MethodType):
+            return cls.__instancecheck__(other.__self__)
+        if issubclass(typ, _types.FunctionType):
+            return cls.check_func(other)
+        if issubclass(typ, _functools.partial):
+            if not cls.__instancecheck__(other.func):
+                return False
+            params = _itertools.chain(other.args, other.keywords.values())
+            return all(map(cls.__instancheck__, params))
         return super().__instancecheck__(other)
 
 
 class Ptolemaic(_ur.Dat, metaclass=PtolemaicMeta):
 
     __slots__ = ()
+
+    TYPS = (
+        _types.BuiltinFunctionType,
+        _types.BuiltinMethodType,
+        )
+
+    @classmethod
+    def check_func(cls, func, /):
+        obj = module = _inspect.getmodule(func)
+        if not cls.check_module(module):
+            return False
+        for nm in func.__qualname__.split('.')[:-1]:
+            obj = getattr(obj, nm)
+            if not cls.__instancecheck__(obj):
+                return False
+        return True
+
+    @classmethod
+    def check_module(cls, module, /):
+        return True
 
     @classmethod
     @_functools.lru_cache()
@@ -51,6 +89,11 @@ class Ptolemaic(_ur.Dat, metaclass=PtolemaicMeta):
         if isinstance(obj, type):
             return cls.convert_type(obj)
         return cls.convert_type(type(obj))(obj)
+
+
+for typ in Ptolemaic.TYPS:
+    Ptolemaic.register(typ)
+del typ
 
 
 convert_type = Ptolemaic.convert_type
