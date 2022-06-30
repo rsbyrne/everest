@@ -342,9 +342,9 @@ class _EssenceBase_(metaclass=Essence):
     @classmethod
     def __class_initialise__(cls, /):
         cls.__class_init__()
+        cls.mutable = False
         for name, obj in cls._clsinnerobjs.items():
             obj.initialise()
-        cls.mutable = False
 
     @classmethod
     def __class_init__(cls, /):

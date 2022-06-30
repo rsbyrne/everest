@@ -1,2 +1,2 @@
-class MyClass:
-    foo=1
+a: int  # foo
+b: 2 = 132

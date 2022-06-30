@@ -103,7 +103,7 @@ class _EidosBase_(metaclass=Eidos):
         except AttributeError as exc:
             raise RuntimeError from exc
         except KeyError as exc:
-            super().__delattr__(name, val)
+            super().__delattr__(name)
         else:
             meth(self)
 

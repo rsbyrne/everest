@@ -76,28 +76,6 @@ class _OusiaBase_(metaclass=Ousia):
 
     ### Descriptor behaviours for class and instance:
 
-    def register_innerobj(self, name, obj, /):
-        try:
-            innerobjs = self._innerobjs
-        except AttributeError:
-            innerobjs = self._innerobjs = {}
-        innerobjs[name] = obj
-
-    def prepare_innerobj(self, name, obj, /):
-        obj.__set_name__(self, name)
-        obj.initialise()
-
-    def _process_innerobjs(self, /):
-        try:
-            innerobjs = self._innerobjs
-        except AttributeError:
-            pass
-        else:
-            _ = tuple(_itertools.starmap(
-                self.prepare_innerobj, innerobjs.items()
-                ))
-            del self._innerobjs
-
     def __set_name__(self, owner, name, /):
         if self.mutable:
             self.__corpus__ = owner
@@ -131,7 +109,6 @@ class _OusiaBase_(metaclass=Ousia):
 
     def initialise(self, /):
         self.__init__()
-        self._process_innerobjs()
         self.mutable = False
 
     @classmethod

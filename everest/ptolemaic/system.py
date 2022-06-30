@@ -6,6 +6,7 @@
 from functools import partial as _partial
 import types as _types
 import inspect as _inspect
+import itertools as _itertools
 
 from everest.utilities import pretty as _pretty
 
@@ -111,6 +112,30 @@ class System(_Tekton, _Ousia):
 
 class _SystemBase_(metaclass=System):
 
+    ### Processing inner objects:
+
+    def register_innerobj(self, name, obj, /):
+        try:
+            innerobjs = self._innerobjs
+        except AttributeError:
+            innerobjs = self._innerobjs = {}
+        innerobjs[name] = obj
+
+    def prepare_innerobj(self, name, obj, /):
+        obj.__set_name__(self, name)
+        obj.initialise()
+
+    def _process_innerobjs(self, /):
+        try:
+            innerobjs = self._innerobjs
+        except AttributeError:
+            pass
+        else:
+            _ = tuple(_itertools.starmap(
+                self.prepare_innerobj, innerobjs.items()
+                ))
+            object.__delattr__(self, '_innerobjs')
+
     ### Class setup:
 
     @classmethod
@@ -121,6 +146,12 @@ class _SystemBase_(metaclass=System):
     def __class_init__(cls, /):
         super().__class_init__()
         cls._field_indexer = tuple(cls.__fields__).index
+
+    ### Instance setup:
+
+    def initialise(self, /):
+        super().initialise()
+        self._process_innerobjs()
 
     ### Representations:
 

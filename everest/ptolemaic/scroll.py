@@ -7,7 +7,7 @@ import inspect as _inspect
 import sys as _sys
 import itertools as _itertools
 
-from .sprite import Sprite as _Sprite
+from .system import System as _System
 from . import ptolemaic as _ptolemaic
 
 
@@ -20,20 +20,21 @@ def _get_calling_scope_name_(name):
     return frame.f_locals[name]
 
 
-class Scroll(metaclass=_Sprite):
+class Scroll(metaclass=_System):
 
     __slots__ = ('_module_',)
 
     name: str
 
-    def __init__(self, /):
+    def initialise(self, /):
         dct = self._module_.__dict__
         dct.update(_itertools.starmap(self.process_name_val, tuple(dct.items())))
+        super().initialise()
 
     def process_name_val(self, name, val, /):
         if isinstance(val, (_ptolemaic.Ideal, _ptolemaic.Case)):
             if val.mutable:
-                self.prepare_innerobj(name, val)
+                self.register_innerobj(name, val)
         elif not name.startswith('_'):
             val = _ptolemaic.convert(val)
         return name, val
