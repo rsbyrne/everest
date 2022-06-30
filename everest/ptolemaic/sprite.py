@@ -30,8 +30,6 @@ class Sprite(_Ousia):
 
 class _SpriteBase_(metaclass=Sprite):
 
-    __slots__ = ('params',)
-
     ### Class setup:
 
     @classmethod
@@ -85,10 +83,6 @@ class _SpriteBase_(metaclass=Sprite):
         _pretty.pretty_kwargs(
             dict(zip(self.__fields__, self.params)), p, cycle, root=root
             )
-
-    def make_epitaph(self, /):
-        cls = self.__ptolemaic_class__
-        return cls.taphonomy.getitem_epitaph(cls, tuple(self.params))
 
 
 ###############################################################################

@@ -62,7 +62,7 @@ class ClassBody(dict):
         for nm, val in dict(
                 # __name__=name,  # Breaks things in a really interesting way!
                 __slots__=(),
-                _clsinnerobjs=[],
+                _clsinnerobjs={},
                 _clsiscosmic=None,
                 __class_relname__=name,
                 _clsmutable=_Switch(True),
@@ -243,8 +243,8 @@ class ClassBody(dict):
 
     def _post_prepare_bodymeths(self, /):
         toadd = dict(
-            (name, _partial(meth, self))
-            for name, meth in self.meta._yield_bodymeths()
+            (name, meth)
+            for name, meth in self.meta._yield_bodymeths(self)
             )
         self._redirects.update(toadd)
         self._protected.update(toadd)

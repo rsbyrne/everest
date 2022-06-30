@@ -19,6 +19,12 @@ class Tekton(_Eidos, _Urgon):
         yield _Field
 
     @classmethod
+    def _yield_bodymeths(meta, body, /):
+        yield from super()._yield_bodymeths(body)
+        for kind in _Field.KINDPAIRS:
+            yield kind, getattr(_Field, kind)
+
+    @classmethod
     def body_handle_anno(meta, body, name, hint, val, /):
         body[name] = _Field.from_annotation(hint, val)
 

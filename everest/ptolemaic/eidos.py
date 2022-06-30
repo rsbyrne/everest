@@ -3,6 +3,8 @@
 ###############################################################################
 
 
+from functools import partial as _partial
+
 from everest import ur as _ur
 
 from . import ptolemaic as _ptolemaic
@@ -13,10 +15,13 @@ from .smartattr import SmartAttr as _SmartAttr
 class Eidos(_Essence):
 
     @classmethod
-    def _yield_bodymeths(meta, /):
-        yield from super()._yield_bodymeths()
+    def _yield_bodymeths(meta, body, /):
+        yield from super()._yield_bodymeths(body)
         for typ in meta._smartattrtypes:
-            yield typ.__single_name__, getattr(typ, '__body_call__')
+            yield (
+                typ.__single_name__,
+                _partial(getattr(typ, '__body_call__'), body),
+                )
     
     @classmethod
     def _yield_smartattrtypes(meta, /):

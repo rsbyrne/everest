@@ -90,7 +90,7 @@ class Field(_SmartAttr):
     def from_annotation(cls, anno, value):
         if isinstance(anno, FieldAnno):
             hint, note, kind = anno
-            return cls(hint=hint, note=note, value=value, kind=kind)
+            return cls(hint=hint, note=note, default=value, kind=kind)
         if anno is cls:
             return cls(default=value)
         return cls(hint=anno, default=value)

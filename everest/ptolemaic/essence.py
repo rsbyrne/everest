@@ -30,7 +30,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             cls.__class_corpus__ = owner
             if isinstance(owner, Essence):
                 cls.__qualname__ = owner.__qualname__ + '.' + name
-            owner.register_innerobj(cls)
+            owner.register_innerobj(name, cls)
 
     @property
     def __corpus__(cls, /):
@@ -58,7 +58,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         yield
 
     @classmethod
-    def _yield_bodymeths(meta, /):
+    def _yield_bodymeths(meta, body, /):
         return
         yield
 
@@ -328,9 +328,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 class _EssenceBase_(metaclass=Essence):
 
     @classmethod
-    def _class_register_innerobj(cls, other, /):
+    def _class_register_innerobj(cls, name, other, /):
         if cls.mutable:
-            cls._clsinnerobjs.append(other)
+            cls._clsinnerobjs[name] = other
         else:
             raise RuntimeError(
                 "Cannot register a new innerobj "
@@ -342,8 +342,8 @@ class _EssenceBase_(metaclass=Essence):
     @classmethod
     def __class_initialise__(cls, /):
         cls.__class_init__()
-        for inner in cls._clsinnerobjs:
-            inner.initialise()
+        for name, obj in cls._clsinnerobjs.items():
+            obj.initialise()
         cls.mutable = False
 
     @classmethod

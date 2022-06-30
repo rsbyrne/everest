@@ -70,18 +70,33 @@ class _OusiaBase_(metaclass=Ousia):
 
     __slots__ = (
         '__weakref__',
-        '_mutable', '_pyhash', '_sessioncacheref', '_epitaph',
-        '__corpus__', '__relname__',
+        'params', '_mutable', '_pyhash', '_sessioncacheref', '_epitaph',
+        '_innerobjs', '__corpus__', '__relname__',
         )
 
     ### Descriptor behaviours for class and instance:
 
-    def register_innerobj(self, obj, /):
-        pass
+    def register_innerobj(self, name, obj, /):
+        try:
+            innerobjs = self._innerobjs
+        except AttributeError:
+            innerobjs = self._innerobjs = {}
+        innerobjs[name] = obj
 
     def prepare_innerobj(self, name, obj, /):
         obj.__set_name__(self, name)
         obj.initialise()
+
+    def _process_innerobjs(self, /):
+        try:
+            innerobjs = self._innerobjs
+        except AttributeError:
+            pass
+        else:
+            _ = tuple(_itertools.starmap(
+                self.prepare_innerobj, innerobjs.items()
+                ))
+            del self._innerobjs
 
     def __set_name__(self, owner, name, /):
         if self.mutable:
@@ -116,6 +131,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     def initialise(self, /):
         self.__init__()
+        self._process_innerobjs()
         self.mutable = False
 
     @classmethod
@@ -138,6 +154,13 @@ class _OusiaBase_(metaclass=Ousia):
         obj.__corpus__ = obj.__relname__ = None
         obj.initialise()
         return obj
+
+    @classmethod
+    def __class_alt_call__(cls, /, *args, **kwargs):
+        return cls.instantiate(tuple(
+            cls.parameterise(*args, **kwargs)
+            .__dict__.values()
+            ))
 
     @property
     def __cosmic__(self, /):
@@ -180,14 +203,13 @@ class _OusiaBase_(metaclass=Ousia):
     def rootrepr(self, /):
         return self._root_repr()
 
-    @_abc.abstractmethod
     def _content_repr(self, /):
         raise NotImplementedError
 
     @property
     # @_caching.soft_cache()
     def contentrepr(self, /):
-        return self._content_repr()
+        return repr(self.params)
 
     def __repr__(self, /):
         if self.__cosmic__:
@@ -197,9 +219,9 @@ class _OusiaBase_(metaclass=Ousia):
     def __str__(self, /):
         return f"{self.rootrepr}({self.contentrepr})"
 
-    @_abc.abstractmethod
     def make_epitaph(self, /):
-        raise NotImplementedError
+        cls = self.__ptolemaic_class__
+        return cls.taphonomy.getitem_epitaph(cls, tuple(self.params))
 
     @property
     def epitaph(self, /):

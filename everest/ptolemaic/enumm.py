@@ -52,7 +52,7 @@ class _EnummBase_(metaclass=Enumm):
 
     __enumerators__ = {}
     FIELDS = ('serial', 'name', 'value')
-    __slots__ = ('params', *FIELDS)
+    __slots__ = FIELDS
 
     ### Class setup:
 

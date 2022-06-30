@@ -111,8 +111,6 @@ class System(_Tekton, _Ousia):
 
 class _SystemBase_(metaclass=System):
 
-    __slots__ = ('params',)
-
     ### Class setup:
 
     @classmethod
@@ -140,10 +138,6 @@ class _SystemBase_(metaclass=System):
         _pretty.pretty_argskwargs(
             (bound.args, bound.kwargs), p, cycle, root=root
             )
-
-    def make_epitaph(self, /):
-        cls = self.__ptolemaic_class__
-        return cls.taphonomy.getitem_epitaph(cls, tuple(self.params))
 
 
 ###############################################################################
