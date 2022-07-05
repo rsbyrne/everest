@@ -3,163 +3,101 @@
 ###############################################################################
 
 
-from collections import abc as _collabc
-import os as _os
-import ast as _ast
+import inspect as _inspect
+import sys as _sys
+import itertools as _itertools
+import types as _types
+import weakref as _weakref
 
-from everest.utilities import pretty as _pretty
-
-from .sprite import Sprite as _Sprite
-from .system import System as _System
-
-
-class ScreedFileException(ValueError):
-
-    ...
+from .ousia import Ousia as _Ousia
+from . import ptolemaic as _ptolemaic
 
 
-class Screed(metaclass=_Sprite):
+def _get_calling_scope_name_(name):
+    frame = _inspect.stack()[1][0]
+    while name not in frame.f_locals:
+        frame = frame.f_back
+        if frame is None:
+            return None
+    return frame.f_locals[name]
 
-    __slots__ = ('annotations',)
 
-    __content__: str = None
-    __chapters__: dict = {}
+class Stele(_Ousia):
 
-    @classmethod
-    def _from_file_raw(cls, name: str, /, path: str = ''):
-        filename = _os.path.join(path, name)
-        if _os.path.isfile(filename):
-            if not filename.endswith('.py'):
-                raise ScreedFileException(
-                    f"Path must point to a Python module or package:",
-                    filename,
-                    )
-            with open(filename, mode='r') as file:
-                return file.read()
-        names = _os.listdir(filename)
-        try:
-            names.remove('__init__.py')
-        except ValueError:
-            raise ScreedFileException(
-                f"Path must point to a Python module or package:",
-                filename,
-                )
-        out = {'__content__': cls._from_file_raw('__init__.py', filename)}
-        for name in names:
-            try:
-                out[_os.path.splitext(name)[0]] = \
-                    cls._from_file_raw(name, filename)
-            except ScreedFileException:
-                pass
-        return out
+    def commence(cls, /):
+        name = _get_calling_scope_name_('__name__')
+        modules = _sys.modules
+        module = modules[name]
+        if isinstance(module, cls):
+            return module
+        if isinstance(module, _types.ModuleType):
+            stele = module.__dict__.get('_Stele_', cls).__instantiate__()
+            stele._module_ = module
+            stele.name = module.__name__
+            modules[name] = stele
+            return stele
+        raise ValueError("Only module types can be converted to Stele.")
 
-    @classmethod
-    def from_file(cls, name: str, /, path: str = ''):
-        return cls(cls._from_file_raw(name, path))
+    def __enter__(cls, /):
+        return cls.commence()
 
-    def to_file(self, name: str, /, path: str = ''):
-        filename = _os.path.join(path, name)
-        if (subs := self.__chapters__):
-            _os.mkdir(filename)
-            with open(_os.path.join(filename, '__init__.py'), mode='w') as file:
-                file.write(self.__content__)
-            for name in subs:
-                getattr(self, name).to_file(name, filename)
-        else:
-            with open(filename + '.py', mode='w') as file:
-                file.write(self.__content__)
+    def complete(cls, /):
+        name = _get_calling_scope_name_('__name__')
+        stele = _sys.modules[name]
+        if not isinstance(stele, cls):
+            raise RuntimeError("Cannot complete uncommenced stele.")
+        if not stele.mutable:
+            raise RuntimeError("Cannot initialise already initialised stele.")
+        _sys.modules[name].__initialise__()
+
+    def __exit__(cls, /, *_):
+        cls.complete()
+
+
+class _SteleBase_(metaclass=Stele):
+
+    __slots__ = ('name', '_module_', '__dict__')
+
+    _ISSTELE_ = True
 
     @classmethod
-    def __class_call__(cls, /, __content__='', **__chapters__):
-        if not __chapters__:
-            if isinstance(__content__, cls):
-                return __content__
-        return super().__class_call__(__content__, **__chapters__)
+    def parameterise(cls, name, /):
+        return super().parameterise(name=name)
 
-    @classmethod
-    def parameterise(cls, /, __content__='', **__chapters__):
-        params = super().parameterise()
-        if isinstance(__content__, _collabc.Mapping):
-            if __chapters__:
-                raise ValueError(
-                    "Cannot provide subs as both mapping and kwargs."
-                    )
-            __chapters__ = __content__
-            __content__ = __chapters__.pop('__content__', '')
-        params.__content__ = str(__content__)
-        params.__chapters__ = {
-            key: cls(val) for key, val in __chapters__.items()
-            }
-        return params
+    def __initialise__(self, /):
+        module = self._module_
+        del self._module_
+        self.__dict__ = dict(_itertools.starmap(
+            self._process_name_val_, module.__dict__.items()
+            ))
+        self._epitaph = self.__ptolemaic_class__.taphonomy(module)
+        super().__initialise__()
 
-    def __init__(self, /):
-        parsed = _ast.parse(self.__content__)
-        self.annotations = {
-            ann.target.id: (ann.annotation, ann.value)
-            for ann in filter(_ast.AnnAssign.__instancecheck__, parsed.body)
-            }
+    def _process_name_val_(self, name, val, /):
+        if val is self:
+            return name, _weakref.proxy(self)
+        if isinstance(val, (_ptolemaic.Ideal, _ptolemaic.Case)):
+            if val.mutable:
+                self.register_innerobj(name, val)
+        elif not name.startswith('_'):
+            val = _ptolemaic.convert(val)
+        return name, val
+
+    def _make_epitaph_(self, /):
+        raise NotImplementedError
+
+    def __repr__(self, /):
+        return self.name
+
+    def __str__(self, /):
+        return self.name
 
     def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.rootrepr
-        _pretty.pretty_argskwargs(
-            ((self.__content__,), self.__chapters__),
-            p, cycle, root=root
-            )
+        p.text(repr(self))
 
 
-class _SteleBody_:
-
-    __slots__ = ('_stele',)
-
-    def __init__(self, stele, /):
-        self._stele = stele
-
-    def __getitem__(self, name, /):
-        try:
-            return getattr(self._stele, name)
-        except AttributeError as exc:
-            raise KeyError from exc
-
-    def __setitem__(self, name, val, /):
-        try:
-            return setattr(self._stele, name, val)
-        except AttributeError as exc:
-            raise KeyError from exc
-
-    def __delitem__(self, name, /):
-        try:
-            return delattr(self._stele, name)
-        except AttributeError as exc:
-            raise KeyError from exc
-
-
-class Stele(metaclass=_System):
-
-    __screed__: Screed
-
-    __slots__ = ('__dict__',)
-
-    def _process_substeles(self, /):
-        for name, content in self.__screed__.__chapters__.items():
-            stele = self.__ptolemaic_class__.__class_alt_call__(content)
-            self.register_innerobj(name, stele)
-            setattr(self, name, stele)
-
-    def _get_exec_globals(self, /):
-        return {}
-
-    def _execute(self, /):
-        exec(
-            self.__screed__.__content__,
-            self._get_exec_globals(),
-            _SteleBody_(self),
-            )
-
-    def initialise(self, /):
-        self._process_substeles()
-        self._execute()
-        super().initialise()
+commence = _SteleBase_.__enter__
+complete = _SteleBase_.__exit__
 
 
 ###############################################################################

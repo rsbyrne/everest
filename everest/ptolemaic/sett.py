@@ -9,12 +9,41 @@ import inspect as _inspect
 import types as _types
 import sys as _sys
 
-from everest import ur as _ur
-
+from . import ptolemaic as _ptolemaic
 from .essence import Essence as _Essence
 from .enumm import Enumm as _Enumm
-from .content import ModuleMate as _ModuleMate
 from .sprite import Sprite as _Sprite
+from .system import System as _System
+from .stele import Stele as _Stele
+from . import pseudotype as _pseudotype
+
+
+class _SteleType_(metaclass=_Stele):
+
+    def __call__(self, arg, /):
+        if arg is self:
+            arg = Sett
+        return convert(arg)
+
+    def __initialise__(self, /):
+        super().__initialise__()
+        try:
+            setts = self.Setts
+        except AttributeError:
+            pass
+        else:
+            with self.mutable:
+                for enumm in setts.enumerators:
+                    setattr(self, enumm.name, enumm)
+
+    def __instancecheck__(self, arg, /):
+        return isinstance(arg, Sett)
+
+    def __subclasscheck__(self, arg, /):
+        return issubclass(arg, Sett)
+
+
+_SteleType_.commence()
 
 
 def convert(arg, /):
@@ -27,21 +56,56 @@ def convert(arg, /):
     if isinstance(arg, _collabc.Container):
         return ContainerSett(arg)
     if isinstance(arg, type):
+        if isinstance(arg, _types.GenericAlias):
+            return BraceSett(
+                tuple(map(convert, arg.__args__)), arg.__origin__
+                )
         return TypeSett(arg)
     if isinstance(arg, _types.FunctionType):
         return FuncSett(arg)
     raise TypeError(arg, type(arg))
 
 
+class _Any_(metaclass=_Essence):
+
+    @classmethod
+    def __class_instancecheck__(cls, other, /):
+        return True
+
+    @classmethod
+    def __subclasshook__(cls, other, /):
+        if cls is _Any_:
+            return True
+        return NotImplemented
+
+
+class _Null_(metaclass=_Essence):
+
+    @classmethod
+    def __class_instancecheck__(cls, other, /):
+        return False
+
+    @classmethod
+    def __subclasshook__(cls, other, /):
+        if cls is _Null_:
+            return False
+        return NotImplemented
+
+
 class Sett(metaclass=_Essence):
 
-    __req_slots__ = ('signaltype',)
+    __req_slots__ = dict(signaltype=None)
 
     def __init__(self, /):
-        self.signaltype = self.get_signaltype()
+        typ = self.get_signaltype()
+        if typ is None:
+            typ = _Null_
+        elif typ is Ellipsis:
+            typ = _Any_
+        self.signaltype = typ
 
     def get_signaltype(self, /):
-        return object
+        return _Any_
 
     def __sett_contains__(self, arg, /):
         return NotImplemented
@@ -100,32 +164,27 @@ class Sett(metaclass=_Essence):
 
 class Setts(Sett, metaclass=_Enumm):
 
-    __enumerators__ = dict(
-        UNIVERSE=_ur.Dat.__instancecheck__,
-        NULL=(lambda x: False),
-        POWER=Sett.__instancecheck__,
-        )
+    UNIVERSE: None = _Any_
+    NULL: None = _Null_
+    POWER: None = Sett
 
     def __sett_contains__(self, arg, /):
-        return self.val(arg)
+        return isinstance(arg, self._value_)
 
 
-globals().update({enum.name: enum for enum in Setts})
-
-
-class FuncSett(Sett, metaclass=_Sprite):
+class FuncSett(Sett, metaclass=_System):
 
     func: _collabc.Callable
 
     def get_signaltype(self, /):
-        return next(iter(self.func.__annotations__.values(), object))
+        return next(iter(self.func.__annotations__.values(), Any))
 
     @property
     def __sett_contains__(self, /):
         return self.func
 
 
-class ContainerSett(Sett, metaclass=_Sprite):
+class ContainerSett(Sett, metaclass=_System):
 
     container: _collabc.Container
 
@@ -144,14 +203,6 @@ class TypeSett(Sett, metaclass=_Sprite):
 
     typ: type
 
-    @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
-        typ = params.typ
-        if isinstance(typ, _types.GenericAlias):
-            params.typ = _ur.TypeBrace(typ.__origin__, typ.__args__)
-        return params
-
     def get_signaltype(self, /):
         return self.typ
 
@@ -162,14 +213,14 @@ class TypeSett(Sett, metaclass=_Sprite):
         return issubclass(arg, self.typ)
 
 
-class Brace(Sett, metaclass=_Sprite):
+class BraceSett(Sett, metaclass=_Sprite):
 
     setts: _collabc.Iterable
     typ: type = tuple
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
+    def __parameterise__(cls, /, *args, **kwargs):
+        params = super().__parameterise__(*args, **kwargs)
         params.setts = tuple(map(convert, params.setts))
         return params
 
@@ -178,23 +229,22 @@ class Brace(Sett, metaclass=_Sprite):
         return len(self.setts)
 
     def get_signaltype(self, /):
-        return _ur.TypeBrace(
-            self.typ,
-            tuple(sett.signaltype for sett in self.setts),
-            )
+        return self.typ
 
     def __sett_contains__(self, arg, /):
-        if arg in self.oversett:
-            return all(
-                subarg in sett
-                for sett, subarg in zip(self.setts, arg)
-                )
-        return False
+        if not isinstance(arg, self.typ):
+            return False
+        return all(
+            subarg in sett
+            for sett, subarg in zip(self.setts, arg)
+            )
 
     def __sett_includes__(self, arg, /):
-        if not isinstance(arg, Brace):
+        if not isinstance(arg, BraceSett):
             return False
         if arg.breadth != self.breadth:
+            return False
+        if not issubclass(arg.typ, self.typ):
             return False
         return all(
             asett.__includes__(bsett)
@@ -211,8 +261,8 @@ class Inverse(Op, metaclass=_Sprite):
     sett: Sett
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
+    def __parameterise__(cls, /, *args, **kwargs):
+        params = super().__parameterise__(*args, **kwargs)
         params.sett = convert(params.sett)
         return bound
 
@@ -227,7 +277,7 @@ class Inverse(Op, metaclass=_Sprite):
 
 
 class MultiOp(Op, metaclass=_Sprite):
-    
+
     setts: Sett
 
     @classmethod
@@ -240,8 +290,8 @@ class MultiOp(Op, metaclass=_Sprite):
         return out
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
+    def __parameterise__(cls, /, *args, **kwargs):
+        params = super().__parameterise__(*args, **kwargs)
         params.setts = tuple(sorted(set(map(convert, params.setts))))
         return params
 
@@ -273,7 +323,7 @@ class Intersection(MultiOp):
         typs = tuple(sorted(set(sett.signaltype for sett in self.setts)))
         if len(typs) == 1:
             return typs[0]
-        return _ur.TypeIntersection(*typs)
+        return _pseudotype.TypeIntersection(*typs)
 
     def __sett_contains__(self, arg, /):
         for sett in self.setts:
@@ -290,21 +340,7 @@ union = Union.__class_call__
 intersection = Intersection.__class_call__
 
 
-class _SettModuleMate_(_ModuleMate):
-
-    def __call__(self, arg, /):
-        if arg is self:
-            arg = Sett
-        return convert(arg)
-
-    def __instancecheck__(self, arg, /):
-        return isinstance(arg, Sett)
-
-    def __subclasscheck__(self, arg, /):
-        return issubclass(arg, Sett)
-
-
-_SettModuleMate_(__name__)
+_SteleType_.complete()
 
 
 ###############################################################################

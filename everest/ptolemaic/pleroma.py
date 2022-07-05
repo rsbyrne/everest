@@ -20,17 +20,17 @@ from .utilities import Switch as _Switch
 @_ptolemaic.Theme.register
 class Pleroma(type):
 
-#     def __meta_contains__(meta, _, /):
-#         raise NotImplementedError
+    def __meta_contains__(meta, _, /):
+        raise NotImplementedError
 
-#     def __contains__(meta, arg, /):
-#         return meta.__meta_contains__(arg)
+    def __contains__(meta, arg, /):
+        return meta.__meta_contains__(arg)
 
-#     def __meta_getitem__(meta, arg, /):
-#         raise NotImplementedError
+    def __meta_getitem__(meta, arg, /):
+        raise NotImplementedError
 
-#     def __getitem__(meta, arg, /):
-#         return meta.__meta_getitem__(arg)
+    def __getitem__(meta, arg, /):
+        return meta.__meta_getitem__(arg)
 
     def __meta_init__(meta, /):
         pass

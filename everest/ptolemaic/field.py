@@ -18,8 +18,8 @@ class Fields(_SmartAttr.__merge_fintyp__):
     __slots__ = ('_signature', 'defaults', 'degenerates')
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        return super().parameterise(cls.__content_type__(
+    def __parameterise__(cls, /, *args, **kwargs):
+        return super().__parameterise__(cls.__content_type__(
             sorted(dict(*args, **kwargs).items(), key=(lambda x: x[1].score))
             ))
 
@@ -55,8 +55,8 @@ class Field(_SmartAttr):
     __merge_fintyp__ = Fields
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
+    def __parameterise__(cls, /, *args, **kwargs):
+        params = super().__parameterise__(*args, **kwargs)
         if params.kind is NotImplemented:
             params.kind = 'POSKW'
         elif params.kind not in cls.KINDPAIRS:

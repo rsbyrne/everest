@@ -22,8 +22,8 @@ class ContentProxy(metaclass=_Sprite):
     content: None
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        return super().parameterise(cls.__content_type__(*args, **kwargs))
+    def __parameterise__(cls, /, *args, **kwargs):
+        return super().__parameterise__(cls.__content_type__(*args, **kwargs))
 
     @classmethod
     def __class_init__(cls, /):
@@ -64,17 +64,17 @@ class Binding(ContentProxy):
 class Kwargs(Binding):
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
+    def __parameterise__(cls, /, *args, **kwargs):
         dct = cls.__content_type__(*args, **kwargs)
         dct = type(dct)(zip(map(str, dct.keys()), dct.values()))
-        return super().parameterise(dct)
+        return super().__parameterise__(dct)
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.content, p, cycle, root=root)
 
-    def make_epitaph(self, /):
+    def _make_epitaph_(self, /):
         ptolcls = self.__ptolemaic_class__
         return ptolcls.taphonomy.callsig_epitaph(ptolcls, **self)
 
@@ -90,36 +90,36 @@ class Arraay(ContentProxy):
         )
 
 
-# class ModuleMate(metaclass=_Sprite):
+class ModuleMate(metaclass=_Sprite):
 
-#     module: str
+    module: str
 
-#     @classmethod
-#     def __class_call__(cls, name, /):
-#         _sys.modules[name] = \
-#             super().__class_call__(_sys.modules[name])
+    @classmethod
+    def __class_call__(cls, name, /):
+        _sys.modules[name] = \
+            super().__class_call__(_sys.modules[name])
 
-#     def __init__(self, /):
-#         _sys.modules[self.module.__name__] = self
+    def __init__(self, /):
+        _sys.modules[self.module.__name__] = self
 
-#     def __getattr__(self, name, /):
-#         try:
-#             super().__getattr__(name)
-#         except AttributeError:
-#             return getattr(self.module, name)
+    def __getattr__(self, name, /):
+        try:
+            super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
 
-#     def make_epitaph(self, /):
-#         ptolcls = self.__ptolemaic_class__
-#         return ptolcls.taphonomy(self.module)
+    def _make_epitaph_(self, /):
+        ptolcls = self.__ptolemaic_class__
+        return ptolcls.taphonomy(self.module)
 
-#     def __repr__(self, /):
-#         return self.module.__name__
+    def __repr__(self, /):
+        return self.module.__name__
 
-#     def __str__(self, /):
-#         return self.module.__name__
+    def __str__(self, /):
+        return self.module.__name__
 
-#     def _repr_pretty_(self, p, cycle, root=None):
-#         p.text(repr(self))
+    def _repr_pretty_(self, p, cycle, root=None):
+        p.text(repr(self))
 
 
 ###############################################################################

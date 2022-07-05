@@ -35,14 +35,14 @@ class _UrgonBase_(metaclass=Urgon):
 
     @classmethod
     @_abc.abstractmethod
-    def _construct_(cls, params, /):
+    def _construct_(cls, params: tuple = (), /):
         raise NotImplementedError
 
     @classmethod
-    def construct(cls, params, /):
+    def __construct__(cls, params: tuple = (), /):
         return cls._construct_(_ptolemaic.convert(params))
 
-    parameterise = _types.SimpleNamespace
+    __parameterise__ = _types.SimpleNamespace
 
     @classmethod
     def _retrieve_(cls, params: tuple, /):
@@ -54,19 +54,19 @@ class _UrgonBase_(metaclass=Urgon):
             return obj
 
     @classmethod
-    def retrieve(cls, params: tuple, /):
+    def __retrieve__(cls, params: tuple, /):
         return cls._retrieve_(_ptolemaic.convert(params))
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return cls.retrieve(tuple(
-            cls.parameterise(*args, **kwargs)
+        return cls.__retrieve__(tuple(
+            cls.__parameterise__(*args, **kwargs)
             .__dict__.values()
             ))
 
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):
-        return cls.retrieve(arg)
+        return cls.__retrieve__(arg)
 
 
 ###############################################################################

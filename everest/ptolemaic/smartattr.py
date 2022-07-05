@@ -60,8 +60,8 @@ class SmartAttr(metaclass=_Sprite):
         cls.__merge_name__ = f"__{singlename}s__"
 
     @classmethod
-    def parameterise(cls, /, *args, content=None, **kwargs):
-        params = super().parameterise(*args, **kwargs)
+    def __parameterise__(cls, /, *args, content=None, **kwargs):
+        params = super().__parameterise__(*args, **kwargs)
         if content is not None:
             cls.adjust_params_for_content(params, content)
         return params

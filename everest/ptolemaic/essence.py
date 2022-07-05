@@ -21,16 +21,18 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     pure instances of itself are 'pure kinds' that cannot be instantiated.
     '''
 
+    _maxgenerations_ = None
+
     ### Descriptor stuff:
 
-    def __set_name__(cls, owner, name, /):
-        assert owner.mutable
-        if cls.mutable:
-            cls.__class_relname__ = name
-            cls.__class_corpus__ = owner
-            if isinstance(owner, Essence):
-                cls.__qualname__ = owner.__qualname__ + '.' + name
-            owner.register_innerobj(name, cls)
+    # def __set_name__(cls, owner, name, /):
+    #     assert owner.mutable, (owner, name)
+    #     if cls.mutable:
+    #         owner.register_innerobj(name, cls)
+
+    @property
+    def _configure_as_innerobj(cls, /):
+        return cls._class_configure_as_innerobj   
 
     @property
     def __corpus__(cls, /):
@@ -79,23 +81,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Class construction:
 
     @classmethod
-    def _pre_prepare_bases(meta, bases, /):
-        bases = tuple(bases)
-        yield from bases
-        for metabase in (meta, *meta.__bases__):
-            if isinstance(metabase, _Pleroma):
-                try:
-                    basetyp = metabase.BaseTyp
-                except AttributeError:
-                    continue
-                if not any(basetyp is base for base in bases):
-                    yield basetyp
-
-    @classmethod
     def __prepare__(meta, name, bases, /, **kwargs):
         '''Called before class body evaluation as the namespace.'''
         return _ClassBody(
-            meta, name, tuple(meta._pre_prepare_bases(bases)),
+            meta, name, bases,
             _staticmeta_=(name == meta.basetypname), **kwargs,
             )
 
@@ -110,8 +99,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def handle_slots(meta, body, slots, /):
         raise TypeError("Slots not supported under this metaclass.")
-        # print(slots)
-        # dict.__setitem__(body, '__slots__', slots)
 
     @classmethod
     def classbody_finalise(meta, body, /):
@@ -132,9 +119,19 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 return _functools.partial(meta.decorate, **kwargs)
             else:
                 return meta.decorate(arg0, **kwargs)
-        _, __, body = args = (arg0, *argn)
-        out = meta.__class_construct__(body)
-        meta.__init__(out, *args, **kwargs)
+        return meta.__class_construct__(arg0, *argn, **kwargs)
+
+    @classmethod
+    def __class_construct__(
+            meta, name, bases, ns, /, **kwargs
+            ):
+        if isinstance(ns, _ClassBody):
+            body = ns
+        else:
+            body = meta.__prepare__(name, bases, **kwargs)
+            body.update(ns)
+        out = meta.__class_construct_finalise__(body)
+        meta.__init__(out, body.name, body.bases, body, **kwargs)
         return out
 
     def __new__(meta, name, bases, ns, /, **kwargs):
@@ -143,10 +140,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         '''__init__ is called implicitly.'''
         body = meta.__prepare__(name, bases, **kwargs)
         body.update(ns)
-        return meta.__class_construct__(body)
+        return meta.__class_construct_finalise__(body)
 
     @classmethod
-    def __class_construct__(meta, body: _ClassBody, /):
+    def __class_construct_finalise__(meta, body: _ClassBody, /):
         return body.finalise()
 
     @property
@@ -158,13 +155,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __init__(cls, /, *args, **kwargs):
         _abc.ABCMeta.__init__(cls, *args, **kwargs)
         iscosmic = cls._clsiscosmic
-        # print(cls.__module__, cls.__qualname__, iscosmic)
         del cls._clsiscosmic
         if iscosmic:
-            cls.initialise()
+            cls.__initialise__()
 
     @property
-    def initialise(cls, /):
+    def __initialise__(cls, /):
         return cls.__class_initialise__
 
     @property
@@ -203,7 +199,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     def __setattr__(cls, name, val, /):
         if cls.mutable:
-            if not name.startswith('_'):
+            if name == 'mutable':
+                super().__setattr__(name, val)
+            elif not name.startswith('_'):
                 cls.param_convert(val)
                 try:
                     setname = val.__set_name__
@@ -248,9 +246,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def attributes(cls, /):
         return cls.get_attributes()
 
-    def __class_instancecheck__(cls, obj, /):
-        return issubclass(type(obj), cls)
-
     @property
     def __instancecheck__(cls, /):
         return cls.__class_instancecheck__
@@ -273,14 +268,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         try:
             return cls.__dict__['_clsepitaph']
         except KeyError:
-            epi = cls.taphonomy.auto_epitaph(cls)
-            corpus = cls.__corpus__
-            if corpus is None:
-                epi = cls.taphonomy.auto_epitaph(cls)
-            else:
-                epi = cls.taphonomy.getattr_epitaph(
-                    corpus, cls.__relname__
-                    )
+            epi = cls._class_make_epitaph_()
             type.__setattr__(cls, '_clsepitaph', epi)
             return epi
 
@@ -328,23 +316,32 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 class _EssenceBase_(metaclass=Essence):
 
     @classmethod
+    def _class_configure_as_innerobj(cls, owner, name, /):
+        cls.__class_relname__ = name
+        cls.__class_corpus__ = owner
+        if isinstance(owner, Essence):
+            cls.__qualname__ = owner.__qualname__ + '.' + name    
+
+    @classmethod
     def _class_register_innerobj(cls, name, other, /):
-        if cls.mutable:
-            cls._clsinnerobjs[name] = other
-        else:
+        if not cls.mutable:
             raise RuntimeError(
                 "Cannot register a new innerobj "
                 "after a class has been made immutable "
                 "(i.e. after it has been completely initialised): "
                 f"{cls}"
                 )
+        cls._clsinnerobjs[name] = other
+        other._configure_as_innerobj(cls, name)
 
     @classmethod
     def __class_initialise__(cls, /):
         cls.__class_init__()
+        assert cls.mutable, cls
         cls.mutable = False
         for name, obj in cls._clsinnerobjs.items():
-            obj.initialise()
+            obj.__initialise__()
+        type.__delattr__(cls, '_clsinnerobjs')
 
     @classmethod
     def __class_init__(cls, /):
@@ -353,6 +350,34 @@ class _EssenceBase_(metaclass=Essence):
     @classmethod
     def _get_ptolemaic_class(cls, /):
         return cls
+
+    @classmethod
+    def _class_make_epitaph_(cls, /):
+        epi = cls.taphonomy.auto_epitaph(cls)
+        corpus = cls.__corpus__
+        if corpus is None:
+            epi = cls.taphonomy.auto_epitaph(cls)
+        else:
+            epi = cls.taphonomy.getattr_epitaph(
+                corpus, cls.__relname__
+                )
+        return epi
+
+    @classmethod
+    def __class_instancecheck__(cls, obj, /):
+        return issubclass(type(obj), cls)
+
+    @classmethod
+    def count_generation(cls, other: type, /, n: int = 0) -> int:
+        if other is cls:
+            return n
+        if issubclass(other, cls):
+            meth = _functools.partial(cls.count_generation, n=n+1)
+            vals = (
+                val for val in map(meth, other.__bases__) if val is not None
+                )
+            return max(vals, default=0)
+        return None
 
 
 with Essence.mutable:

@@ -288,6 +288,7 @@ class Primitive(Dat):
         type(None),
         type(Ellipsis),
         type(NotImplemented),
+        Exception,
         )
 
     @classmethod
@@ -340,6 +341,7 @@ class PrimitiveDict(DictBase, Primitive):
 
 
 class PseudoType(type):
+
     def __new__(meta, /, *args):
         name = f"{meta.__name__}{args}"
         return type.__new__(meta, name, (), dict(args=args))

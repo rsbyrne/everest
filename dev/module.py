@@ -1,2 +1,5 @@
-a: int  # foo
-b: 2 = 132
+def __enter__():
+    ...
+
+def __exit__(*args):
+    ...

@@ -19,8 +19,9 @@ class Enumm(_Ousia):
         yield ('__enumerators__', dict, _ptolemaic.PtolDict)
 
     @classmethod
-    def body_handle_anno(meta, body, name, hint, val, /):
-        body['__enumerators__'][name] = (hint, val)
+    def body_handle_anno(meta, body, name, note, val, /):
+        body['__enumerators__'][name] = note
+        body[f'_{name}_'] = val
 
     def __iter__(cls, /):
         return iter(cls.enumerators)
@@ -36,23 +37,22 @@ class Enumm(_Ousia):
         raise TypeError("Cannot manually call an Enumm type.")
 
     @property
-    def construct(cls, /):
+    def __construct__(cls, /):
         raise TypeError("Cannot manually call an Enumm type.")
 
     @property
-    def retrieve(cls, /):
+    def __retrieve__(cls, /):
         raise TypeError("Cannot manually call an Enumm type.")
 
     @property
-    def instantiate(cls, /):
+    def __instantiate__(cls, /):
         raise TypeError("Cannot manually call an Enumm type.")
 
 
 class _EnummBase_(metaclass=Enumm):
 
     __enumerators__ = {}
-    FIELDS = ('serial', 'name', 'value')
-    __slots__ = FIELDS
+    __slots__ = ('serial', 'note', '_value_')
 
     ### Class setup:
 
@@ -64,32 +64,33 @@ class _EnummBase_(metaclass=Enumm):
     def __class_init__(cls, /):
         super().__class_init__()
         if cls.__enumerators__:
-            cls.add_enumerators()
+            cls._add_enumerators_()
 
     @classmethod
-    def add_enumerators(cls, /):
+    def _add_enumerators_(cls, /):
         enumerators = []
         _it = enumerate(cls.__enumerators__.items())
-        for serial, (name, (hint, val)) in _it:
-            obj = cls._instantiate_(_ptolemaic.convert((serial, name, val)))
+        for serial, (name, note) in _it:
+            obj = cls._instantiate_(_ptolemaic.convert((serial, note)))
             setattr(cls, name, obj)
-            for key, val in zip(_EnummBase_.FIELDS, obj.params):
+            setattr(obj, '_value_', getattr(cls, f"_{name}_", None))
+            for key, val in zip(('serial', 'note'), obj.params):
                 object.__setattr__(obj, key, val)
-            obj.__set_name__(cls, name)
+            cls.register_innerobj(name, obj)
             enumerators.append(obj)
-        cls.enumerators = enumerators
+        cls.enumerators = _ptolemaic.convert(enumerators)
 
     ### Representations:
+
+    @property
+    def name(self, /):
+        return self.__relname__
 
     def _content_repr(self, /):
         return ', '.join(map(repr, self.params))
 
     def __repr__(self, /):
-        return f"{self.rootrepr}.{self.name}"
-
-    def make_epitaph(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.getattr_epitaph(ptolcls, self.name)
+        return f"{self.rootrepr}.{self.__relname__}"
 
     def __class_getitem__(cls, arg: int, /):
         return cls.enumerators[arg]

@@ -8,11 +8,14 @@ from collections import abc as _collabc
 import types as _types
 import inspect as _inspect
 import itertools as _itertools
+import builtins as _builtins
 
 import numpy as _np
 
 from everest import ur as _ur
 
+
+_BUILTINS = _builtins.__dict__.values()
 
 _Primitive = _ur.Primitive
 
@@ -31,6 +34,9 @@ class PtolemaicMeta(_ur.DatMeta):
         if typ is type:
             if other in _Primitive.TYPS:
                 return True
+            if other in _BUILTINS:
+                return True
+            return False
         if issubclass(typ, _types.ModuleType):
             return cls.check_module
         if issubclass(typ, _types.MethodType):
@@ -52,6 +58,7 @@ class Ptolemaic(_ur.Dat, metaclass=PtolemaicMeta):
     TYPS = (
         _types.BuiltinFunctionType,
         _types.BuiltinMethodType,
+        _ur.PseudoType,
         )
 
     @classmethod

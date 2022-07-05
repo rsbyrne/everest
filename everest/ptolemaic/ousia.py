@@ -10,6 +10,7 @@ from collections import abc as _collabc
 from everest.utilities import reseed as _reseed
 from everest.bureau import FOCUS as _FOCUS
 from everest.switch import Switch as _Switch
+from everest import ur as _ur
 
 from . import ptolemaic as _ptolemaic
 from .urgon import Urgon as _Urgon
@@ -56,7 +57,7 @@ class Ousia(_Urgon):
     @classmethod
     def _yield_mergenames(meta, /):
         yield from super()._yield_mergenames()
-        yield '__req_slots__', dict, _ptolemaic.PtolDict
+        yield '__req_slots__', dict, dict
 
     @classmethod
     def handle_slots(meta, body, slots, /):
@@ -76,10 +77,23 @@ class _OusiaBase_(metaclass=Ousia):
 
     ### Descriptor behaviours for class and instance:
 
-    def __set_name__(self, owner, name, /):
-        if self.mutable:
-            self.__corpus__ = owner
-            self.__relname__ = name
+    # def __set_name__(self, owner, name, /):
+    #     assert owner.mutable, (owner, name)
+    #     if self.mutable:
+    #         owner.register_innerobj(name, self)
+
+    def _configure_as_innerobj(self, owner, name, /):
+        assert self.mutable
+        self.__corpus__ = owner
+        self.__relname__ = name
+
+    def register_innerobj(self, name, obj, /):
+        try:
+            innerobjs = self._innerobjs
+        except AttributeError:
+            innerobjs = self._innerobjs = {}
+        innerobjs[name] = obj
+        obj._configure_as_innerobj(self, name)
 
     ## Configuring the class:
 
@@ -94,7 +108,7 @@ class _OusiaBase_(metaclass=Ousia):
             f"{cls.__name__}_Concrete",
             (ConcreteBase, cls),
             dict(
-                __slots__=_ptolemaic.PtolDict(cls._yield_slots()),
+                __slots__=_ur.DatDict(cls._yield_slots()),
                 _get_ptolemaic_class=(lambda: cls),
                 _clsmutable=_Switch(True),
                 _clsiscosmic=False,
@@ -107,12 +121,20 @@ class _OusiaBase_(metaclass=Ousia):
 
     ### Object creation:
 
-    def initialise(self, /):
+    def __initialise__(self, /):
         self.__init__()
         self.mutable = False
+        try:
+            innerobjs = self._innerobjs
+        except AttributeError:
+            pass
+        else:
+            for name, obj in innerobjs.items():
+                obj.__initialise__()
+            object.__delattr__(self, '_innerobjs')
 
     @classmethod
-    def _instantiate_(cls, params: tuple, /):
+    def _instantiate_(cls, params: tuple = (), /):
         Concrete = cls.Concrete
         obj = Concrete.__new__(Concrete)
         switch = _Switch(True)
@@ -122,20 +144,20 @@ class _OusiaBase_(metaclass=Ousia):
         return obj
 
     @classmethod
-    def instantiate(cls, params: tuple, /):
+    def __instantiate__(cls, params: tuple = (), /):
         return cls._instantiate_(_ptolemaic.convert(params))
 
     @classmethod
-    def _construct_(cls, params: tuple, /):
-        obj = cls.instantiate(params)
+    def _construct_(cls, params: tuple = (), /):
+        obj = cls.__instantiate__(params)
         obj.__corpus__ = obj.__relname__ = None
-        obj.initialise()
+        obj.__initialise__()
         return obj
 
     @classmethod
     def __class_alt_call__(cls, /, *args, **kwargs):
-        return cls.instantiate(tuple(
-            cls.parameterise(*args, **kwargs)
+        return cls.__instantiate__(tuple(
+            cls.__parameterise__(*args, **kwargs)
             .__dict__.values()
             ))
 
@@ -196,16 +218,22 @@ class _OusiaBase_(metaclass=Ousia):
     def __str__(self, /):
         return f"{self.rootrepr}({self.contentrepr})"
 
-    def make_epitaph(self, /):
-        cls = self.__ptolemaic_class__
-        return cls.taphonomy.getitem_epitaph(cls, tuple(self.params))
+    def _make_epitaph_(self, /):
+        ptolcls = self.__ptolemaic_class__
+        if self.__iscosmic__:
+            return ptolcls.taphonomy.getitem_epitaph(
+                ptolcls, tuple(self.params)
+                )
+        return ptolcls.taphonomy.getattr_epitaph(
+            ptolcls, self.__relname__
+            )
 
     @property
     def epitaph(self, /):
         try:
             return self._epitaph
         except AttributeError:
-            epi = self.make_epitaph()
+            epi = self._make_epitaph_()
             object.__setattr__(self, '_epitaph', epi)
             return epi
 

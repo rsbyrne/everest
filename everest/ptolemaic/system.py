@@ -73,7 +73,7 @@ class Organ(Prop):
     def _kindlike_getter(self, name, obj, /):
         callble = getattr(obj.__ptolemaic_class__, name)
         bound = self._get_callble_bound(name, callble, obj)
-        out = callble.instantiate(tuple(bound.arguments.values()))
+        out = callble.__instantiate__(tuple(bound.arguments.values()))
         out.prepare_innerobj(name, obj)
         return out
 
@@ -112,30 +112,6 @@ class System(_Tekton, _Ousia):
 
 class _SystemBase_(metaclass=System):
 
-    ### Processing inner objects:
-
-    def register_innerobj(self, name, obj, /):
-        try:
-            innerobjs = self._innerobjs
-        except AttributeError:
-            innerobjs = self._innerobjs = {}
-        innerobjs[name] = obj
-
-    def prepare_innerobj(self, name, obj, /):
-        obj.__set_name__(self, name)
-        obj.initialise()
-
-    def _process_innerobjs(self, /):
-        try:
-            innerobjs = self._innerobjs
-        except AttributeError:
-            pass
-        else:
-            _ = tuple(_itertools.starmap(
-                self.prepare_innerobj, innerobjs.items()
-                ))
-            object.__delattr__(self, '_innerobjs')
-
     ### Class setup:
 
     @classmethod
@@ -146,12 +122,6 @@ class _SystemBase_(metaclass=System):
     def __class_init__(cls, /):
         super().__class_init__()
         cls._field_indexer = tuple(cls.__fields__).index
-
-    ### Instance setup:
-
-    def initialise(self, /):
-        super().initialise()
-        self._process_innerobjs()
 
     ### Representations:
 

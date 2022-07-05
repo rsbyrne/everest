@@ -9,6 +9,7 @@ from .urgon import Urgon as _Urgon
 from .eidos import Eidos as _Eidos
 from .field import Field as _Field
 from .ousia import Ousia as _Ousia
+from . import ptolemaic as _ptolemaic
 
 
 class Tekton(_Eidos, _Urgon):
@@ -26,6 +27,8 @@ class Tekton(_Eidos, _Urgon):
 
     @classmethod
     def body_handle_anno(meta, body, name, hint, val, /):
+        if not isinstance(hint, _ptolemaic.Ptolemaic):
+            hint = str(hint)
         body[name] = _Field.from_annotation(hint, val)
 
 
@@ -56,10 +59,10 @@ class _TektonBase_(metaclass=Tekton):
         cls.arity = len(fields) - len(fields.degenerates)
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
+    def __parameterise__(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
-        return super().parameterise(**{
+        return super().__parameterise__(**{
             **bound.arguments,
             **cls.__fields__.degenerates,
             })

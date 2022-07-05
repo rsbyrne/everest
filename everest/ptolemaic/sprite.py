@@ -20,10 +20,12 @@ class Sprite(_Ousia):
     @classmethod
     def _yield_mergenames(meta, /):
         yield from super()._yield_mergenames()
-        yield '__fields__', dict, _ptolemaic.PtolDict
+        yield '__fields__', dict, dict
 
     @classmethod
     def body_handle_anno(meta, body, name, hint, val, /):
+        if not isinstance(hint, _ptolemaic.Ptolemaic):
+            hint = str(hint)
         body['__fields__'][name] = (hint, val)
         body[name] = hint
 
@@ -57,7 +59,7 @@ class _SpriteBase_(metaclass=Sprite):
     ### Class instantiation:
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
+    def __parameterise__(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
         return _SimpleNamespace(**bound.arguments)

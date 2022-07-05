@@ -10,7 +10,6 @@ import weakref as _weakref
 from functools import partial as _partial
 from collections import abc as _collabc
 
-from everest import ur as _ur
 from everest.switch import Switch as _Switch
 
 from .pleroma import Pleroma as _Pleroma
@@ -56,20 +55,20 @@ class ClassBody(dict):
 
     def __init__(
             self, meta, name, bases, /, *,
-            location=None, _staticmeta_=False,
+            modname=None, qualroot=None, qualname=None,
+            _staticmeta_=False,
             **kwargs,
             ):
         for nm, val in dict(
                 # __name__=name,  # Breaks things in a really interesting way!
                 __slots__=(),
-                _clsinnerobjs={},
-                _clsiscosmic=None,
                 __class_relname__=name,
                 _clsmutable=_Switch(True),
                 ).items():
             super().__setitem__(nm, val)
+        self.innerobjs = {}
         self._nametriggers = dict(
-            __module__=(lambda val: setattr(self, 'modulename', val)),
+            __module__=(lambda val: setattr(self, 'modname', val)),
             __qualname__=(lambda val: setattr(self, 'qualname', val)),
             __slots__=self.handle_slots,
             )
@@ -81,13 +80,28 @@ class ClassBody(dict):
             )
         self._shades = dict()
         self._protected = set(self)
-        if _staticmeta_:
-            self.meta = meta
+        self._rawmeta = meta
+        self._staticmeta = _staticmeta_
         self.name = name
         self._rawbases = bases
         self._fullyprepared = False
-        if location is not None:
-            self.modulename, self.qualname = location
+        if modname is None:
+            if any(val is not None for val in (qualroot, qualname)):
+                raise ValueError(
+                    "Cannot provide qualroot or qualname kwargs "
+                    "when module is not also provided."
+                    )
+        else:
+            if qualroot is None:
+                if qualname is None:
+                    qualname = name
+            elif qualname is not None:
+                raise ValueError(
+                    "Cannot provide both qualroot and qualname."
+                    )
+            else:
+                qualname = f"{qualroot}.{name}"
+            self.modname, self.qualname = modname, qualname
 
     def protect_name(self, name, /):
         self._protected.add(name)
@@ -132,15 +146,15 @@ class ClassBody(dict):
             super().__setitem__(name, val)
 
     @property
-    def modulename(self, /):
-        return self._modulename
+    def modname(self, /):
+        return self._modname
 
-    @modulename.setter
-    def modulename(self, val, /):
+    @modname.setter
+    def modname(self, val, /):
         try:
-            _ = self.modulename
+            _ = self.modname
         except AttributeError:
-            self._modulename = val
+            self._modname = val
             super().__setitem__('__module__', val)
         else:
             raise AttributeError
@@ -162,7 +176,7 @@ class ClassBody(dict):
 
     def _post_prepare_ismroclass(self, /):
         outer = self.outer
-        if outer is None:
+        if not isinstance(outer, ClassBody):
             check = False
         else:
             name, made = self.name, outer.mroclassesmade
@@ -197,18 +211,38 @@ class ClassBody(dict):
         for base in self._rawbases:
             if base not in bases:
                 bases.append(base)
-        self.bases = tuple(bases)
-
-    def _post_prepare_meta(self, /):
-        if hasattr(self, 'meta'):
-            return
-        metas = tuple(map(type, self.bases))
-        for meta in metas:
-            if all(issubclass(meta, mt) for mt in metas):
-                break
+        meta = self._rawmeta
+        try:
+            basetyp = meta.BaseTyp
+        except AttributeError:
+            pass
         else:
-            raise RuntimeError("Could not identify proper metaclass.")
+            if basetyp not in bases:
+                bases.append(basetyp)
+        if not self._staticmeta:
+            metas = tuple(map(type, bases))
+            for meta in metas:
+                if all(issubclass(meta, mt) for mt in metas):
+                    break
+            else:
+                raise RuntimeError("Could not identify proper metaclass.")
+        for metabase in (meta, *meta.__bases__):
+            try:
+                basetyp = metabase.BaseTyp
+            except AttributeError:
+                continue
+            if not any(issubclass(base, basetyp) for base in bases):
+                bases.append(basetyp)
+            if (maxgens := meta._maxgenerations_) is not None:
+                counts = map(basetyp.count_generation, bases)
+                maxcount = max(val for val in counts if val is not None)
+                if maxcount == maxgens:
+                    raise TypeError(
+                        "Max generation exceeded:",
+                        metabase, self.modname, self.qualname,
+                        )
         self.meta = meta
+        self.bases = tuple(bases)
 
     def _post_prepare_mroclasses(self, /):
         self.mroclassesmade = {key: False for key in self.meta.__mroclasses__}
@@ -261,30 +295,30 @@ class ClassBody(dict):
             )
 
     def _post_prepare(self, /):
-        modulename, qualname = self.modulename, self.qualname
-        module = self.module = _sys.modules[modulename]
+        modname, qualname = self.modname, self.qualname
+        module = self.module = _sys.modules[modname]
         BODIES = type(self).BODIES
-        BODIES[modulename, qualname] = self
+        BODIES[modname, qualname] = self
         stump = '.'.join(qualname.split('.')[:-1])
         name = self.name
         try:
-            obody = BODIES[modulename, stump]
+            outer = BODIES[modname, stump]
         except KeyError:
-            self.outer = None
             try:
-                module._ISSCROLL_
+                _ = module._ISSTELE_
             except AttributeError:
                 iscosmic = True
+                outer = None
             else:
                 iscosmic = False
+                outer = module
         else:
-            self.outer = obody
             iscosmic = False
+        self.outer = outer
         self.iscosmic = iscosmic
         super().__setitem__('_clsiscosmic', iscosmic)
         self._post_prepare_ismroclass()
         self._post_prepare_bases()
-        self._post_prepare_meta()
         self._post_prepare_mroclasses()
         self._post_prepare_mergednames()
         self._post_prepare_bodymeths()
@@ -296,7 +330,7 @@ class ClassBody(dict):
             base = self.meta._defaultbasetyp
         out = self[name] = type(
             name, (base,), {},
-            location=(self.module, f"{self.qualname}.{name}"),
+            modname=self.module, qualroot=self.qualname,
             )
         return out
 
@@ -324,14 +358,26 @@ class ClassBody(dict):
             if not check:
                 self.add_notion(mroname, self.get(mroname, None))
 
+    def register_innerobj(self, obj, name, /):
+        self.innerobjs[name] = obj
+
     def finalise(self, /):
         assert self._fullyprepared, (self.name,)
         self._finalise_mergenames()
         self._finalise_mroclasses()
         self.meta.classbody_finalise(self)
-        return _abc.ABCMeta.__new__(
+        out = _abc.ABCMeta.__new__(
             self.meta, self.name, self.bases, dict(self)
             )
+        if self.iscosmic:
+            type.__setattr__(out, '_clsiscosmic', True)
+        else:
+            self.outer.register_innerobj(self.name, out)
+            type.__setattr__(out, '_clsiscosmic', False)
+        type.__setattr__(out, '_clsinnerobjs', {})
+        for name, innerobj in self.innerobjs.items():
+            out.register_innerobj(innerobj, name)
+        return out
 
     def __setanno__(self, name, val, /):
         self.meta.body_handle_anno(
