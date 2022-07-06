@@ -31,6 +31,17 @@ class Tekton(_Eidos, _Urgon):
             hint = str(hint)
         body[name] = _Field.from_annotation(hint, val)
 
+    @property
+    def arity(cls, /):
+        try:
+            return cls._clsarity
+        except AttributeError:
+            fields = cls.__fields__
+            out = len(fields) - len(fields.degenerates)
+            with cls.mutable:
+                cls._clsarity = out
+            return out
+
 
 class _TektonBase_(metaclass=Tekton):
 
@@ -51,12 +62,6 @@ class _TektonBase_(metaclass=Tekton):
             )
         retanno = cls._get_returnanno()
         return _inspect.Signature(parameters, return_annotation=retanno)
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        fields = cls.__fields__
-        cls.arity = len(fields) - len(fields.degenerates)
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):

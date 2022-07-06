@@ -10,7 +10,6 @@ import inspect as _inspect
 from collections import abc as _collabc
 
 from .essence import Essence as _Essence
-from .content import ModuleMate as _ModuleMate
 from .sprite import Sprite as _Sprite
 from .system import System as _System
 from . import sett as _sett
@@ -41,6 +40,8 @@ class MappError(RuntimeError):
 def convert(arg, /):
     if isinstance(arg, Mapp):
         return arg
+    if isinstance(arg, _collabc.Mapping):
+        return ArbitraryMapp(arg)
     if isinstance(arg, _collabc.Iterable):
         return SwitchMapp(arg)
     if isinstance(arg, _collabc.Callable):
@@ -50,9 +51,15 @@ def convert(arg, /):
 
 class Mapp(metaclass=_Essence):
 
+    convert = staticmethod(convert)
+
     @_abc.abstractmethod
     def __getitem__(self, _, /):
         raise NotImplementedError
+
+    # @_abc.abstractmethod
+    # def __call__(self, /, *_, **__):
+    #     raise NotImplementedError
 
     @property
     @_abc.abstractmethod
@@ -65,79 +72,90 @@ class Mapp(metaclass=_Essence):
         raise NotImplementedError
 
     def __matmul__(self, arg, /):
-        if isinstance(arg, Mapp):
-            return ComposedMapp(arg, self)
-        raise TypeError(type(arg))
+        return ComposedMapp(arg, self)
 
     def __rmatmul__(self, arg, /):
-        if isinstance(arg, Mapp):
-            return ComposedMapp(self, arg)
-        raise TypeError(type(arg))
+        return ComposedMapp(self, arg)
 
 
-class CallMapp(Mapp, metaclass=_Sprite):
+class CallMapp(Mapp, metaclass=_System):
 
     func: _collabc.Callable
 
-    @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
-        func = params.func
-        parameters = tuple(_inspect.signature(func).parameters.values())
-        if not all(pm.kind.value == 0 for pm in parameters):
-            raise ValueError(func, (
-                "Functions being converted to Mapps "
-                "must have only positional arguments."
-                ))
-        return params
-
-    @property
-    def domain(self, /):
-        setts = tuple(
+    @prop
+    def setts(self, /):
+        return tuple(
             _sett(pm.annotation)
             for pm in _inspect.signature(self.func).parameters.values()
+            if pm.kind.value < 2
             )
+
+    @prop
+    def arity(self, /):
+        return len(self.setts)
+
+    @prop
+    def domain(self, /):
+        setts = self.setts
         if len(setts) == 1:
             return setts[0]
-        return _sett.Brace(setts)
+        return _sett.BraceSett(setts)
 
-    @property
+    @prop
     def codomain(self, /):
         return _sett(self.func.__annotations__.get('return', None))
 
-    @property
-    def __getitem__(self, /):
+    @prop
+    def _getitem_(self, /):
         func = self.func
         if len(_inspect.signature(func).parameters) == 1:
-            getitem = func
-        else:
-            getitem = lambda x: func(*x)
-        return getitem
-
-
-class SwitchMapp(Mapp, metaclass=_Sprite):
-
-    mapps: _collabc.Iterable
-
-    @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
-        params.mapps = tuple(map(convert, params.mapps))
-        return params
-
-    @property
-    def domain(self, /):
-        return _sett.union(*(mp.domain for mp in self.mapps))
-
-    @property
-    def codomain(self, /):
-        return _sett.union(*(mp.codomain for mp in self.mapps))
+            return func
+        return lambda x: func(*x)
 
     def __getitem__(self, arg, /):
-        for mapp in self.mapps:
-            if arg in mapp.domain:
-                return mapp[arg]
-        raise MappError(arg)
+        return self._getitem_(arg)
+
+#     @property
+#     def __call__(self, /):
+#         return self.func
+
+
+class SubComposable(Mapp):
+
+    @_abc.abstractmethod
+    def sub_compose(self, arg, /):
+        raise NotImplementedError
+
+
+@_collabc.Mapping.register
+class ArbitraryMapp(SubComposable, metaclass=_System):
+
+    mapping: _collabc.Mapping
+
+    with escaped('methname'):
+        for methname in (
+                '__len__', '__contains__', '__iter__',
+                '__getitem__', 'keys', 'items', 'values', 'get',
+                ):
+            exec('\n'.join((
+                f"@property",
+                f"def {methname}(self, /):",
+                f"    return self.mapping.{methname}",
+                )))
+
+    @prop
+    def domain(self, /):
+        return _sett(tuple(self.mapping))
+
+    @prop
+    def codomain(self, /):
+        return _sett(tuple(self.mapping.values()))
+
+    def sub_compose(self, arg: _collabc.Mapping, /):
+        mapping = {**self.mapping}
+        for key in arg:
+            mapping[key] = arg[key] @ mapping[key]
+        return self.__ptolemaic_class__(mapping)
 
 
 class SwitchMapp(Mapp, metaclass=_System):
@@ -168,58 +186,9 @@ class SwitchMapp(Mapp, metaclass=_System):
     def __getitem__(self, arg, /):
         return self._get_mapp(type(arg))[arg]
 
-
-# class BraceSwitchMapp(SwitchMapp):
-
-#     @classmethod
-#     def __parameterise__(cls, /, *args, **kwargs):
-#         params = super().__parameterise__(*args, **kwargs)
-#         mapps = params.mapps
-#         domains = tuple(mapp.domain for mapp in mapps)
-#         if not all(map(_sett.Brace.__instancecheck__, domains)):
-#             raise cls.paramexc(
-#                 mapps, "All mapps in a BraceSwitchMapp must be of Brace type."
-#                 )
-#         if len(set(domain.breadth for domain in domains)) != 1:
-#             raise cls.paramexc(mapps, (
-#                 "All mapps in a BraceSwitchMapp must have domains "
-#                 "of the same shape."
-#                 ))
-#         return params
-
-#     @_Armature.prop
-#     def get_mapp(self, /):
-#         checkmapps = tuple(
-#             (tuple(sett.signaltype for sett in mapp.domain.setts), mapp)
-#             for mapp in self.mapps
-#             )
-#         @_functools.lru_cache
-#         def _func_(*typs):
-#             for checktyps, mapp in checkmapps:
-#                 if all(_itertools.starmap(issubclass, zip(typs, checktyps))):
-#                     return mapp
-#             raise MappError(typs)
-#         return _func_
-
-#     def __getitem__(self, arg, /):
-#         return self.get_mapp(*map(type, arg))[arg]
-
-
-#     @_Armature.prop
-#     def get_mapp(self, /):
-#         checkmapps = tuple(
-#             (mapp.domain.signaltype, mapp) for mapp in self.mapps
-#             )
-#         @_functools.lru_cache
-#         def func(typ: type, /):
-#             for checktyp, mapp in checkmapps:
-#                 if issubclass(typ, checktyp):
-#                     return mapp
-#             raise MappError(typ)
-#         return func
-
-#     def __getitem__(self, arg, /):
-#         return self.get_mapp(type(arg))[arg]
+    # @property
+    # def __call__(self, /):
+    #     return self._get_mapp(type(arg))
 
 
 class MappOp(Mapp):
@@ -250,50 +219,86 @@ class ModifiedMapp(MappOp, metaclass=_Sprite):
         assert out in self.codomain
         return out
 
+    # def __call__(self, /, *args, **kwargs):
+    #     out = self.mapp(*args, **kwargs)
+    #     assert out in self.codomain
+    #     return out
 
-class MappMultiOp(MappOp, metaclass=_Sprite):
 
-    mapps: _collabc.Iterable
+class MappMultiOp(MappOp, metaclass=_System):
+
+    args: ARGS
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        params.mapps = tuple(map(convert, params.mapps))
+        params.args = tuple(map(cls.convert, params.args))
         return params
 
 
 class ComposedMapp(MappMultiOp):
 
-    mapps: _collabc.Iterable
-
-    @property
+    @prop
     def domain(self, /):
-        return self.mapps[0].domain
+        return self.args[0].domain
 
-    @property
+    @prop
     def codomain(self, /):
-        return self.mapps[-1].codomain
+        return self.args[-1].codomain
 
     @classmethod
     def _unpack_args(cls, args, /):
         for arg in args:
             if isinstance(arg, cls):
-                yield from arg.mapps
-            elif isinstance(arg, Mapp):
-                yield arg
+                yield from arg.args
             else:
-                raise RuntimeError(arg)
+                yield arg
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        params.mapps = tuple(cls._unpack_args(params.mapps))
+        params.args = tuple(cls._unpack_args(params.args))
         return params
 
     def __getitem__(self, arg, /):
-        for mapp in self.mapps:
+        for mapp in self.args:
             arg = mapp[arg]
         return arg
+
+
+class StyleMapp(SubComposable, metaclass=_System):
+
+    pre: Mapp
+    post: Mapp
+
+    @classmethod
+    def __parameterise__(cls, /, *args, **kwargs):
+        params = super().__parameterise__(*args, **kwargs)
+        convert = cls.convert
+        params.pre = convert(params.pre)
+        post = params.post = convert(params.post)
+        if not isinstance(post, SubComposable):
+            raise TypeError(type(post))
+        # params.posts.update(
+        #     (key, convert(val)) for key, val in params.posts.items()
+        #     )
+        return params
+
+    def __getitem__(self, arg, /):
+        arg, style = self.pre[arg]
+        return self.post[style][arg]
+
+    def sub_compose(self, arg, /):
+        return self.__ptolemaic_class__(self.pre, self.post.sub_compose(arg))
+
+    @prop
+    def domain(self, /):
+        return self.pre.domain
+
+    @prop
+    def codomain(self, /):
+        return self.post.domain
+        # return _sett.BraceSett(post.codomain for post in self.posts.values())
 
 
 _SteleType_.complete()

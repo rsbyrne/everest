@@ -7,6 +7,7 @@ import inspect as _inspect
 import functools as _functools
 
 from .smartattr import SmartAttr as _SmartAttr
+from .sprite import Sprite as _Sprite
 
 
 _pkind = _inspect._ParameterKind
@@ -109,7 +110,7 @@ class Field(_SmartAttr):
     #     return None, None  # i.e. Field eats the attribute.
 
 
-class FieldAnno:
+class FieldAnno(metaclass=_Sprite):
 
     def __iter__(self, /):
         return
@@ -121,8 +122,7 @@ class FieldAnno:
 
 class FieldKind(FieldAnno):
 
-    def __init__(self, /, kind=NotImplemented):
-        self.kind = kind
+    kind: object
 
     def __iter__(self, /):
         yield from (NotImplemented, NotImplemented, self.kind)
@@ -142,8 +142,8 @@ del kindname
 
 class FieldHint(FieldAnno):
 
-    def __init__(self, /, kind=NotImplemented, hint=NotImplemented):
-        self.kind, self.hint = kind, hint
+    kind: object
+    hint: object
 
     def __iter__(self, /):
         yield from (self.hint, NotImplemented, self.kind)
@@ -154,11 +154,9 @@ class FieldHint(FieldAnno):
 
 class FieldNote(FieldAnno):
 
-    def __init__(
-            self,
-            kind=NotImplemented, hint=NotImplemented, note=NotImplemented
-            ):
-        self.kind, self.hint, self.note = kind, hint, note
+    kind: object
+    hint: object
+    note: object
 
     def __iter__(self, /):
         yield from (self.hint, self.note, self.kind)

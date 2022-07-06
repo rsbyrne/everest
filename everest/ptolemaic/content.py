@@ -25,17 +25,6 @@ class ContentProxy(metaclass=_Sprite):
     def __parameterise__(cls, /, *args, **kwargs):
         return super().__parameterise__(cls.__content_type__(*args, **kwargs))
 
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        for methname in cls.__content_meths__:
-            exec('\n'.join((
-                f"@property",
-                f"def {methname}(self, /):",
-                f"    return self.content.{methname}",
-                )))
-            type.__setattr__(cls, methname, eval(methname))
-
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.rootrepr
@@ -50,6 +39,14 @@ class Tuuple(ContentProxy):
         '__getitem__', '__reversed__', 'index', 'count',
         )
 
+    with escaped('methname'):
+        for methname in __content_meths__:
+            exec('\n'.join((
+                f"@property",
+                f"def {methname}(self, /):",
+                f"    return self.content.{methname}",
+                )))
+
 
 @_collabc.Mapping.register
 class Binding(ContentProxy):
@@ -59,6 +56,14 @@ class Binding(ContentProxy):
         '__len__', '__contains__', '__iter__',
         '__getitem__', 'keys', 'items', 'values', 'get',
         )
+
+    with escaped('methname'):
+        for methname in __content_meths__:
+            exec('\n'.join((
+                f"@property",
+                f"def {methname}(self, /):",
+                f"    return self.content.{methname}",
+                )))
 
 
 class Kwargs(Binding):
@@ -89,37 +94,13 @@ class Arraay(ContentProxy):
         '__reversed__', 'index', 'count',
         )
 
-
-class ModuleMate(metaclass=_Sprite):
-
-    module: str
-
-    @classmethod
-    def __class_call__(cls, name, /):
-        _sys.modules[name] = \
-            super().__class_call__(_sys.modules[name])
-
-    def __init__(self, /):
-        _sys.modules[self.module.__name__] = self
-
-    def __getattr__(self, name, /):
-        try:
-            super().__getattr__(name)
-        except AttributeError:
-            return getattr(self.module, name)
-
-    def _make_epitaph_(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy(self.module)
-
-    def __repr__(self, /):
-        return self.module.__name__
-
-    def __str__(self, /):
-        return self.module.__name__
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        p.text(repr(self))
+    with escaped('methname'):
+        for methname in __content_meths__:
+            exec('\n'.join((
+                f"@property",
+                f"def {methname}(self, /):",
+                f"    return self.content.{methname}",
+                )))
 
 
 ###############################################################################

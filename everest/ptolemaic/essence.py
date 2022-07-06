@@ -368,6 +368,15 @@ class _EssenceBase_(metaclass=Essence):
         return issubclass(type(obj), cls)
 
     @classmethod
+    def __mro_getattr__(cls, name, /):
+        for base in cls.__ptolemaic_class__.__mro__:
+            try:
+                return base.__dict__[name]
+            except KeyError:
+                continue
+        raise AttributeError(name)
+
+    @classmethod
     def count_generation(cls, other: type, /, n: int = 0) -> int:
         if other is cls:
             return n

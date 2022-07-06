@@ -94,15 +94,20 @@ class _Null_(metaclass=_Essence):
 
 class Sett(metaclass=_Essence):
 
-    __req_slots__ = dict(signaltype=None)
+    __req_slots__ = dict(_signaltype=None)
 
-    def __init__(self, /):
-        typ = self.get_signaltype()
-        if typ is None:
-            typ = _Null_
-        elif typ is Ellipsis:
-            typ = _Any_
-        self.signaltype = typ
+    @property
+    def signaltype(self, /):
+        try:
+            return self._signaltype
+        except AttributeError:
+            typ = self.get_signaltype()
+            if typ is None:
+                typ = _Null_
+            elif typ is Ellipsis:
+                typ = _Any_
+            self.signaltype = typ
+            return typ
 
     def get_signaltype(self, /):
         return _Any_
@@ -127,7 +132,7 @@ class Sett(metaclass=_Essence):
         out = self.__sett_includes__(arg)
         if out is NotImplemented:
             try:
-                meth = arg.__comprises__
+                meth = arg.__entails__
             except AttributeError:
                 raise NotImplementedError
             out = meth(arg)

@@ -60,7 +60,7 @@ class Prop(_SmartAttr):
         return bound
 
     def _functionlike_getter(self, name, obj, /):
-        callble = getattr(obj.__ptolemaic_class__, name).__get__(obj)
+        callble = obj.__mro_getattr__(name).__get__(obj)
         bound = self._get_callble_bound(name, callble, obj)
         return callble(*bound.args, **bound.kwargs)
 
@@ -71,7 +71,7 @@ class Prop(_SmartAttr):
 class Organ(Prop):
 
     def _kindlike_getter(self, name, obj, /):
-        callble = getattr(obj.__ptolemaic_class__, name)
+        callble = obj.__mro_getattr__(name)
         bound = self._get_callble_bound(name, callble, obj)
         out = callble.__instantiate__(tuple(bound.arguments.values()))
         out.prepare_innerobj(name, obj)

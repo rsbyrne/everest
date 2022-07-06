@@ -75,6 +75,14 @@ class _OusiaBase_(metaclass=Ousia):
         '_innerobjs', '__corpus__', '__relname__',
         )
 
+    @classmethod
+    def __class_contains__(cls, arg, /):
+        return isinstance(arg, cls)
+
+    @classmethod
+    def __class_includes__(cls, arg, /):
+        return issubclass(arg, cls)
+
     ### Descriptor behaviours for class and instance:
 
     # def __set_name__(self, owner, name, /):

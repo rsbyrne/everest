@@ -49,6 +49,33 @@ class Directive(metaclass=_abc.ABCMeta):
         return NotImplemented
 
 
+class Escaped:
+
+    __slots__ = ('escaped', 'escapedvals', 'names', 'managed')
+
+    def __init__(self, body, /, *names):
+        self.escaped, self.escapedvals, self.names = \
+            body.escaped, body.escapedvals, names
+
+    def __enter__(self, /):
+        escaped = self.escaped
+        managed = self.managed = set(
+            name for name in self.names
+            if name not in escaped
+            )
+        escaped.update(managed)
+
+    def __exit__(self, /, *_):
+        escaped, escapedvals, managed = \
+            self.escaped, self.escapedvals, self.managed
+        for name in managed:
+            escaped.remove(name)
+            try:
+                del escapedvals[name]
+            except KeyError:
+                pass
+
+
 class ClassBody(dict):
 
     BODIES = _weakref.WeakValueDictionary()
@@ -85,6 +112,8 @@ class ClassBody(dict):
         self.name = name
         self._rawbases = bases
         self._fullyprepared = False
+        self.escaped = set()
+        self.escapedvals = dict()
         if modname is None:
             if any(val is not None for val in (qualroot, qualname)):
                 raise ValueError(
@@ -115,6 +144,8 @@ class ClassBody(dict):
             self.meta.handle_slots(self, slots)
 
     def __getitem__(self, name, /):
+        if name in self.escaped:
+            return self.escapedvals[name]
         try:
             return self._redirects[name]
         except KeyError:
@@ -126,6 +157,9 @@ class ClassBody(dict):
         return super().__getitem__(name)
 
     def __setitem__(self, name, val, /):
+        if name in self.escaped:
+            self.escapedvals[name] = val
+            return
         try:
             meth = self._nametriggers[name]
         except KeyError:
@@ -144,6 +178,11 @@ class ClassBody(dict):
             name, val = val.__directive_call__(self, name)
         if name is not None:
             super().__setitem__(name, val)
+
+    def __delitem__(self, name, /):
+        if name in self.escaped:
+            del self.escapedvals[name]
+        super().__delitem__(name)
 
     @property
     def modname(self, /):
@@ -280,6 +319,7 @@ class ClassBody(dict):
             (name, meth)
             for name, meth in self.meta._yield_bodymeths(self)
             )
+        toadd['escaped'] = _partial(Escaped, self)
         self._redirects.update(toadd)
         self._protected.update(toadd)
 

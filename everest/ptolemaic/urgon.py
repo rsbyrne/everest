@@ -8,16 +8,24 @@ import weakref as _weakref
 import types as _types
 import inspect as _inspect
 
-from .essence import Essence as _Essence
+from .bythos import Bythos as _Bythos
 from . import ptolemaic as _ptolemaic
 
 
-class Urgon(_Essence):
+class Urgon(_Bythos):
 
     ...
 
 
 class _UrgonBase_(metaclass=Urgon):
+
+    @classmethod
+    def __class_contains__(cls, arg, /):
+        return isinstance(arg, cls.__signature__.return_annotation)
+
+    @classmethod
+    def __class_includes__(cls, arg, /):
+        return issubclass(arg, cls.__signature__.return_annotation)
 
     @classmethod
     def _get_signature(cls, /):
