@@ -18,15 +18,9 @@ from .smartattr import (
     SmartAttrDirective as _SmartAttrDirective,
     )
 from .shadow import Shade as _Shade
-from .prop import Prop as _Prop
+from .comp import Comp as _Comp
 from .organ import Organ as _Organ
 from .field import Field as _Field
-
-
-def _field_bodycall(body, arg=None, /, **kwargs):
-    out = _Field._field_bodycall(body, arg, **kwargs)
-    if arg is not None:
-        return Prop.__body_call__(arg)
 
 
 class System(_Tekton, _Ousia):
@@ -37,7 +31,7 @@ class System(_Tekton, _Ousia):
     def _yield_smartattrtypes(meta, /):
         yield from super()._yield_smartattrtypes()
         yield _Organ
-        yield _Prop
+        yield _Comp
 
     @classmethod
     def process_shadow(meta, body, name, val, /):
@@ -48,7 +42,7 @@ class System(_Tekton, _Ousia):
         func = eval(name)
         func.__module__ = body['__module__']
         func.__qualname__ = body['__qualname__'] + '.' + name
-        body[name] = body['prop'](func)
+        body[name] = body['comp'](func)
 
 
 class _SystemBase_(metaclass=System):

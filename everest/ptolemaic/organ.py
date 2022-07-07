@@ -6,10 +6,10 @@
 from functools import partial as _partial
 
 from . import ptolemaic as _ptolemaic
-from .prop import Prop as _Prop
+from .comp import Comp as _Comp
 
 
-class Organ(_Prop):
+class Organ(_Comp):
 
     def _kindlike_getter(self, name, obj, /):
         callble = obj.__mro_getattr__(name)

@@ -88,7 +88,7 @@ class Chora(metaclass=_System):
 @Chora.register
 class Choric(metaclass=_System):
 
-    @prop
+    @comp
     def chora(self, /) -> Chora:
         raise NotImplementedError
 

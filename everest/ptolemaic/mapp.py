@@ -94,7 +94,7 @@ class CallMapp(Mapp, metaclass=_System):
 
     func: _collabc.Callable
 
-    @prop
+    @comp
     def setts(self, /):
         return tuple(
             _sett(pm.annotation)
@@ -102,22 +102,22 @@ class CallMapp(Mapp, metaclass=_System):
             if pm.kind.value < 2
             )
 
-    @prop
+    @comp
     def arity(self, /):
         return len(self.setts)
 
-    @prop
+    @comp
     def domain(self, /):
         setts = self.setts
         if len(setts) == 1:
             return setts[0]
         return _sett.BraceSett(setts)
 
-    @prop
+    @comp
     def codomain(self, /):
         return _sett(self.func.__annotations__.get('return', None))
 
-    @prop
+    @comp
     def _getitem_(self, /):
         func = self.func
         if len(_inspect.signature(func).parameters) == 1:
@@ -155,11 +155,11 @@ class ArbitraryMapp(Mapp, metaclass=_System):
                 f"    return self.mapping.{methname}",
                 )))
 
-    @prop
+    @comp
     def domain(self, /):
         return _sett(tuple(self.mapping))
 
-    @prop
+    @comp
     def codomain(self, /):
         return _sett(tuple(self.mapping.values()))
 
@@ -182,7 +182,7 @@ class SwitchMapp(Mapp, metaclass=_System):
 
     mapps: ARGS
 
-    @prop
+    @comp
     def _get_mapp(self, /):
         checkmapps = tuple(
             (mapp.domain.signaltype, mapp) for mapp in self.mapps
@@ -195,11 +195,11 @@ class SwitchMapp(Mapp, metaclass=_System):
             raise MappError(typ)
         return func
 
-    @prop
+    @comp
     def domain(self, /):
         return _sett.union(*(mp.domain for mp in self.mapps))
 
-    @prop
+    @comp
     def codomain(self, /):
         return _sett.union(*(mp.codomain for mp in self.mapps))
 
@@ -258,11 +258,11 @@ class MappMultiOp(MappOp, metaclass=_System):
 
 class ComposedMapp(MappMultiOp):
 
-    @prop
+    @comp
     def domain(self, /):
         return self.args[0].domain
 
-    @prop
+    @comp
     def codomain(self, /):
         return self.args[-1].codomain
 
@@ -309,11 +309,11 @@ class StyleMapp(Mapp, metaclass=_System):
     def subtend(self, arg, /):
         return self.__ptolemaic_class__(self.pre, self.post.subtend(arg))
 
-    @prop
+    @comp
     def domain(self, /):
         return self.pre.domain
 
-    @prop
+    @comp
     def codomain(self, /):
         return self.post.domain
         # return _sett.BraceSett(post.codomain for post in self.posts.values())

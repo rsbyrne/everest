@@ -22,9 +22,9 @@ class Tekton(_Eidos, _Urgon):
     @classmethod
     def _yield_bodymeths(meta, body, /):
         yield from super()._yield_bodymeths(body)
-        for kind in _field.Kinds:
+        for kind in _field.Kind:
             yield kind.name, kind
-        for signal in _field.Signals:
+        for signal in _field.Signal:
             yield signal.name, signal
 
     @classmethod

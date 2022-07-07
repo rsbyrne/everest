@@ -13,7 +13,7 @@ from .smartattr import (
 from .shadow import Shade as _Shade
 
 
-class Prop(_SmartAttr):
+class Comp(_SmartAttr):
 
     ligatures: dict = {}
     bindings: dict = {}
