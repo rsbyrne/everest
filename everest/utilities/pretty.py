@@ -86,14 +86,17 @@ def pretty_argskwargs(obj, p, cycle, /, root=''):
         p.breakable()
 
 
-def pretty_dict(obj, p, cycle, /, root=''):
+def pretty_dict(obj, p, cycle, /, root='', enclosed=None):
+    if enclosed is None:
+        enclosed = bool(root)
+    brackets = ('({', '})') if enclosed else '{}'
     if cycle:
-        p.text(root + '{...}')
+        p.text(root + '...'.join(brackets))
         return
     if not obj:
-        p.text(root + '{}')
+        p.text(root + brackets)
         return
-    with p.group(4, root + '{', '}'):
+    with p.group(4, root + brackets[0], brackets[1]):
         kwargit = iter(obj.items())
         p.breakable()
         key, val = next(kwargit)

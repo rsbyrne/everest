@@ -8,6 +8,8 @@ import functools as _functools
 
 from .smartattr import SmartAttr as _SmartAttr
 from .sprite import Sprite as _Sprite
+from .enumm import Enumm as _Enumm
+from .prop import Prop as _Prop
 
 
 _pkind = _inspect._ParameterKind
@@ -38,31 +40,57 @@ class Fields(_SmartAttr.__merge_fintyp__):
         return True
 
 
+class Signals(metaclass=_Enumm):
+
+    MANDATORY: 'Signals a mandatory argument.'
+    ANCILLARY: 'Signals an optional argument.'
+
+
+class Kinds(metaclass=_Enumm):
+
+    POS: 'Positional only.' \
+        = _pkind['POSITIONAL_ONLY']
+    POSKW: 'Positional or keyword.' \
+        = _pkind['POSITIONAL_OR_KEYWORD']
+    ARGS: 'Gather extra positional arguments.' \
+        = _pkind['VAR_POSITIONAL']
+    KW: 'Keyword only.' = \
+        _pkind['KEYWORD_ONLY']
+    KWARGS: 'Gather extra keyword arguments' = \
+        _pkind['VAR_KEYWORD']
+
+
 class Field(_SmartAttr):
 
     __slots__ = ('score', 'degenerate')
 
-    default: None
-    kind: None
-
-    KINDPAIRS = dict(
-        POS = _pkind['POSITIONAL_ONLY'],
-        POSKW = _pkind['POSITIONAL_OR_KEYWORD'],
-        ARGS = _pkind['VAR_POSITIONAL'],
-        KW = _pkind['KEYWORD_ONLY'],
-        KWARGS = _pkind['VAR_KEYWORD'],
-        )
+    default: None = Signals.MANDATORY
+    kind: None = Kinds.POSKW
 
     __merge_fintyp__ = Fields
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        if params.kind is NotImplemented:
-            params.kind = 'POSKW'
-        elif params.kind not in cls.KINDPAIRS:
-            raise ValueError(params.kind)
+        if not isinstance(kind := params.kind, Kinds):
+            params.kind = Kinds[kind]
         return params
+
+    @classmethod
+    def adjust_params_for_content(cls, params, content, /):
+        super().adjust_params_for_content(params, content)
+        if params.default is not Signals.MANDATORY:
+            raise ValueError(
+                "It is forbidden to provide the 'default' argument " 
+                "when content is also provided."
+                )
+        params.default = Signals.ANCILLARY
+
+    def __directive_call__(self, body, name, /, content=NotImplemented):
+        body[self.__merge_name__][name] = self
+        if content is not NotImplemented:
+            body[name] = _Prop.__body_call__(body, content)
+        return name, content
 
     def __init__(self, /):
         super().__init__()
@@ -73,15 +101,19 @@ class Field(_SmartAttr):
             self.score = -1
         else:
             self.score = sum((
-                tuple(self.KINDPAIRS).index(kind),
-                (0 if default is NotImplemented else 0.5),
+                self.kind.serial,
+                (0 if default is Signals.MANDATORY else 0.5),
                 ))
 
     def get_parameter(self, name, /):
+        default = self.default
+        if default is Signals.MANDATORY:
+            default = _pempty
+        elif default is Signals.ANCILLARY:
+            default = NotImplemented
         return _inspect.Parameter(
-            name, self.KINDPAIRS[self.kind],
-            default=_pempty if (val:=self.default) is NotImplemented else val,
-            annotation=self.hint,
+            name, self.kind._value_,
+            default=default, annotation=self.hint,
             )
 
     # def __class_getitem__(cls, arg, /):
@@ -135,9 +167,9 @@ class FieldKind(FieldAnno):
 
 
 with Field.mutable:
-    for kindname in Field.KINDPAIRS:
-        setattr(Field, kindname, FieldKind(kindname))
-del kindname
+    for kind in Kinds:
+        setattr(Field, kind.name, FieldKind(kind))
+    del kind
 
 
 class FieldHint(FieldAnno):

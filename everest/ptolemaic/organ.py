@@ -1,0 +1,33 @@
+###############################################################################
+''''''
+###############################################################################
+
+
+from functools import partial as _partial
+
+from . import ptolemaic as _ptolemaic
+from .prop import Prop as _Prop
+
+
+class Organ(_Prop):
+
+    def _kindlike_getter(self, name, obj, /):
+        callble = obj.__mro_getattr__(name)
+        bound = self._get_callble_bound(name, callble, obj)
+        out = callble.__instantiate__(tuple(bound.arguments.values()))
+        out.prepare_innerobj(name, obj)
+        return out
+
+    def _functionlike_getter(self, name, obj, /):
+        out = super()._functionlike_getter(name, obj)
+        out.add_innerobj(name, obj)
+        return out
+
+    def _get_getter_(self, obj, name, /):
+        if isinstance(obj, _ptolemaic.Kind):
+            return _partial(self._kindlike_getter, name)
+        return super()._get_getter_(obj, name)
+
+
+###############################################################################
+###############################################################################

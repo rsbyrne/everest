@@ -137,7 +137,7 @@ class ClassBody(dict):
 
     def enroll_shade(self, name, /):
         self._shades[name] = _Shade(str(name))
-        self.protect_name(name)
+        # self.protect_name(name)
 
     def handle_slots(self, slots, /):
         if slots:
@@ -157,6 +157,8 @@ class ClassBody(dict):
         return super().__getitem__(name)
 
     def __setitem__(self, name, val, /):
+        if val is NotImplemented:
+            return
         if name in self.escaped:
             self.escapedvals[name] = val
             return
@@ -176,8 +178,11 @@ class ClassBody(dict):
             return
         if isinstance(val, Directive):
             name, val = val.__directive_call__(self, name)
-        if name is not None:
-            super().__setitem__(name, val)
+        if val is NotImplemented:
+            return
+        if name is None:
+            return
+        super().__setitem__(name, val)
 
     def __delitem__(self, name, /):
         if name in self.escaped:

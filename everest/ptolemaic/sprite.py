@@ -23,10 +23,10 @@ class Sprite(_Ousia):
         yield '__fields__', dict, dict
 
     @classmethod
-    def body_handle_anno(meta, body, name, hint, val, /):
+    def body_handle_anno(meta, body, name, hint, default, /):
         if not isinstance(hint, _ptolemaic.Ptolemaic):
             hint = str(hint)
-        body['__fields__'][name] = (hint, val)
+        body['__fields__'][name] = (hint, default)
         body[name] = hint
 
 
@@ -61,6 +61,10 @@ class _SpriteBase_(metaclass=Sprite):
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
+        bound.arguments = {
+            key: val for key, val in bound.arguments.items()
+            if val is not NotImplemented
+            }
         bound.apply_defaults()
         return _SimpleNamespace(**bound.arguments)
 
@@ -71,6 +75,8 @@ class _SpriteBase_(metaclass=Sprite):
             val = dict(zip(self.__fields__, self.params))[name]
         except KeyError as exc:
             raise AttributeError from exc
+        if val is NotImplemented:
+            raise AttributeError(name)
         object.__setattr__(self, name, val)
         return val
 

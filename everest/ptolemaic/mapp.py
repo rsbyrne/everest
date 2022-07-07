@@ -9,6 +9,8 @@ import itertools as _itertools
 import inspect as _inspect
 from collections import abc as _collabc
 
+from everest.utilities import pretty as _pretty
+
 from .essence import Essence as _Essence
 from .sprite import Sprite as _Sprite
 from .system import System as _System
@@ -28,6 +30,10 @@ class _SteleType_(metaclass=_Stele):
 
     def __subclasscheck__(self, arg, /):
         return issubclass(arg, Mapp)
+
+    @property
+    def register(self, /):
+        return self.Mapp.register
 
 
 _SteleType_.commence()
@@ -77,6 +83,12 @@ class Mapp(metaclass=_Essence):
     def __rmatmul__(self, arg, /):
         return ComposedMapp(self, arg)
 
+    def extend(self, arg, /):
+        raise NotImplementedError
+
+    def subtend(self, arg, /):
+        raise NotImplementedError
+
 
 class CallMapp(Mapp, metaclass=_System):
 
@@ -120,15 +132,15 @@ class CallMapp(Mapp, metaclass=_System):
 #         return self.func
 
 
-class SubComposable(Mapp):
+class SuperMapp(Mapp):
 
     @_abc.abstractmethod
-    def sub_compose(self, arg, /):
+    def subtend(self, arg, /):
         raise NotImplementedError
 
 
 @_collabc.Mapping.register
-class ArbitraryMapp(SubComposable, metaclass=_System):
+class ArbitraryMapp(Mapp, metaclass=_System):
 
     mapping: _collabc.Mapping
 
@@ -151,11 +163,19 @@ class ArbitraryMapp(SubComposable, metaclass=_System):
     def codomain(self, /):
         return _sett(tuple(self.mapping.values()))
 
-    def sub_compose(self, arg: _collabc.Mapping, /):
+    def extend(self, arg: _collabc.Mapping, /):
+        return self.__ptolemaic_class__({**self.mapping, **arg})
+
+    def subtend(self, arg: _collabc.Mapping, /):
         mapping = {**self.mapping}
         for key in arg:
             mapping[key] = arg[key] @ mapping[key]
         return self.__ptolemaic_class__(mapping)
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.rootrepr
+        return _pretty.pretty_dict(self.mapping, p, cycle, root=root)
 
 
 class SwitchMapp(Mapp, metaclass=_System):
@@ -266,7 +286,7 @@ class ComposedMapp(MappMultiOp):
         return arg
 
 
-class StyleMapp(SubComposable, metaclass=_System):
+class StyleMapp(Mapp, metaclass=_System):
 
     pre: Mapp
     post: Mapp
@@ -276,9 +296,7 @@ class StyleMapp(SubComposable, metaclass=_System):
         params = super().__parameterise__(*args, **kwargs)
         convert = cls.convert
         params.pre = convert(params.pre)
-        post = params.post = convert(params.post)
-        if not isinstance(post, SubComposable):
-            raise TypeError(type(post))
+        params.post = convert(params.post)
         # params.posts.update(
         #     (key, convert(val)) for key, val in params.posts.items()
         #     )
@@ -288,8 +306,8 @@ class StyleMapp(SubComposable, metaclass=_System):
         arg, style = self.pre[arg]
         return self.post[style][arg]
 
-    def sub_compose(self, arg, /):
-        return self.__ptolemaic_class__(self.pre, self.post.sub_compose(arg))
+    def subtend(self, arg, /):
+        return self.__ptolemaic_class__(self.pre, self.post.subtend(arg))
 
     @prop
     def domain(self, /):

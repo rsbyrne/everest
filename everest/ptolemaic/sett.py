@@ -42,6 +42,10 @@ class _SteleType_(metaclass=_Stele):
     def __subclasscheck__(self, arg, /):
         return issubclass(arg, Sett)
 
+    @property
+    def register(self, /):
+        return self.Sett.register
+
 
 _SteleType_.commence()
 

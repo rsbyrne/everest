@@ -50,8 +50,8 @@ class SmartAttr(metaclass=_Sprite):
     __merge_dyntyp__ = dict
     __merge_fintyp__ = SmartAttrHolder
 
-    hint: None
-    note: str
+    hint: None = object
+    note: str = ''
 
     @classmethod
     def __class_init__(cls, /):
@@ -70,7 +70,7 @@ class SmartAttr(metaclass=_Sprite):
     def adjust_params_for_content(cls, params, content, /):
         if isinstance(content, (staticmethod, classmethod)):
             content = content.__func__
-        if params.hint is NotImplemented:
+        if params.hint is object:
             try:
                 sig = _inspect.signature(content)
             except TypeError:
@@ -79,10 +79,10 @@ class SmartAttr(metaclass=_Sprite):
                 retanno = sig.return_annotation
                 if retanno is not sig.empty:
                     params.hint = retanno
-        if params.note is NotImplemented:
+        if params.note == '':
             params.note = content.__doc__
 
-    def __directive_call__(self, body, name, /, content=None):
+    def __directive_call__(self, body, name, /, content=NotImplemented):
         body[self.__merge_name__][name] = self
         body.enroll_shade(name)
         return name, content

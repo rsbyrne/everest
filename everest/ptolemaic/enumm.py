@@ -69,6 +69,7 @@ class _EnummBase_(metaclass=Enumm):
     @classmethod
     def _add_enumerators_(cls, /):
         enumerators = []
+        enumeratorsdict = {}
         _it = enumerate(cls.__enumerators__.items())
         for serial, (name, note) in _it:
             obj = cls._instantiate_(_ptolemaic.convert((serial, note)))
@@ -78,7 +79,9 @@ class _EnummBase_(metaclass=Enumm):
                 object.__setattr__(obj, key, val)
             cls.register_innerobj(name, obj)
             enumerators.append(obj)
+            enumeratorsdict[name] = obj
         cls.enumerators = _ptolemaic.convert(enumerators)
+        cls.enumeratorsdict = _ptolemaic.convert(enumeratorsdict)
 
     ### Representations:
 
@@ -92,7 +95,9 @@ class _EnummBase_(metaclass=Enumm):
     def __repr__(self, /):
         return f"{self.rootrepr}.{self.__relname__}"
 
-    def __class_getitem__(cls, arg: int, /):
+    def __class_getitem__(cls, arg: (int, str), /):
+        if isinstance(arg, str):
+            return cls.enumeratorsdict[arg]
         return cls.enumerators[arg]
 
 
