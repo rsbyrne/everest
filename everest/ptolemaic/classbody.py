@@ -329,6 +329,14 @@ class ClassBody(dict):
         nametriggers[mname] = _partial(genericfunc, addmeth)
 
     def _update_mergenames(self, dct, /):
+        dct = {
+            key: (
+                (val[0], _ptolemaic.convert_type(val[1]))
+                if isinstance(val, tuple)
+                else (val, _ptolemaic.convert_type(val))
+                )
+            for key, val in dct.items()
+            }
         mergenames = self.mergenames
         oldnames = set(mergenames)
         mergenames.update(dct)

@@ -89,9 +89,11 @@ class Stele(metaclass=_SteleMeta_):
     def __initialise__(self, /):
         module = self._module_
         # del self._module_
-        self.__dict__ = dict(_itertools.starmap(
-            self._process_name_val_, module.__dict__.items()
-            ))
+        self.__dict__ = {
+            name: self._process_val_(name, val)
+            for name, val in module.__dict__.items()
+            if not name.startswith('_')
+            }
         super().__initialise__()
         try:
             innerobjs = self._innerobjs
@@ -113,15 +115,15 @@ class Stele(metaclass=_SteleMeta_):
         innerobjs[name] = obj
         obj._configure_as_innerobj(self, name)
 
-    def _process_name_val_(self, name, val, /):
+    def _process_val_(self, name, val, /):
         if val is self:
             return name, _weakref.proxy(self)
         if isinstance(val, (_ptolemaic.Ideal, _ptolemaic.Case)):
             if val.mutable:
                 self.register_innerobj(name, val)
-        elif not name.startswith('_'):
+        else:
             val = _ptolemaic.convert(val)
-        return name, val
+        return val
 
     def __repr__(self, /):
         return self.name

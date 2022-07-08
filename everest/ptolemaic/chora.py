@@ -4,7 +4,9 @@
 
 
 import abc as _abc
-from collections import abc as _collabc
+from collections import abc as _collabc, deque as _deque
+
+from everest import ur as _ur
 
 from .essence import Essence as _Essence
 from . import sett as _sett, mapp as _mapp
@@ -40,20 +42,15 @@ class IncisionError(_mapp.MappError):
 
 class IncisionStyle(metaclass=_Enumm):
 
-    RETRIEVE: 'The procedure to return a single element.' \
-        = '__incise_retrieve__'
-    SLYCE: 'The procedure to return a subset of elements.' \
-        = '__incise_slyce__'
-    TRIVIAL: 'The procedure for trivial incisors like `...`.' \
-        = '__incise_trivial__'
-    NULL: 'The special procedure for incisor `None`.' \
-        = '__incise_null__'
-
-    def __call__(self, other, /):
-        return getattr(other, self._value_)
+    RETRIEVE: 'The procedure to return a single element.'
+    SLYCE: 'The procedure to return a subset of elements.'
+    TRIVIAL: 'The procedure for trivial incisors like `...`.'
+    NULL: 'The special procedure for incisor `None`.'
 
 
-class Chora(_mapp, _sett):
+@_mapp.register
+@_sett.register
+class Chora(metaclass=_Essence):
 
     ...
 #     @property
@@ -65,11 +62,81 @@ class Chora(_mapp, _sett):
 #         return self
 
 
+class Choret(Chora, metaclass=_System):
+
+    __mergenames__ = dict(__incision_styles__=list)
+    __incision_styles__ = IncisionStyle
+
+    @classmethod
+    def _incision_gather_methnames(cls, /):
+        channels = {'_incise_handle_': _deque()}
+        styles = cls.__incision_styles__
+        channels.update(
+            (f'_incise_{style.name.lower()}_', _deque())
+            for style in styles
+            )
+        for name in dir(cls):
+            for prefix, deq in channels.items():
+                if name.startswith(prefix):
+                    if name not in deq:
+                        deq.append(name)
+                continue
+        return (
+            channels.pop('_incise_handle_'),
+            {style: deq for style, deq in zip(styles, channels.values())},
+            )
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls._inchandlers, cls._incmeths = \
+            cls._incision_gather_methnames()
+
+    @comp
+    def mapp(self, /):
+        return _mapp.StyleMapp(
+            _mapp((getattr(self, nm) for nm in self._inchandlers)),
+            _mapp({
+                style: _mapp((getattr(self, nm) for nm in names))
+                for style, names in self._incmeths.items()
+                }),
+            )
+
+    def __getitem__(self, arg, /):
+        return self.mapp[arg]
+
+#     def subtend(self, arg, /):
+        
+
+
 _Stele_.complete()
 
 
 ###############################################################################
 ###############################################################################
+
+
+#     @classmethod
+#     def _gather_methods(cls, /):
+#         channels = {'_incise_handle_': {}}
+#         styles = cls.__incision_styles__
+#         channels.update(
+#             (f'_incise_{style.name.lower()}_', {})
+#             for style in styles
+#             )
+#         for base in reversed(cls.__mro__):
+#             for name, meth in base.__dict__.items():
+#                 for prefix, dct in channels.items():
+#                     if name.startswith(prefix):
+#                         dct[name] = meth
+#                     continue
+#         return (
+#             _mapp(channels.pop('_incise_handle_').values()),
+#             _mapp({
+#                 style: _mapp(meths)
+#                 for style, meths in zip(styles, channels.values())
+#                 }),
+#             )
 
 
 # class IncisionStyle(metaclass=_Enumm):

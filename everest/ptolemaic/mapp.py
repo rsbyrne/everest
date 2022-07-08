@@ -7,6 +7,7 @@ import abc as _abc
 import functools as _functools
 import itertools as _itertools
 import inspect as _inspect
+import types as _types
 from collections import abc as _collabc
 
 from everest.utilities import pretty as _pretty
@@ -52,7 +53,7 @@ def convert(arg, /):
     if isinstance(arg, _collabc.Mapping):
         return ArbitraryMapp(arg)
     if isinstance(arg, _collabc.Iterable):
-        return SwitchMapp(arg)
+        return SwitchMapp(*arg)
     if isinstance(arg, _collabc.Callable):
         return CallMapp(arg)
     raise TypeError(type(arg))
@@ -87,7 +88,7 @@ class Mapp(metaclass=_Essence):
         return ComposedMapp(self, arg)
 
     def extend(self, arg, /):
-        raise NotImplementedError
+        return ChainMapp(arg, self)
 
     def subtend(self, arg, /):
         raise NotImplementedError
@@ -97,8 +98,15 @@ class CallMapp(Mapp, metaclass=_System):
 
     func: _collabc.Callable
 
+    # @comp
+    # def ismethod(self, /):
+    #     return isinstance(self.func, _types.MethodType)
+
     @comp
     def setts(self, /):
+        # pms = iter()
+        # if self.ismethod:
+        #     next(pms)
         return tuple(
             _sett(pm.annotation)
             for pm in _inspect.signature(self.func).parameters.values()
@@ -123,12 +131,14 @@ class CallMapp(Mapp, metaclass=_System):
     @comp
     def _getitem_(self, /):
         func = self.func
-        if len(_inspect.signature(func).parameters) == 1:
+        if self.arity == 1:
             return func
         return lambda x: func(*x)
 
     def __getitem__(self, arg, /):
-        return self._getitem_(arg)
+        if arg in self.domain:
+            return self._getitem_(arg)
+        raise MappError(arg)
 
 #     @property
 #     def __call__(self, /):
@@ -143,9 +153,13 @@ class SuperMapp(Mapp):
 
 
 @_collabc.Mapping.register
-class ArbitraryMapp(Mapp, metaclass=_System):
+class ArbitraryMapp(SuperMapp, metaclass=_System):
 
     mapping: _collabc.Mapping
+
+    @classmethod
+    def __parameterise__(cls, /, *args, **kwargs):
+        return super().__parameterise__(dict(*args, **kwargs))
 
     with escaped('methname'):
         for methname in (
@@ -181,60 +195,36 @@ class ArbitraryMapp(Mapp, metaclass=_System):
         return _pretty.pretty_dict(self.mapping, p, cycle, root=root)
 
 
-class SwitchMapp(Mapp, metaclass=_System):
+class TypeMapp(ArbitraryMapp):
 
-    mapps: ARGS
-
-    @comp
-    def _get_mapp(self, /):
-        checkmapps = tuple(
-            (mapp.domain.signaltype, mapp) for mapp in self.mapps
-            )
-        @_functools.lru_cache
-        def func(typ: type, /):
-            for checktyp, mapp in checkmapps:
-                if issubclass(typ, checktyp):
-                    return mapp
-            raise MappError(typ)
-        return func
-
-    @comp
-    def domain(self, /):
-        return _sett.union(*(mp.domain for mp in self.mapps))
-
-    @comp
-    def codomain(self, /):
-        return _sett.union(*(mp.codomain for mp in self.mapps))
-
+    @_functools.lru_cache
     def __getitem__(self, arg, /):
-        return self._get_mapp(type(arg))[arg]
+        for typ, val in self.mapping.items():
+            if issubclass(arg, typ):
+                return val
+        raise MappError(arg)
 
-    # @property
-    # def __call__(self, /):
-    #     return self._get_mapp(type(arg))
 
-
-class MappOp(Mapp):
+class MappOp(SuperMapp):
 
     ...
 
 
-class ModifiedMapp(MappOp, metaclass=_Sprite):
+class ModifiedMapp(MappOp, metaclass=_System):
 
     mapp: Mapp
-    domain: _sett.Sett = None
-    codomain: _sett.Sett = None
+
+    @field
+    def domain(self, /) -> _sett.Sett:
+        return self.mapp.domain
+
+    @field
+    def codomain(self, /) -> _sett.Sett:
+        return self.mapp.codomain
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
-        mapp = params.mapp = convert(params.mapp)
-        for methname in ('domain', 'codomain'):
-            obj = getattr(params, methname)
-            if obj is None:
-                setattr(params, methname, getattr(mapp, methname))
-            else:
-                setattr(params, methname, _sett(obj))
+        params.mapp = convert(params.mapp)
         return params
 
     def __getitem__(self, arg, /):
@@ -248,18 +238,88 @@ class ModifiedMapp(MappOp, metaclass=_Sprite):
     #     return out
 
 
-class MappMultiOp(MappOp, metaclass=_System):
+class MappMultiOp(MappOp):
+
+    ...
+
+
+class MappVariadicOp(MappMultiOp, metaclass=_System):
 
     args: ARGS
 
     @classmethod
+    def _unpack_args(cls, args, /):
+        for arg in args:
+            if isinstance(arg, cls):
+                yield from arg.args
+            else:
+                yield convert(arg)
+
+    @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        params.args = tuple(map(cls.convert, params.args))
+        params.args = tuple(cls._unpack_args(params.args))
         return params
 
+    def subtend(self, arg, /):
+        return self.__ptolemaic_class__(*(arg @ sub for sub in arg))
 
-class ComposedMapp(MappMultiOp):
+
+class ElasticMapp(MappVariadicOp):
+
+    def extend(self, arg, /):
+        return self.__ptolemaic_class__(self, arg)
+
+
+class ChainMapp(ElasticMapp):
+
+    def __getitem__(self, arg, /):
+        for mapp in self.args:
+            try:
+                return mapp[arg]
+            except MappError:
+                continue
+        raise MappError(arg)
+
+    @comp
+    def domain(self, /):
+        return _sett.union(arg.domain for arg in self.args)
+
+    @comp
+    def codomain(self, /):
+        return _sett.union(arg.codomain for arg in self.args)
+
+
+class SwitchMapp(ElasticMapp):
+
+    @comp
+    def typemapp(self, /):
+        return TypeMapp(
+            (mp.domain.signaltype, mp) for mp in self.args
+            )
+
+    @comp
+    def domain(self, /):
+        return _sett.union(*(mp.domain for mp in self.args))
+
+    @comp
+    def codomain(self, /):
+        return _sett.union(*(mp.codomain for mp in self.args))
+
+    def __getitem__(self, arg, /):
+        return self.typemapp[type(arg)][arg]
+
+    def subtend(self, arg, /):
+        if isinstance(arg, SwitchMapp):
+            arg = arg.typemapp
+        return self.__ptolemaic_class__(*self.typemapp.subtend(arg).values())
+
+    # @property
+    # def __call__(self, /):
+    #     return self._get_mapp(type(arg))
+
+
+class ComposedMapp(MappVariadicOp, metaclass=_System):
 
     @comp
     def domain(self, /):
@@ -269,27 +329,13 @@ class ComposedMapp(MappMultiOp):
     def codomain(self, /):
         return self.args[-1].codomain
 
-    @classmethod
-    def _unpack_args(cls, args, /):
-        for arg in args:
-            if isinstance(arg, cls):
-                yield from arg.args
-            else:
-                yield arg
-
-    @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
-        params.args = tuple(cls._unpack_args(params.args))
-        return params
-
     def __getitem__(self, arg, /):
         for mapp in self.args:
             arg = mapp[arg]
         return arg
 
 
-class StyleMapp(Mapp, metaclass=_System):
+class StyleMapp(MappMultiOp, metaclass=_System):
 
     pre: Mapp
     post: Mapp
@@ -297,12 +343,7 @@ class StyleMapp(Mapp, metaclass=_System):
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        convert = cls.convert
-        params.pre = convert(params.pre)
-        params.post = convert(params.post)
-        # params.posts.update(
-        #     (key, convert(val)) for key, val in params.posts.items()
-        #     )
+        params.pre, params.post = map(convert, (params.pre, params.post))
         return params
 
     def __getitem__(self, arg, /):
@@ -310,7 +351,19 @@ class StyleMapp(Mapp, metaclass=_System):
         return self.post[style][arg]
 
     def subtend(self, arg, /):
-        return self.__ptolemaic_class__(self.pre, self.post.subtend(arg))
+        if not isinstance(arg, StyleMapp):
+            raise TypeError(
+                "You can only subtend a StyleMapp with another StyleMapp:",
+                type(arg),
+                )
+        pre, argpre = self.pre, arg.pre
+        if pre is not argpre:
+            if isinstance(pre, SuperMapp):
+                pre = pre.subtend(pre)
+            else:
+                pre = argpre @ pre
+        post = self.post.subtend(arg.post)
+        return self.__ptolemaic_class__(pre, post)
 
     @comp
     def domain(self, /):
@@ -323,7 +376,16 @@ class StyleMapp(Mapp, metaclass=_System):
 
 # class Mappette(Mapp, metaclass=_System):
 
-#     __m
+#     __mergenames__ = {'__mapp_styles__': (dict, dict)}
+
+#     @classmethod
+#     def __class_init__(cls, /):
+#         super().__class_init__()
+#         cls.pre = ...
+#         cls.post = ...
+
+#     def __getitem__(self, arg, /):
+#         arg, style =
 
 
 _Stele_.complete()

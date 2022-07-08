@@ -66,10 +66,10 @@ class Ptolemaic(_ur.Dat, metaclass=PtolemaicMeta):
         obj = module = _inspect.getmodule(func)
         if not cls.check_module(module):
             return False
-        for nm in func.__qualname__.split('.')[:-1]:
-            obj = getattr(obj, nm)
-            if not cls.__instancecheck__(obj):
-                return False
+        # for nm in func.__qualname__.split('.')[:-1]:
+        #     obj = getattr(obj, nm)
+        #     if not cls.__instancecheck__(obj):
+        #         return False
         return True
 
     @classmethod

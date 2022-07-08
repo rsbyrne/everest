@@ -177,13 +177,13 @@ class _OusiaBase_(metaclass=Ousia):
                 val = _ptolemaic.convert(val)
             object.__setattr__(self, name, val)
         else:
-            raise AttributeError("Cannot alter value while immutable.")
+            raise RuntimeError("Cannot alter value while immutable.")
 
     def __delattr__(self, name, /):
         if self.mutable:
             object.__delattr__(self, name)
         else:
-            raise AttributeError("Cannot alter value while immutable.")
+            raise RuntimeError("Cannot alter value while immutable.")
 
 
     ### Implementing the attribute-freezing behaviour for instances:

@@ -156,6 +156,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         _abc.ABCMeta.__init__(cls, *args, **kwargs)
         iscosmic = cls._clsiscosmic
         del cls._clsiscosmic
+        cls.__class_post_construct__()
         if iscosmic:
             cls.__initialise__()
 
@@ -211,7 +212,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                     setname(cls, name)
             super().__setattr__(name, val)
         else:
-            raise AttributeError(
+            raise RuntimeError(
                 "Cannot alter class attribute while immutable."
                 )
 
@@ -219,7 +220,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         if cls.mutable:
             super().__delattr__(name)
         else:
-            raise AttributeError(
+            raise RuntimeError(
                 "Cannot alter class attribute while immutable."
                 )
 
@@ -314,6 +315,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
 
 class _EssenceBase_(metaclass=Essence):
+
+    @classmethod
+    def __class_post_construct__(cls, /):
+        pass
 
     @classmethod
     def _class_configure_as_innerobj(cls, owner, name, /):

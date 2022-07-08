@@ -16,6 +16,7 @@ def pretty(obj, p, cycle, root=''):
             tuple: pretty_tuple,
             _np.ndarray: pretty_array,
             _types.FunctionType: pretty_function,
+            _types.MethodType: pretty_method,
             }[type(obj)]
     except KeyError:
         p.pretty(obj)
@@ -29,6 +30,13 @@ def pretty_function(obj, p, cycle, /, root=''):
     p.text(obj.__module__)
     p.text('.')
     p.text(obj.__qualname__)
+
+
+def pretty_method(obj, p, cycle, /, root=''):
+    if root:
+        raise ValueError
+    p.pretty(obj.__self__)
+    p.text(f'.{obj.__name__}')
 
 
 def pretty_kwargs(obj, p, cycle, /, root=''):
@@ -65,11 +73,16 @@ def pretty_argskwargs(obj, p, cycle, /, root=''):
         return
     with p.group(4, root + '(', ')'):
         if args:
-            for val in args:
+            val = args[0]
+            p.breakable()
+            pretty(val, p, cycle)
+            for val in args[1:]:
+                p.text(',')
                 p.breakable()
                 pretty(val, p, cycle)
-                p.text(',')
         if kwargs:
+            if args:
+                p.text(',')
             kwargit = iter(kwargs.items())
             p.breakable()
             key, val = next(kwargit)
@@ -84,6 +97,11 @@ def pretty_argskwargs(obj, p, cycle, /, root=''):
                 pretty(val, p, cycle)
                 p.text(',')
         p.breakable()
+
+
+def pretty_call(caller, argskwargs, p, cycle, /, root=None):
+    pretty(caller, p, cycle, root=root)
+    pretty_argskwargs(argskwargs, p, cycle)
 
 
 def pretty_dict(obj, p, cycle, /, root='', enclosed=None):

@@ -59,7 +59,7 @@ def convert(arg, /):
     if arg is Sett:
         return POWER
     if arg in (None, _inspect._empty):
-        return UNIVERSE
+        return Setts.UNIVERSE
     if isinstance(arg, _collabc.Container):
         return ContainerSett(arg)
     if isinstance(arg, type):
@@ -103,17 +103,21 @@ class Sett(metaclass=_Essence):
 
     __req_slots__ = dict(_signaltype=None)
 
+    # def __init__(self, /):
+    #     super().__init__()
+    #     self.
+
     @property
     def signaltype(self, /):
         try:
-            return self._signaltype
+            return object.__getattribute__(self, '_signaltype')
         except AttributeError:
             typ = self.get_signaltype()
             if typ is None:
                 typ = _Null_
             elif typ is Ellipsis:
                 typ = _Any_
-            self.signaltype = typ
+            object.__setattr__(self, '_signaltype', typ)
             return typ
 
     def get_signaltype(self, /):
@@ -288,14 +292,19 @@ class Inverse(Op, metaclass=_Sprite):
         return self.sett
 
 
-class MultiOp(Op, metaclass=_Sprite):
+class MultiOp(Op):
 
-    setts: Sett
+    ...
+
+
+class VariadicOp(metaclass=_System):
+
+    args: ARGS
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
         out = super().__class_call__(*args, **kwargs)
-        if (nsetts := len(setts := out.setts)) == 0:
+        if (nsetts := len(setts := out.args)) == 0:
             return Setts.NULL
         elif nsetts == 1:
             return setts[0]
@@ -304,47 +313,47 @@ class MultiOp(Op, metaclass=_Sprite):
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        params.setts = tuple(sorted(set(map(convert, params.setts))))
+        params.args = tuple(sorted(set(map(convert, params.args))))
         return params
 
 
-class Union(MultiOp):
+class Union(VariadicOp):
 
     def get_signaltype(self, /):
-        typs = tuple(sorted(set(sett.signaltype for sett in self.setts)))
+        typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
         if len(typs) == 1:
             return typs[0]
         return typs
 
     def __sett_contains__(self, arg, /):
-        for sett in self.setts:
+        for sett in self.args:
             if arg in sett:
                 return True
         return False
 
     def __sett_includes__(self, arg, /):
-        for sett in self.setts:
+        for sett in self.args:
             if sett.__includes__(arg):
                 return True
         return NotImplemented
 
 
-class Intersection(MultiOp):
+class Intersection(VariadicOp):
 
     def get_signaltype(self, /):
-        typs = tuple(sorted(set(sett.signaltype for sett in self.setts)))
+        typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
         if len(typs) == 1:
             return typs[0]
         return _pseudotype.TypeIntersection(*typs)
 
     def __sett_contains__(self, arg, /):
-        for sett in self.setts:
+        for sett in self.args:
             if arg not in sett:
                 return False
         return True
 
     def __sett_includes__(self, arg, /):
-        return all(sett.__includes__(arg) for sett in self.setts)
+        return all(sett.__includes__(arg) for sett in self.args)
 
 
 inverse = Inverse.__class_call__
