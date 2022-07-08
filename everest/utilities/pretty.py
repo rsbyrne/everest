@@ -94,7 +94,7 @@ def pretty_dict(obj, p, cycle, /, root='', enclosed=None):
         p.text(root + '...'.join(brackets))
         return
     if not obj:
-        p.text(root + brackets)
+        p.text(root + ''.join(brackets))
         return
     with p.group(4, root + brackets[0], brackets[1]):
         kwargit = iter(obj.items())

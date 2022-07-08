@@ -14,11 +14,11 @@ from .essence import Essence as _Essence
 from .enumm import Enumm as _Enumm
 from .sprite import Sprite as _Sprite
 from .system import System as _System
-from .stele import Stele as _Stele
+from .stele import Stele as _Stele_
 from . import pseudotype as _pseudotype
 
 
-class _SteleType_(metaclass=_Stele):
+class _Stele_(_Stele_):
 
     def __call__(self, arg, /):
         if arg is self:
@@ -46,8 +46,11 @@ class _SteleType_(metaclass=_Stele):
     def register(self, /):
         return self.Sett.register
 
+    def __mro_entries__(self, bases, /):
+        return (self.Sett,)
 
-_SteleType_.commence()
+
+_Stele_.commence()
 
 
 def convert(arg, /):
@@ -349,7 +352,7 @@ union = Union.__class_call__
 intersection = Intersection.__class_call__
 
 
-_SteleType_.complete()
+_Stele_.complete()
 
 
 ###############################################################################

@@ -98,6 +98,7 @@ class ClassBody(dict):
             __module__=(lambda val: setattr(self, 'modname', val)),
             __qualname__=(lambda val: setattr(self, 'qualname', val)),
             __slots__=self.handle_slots,
+            __mergenames__=self._update_mergenames,
             )
         # self._sugar = _Switch(withsugar)
         self._redirects = dict(
@@ -114,6 +115,7 @@ class ClassBody(dict):
         self._fullyprepared = False
         self.escaped = set()
         self.escapedvals = dict()
+        self.mergenames = dict()
         if modname is None:
             if any(val is not None for val in (qualroot, qualname)):
                 raise ValueError(
@@ -198,6 +200,8 @@ class ClassBody(dict):
         try:
             _ = self.modname
         except AttributeError:
+            if not isinstance(val, str):
+                raise TypeError(type(val))
             self._modname = val
             super().__setitem__('__module__', val)
         else:
@@ -212,6 +216,8 @@ class ClassBody(dict):
         try:
             _ = self.qualname
         except AttributeError:
+            if not isinstance(val, str):
+                raise TypeError(type(val))
             self._qualname = val
             super().__setitem__('__qualname__', val)
             self._post_prepare()
@@ -253,8 +259,15 @@ class ClassBody(dict):
                 if mrobase not in bases:
                     bases.append(mrobase)
         for base in self._rawbases:
-            if base not in bases:
-                bases.append(base)
+            if isinstance(base, type):
+                if base not in bases:
+                    bases.append(base)
+            else:
+                raise TypeError(type(base))
+                # bases.extend(
+                #     entry for entry in base.__mro_entries__
+                #     if entry not in bases
+                #     )
         meta = self._rawmeta
         try:
             basetyp = meta.BaseTyp
@@ -288,36 +301,50 @@ class ClassBody(dict):
         self.meta = meta
         self.bases = tuple(bases)
 
-    def _post_prepare_mroclasses(self, /):
-        self.mroclassesmade = {key: False for key in self.meta.__mroclasses__}
-
-    def _post_prepare_mergednames(self, /):
-        bases = self.bases
-        meta = self.meta
-        mergenames = self.mergenames = tuple(
-            (nm, dyntyp, _ptolemaic.convert_type(fintyp))
-            for nm, dyntyp, fintyp in meta._yield_mergenames()
+    def _gather_mergenames(self, mname, dyntyp, /):
+        mergees = (
+            getattr(base, mname) for base in self.bases
+            if hasattr(base, mname)
             )
-        genericfunc = lambda meth, val: meth(val)
-        nametriggers = self._nametriggers
-        for mname, dyntyp, _ in mergenames:
-            mergees = (
-                getattr(base, mname) for base in bases if hasattr(base, mname)
-                )
-            if isinstance(dyntyp, type):
-                if issubclass(dyntyp, _collabc.Mapping):
-                    dynobj = dyntyp(_itertools.chain.from_iterable(
-                        mp.items() for mp in mergees
-                        ))
-                    meth = dynobj.update
-                else:
-                    dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
-                    meth = dynobj.extend
+        if isinstance(dyntyp, type):
+            if issubclass(dyntyp, _collabc.Mapping):
+                dynobj = dyntyp(_itertools.chain.from_iterable(
+                    mp.items() for mp in mergees
+                    ))
+                addmeth = dynobj.update
             else:
                 dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
-                meth = dynobj.extend
-            super().__setitem__(mname, dynobj)
-            nametriggers[mname] = _partial(genericfunc, meth)
+                addmeth = dynobj.extend
+        else:
+            dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
+            addmeth = dynobj.extend
+        return addmeth, dynobj
+
+    def _add_mergechannel(self, mname, /):
+        genericfunc = lambda addmeth, val: addmeth(val)
+        nametriggers = self._nametriggers
+        dyntyp, fintyp = self.mergenames[mname]
+        addmeth, dynobj = self._gather_mergenames(mname, dyntyp)
+        super().__setitem__(mname, dynobj)
+        nametriggers[mname] = _partial(genericfunc, addmeth)
+
+    def _update_mergenames(self, dct, /):
+        mergenames = self.mergenames
+        oldnames = set(mergenames)
+        mergenames.update(dct)
+        for mname in set(mergenames).difference(oldnames):
+            self._add_mergechannel(mname)
+
+    def _post_prepare_mergednames(self, /):
+        addmeth, dynobj = self._gather_mergenames('__mergenames__', dict)
+        dynobj.update(
+            (nm, (dyntyp, fintyp))
+            for nm, dyntyp, fintyp in self.meta._yield_mergenames()
+            )
+        self._update_mergenames(dynobj)
+
+    def _post_prepare_mroclasses(self, /):
+        self.mroclassesmade = {key: False for key in self.meta.__mroclasses__}
 
     def _post_prepare_bodymeths(self, /):
         toadd = dict(
@@ -364,8 +391,8 @@ class ClassBody(dict):
         super().__setitem__('_clsiscosmic', iscosmic)
         self._post_prepare_ismroclass()
         self._post_prepare_bases()
-        self._post_prepare_mroclasses()
         self._post_prepare_mergednames()
+        self._post_prepare_mroclasses()
         self._post_prepare_bodymeths()
         self._post_prepare_nametriggers()
         self._fullyprepared = True
@@ -375,7 +402,7 @@ class ClassBody(dict):
             base = self.meta._defaultbasetyp
         out = self[name] = type(
             name, (base,), {},
-            modname=self.module, qualroot=self.qualname,
+            modname=self.modname, qualroot=self.qualname,
             )
         return out
 
@@ -395,8 +422,12 @@ class ClassBody(dict):
         return out
 
     def _finalise_mergenames(self, /):
-        for mname, _, fintyp in self.mergenames:
+        mergenames = self.mergenames
+        for mname, (_, fintyp) in mergenames.items():
             super().__setitem__(mname, fintyp(super().__getitem__(mname)))
+        super().__setitem__(
+            '__mergenames__', _ptolemaic.convert(mergenames)
+            )
 
     def _finalise_mroclasses(self, /):
         for mroname, check in self.mroclassesmade.items():

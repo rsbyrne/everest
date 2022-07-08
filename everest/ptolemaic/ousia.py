@@ -33,10 +33,6 @@ class ConcreteBase:
             )))
     del methname
 
-    @classmethod
-    def __mro_entries__(cls, bases: tuple, /):
-        return (cls.__ptolemaic_class__,)
-
 
 @_ptolemaic.Kind.register
 class Ousia(_Urgon):
@@ -226,13 +222,13 @@ class _OusiaBase_(metaclass=Ousia):
     def __str__(self, /):
         return f"{self.rootrepr}({self.contentrepr})"
 
-    def _make_epitaph_(self, /):
+    def _make_epitaph_(self, taph, /):
         ptolcls = self.__ptolemaic_class__
-        if self.__iscosmic__:
-            return ptolcls.taphonomy.getitem_epitaph(
+        if self.__cosmic__:
+            return taph.getitem_epitaph(
                 ptolcls, tuple(self.params)
                 )
-        return ptolcls.taphonomy.getattr_epitaph(
+        return taph.getattr_epitaph(
             ptolcls, self.__relname__
             )
 
@@ -241,7 +237,10 @@ class _OusiaBase_(metaclass=Ousia):
         try:
             return self._epitaph
         except AttributeError:
-            epi = self._make_epitaph_()
+            try:
+                epi = self._make_epitaph_(self.__ptolemaic_class__.taphonomy)
+            except Exception as exc:
+                raise RuntimeError from exc
             object.__setattr__(self, '_epitaph', epi)
             return epi
 

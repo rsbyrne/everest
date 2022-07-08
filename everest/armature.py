@@ -125,10 +125,6 @@ class Armature(_abc.ABCMeta):
         return cls.__class_call__
 
     @property
-    def taphonomy(cls, /):
-        return _FOCUS.bureau.taphonomy
-
-    @property
     def param_convert(cls, /):
         return _ur.Dat.convert
 
@@ -156,7 +152,7 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
         cls.arity = len(cls.__fields__)
         cls.Concrete = type(cls)(cls)
 
-    def initialise(self, /):
+    def __initialise__(self, /):
         self.__init__()
         self.mutable = False
 
@@ -172,17 +168,17 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
         return obj
 
     @classmethod
-    def instantiate(cls, params: tuple, /):
+    def __instantiate__(cls, params: tuple, /):
         return cls._instantiate_(tuple(map(cls.param_convert, params)))
 
     @classmethod
     def _construct_(cls, params: tuple, /):
         obj = cls._instantiate_(params)
-        obj.initialise()
+        obj.__initialise__()
         return obj
 
     @classmethod
-    def construct(cls, params: tuple, /):
+    def __construct__(cls, params: tuple, /):
         return cls._construct_(tuple(map(cls.param_convert, params)))
 
     @classmethod
@@ -195,25 +191,25 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
             return obj
 
     @classmethod
-    def retrieve(cls, params: tuple, /):
+    def __retrieve__(cls, params: tuple, /):
         return cls._retrieve_(tuple(map(cls.param_convert, params)))
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
+    def __parameterise__(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.apply_defaults()
         return _types.SimpleNamespace(**bound.arguments)
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return cls.retrieve(tuple(
-            cls.parameterise(*args, **kwargs)
+        return cls.__retrieve__(tuple(
+            cls.__parameterise__(*args, **kwargs)
             .__dict__.values()
             ))
 
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):
-        return cls.retrieve(arg)
+        return cls.__retrieve__(arg)
 
     @property
     def mutable(self, /):

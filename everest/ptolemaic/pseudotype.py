@@ -42,8 +42,8 @@ class PseudoType(_Essence):
 class _PseudoTypeBase_(metaclass=PseudoType):
 
     @classmethod
-    def _class_make_epitaph_(cls, /):
-        return cls.taphonomy.getitem_epitaph(type(cls), tuple(cls.args))
+    def _class_make_epitaph_(cls, taph, /):
+        return taph.getitem_epitaph(type(cls), tuple(cls.args))
 
     @classmethod
     def __class_init__(cls, /):

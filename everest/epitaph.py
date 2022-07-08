@@ -210,10 +210,8 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         return self.enfence(self.encode_dict(arg, deps=deps), 'd')
 
     def encode_dict(self, arg: dict, /, *, deps: set = None):
-        pairs = zip(
-            map(subencode, arg),
-            map(self.sub_part(deps), arg.values()),
-            )
+        sub_part = self.sub_part(deps)
+        pairs = ((sub_part(key), sub_part(val)) for key, val in arg.items())
         return "{" + ','.join(map(':'.join, pairs)) + "}"
 
     def encode_array(self, arg: _np.ndarray, /, *, deps: set = None):
@@ -229,7 +227,8 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         return f"{typ}[{content}]"       
 
     def _encode_pickle(self,arg: object, /, *, deps: set = None) -> str:
-        return self.enfence(_pickle.dumps(arg), 'p')
+        # return self.enfence(_pickle.dumps(arg), 'p')
+        raise NotImplementedError
 
     @property
     def _encode_fallback(self, /):
@@ -274,10 +273,12 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
 
     def sub_encode(self, arg: object, /, deps: set = None):
         if hasattr(arg, 'epitaph'):
-            epitaph = arg.epitaph
-            if isinstance(epitaph, Epitaph):
-                deps.add(epitaph)
-                return f"$_{epitaph}"
+            arg = arg.epitaph
+        elif hasattr(arg, '_make_epitaph_'):
+            arg = arg._make_epitaph_(self)
+        if isinstance(arg, Epitaph):
+            deps.add(arg)
+            return f"$_{arg}"
         meth = self.encoders[type(arg)]
         encoded = meth(arg, deps=(subdeps:=set()))
         if subdeps:
@@ -361,6 +362,8 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         if deps is None:
             if isinstance(content, Epitaphable):
                 return content.epitaph
+            elif hasattr(content, '_make_epitaph_'):
+                return content._make_epitaph_(self)
             return self.auto_epitaph(content)
         if hexnone := (hexcode is None):
             hexcode = self.get_hexcode(content)

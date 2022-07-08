@@ -202,7 +202,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             if name == 'mutable':
                 super().__setattr__(name, val)
             elif not name.startswith('_'):
-                cls.param_convert(val)
+                _ptolemaic.convert(val)
                 try:
                     setname = val.__set_name__
                 except AttributeError:
@@ -268,7 +268,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         try:
             return cls.__dict__['_clsepitaph']
         except KeyError:
-            epi = cls._class_make_epitaph_()
+            epi = cls._class_make_epitaph_(cls.taphonomy)
             type.__setattr__(cls, '_clsepitaph', epi)
             return epi
 
@@ -309,8 +309,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.epitaph.hashID
 
     @property
-    def param_convert(cls, /):
-        return _ptolemaic.convert
+    def __mro_entries__(cls, bases, /):
+        return (cls.__ptolemaic_class__,)
 
 
 class _EssenceBase_(metaclass=Essence):
@@ -352,15 +352,13 @@ class _EssenceBase_(metaclass=Essence):
         return cls
 
     @classmethod
-    def _class_make_epitaph_(cls, /):
-        epi = cls.taphonomy.auto_epitaph(cls)
+    def _class_make_epitaph_(cls, taph, /):
+        epi = taph.auto_epitaph(cls)
         corpus = cls.__corpus__
         if corpus is None:
-            epi = cls.taphonomy.auto_epitaph(cls)
+            epi = taph.auto_epitaph(cls)
         else:
-            epi = cls.taphonomy.getattr_epitaph(
-                corpus, cls.__relname__
-                )
+            epi = taph.getattr_epitaph(corpus, cls.__relname__)
         return epi
 
     @classmethod

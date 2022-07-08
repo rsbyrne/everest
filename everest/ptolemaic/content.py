@@ -79,9 +79,8 @@ class Kwargs(Binding):
             root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.content, p, cycle, root=root)
 
-    def _make_epitaph_(self, /):
-        ptolcls = self.__ptolemaic_class__
-        return ptolcls.taphonomy.callsig_epitaph(ptolcls, **self)
+    def _make_epitaph_(self, taph, /):
+        return taph.callsig_epitaph(self.__ptolemaic_class__, **self)
 
 
 @_collabc.Sequence.register

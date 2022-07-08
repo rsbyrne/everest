@@ -15,10 +15,10 @@ from .essence import Essence as _Essence
 from .sprite import Sprite as _Sprite
 from .system import System as _System
 from . import sett as _sett
-from .stele import Stele as _Stele
+from .stele import Stele as _Stele_
 
 
-class _SteleType_(metaclass=_Stele):
+class _Stele_(_Stele_):
 
     def __call__(self, arg, /):
         if arg is self:
@@ -35,8 +35,11 @@ class _SteleType_(metaclass=_Stele):
     def register(self, /):
         return self.Mapp.register
 
+    def __mro_entries__(self, bases, /):
+        return (self.Mapp,)
 
-_SteleType_.commence()
+
+_Stele_.commence()
 
 
 class MappError(RuntimeError):
@@ -316,10 +319,14 @@ class StyleMapp(Mapp, metaclass=_System):
     @comp
     def codomain(self, /):
         return self.post.domain
-        # return _sett.BraceSett(post.codomain for post in self.posts.values())
 
 
-_SteleType_.complete()
+# class Mappette(Mapp, metaclass=_System):
+
+#     __m
+
+
+_Stele_.complete()
 
 
 ###############################################################################

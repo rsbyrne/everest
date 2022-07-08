@@ -3,13 +3,16 @@
 ###############################################################################
 
 
+import abc as _abc
 import inspect as _inspect
 import sys as _sys
 import itertools as _itertools
 import types as _types
 import weakref as _weakref
 
-from .ousia import Ousia as _Ousia
+from everest.armature import Armature as _Armature
+
+# from .ousia import Ousia as _Ousia
 from . import ptolemaic as _ptolemaic
 
 
@@ -22,7 +25,16 @@ def _get_calling_scope_name_(name):
     return frame.f_locals[name]
 
 
-class Stele(_Ousia):
+@_ptolemaic.Ptolemaic.register
+class _SteleMeta_(_Armature):
+
+    @property
+    def __instancecheck__(cls, /):
+        return _abc.ABCMeta.__instancecheck__.__get__(cls)
+
+    @property
+    def __subclasscheck__(cls, /):
+        return _abc.ABCMeta.__subclasscheck__.__get__(cls)
 
     def commence(cls, /):
         name = _get_calling_scope_name_('__name__')
@@ -31,7 +43,10 @@ class Stele(_Ousia):
         if isinstance(module, cls):
             return module
         if isinstance(module, _types.ModuleType):
-            stele = module.__dict__.get('_Stele_', cls).__instantiate__()
+            stele = (
+                module.__dict__.get('_Stele_', cls)
+                .__instantiate__(name)
+                )
             stele._module_ = module
             stele.name = module.__name__
             modules[name] = stele
@@ -53,25 +68,50 @@ class Stele(_Ousia):
     def __exit__(cls, /, *_):
         cls.complete()
 
+    @property
+    def param_convert(cls, /):
+        return _ptolemaic.convert
 
-class _SteleBase_(metaclass=Stele):
 
-    __slots__ = ('name', '_module_', '__dict__')
+@_ptolemaic.Ptolemaic.register
+class Stele(metaclass=_SteleMeta_):
+
+    __slots__ = ('_module_', '__dict__', '_innerobjs')
+
+    name: str
 
     _ISSTELE_ = True
 
     @classmethod
-    def parameterise(cls, name, /):
-        return super().parameterise(name=name)
+    def __parameterise__(cls, name, /):
+        return super().__parameterise__(name=name)
 
     def __initialise__(self, /):
         module = self._module_
-        del self._module_
+        # del self._module_
         self.__dict__ = dict(_itertools.starmap(
             self._process_name_val_, module.__dict__.items()
             ))
-        self._epitaph = self.__ptolemaic_class__.taphonomy(module)
         super().__initialise__()
+        try:
+            innerobjs = self._innerobjs
+        except AttributeError:
+            pass
+        else:
+            for name, obj in innerobjs.items():
+                obj.__initialise__()
+            object.__delattr__(self, '_innerobjs')
+
+    def _make_epitaph_(self, taph, /):
+        return taph(self._module_)
+
+    def register_innerobj(self, name, obj, /):
+        try:
+            innerobjs = self._innerobjs
+        except AttributeError:
+            innerobjs = self._innerobjs = {}
+        innerobjs[name] = obj
+        obj._configure_as_innerobj(self, name)
 
     def _process_name_val_(self, name, val, /):
         if val is self:
@@ -83,9 +123,6 @@ class _SteleBase_(metaclass=Stele):
             val = _ptolemaic.convert(val)
         return name, val
 
-    def _make_epitaph_(self, /):
-        raise NotImplementedError
-
     def __repr__(self, /):
         return self.name
 
@@ -96,8 +133,8 @@ class _SteleBase_(metaclass=Stele):
         p.text(repr(self))
 
 
-commence = _SteleBase_.__enter__
-complete = _SteleBase_.__exit__
+commence = Stele.__enter__
+complete = Stele.__exit__
 
 
 ###############################################################################
