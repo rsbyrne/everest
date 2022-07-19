@@ -12,11 +12,12 @@ from collections import abc as _collabc
 
 from everest.utilities import pretty as _pretty
 
-from .essence import Essence as _Essence
+from .ousia import Ousia as _Ousia
 from .sprite import Sprite as _Sprite
 from .system import System as _System
 from . import sett as _sett
 from .stele import Stele as _Stele_
+from .semaphore import Dispatch as _Dispatch
 
 
 class _Stele_(_Stele_):
@@ -48,6 +49,8 @@ class MappError(RuntimeError):
 
 
 def convert(arg, /):
+    if arg is Ellipsis:
+        return CallMapp(_sett._Any_)
     if isinstance(arg, Mapp):
         return arg
     if isinstance(arg, _collabc.Mapping):
@@ -59,17 +62,11 @@ def convert(arg, /):
     raise TypeError(type(arg))
 
 
-class Mapp(metaclass=_Essence):
-
-    convert = staticmethod(convert)
+class Mapp(metaclass=_Ousia):
 
     @_abc.abstractmethod
     def __getitem__(self, _, /):
         raise NotImplementedError
-
-    # @_abc.abstractmethod
-    # def __call__(self, /, *_, **__):
-    #     raise NotImplementedError
 
     @property
     @_abc.abstractmethod
@@ -81,11 +78,17 @@ class Mapp(metaclass=_Essence):
     def codomain(self, /):
         raise NotImplementedError
 
-    def __matmul__(self, arg, /):
-        return ComposedMapp(arg, self)
+    def __compose__(self, other, /):
+        return MappComposition(self, other)
 
-    def __rmatmul__(self, arg, /):
-        return ComposedMapp(self, arg)
+    def __rcompose__(self, other, /):
+        return MappComposition(other, self)
+
+    def __rshift__(self, arg, /):
+        return self.__compose__(arg)
+
+    def __rrshift__(self, arg, /):
+        return self.__rcompose__(arg)
 
     def extend(self, arg, /):
         return ChainMapp(arg, self)
@@ -94,19 +97,37 @@ class Mapp(metaclass=_Essence):
         raise NotImplementedError
 
 
+class RetrieveMapp(Mapp, metaclass=_System):
+
+    codomain: _sett.Sett
+
+    @comp
+    def domain(self, /):
+        return self.codomain
+
+    def __getitem__(self, arg, /):
+        if arg in self.domain:
+            return arg
+        raise MappError(arg)
+
+
+class CheckMapp(Mapp, metaclass=_System):
+
+    sett: _sett.Sett
+
+    domain = _sett.UNIVERSE
+    codomain = _sett(bool)
+
+    def __getitem__(self, arg, /):
+        return arg in self.sett
+
+
 class CallMapp(Mapp, metaclass=_System):
 
     func: _collabc.Callable
 
-    # @comp
-    # def ismethod(self, /):
-    #     return isinstance(self.func, _types.MethodType)
-
     @comp
     def setts(self, /):
-        # pms = iter()
-        # if self.ismethod:
-        #     next(pms)
         return tuple(
             _sett(pm.annotation)
             for pm in _inspect.signature(self.func).parameters.values()
@@ -126,7 +147,7 @@ class CallMapp(Mapp, metaclass=_System):
 
     @comp
     def codomain(self, /):
-        return _sett(self.func.__annotations__.get('return', None))
+        return _sett(self.func.__annotations__.get('return', ...))
 
     @comp
     def _getitem_(self, /):
@@ -139,10 +160,6 @@ class CallMapp(Mapp, metaclass=_System):
         if arg in self.domain:
             return self._getitem_(arg)
         raise MappError(arg)
-
-#     @property
-#     def __call__(self, /):
-#         return self.func
 
 
 class SuperMapp(Mapp):
@@ -172,6 +189,9 @@ class ArbitraryMapp(SuperMapp, metaclass=_System):
                 f"    return self.mapping.{methname}",
                 )))
 
+    def __getitem__(self, arg, /):
+        return self.mapping[arg]
+
     @comp
     def domain(self, /):
         return _sett(tuple(self.mapping))
@@ -186,7 +206,7 @@ class ArbitraryMapp(SuperMapp, metaclass=_System):
     def subtend(self, arg: _collabc.Mapping, /):
         mapping = {**self.mapping}
         for key in arg:
-            mapping[key] = arg[key] @ mapping[key]
+            mapping[key] = mapping[key] >> arg[key]
         return self.__ptolemaic_class__(mapping)
 
     def _repr_pretty_(self, p, cycle, root=None):
@@ -231,11 +251,6 @@ class ModifiedMapp(MappOp, metaclass=_System):
         out = self.mapp[arg]
         assert out in self.codomain
         return out
-
-    # def __call__(self, /, *args, **kwargs):
-    #     out = self.mapp(*args, **kwargs)
-    #     assert out in self.codomain
-    #     return out
 
 
 class MappMultiOp(MappOp):
@@ -314,12 +329,8 @@ class SwitchMapp(ElasticMapp):
             arg = arg.typemapp
         return self.__ptolemaic_class__(*self.typemapp.subtend(arg).values())
 
-    # @property
-    # def __call__(self, /):
-    #     return self._get_mapp(type(arg))
 
-
-class ComposedMapp(MappVariadicOp, metaclass=_System):
+class MappComposition(MappVariadicOp, metaclass=_System):
 
     @comp
     def domain(self, /):
@@ -343,27 +354,28 @@ class StyleMapp(MappMultiOp, metaclass=_System):
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        params.pre, params.post = map(convert, (params.pre, params.post))
+        pre = params.pre = convert(params.pre)
+        post = params.post = convert(params.post)
+        if not isinstance(pre, ElasticMapp):
+            raise ValueError(pre)
         return params
 
     def __getitem__(self, arg, /):
-        arg, style = self.pre[arg]
-        return self.post[style][arg]
+        if not isinstance(arg, _Dispatch):
+            arg = self.pre[arg]
+        return self.post[arg.envelope][arg.content]
 
     def subtend(self, arg, /):
         if not isinstance(arg, StyleMapp):
             raise TypeError(
-                "You can only subtend a StyleMapp with another StyleMapp:",
+                ("You can only subtend a StyleMapp "
+                "with another StyleMapp:"),
                 type(arg),
                 )
-        pre, argpre = self.pre, arg.pre
-        if pre is not argpre:
-            if isinstance(pre, SuperMapp):
-                pre = pre.subtend(pre)
-            else:
-                pre = argpre @ pre
-        post = self.post.subtend(arg.post)
-        return self.__ptolemaic_class__(pre, post)
+        return self.__ptolemaic_class__(
+            self.pre.extend(arg.pre),
+            self.post.subtend(arg.post),
+            )
 
     @comp
     def domain(self, /):
@@ -374,20 +386,6 @@ class StyleMapp(MappMultiOp, metaclass=_System):
         return self.post.domain
 
 
-# class Mappette(Mapp, metaclass=_System):
-
-#     __mergenames__ = {'__mapp_styles__': (dict, dict)}
-
-#     @classmethod
-#     def __class_init__(cls, /):
-#         super().__class_init__()
-#         cls.pre = ...
-#         cls.post = ...
-
-#     def __getitem__(self, arg, /):
-#         arg, style =
-
-
 _Stele_.complete()
 
 
@@ -395,37 +393,15 @@ _Stele_.complete()
 ###############################################################################
 
 
-# class BraceSwitchMapp(SwitchMapp):
+    # def __get_signature__(self, /) -> _inspect.Signature:
+    #     return _inspect.Signature(
+    #         (_inspect.Parameter(
+    #             'arg', _inspect.Parameter.POSITIONAL_ONLY,
+    #             annotation=self.domain,
+    #             ),),
+    #         return_annotation=self.codomain,
+    #         )
 
-#     @classmethod
-#     def __parameterise__(cls, /, *args, **kwargs):
-#         params = super().__parameterise__(*args, **kwargs)
-#         mapps = params.mapps
-#         domains = tuple(mapp.domain for mapp in mapps)
-#         if not all(map(_sett.Brace.__instancecheck__, domains)):
-#             raise cls.paramexc(
-#                 mapps, "All mapps in a BraceSwitchMapp must be of Brace type."
-#                 )
-#         if len(set(domain.breadth for domain in domains)) != 1:
-#             raise cls.paramexc(mapps, (
-#                 "All mapps in a BraceSwitchMapp must have domains "
-#                 "of the same shape."
-#                 ))
-#         return params
-
-#     @_Armature.prop
-#     def get_mapp(self, /):
-#         checkmapps = tuple(
-#             (tuple(sett.signaltype for sett in mapp.domain.setts), mapp)
-#             for mapp in self.mapps
-#             )
-#         @_functools.lru_cache
-#         def _func_(*typs):
-#             for checktyps, mapp in checkmapps:
-#                 if all(_itertools.starmap(issubclass, zip(typs, checktyps))):
-#                     return mapp
-#             raise MappError(typs)
-#         return _func_
-
-#     def __getitem__(self, arg, /):
-#         return self.get_mapp(*map(type, arg))[arg]
+    # @_abc.abstractmethod
+    # def __call__(self, /, *_, **__):
+    #     raise NotImplementedError

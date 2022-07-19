@@ -19,7 +19,7 @@ class ContentProxy(metaclass=_Sprite):
     __content_type__ = _ptolemaic.PtolTuple
     __content_meths__ = ()
 
-    content: None
+    content: ...
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
@@ -79,7 +79,7 @@ class Kwargs(Binding):
             root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.content, p, cycle, root=root)
 
-    def _make_epitaph_(self, taph, /):
+    def __taphonomise__(self, taph, /):
         return taph.callsig_epitaph(self.__ptolemaic_class__, **self)
 
 

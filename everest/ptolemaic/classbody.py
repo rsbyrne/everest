@@ -384,14 +384,18 @@ class ClassBody(dict):
         try:
             outer = BODIES[modname, stump]
         except KeyError:
-            try:
-                _ = module._ISSTELE_
-            except AttributeError:
-                iscosmic = True
-                outer = None
-            else:
+            if False:  # if modname == '__main__':
                 iscosmic = False
                 outer = module
+            else:
+                try:
+                    module._ISSTELE_
+                except AttributeError:
+                    iscosmic = True
+                    outer = None
+                else:
+                    iscosmic = False
+                    outer = module
         else:
             iscosmic = False
         self.outer = outer
@@ -456,7 +460,13 @@ class ClassBody(dict):
         if self.iscosmic:
             type.__setattr__(out, '_clsiscosmic', True)
         else:
-            self.outer.register_innerobj(self.name, out)
+            name, outer = self.name, self.outer
+            try:
+                meth = outer.register_innerobj
+            except AttributeError:
+                _ptolemaic.configure_as_innerobj(out, outer, name)
+            else:
+                meth(name, out)
             type.__setattr__(out, '_clsiscosmic', False)
         type.__setattr__(out, '_clsinnerobjs', {})
         for name, innerobj in self.innerobjs.items():

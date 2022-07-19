@@ -57,7 +57,7 @@ class _EnummBase_(metaclass=Enumm):
     ### Class setup:
 
     @classmethod
-    def _get_signature(cls, /):
+    def __class_get_signature__(cls, /):
         return None
 
     @classmethod
@@ -99,6 +99,16 @@ class _EnummBase_(metaclass=Enumm):
         if isinstance(arg, str):
             return cls.enumeratorsdict[arg]
         return cls.enumerators[arg]
+
+    def __lt__(self, other, /):
+        if isinstance(other, self.__ptolemaic_class__):
+            return self.serial < other.serial
+        return super().__lt__(other)
+
+    def __gt__(self, other, /):
+        if isinstance(other, self.__ptolemaic_class__):
+            return self.serial > other.serial
+        return super().__gt__(other)
 
 
 ###############################################################################

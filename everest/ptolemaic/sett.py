@@ -11,6 +11,7 @@ import sys as _sys
 
 from . import ptolemaic as _ptolemaic
 from .essence import Essence as _Essence
+from .ousia import Ousia as _Ousia
 from .enumm import Enumm as _Enumm
 from .sprite import Sprite as _Sprite
 from .system import System as _System
@@ -53,21 +54,27 @@ class _Stele_(_Stele_):
 _Stele_.commence()
 
 
+class SettError(RuntimeError):
+    ...
+
+
 def convert(arg, /):
     if isinstance(arg, Sett):
         return arg
     if arg is Sett:
-        return POWER
-    if arg in (None, _inspect._empty):
+        return Setts.POWER
+    if arg is NotImplemented:
+        return Setts.NULL
+    if arg in (_inspect._empty, Ellipsis):
         return Setts.UNIVERSE
-    if isinstance(arg, _collabc.Container):
-        return ContainerSett(arg)
     if isinstance(arg, type):
         if isinstance(arg, _types.GenericAlias):
             return BraceSett(
                 tuple(map(convert, arg.__args__)), arg.__origin__
                 )
         return TypeSett(arg)
+    if isinstance(arg, _collabc.Container):
+        return ContainerSett(arg)
     if isinstance(arg, _types.FunctionType):
         return FuncSett(arg)
     raise TypeError(arg, type(arg))
@@ -85,6 +92,10 @@ class _Any_(metaclass=_Essence):
             return True
         return NotImplemented
 
+    @classmethod
+    def __class_call__(cls, arg, /):
+        return arg
+
 
 class _Null_(metaclass=_Essence):
 
@@ -99,9 +110,9 @@ class _Null_(metaclass=_Essence):
         return NotImplemented
 
 
-class Sett(metaclass=_Essence):
+class Sett(metaclass=_Ousia):
 
-    __req_slots__ = dict(_signaltype=None)
+    __slots__ = dict(_signaltype=None)
 
     # def __init__(self, /):
     #     super().__init__()
@@ -113,39 +124,47 @@ class Sett(metaclass=_Essence):
             return object.__getattribute__(self, '_signaltype')
         except AttributeError:
             typ = self.get_signaltype()
-            if typ is None:
+            if typ is NotImplemented:
                 typ = _Null_
             elif typ is Ellipsis:
                 typ = _Any_
+            elif isinstance(typ, Sett):
+                typ = typ.signaltype
             object.__setattr__(self, '_signaltype', typ)
             return typ
 
     def get_signaltype(self, /):
         return _Any_
 
-    def __sett_contains__(self, arg, /):
+    def _contains_(self, arg, /):
         return NotImplemented
 
     def __contains__(self, arg, /):
-        out = self.__sett_contains__(arg)
+        if not isinstance(arg, self.signaltype):
+            return False
+        out = self._contains_(arg)
         if out is NotImplemented:
             try:
                 meth = arg.__constitutes__
             except AttributeError:
-                raise NotImplementedError
+                raise SettError
             out = meth(arg)
         return bool(out)
 
-    def __sett_includes__(self, arg, /):
+    def _includes_(self, arg, /):
         return NotImplemented
 
     def __includes__(self, arg, /):
-        out = self.__sett_includes__(arg)
+        if not isinstance(arg, Sett):
+            raise SettError
+        if not issubclass(arg.signaltype, self.signaltype):
+            return False
+        out = self._includes_(arg)
         if out is NotImplemented:
             try:
                 meth = arg.__entails__
             except AttributeError:
-                raise NotImplementedError
+                raise SettError
             out = meth(arg)
         return bool(out)
 
@@ -180,12 +199,18 @@ class Sett(metaclass=_Essence):
 
 class Setts(Sett, metaclass=_Enumm):
 
-    UNIVERSE: None = _Any_
-    NULL: None = _Null_
-    POWER: None = Sett
+    UNIVERSE: "The universal set, containing everything." = _Any_
+    NULL: "The null set, containing nothing." = _Null_
+    POWER: "The power set, containing all sets." = Sett
 
-    def __sett_contains__(self, arg, /):
-        return isinstance(arg, self._value_)
+    def get_signaltype(self, /):
+        return self._value_
+
+    def _contains_(self, arg, /):
+        return True
+
+    def _includes_(self, arg, /):
+        return True
 
 
 class FuncSett(Sett, metaclass=_System):
@@ -196,7 +221,7 @@ class FuncSett(Sett, metaclass=_System):
         return next(iter(self.func.__annotations__.values(), Any))
 
     @property
-    def __sett_contains__(self, /):
+    def _contains_(self, /):
         return self.func
 
 
@@ -208,10 +233,10 @@ class ContainerSett(Sett, metaclass=_System):
         return tuple(sorted(set(map(type, self.container))))
 
     @property
-    def __sett_contains__(self, /):
+    def _contains_(self, /):
         return self.container.__contains__
 
-    def __sett_includes__(self, arg, /):
+    def _includes_(self, arg, /):
         return all(map(self.container.__contains__, arg))
 
 
@@ -222,10 +247,10 @@ class TypeSett(Sett, metaclass=_Sprite):
     def get_signaltype(self, /):
         return self.typ
 
-    def __sett_contains__(self, arg, /):
+    def _contains_(self, arg, /):
         return isinstance(arg, self.typ)
 
-    def __sett_includes__(self, arg, /):
+    def _includes_(self, arg, /):
         return issubclass(arg, self.typ)
 
 
@@ -247,7 +272,7 @@ class BraceSett(Sett, metaclass=_Sprite):
     def get_signaltype(self, /):
         return self.typ
 
-    def __sett_contains__(self, arg, /):
+    def _contains_(self, arg, /):
         if not isinstance(arg, self.typ):
             return False
         return all(
@@ -255,7 +280,7 @@ class BraceSett(Sett, metaclass=_Sprite):
             for sett, subarg in zip(self.setts, arg)
             )
 
-    def __sett_includes__(self, arg, /):
+    def _includes_(self, arg, /):
         if not isinstance(arg, BraceSett):
             return False
         if arg.breadth != self.breadth:
@@ -282,10 +307,10 @@ class Inverse(Op, metaclass=_Sprite):
         params.sett = convert(params.sett)
         return bound
 
-    def __sett_contains__(self, arg, /):
+    def _contains_(self, arg, /):
         return arg not in self.sett
 
-    def __sett_includes__(self, arg, /):
+    def _includes_(self, arg, /):
         return not self.sett.__includes__(arg)
 
     def __inverse__(self, /):
@@ -325,13 +350,13 @@ class Union(VariadicOp):
             return typs[0]
         return typs
 
-    def __sett_contains__(self, arg, /):
+    def _contains_(self, arg, /):
         for sett in self.args:
             if arg in sett:
                 return True
         return False
 
-    def __sett_includes__(self, arg, /):
+    def _includes_(self, arg, /):
         for sett in self.args:
             if sett.__includes__(arg):
                 return True
@@ -346,13 +371,13 @@ class Intersection(VariadicOp):
             return typs[0]
         return _pseudotype.TypeIntersection(*typs)
 
-    def __sett_contains__(self, arg, /):
+    def _contains_(self, arg, /):
         for sett in self.args:
             if arg not in sett:
                 return False
         return True
 
-    def __sett_includes__(self, arg, /):
+    def _includes_(self, arg, /):
         return all(sett.__includes__(arg) for sett in self.args)
 
 

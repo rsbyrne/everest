@@ -264,14 +264,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return type(cls.__ptolemaic_class__)
 
     @property
+    def __taphonomise__(cls, /):
+        return cls._class__taphonomise__
+
+    @property
     def epitaph(cls, /):
-        cls = cls.__ptolemaic_class__
-        try:
-            return cls.__dict__['_clsepitaph']
-        except KeyError:
-            epi = cls._class_make_epitaph_(cls.taphonomy)
-            type.__setattr__(cls, '_clsepitaph', epi)
-            return epi
+        return cls.taphonomy[cls]
 
     ### Operations:
 
@@ -321,23 +319,17 @@ class _EssenceBase_(metaclass=Essence):
         pass
 
     @classmethod
-    def _class_configure_as_innerobj(cls, owner, name, /):
-        cls.__class_relname__ = name
-        cls.__class_corpus__ = owner
-        if isinstance(owner, Essence):
-            cls.__qualname__ = owner.__qualname__ + '.' + name    
-
-    @classmethod
-    def _class_register_innerobj(cls, name, other, /):
-        if not cls.mutable:
-            raise RuntimeError(
-                "Cannot register a new innerobj "
-                "after a class has been made immutable "
-                "(i.e. after it has been completely initialised): "
-                f"{cls}"
-                )
-        cls._clsinnerobjs[name] = other
-        other._configure_as_innerobj(cls, name)
+    def _class_register_innerobj(cls, name, obj, /):
+        _ptolemaic.configure_as_innerobj(obj, cls, name)
+        if cls.mutable:
+            cls._clsinnerobjs[name] = obj
+        else:
+            try:
+                meth = obj.__initialise__
+            except AttributeError:
+                pass
+            else:
+                meth()
 
     @classmethod
     def __class_initialise__(cls, /):
@@ -357,14 +349,10 @@ class _EssenceBase_(metaclass=Essence):
         return cls
 
     @classmethod
-    def _class_make_epitaph_(cls, taph, /):
-        epi = taph.auto_epitaph(cls)
-        corpus = cls.__corpus__
-        if corpus is None:
-            epi = taph.auto_epitaph(cls)
-        else:
-            epi = taph.getattr_epitaph(corpus, cls.__relname__)
-        return epi
+    def _class__taphonomise__(cls, taph, /):
+        if (corpus := cls.__corpus__) is None:
+            return taph.auto_epitaph(cls)
+        return taph.getattr_epitaph(corpus, cls.__relname__)
 
     @classmethod
     def __class_instancecheck__(cls, obj, /):

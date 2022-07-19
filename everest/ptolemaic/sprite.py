@@ -41,7 +41,7 @@ class _SpriteBase_(metaclass=Sprite):
             yield name, hint
 
     @classmethod
-    def _get_signature(cls, /):
+    def __class_get_signature__(cls, /):
         parameters = (
             _inspect.Parameter(
                 name, _pkind['POSITIONAL_OR_KEYWORD'],

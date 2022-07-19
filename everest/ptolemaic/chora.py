@@ -4,14 +4,11 @@
 
 
 import abc as _abc
-from collections import abc as _collabc, deque as _deque
+from collections import deque as _deque
 
-from everest import ur as _ur
-
-from .essence import Essence as _Essence
-from . import sett as _sett, mapp as _mapp
-from .enumm import Enumm as _Enumm
 from .stele import Stele as _Stele_
+from .semaphore import Semaphore as _Semaphore
+from . import sett as _sett, mapp as _mapp
 from .system import System as _System
 
 
@@ -35,12 +32,13 @@ class _Stele_(_Stele_):
 _Stele_.commence()
 
 
-class IncisionError(_mapp.MappError):
+def convert(arg, /):
+    if isinstance(arg, Chora):
+        return arg
+    raise TypeError(arg, type(arg))
 
-    ...
 
-
-class IncisionStyle(metaclass=_Enumm):
+class IncisionStyle(metaclass=_Semaphore):
 
     RETRIEVE: 'The procedure to return a single element.'
     SLYCE: 'The procedure to return a subset of elements.'
@@ -48,21 +46,47 @@ class IncisionStyle(metaclass=_Enumm):
     NULL: 'The special procedure for incisor `None`.'
 
 
-@_mapp.register
-@_sett.register
-class Chora(metaclass=_Essence):
+class IncisionError(_mapp.MappError):
 
     ...
-#     @property
-#     def domain(self, /):
-#         return s
-
-#     @property
-#     def codomain(self, /):
-#         return self
 
 
-class Choret(Chora, metaclass=_System):
+class Chora(_sett.Sett, _mapp.Mapp, metaclass=_System):
+
+    @property
+    @_abc.abstractmethod
+    def mapp(self, /) -> _mapp.Mapp:
+        raise NotImplementedError
+
+    def __getitem__(self, arg, /):
+        return self.mapp[arg]
+
+    @comp
+    def domain(self, /):
+        return self.mapp.pre.domain
+
+    @comp
+    def codomain(self, /):
+        return self.mapp.post[IncisionStyle.RETRIEVE].codomain
+
+    def __compose__(self, other, /):
+        return ChoraComposition(self, other)
+
+    def __rcompose__(self, other, /):
+        return ChoraComposition(other, self)
+
+    with escaped('methname'):
+        for methname in (
+                'get_signaltype', '_contains_', '_includes_'
+                ):
+            exec('\n'.join((
+                f"@property",
+                f"def {methname}(self, /):",
+                f"    return self.codomain.{methname}",
+                )))
+
+
+class Choret(Chora):
 
     __mergenames__ = dict(__incision_styles__=list)
     __incision_styles__ = IncisionStyle
@@ -86,15 +110,27 @@ class Choret(Chora, metaclass=_System):
             {style: deq for style, deq in zip(styles, channels.values())},
             )
 
+    def _incise_handle_ellipsis_(self, incisor: type(Ellipsis), /):
+        return IncisionStyle.TRIVIAL(incisor)
+
+    def _incise_handle_none_(self, incisor: type(None), /):
+        return IncisionStyle.NULL(incisor)
+
+    def _incise_handle_chora_(self, incisor: Chora, /):
+        return IncisionStyle.SLYCE(incisor)
+
+    def _incise_slyce_chora_(self, incisor: Chora, /):
+        return incisor >> self
+
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         cls._inchandlers, cls._incmeths = \
             cls._incision_gather_methnames()
 
-    @comp
+    @organ
     def mapp(self, /):
-        return _mapp.StyleMapp(
+        return _mapp.StyleMapp.__class_alt_call__(
             _mapp((getattr(self, nm) for nm in self._inchandlers)),
             _mapp({
                 style: _mapp((getattr(self, nm) for nm in names))
@@ -102,11 +138,18 @@ class Choret(Chora, metaclass=_System):
                 }),
             )
 
-    def __getitem__(self, arg, /):
-        return self.mapp[arg]
 
-#     def subtend(self, arg, /):
-        
+class ChoraComposition(Chora):
+
+    choras: ARGS
+
+    @comp
+    def mapp(self, /):
+        mapps = (chora.mapp for chora in self.choras)
+        mapp = next(mapps)
+        for nextmapp in mapps:
+            mapp = mapp.subtend(nextmapp)
+        return mapp
 
 
 _Stele_.complete()
@@ -116,199 +159,51 @@ _Stele_.complete()
 ###############################################################################
 
 
-#     @classmethod
-#     def _gather_methods(cls, /):
-#         channels = {'_incise_handle_': {}}
-#         styles = cls.__incision_styles__
-#         channels.update(
-#             (f'_incise_{style.name.lower()}_', {})
-#             for style in styles
-#             )
-#         for base in reversed(cls.__mro__):
-#             for name, meth in base.__dict__.items():
-#                 for prefix, dct in channels.items():
-#                     if name.startswith(prefix):
-#                         dct[name] = meth
-#                     continue
-#         return (
-#             _mapp(channels.pop('_incise_handle_').values()),
-#             _mapp({
-#                 style: _mapp(meths)
-#                 for style, meths in zip(styles, channels.values())
-#                 }),
-#             )
-
-
-# class IncisionStyle(metaclass=_Enumm):
-
-#     RETRIEVE: 'The procedure to return a single element.' \
-#         = '__incise_retrieve__'
-#     SLYCE: 'The procedure to return a subset of elements.' \
-#         = '__incise_slyce__'
-#     TRIVIAL: 'The procedure for trivial incisors like `...`.' \
-#         = '__incise_trivial__'
-#     NULL: 'The special procedure for incisor `None`.' \
-#         = '__incise_null__'
-
-#     def __call__(self, other, /):
-#         return getattr(other, self._value_)
-
-
-# def convert(arg, /):
-#     if isinstance(arg, Chora):
-#         return arg
-#     if isinstance(arg, _mapp):
-#         return Chora(arg.codomain, )
-#     raise TypeError(type(arg))
-
-
-# @_sett.register
-# @_mapp.register
-# class Chora(metaclass=_System):
-
-#     sett: _sett.Sett
-#     mapp: _mapp.Mapp
-
-#     @classmethod
-#     def parameterise(cls, /, *args, **kwargs):
-#         params = super().parameterise(*args, **kwargs)
-#         params.sett = _sett.convert(params.sett)
-#         params.mapp = _mapp.convert(params.mapp)
-#         return params
-
-#     def __getitem__(self, arg, /):
-#         out = self.mapp[arg]
-#         if out in self.sett:
-#             return out
-#         raise IncisionError(arg)
-
-#     def __contains__(self, arg, /):
-#         return arg in self.sett
-
-#     def __includes__(self, arg, /):
-#         return self.sett.__includes__(arg)
-
-
-# @Chora.register
-# class Choric(metaclass=_System):
-
-#     @comp
-#     def chora(self, /) -> Chora:
-#         raise NotImplementedError
-
-#     def __getitem__(self, arg, /):
-#         return self.chora[arg]
-
-#     def __contains__(self, arg, /):
-#         return arg in self.chora
-
-#     def __includes__(self, arg, /):
-#         return self.chora.__includes__(arg)
-
-
 # class Chora(_sett.Sett, _mapp.Mapp):
 
-#     convert = staticmethod(convert)
-
 #     @_abc.abstractmethod
-#     def __incise_pre__(self, arg, /) -> tuple[IncisionStyle, object]:
-#         if isinstance(arg, slice):
-#             args = arg.start, arg.stop, arg.step
-#             if all(subarg is None for subarg in args):
-#                 return IncisionStyle.TRIVIAL, arg
-#             return IncisionStyle.SLYCE, arg
-#         if arg is NotImplemented:
-#             return IncisionStyle.NULL, arg
-#         if arg is None:
-#             return IncisionStyle.TRIVIAL, arg
-#         return IncisionStyle.RETRIEVE, arg
-
-#     @_abc.abstractmethod
-#     def __incise_retrieve__(self, arg, /):
+#     def __handle_incisor__(self, incisor: ..., /) -> IncisionStyle.Dispatch:
 #         raise NotImplementedError
 
 #     @_abc.abstractmethod
-#     def __incise_slyce__(self, arg, /):
+#     def __incise__(self, incisor: IncisionStyle.Dispatch, /) -> ...:
 #         raise NotImplementedError
 
-#     def __incise_trivial__(self, arg, /):
-#         return self
+#     def __getitem__(self, incisor, /):
+#         return self.__incise__(self.__handle_incisor__(incisor))
 
-#     def __incise_null__(self, arg, /):
-#         return _sett.NULL
 
-#     def __incise__(self, arg, /):
-#         style, arg = self.__incise_pre__(arg)
-#         return style(self)(arg)
+# class MappChora(Chora, metaclass=_System):
 
-#     def __getitem__(self, arg, /):
-#         return self.__incise__(arg)
+#     handler: _mapp.Mapp
+#     mapper: _mapp.Mapp
 
-#     @property
+#     @classmethod
+#     def __parameterise__(cls, /, *args, **kwargs):
+#         params = super().__parameterise__(*args, **kwargs)
+#         params.handler = _mapp(params.handler)
+#         params.mapper = _mapp(params.mapper)
+#         return params
+
+#     @comp
 #     def domain(self, /):
-#         return self.__incise_retrieve__.__annotations__.get('return', object)
+#         return self.handler.domain
 
-#     @property
+#     @comp
 #     def codomain(self, /):
-#         return self
+#         return self.mapper.codomain
 
+#     @comp
+#     def get_signaltype(self, /):
+#         return self.codomain.get_signaltype
 
-# class QuickChora(Chora, metaclass=_System):
+#     @comp
+#     def _contains_(self, /):
+#         return self.codomain._contains_
 
-#     retrievemapp: _mapp.Mapp
-#     slycemapp: _mapp.Mapp
-
-#     @property
-#     def __incise_retrieve__(self, /):
-#         return self.retrievemapp.__getitem__
-
-#     @property
-#     def __incise_slyce__(self, /):
-#         return self.slycemapp.__getitem__
-
-
-# class ChoraOp(Chora, _mapp.MappOp):
-
-#     ...
-
-
-# class ChoraMultiOp(ChoraOp, _mapp.MappMultiOp):
-
-#     ...
-
-
-# class ComposedChora(ChoraMultiOp, _mapp.ComposedMapp):
-
-#     def __incise_retrieve__(self, arg, /):
-#         for chora in self.args:
-#             arg = chora.__incise_retrieve__(arg)
-#         return arg
-
-#     def __incise_slyce__(self, arg, /):
-#         for chora in self.args:
-#             arg = chora.__incise_slyce__(arg)
-#         return arg
-
-#     __getitem__ = Chora.__getitem__
+#     @comp
+#     def _includes_(self, /):
+#         return self.codomain._contains_
 
 
 
-# class Choras(Chora, metaclass=_Enumm):
-
-#     UNIVERSE: None = _sett.Setts.UNIVERSE
-#     NULL: None = _sett.Setts.NULL
-#     POWER: None = _sett.Setts.POWER
-
-#     def __incise_retrieve__(self, arg: object, /):
-#         if arg in self:
-#             return arg
-#         raise IncisionError(arg)
-
-#     def __incise_slyce__(self, arg: object, /):
-#         raise IncisionError(arg)
-
-#     def __sett_contains__(self, arg, /):
-#         return self._value_.__sett_contains__(arg)
-
-#     def __sett_includes__(self, arg, /):
-#         return self._value_.__sett_includes__(arg)

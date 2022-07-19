@@ -169,5 +169,37 @@ class PtolArray(_ur.ArrayBase, Ptolemaic):
     __slots__ = ()
 
 
+def get_innerobj_taphonomiser(owner, name, /):
+    def _make_epitaph_(taph, /):
+        return taph.getattr_epitaph(owner, name)
+    return _make_epitaph_
+
+
+def configure_as_innerobj(obj, owner, name, /):
+    if isinstance(obj, Ideal):
+        assert obj.mutable
+        obj.__class_relname__ = name
+        obj.__class_corpus__ = owner
+        if isinstance(owner, Ideal):
+            obj.__qualname__ = owner.__qualname__ + '.' + name
+    elif isinstance(obj, Case):
+        assert obj.mutable
+        obj.__corpus__, obj.__relname__ = owner, name
+    else:
+        if hasattr(obj, '__corpus__'):
+            raise RuntimeError("Object is already an inner object!")
+        obj.__corpus__, obj.__relname__ = owner, name
+        obj.__taphonomise__ = get_innerobj_taphonomiser(owner, name)
+
+
+def get_calling_scope_name(name: str, /):
+    frame = _inspect.stack()[1][0]
+    while name not in frame.f_locals:
+        frame = frame.f_back
+        if frame is None:
+            return None
+    return frame.f_locals[name]
+
+
 ###############################################################################
 ###############################################################################

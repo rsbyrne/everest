@@ -67,7 +67,7 @@ class _SystemBase_(metaclass=System):
             )
 
     def _repr_pretty_(self, p, cycle, root=None):
-        bound = self.__signature__.bind_partial()
+        bound = self.__ptolemaic_class__.__signature__.bind_partial()
         bound.arguments.update(zip(self.__fields__, self.params))
         if root is None:
             root = self.rootrepr

@@ -14,7 +14,18 @@ from . import ptolemaic as _ptolemaic
 
 class Urgon(_Bythos):
 
-    ...
+    @property
+    def __get_signature__(cls, /):
+        return cls.__class_get_signature__
+
+    @property
+    def __signature__(cls, /):
+        try:
+            return type.__getattribute__(cls, '_classsignature')
+        except AttributeError:
+            sig = cls.__get_signature__()
+            type.__setattr__(cls, '_classsignature', sig)
+            return sig
 
 
 class _UrgonBase_(metaclass=Urgon):
@@ -28,7 +39,7 @@ class _UrgonBase_(metaclass=Urgon):
         return issubclass(arg, cls.__signature__.return_annotation)
 
     @classmethod
-    def _get_signature(cls, /):
+    def __class_get_signature__(cls, /):
         try:
             func = cls.__class_call__
         except AttributeError:
@@ -38,7 +49,7 @@ class _UrgonBase_(metaclass=Urgon):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        cls.__signature__ = cls._get_signature()
+        # cls.__signature__ = cls.__get_signature__()
         cls._premade = _weakref.WeakValueDictionary()
 
     @classmethod

@@ -37,7 +37,7 @@ class SmartAttrDirective(metaclass=_Armature):
 
     typ: type
     kwargs: dict
-    content: object = None
+    content: ... = None
 
     def __directive_call__(self, body, name, /):
         content = self.content
@@ -50,7 +50,7 @@ class SmartAttr(metaclass=_Sprite):
     __merge_dyntyp__ = dict
     __merge_fintyp__ = SmartAttrHolder
 
-    hint: None = object
+    hint: ... = object
     note: str = ''
 
     @classmethod

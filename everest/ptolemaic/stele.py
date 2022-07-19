@@ -4,7 +4,6 @@
 
 
 import abc as _abc
-import inspect as _inspect
 import sys as _sys
 import itertools as _itertools
 import types as _types
@@ -14,15 +13,6 @@ from everest.armature import Armature as _Armature
 
 # from .ousia import Ousia as _Ousia
 from . import ptolemaic as _ptolemaic
-
-
-def _get_calling_scope_name_(name):
-    frame = _inspect.stack()[1][0]
-    while name not in frame.f_locals:
-        frame = frame.f_back
-        if frame is None:
-            return None
-    return frame.f_locals[name]
 
 
 @_ptolemaic.Ptolemaic.register
@@ -37,7 +27,7 @@ class _SteleMeta_(_Armature):
         return _abc.ABCMeta.__subclasscheck__.__get__(cls)
 
     def commence(cls, /):
-        name = _get_calling_scope_name_('__name__')
+        name = _ptolemaic.get_calling_scope_name('__name__')
         modules = _sys.modules
         module = modules[name]
         if isinstance(module, cls):
@@ -57,7 +47,7 @@ class _SteleMeta_(_Armature):
         return cls.commence()
 
     def complete(cls, /):
-        name = _get_calling_scope_name_('__name__')
+        name = _ptolemaic.get_calling_scope_name('__name__')
         stele = _sys.modules[name]
         if not isinstance(stele, cls):
             raise RuntimeError("Cannot complete uncommenced stele.")
@@ -104,16 +94,25 @@ class Stele(metaclass=_SteleMeta_):
                 obj.__initialise__()
             object.__delattr__(self, '_innerobjs')
 
-    def _make_epitaph_(self, taph, /):
+    def __taphonomise__(self, taph, /):
         return taph(self._module_)
 
     def register_innerobj(self, name, obj, /):
-        try:
-            innerobjs = self._innerobjs
-        except AttributeError:
-            innerobjs = self._innerobjs = {}
-        innerobjs[name] = obj
-        obj._configure_as_innerobj(self, name)
+        _ptolemaic.configure_as_innerobj(obj, self, name)
+        if self.mutable:
+            try:
+                innerobjs = object.__getattribute__(self, '_innerobjs')
+            except AttributeError:
+                innerobjs = {}
+                object.__setattr__(self, '_innerobjs', innerobjs)
+            innerobjs[name] = obj
+        else:
+            try:
+                meth = obj.__initialise__
+            except AttributeError:
+                pass
+            else:
+                meth()
 
     def _process_val_(self, name, val, /):
         if val is self:

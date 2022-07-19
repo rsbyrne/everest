@@ -67,8 +67,8 @@ class _OusiaBase_(metaclass=Ousia):
 
     __slots__ = (
         '__weakref__',
-        'params', '_mutable', '_pyhash', '_sessioncacheref', '_epitaph',
-        '_innerobjs', '__corpus__', '__relname__',
+        'params', '_mutable', '_pyhash', '_sessioncacheref',
+        '_innerobjs', '__corpus__', '__relname__', '_instancesignature',
         )
 
     @classmethod
@@ -79,25 +79,37 @@ class _OusiaBase_(metaclass=Ousia):
     def __class_includes__(cls, arg, /):
         return issubclass(arg, cls)
 
+    @property
+    def __signature__(self, /):
+        try:
+            return object.__getattribute__(self, '_instancesignature')
+        except AttributeError:
+            try:
+                meth = self.__get_signature__
+            except AttributeError:
+                raise TypeError(self.__ptolemaic_class__)
+            sig = meth()
+            object.__setattr__(self, '_instancesignature', sig)
+            return sig
+
     ### Descriptor behaviours for class and instance:
 
-    # def __set_name__(self, owner, name, /):
-    #     assert owner.mutable, (owner, name)
-    #     if self.mutable:
-    #         owner.register_innerobj(name, self)
-
-    def _configure_as_innerobj(self, owner, name, /):
-        assert self.mutable
-        self.__corpus__ = owner
-        self.__relname__ = name
-
     def register_innerobj(self, name, obj, /):
-        try:
-            innerobjs = self._innerobjs
-        except AttributeError:
-            innerobjs = self._innerobjs = {}
-        innerobjs[name] = obj
-        obj._configure_as_innerobj(self, name)
+        _ptolemaic.configure_as_innerobj(obj, self, name)
+        if self.mutable:
+            try:
+                innerobjs = object.__getattribute__(self, '_innerobjs')
+            except AttributeError:
+                innerobjs = {}
+                object.__setattr__(self, '_innerobjs', innerobjs)
+            innerobjs[name] = obj
+        else:
+            try:
+                meth = obj.__initialise__
+            except AttributeError:
+                pass
+            else:
+                meth()
 
     ## Configuring the class:
 
@@ -222,27 +234,20 @@ class _OusiaBase_(metaclass=Ousia):
     def __str__(self, /):
         return f"{self.rootrepr}({self.contentrepr})"
 
-    def _make_epitaph_(self, taph, /):
-        ptolcls = self.__ptolemaic_class__
+    def __taphonomise__(self, taph, /):
         if self.__cosmic__:
             return taph.getitem_epitaph(
-                ptolcls, tuple(self.params)
+                self.__ptolemaic_class__, tuple(self.params)
                 )
-        return taph.getattr_epitaph(
-            ptolcls, self.__relname__
-            )
+        return taph.getattr_epitaph(self.__corpus__, self.__relname__)
+
+    @property
+    def taphonomy(self, /):
+        return self.__ptolemaic_class__.taphonomy
 
     @property
     def epitaph(self, /):
-        try:
-            return self._epitaph
-        except AttributeError:
-            try:
-                epi = self._make_epitaph_(self.__ptolemaic_class__.taphonomy)
-            except Exception as exc:
-                raise RuntimeError from exc
-            object.__setattr__(self, '_epitaph', epi)
-            return epi
+        return self.taphonomy[self]
 
     def __reduce__(self, /):
         return self.epitaph, ()
@@ -263,9 +268,13 @@ class _OusiaBase_(metaclass=Ousia):
         return hash(self) == hash(other)
 
     def __lt__(self, other, /):
+        if isinstance(other, _OusiaBase_):
+            other = other.hashint
         return self.hashint < other
 
     def __gt__(self, other, /):
+        if isinstance(other, _OusiaBase_):
+            other = other.hashint
         return self.hashint < other
 
     def __hash__(self, /):

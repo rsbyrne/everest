@@ -55,7 +55,7 @@ class _TektonBase_(metaclass=Tekton):
             return None
 
     @classmethod
-    def _get_signature(cls, /):
+    def __class_get_signature__(cls, /):
         fields = cls.__fields__
         parameters = (
             field.get_parameter(name)

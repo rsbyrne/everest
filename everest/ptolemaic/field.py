@@ -45,36 +45,20 @@ class Signal(metaclass=_Enumm):
     ANCILLARY: 'Signals an optional argument.'
 
 
-class FieldAnno(metaclass=_Sprite):
+class FieldHint(metaclass=_Sprite):
 
-    def __iter__(self, /):
-        return
-        yield
-
-    def __repr__(self, /):
-        return f"{type(self).__qualname__}({', '.join(map(repr, self))})"
-
-
-class FieldHint(FieldAnno):
-
-    kind: object
-    hint: object
-
-    def __iter__(self, /):
-        yield from (self.hint, NotImplemented, self.kind)
+    kind: ...
+    hint: ...
 
     def __call__(self, note, /):
         return FieldNote(kind=self.kind, hint=self.hint, note=note)
 
 
-class FieldNote(FieldAnno):
+class FieldNote(metaclass=_Sprite):
 
-    kind: object
-    hint: object
-    note: object
-
-    def __iter__(self, /):
-        yield from (self.hint, self.note, self.kind)
+    kind: ...
+    hint: ...
+    note: ...
 
 
 class Kind(metaclass=_Enumm):
@@ -90,9 +74,6 @@ class Kind(metaclass=_Enumm):
     KWARGS: 'Gather extra keyword arguments' \
         = _pkind['VAR_KEYWORD']
 
-    def __iter__(self, /):
-        yield from (NotImplemented, NotImplemented, self)
-
     def __call__(self, note, /):
         return FieldNote(kind=self, note=note)
 
@@ -104,8 +85,8 @@ class Field(_SmartAttr):
 
     __slots__ = ('score', 'degenerate')
 
-    default: None = Signal.MANDATORY
-    kind: None = Kind.POSKW
+    default: ... = Signal.MANDATORY
+    kind: ... = Kind.POSKW
 
     __merge_fintyp__ = Fields
 
@@ -159,13 +140,18 @@ class Field(_SmartAttr):
     @classmethod
     def from_annotation(cls, anno, value):
         if isinstance(anno, Kind):
-            return cls(kind=anno, default=value)
-        if isinstance(anno, FieldAnno):
-            hint, note, kind = anno
-            return cls(hint=hint, note=note, default=value, kind=kind)
-        if anno is cls:
-            return cls(default=value)
-        return cls(hint=anno, default=value)
+            kwargs = dict(kind=anno)
+        elif isinstance(anno, FieldHint):
+            kwargs = dict(hint=anno.hint, kind=anno.kind)
+        elif isinstance(anno, FieldNote):
+            kwargs = dict(hint=anno.hint, note=anno.note, kind=anno.kind)
+        elif anno is cls:
+            kwargs = dict()
+        else:
+            kwargs = dict(hint=anno)
+        if value is not NotImplemented:
+            kwargs['default'] = value
+        return cls(**kwargs)
 
     def _get_getter_(self, obj, name, /):
         return lambda inst: inst.params[inst._field_indexer(name)]

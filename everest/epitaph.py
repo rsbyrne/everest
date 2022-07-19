@@ -42,15 +42,22 @@ class EvalSpace(_collections.UserDict):
         return self.deps[key].decode()
 
 
+def get_hexcode(content: str, /) -> str:
+    return _hashlib.sha3_256(
+        (repr(self) + content).encode()
+        ).hexdigest()
+
+
 @_ur.Dat.register
 class Epitaph(_classtools.Freezable):
 
     __slots__ = (
-        'depdict', 'hexcode', 'content', 'taph', 'deps', 'args',
+        'depdict', 'hexcode', 'content', 'taph', 'deps',
         '__weakref__', '_freezeattr', '_hashint', '_hashID',
         )
 
-    def __init__(self, content, deps, hexcode, _process_content=False, /):
+    def __init__(self, taph, content, /, *deps, _process_content=True):
+        deps = self.deps = (taph, *deps)
         depdict = self.depdict = _ur.DatDict({
             f"_{ind}":dep for ind, dep in enumerate(deps)
             })
@@ -58,11 +65,11 @@ class Epitaph(_classtools.Freezable):
             content = _Template(content).substitute(
                 **{f"_{val}": key for key, val in depdict.items()}
                 )
-        self.hexcode = hexcode
         self.content = content
-        self.taph = deps[0]
-        self.deps = deps
-        self.args = (self.content, self.deps, self.hexcode)
+        self.taph = taph
+        self.hexcode = _hashlib.sha3_256(
+            (''.join(map(str, deps)) + content).encode()
+            ).hexdigest()
         self.freezeattr = True
 
     @property
@@ -86,7 +93,7 @@ class Epitaph(_classtools.Freezable):
         return self.hexcode > other
 
     def __reduce__(self, /):
-        return self.taph, self.args
+        return self.taph, (self.content, self.deps)
 
     @property
     def hashint(self, /):
@@ -113,17 +120,22 @@ class Epitaph(_classtools.Freezable):
         return self.decode
 
 
-class Epitaphable(_abc.ABC):
+class TaphonomyError(RuntimeError):
 
-    @classmethod
-    def __subclasshook__(cls, C, /):
-        if cls is Epitaphable:
-            if hasattr(C, 'epitaph'):
-                return True
-        return NotImplemented
+    ...
 
 
-class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
+class NotEpitaphableError(TaphonomyError):
+
+    ...
+
+
+class TaphonomisationError(TaphonomyError):
+
+    ...
+
+
+class Taphonomy(_classtools.Freezable, _weakref.WeakKeyDictionary):
    
     __slots__ = (
         'encoders', 'decoders',
@@ -181,6 +193,9 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         mod = _getmodule(arg)
         if mod.__name__ == 'builtins':
             return arg.__name__
+        name = arg.__qualname__
+        if '<locals>' in name:
+            raise RuntimeError(arg)
         return f"{self.encode_module(mod)}.{arg.__qualname__}"
 
     def encode_string(self, arg: str, /, *, deps: set = None):
@@ -272,24 +287,23 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         return _functools.partial(self.sub_encode, deps=deps)
 
     def sub_encode(self, arg: object, /, deps: set = None):
-        if hasattr(arg, 'epitaph'):
-            arg = arg.epitaph
-        elif hasattr(arg, '_make_epitaph_'):
-            arg = arg._make_epitaph_(self)
-        if isinstance(arg, Epitaph):
-            deps.add(arg)
-            return f"$_{arg}"
-        meth = self.encoders[type(arg)]
-        encoded = meth(arg, deps=(subdeps:=set()))
-        if subdeps:
+        try:
+            epitaph = self[arg]
+        except NotEpitaphableError:
+            meth = self.encoders[type(arg)]
+            encoded = meth(arg, deps=(subdeps:=set()))
+            if not subdeps:
+                return encoded
             if len(encoded) <= 32:
                 deps.update(subdeps)
                 return encoded
-            epitaph = self(encoded, subdeps)
-            deps.add(epitaph)
-            return f"$_{epitaph}"
-        else:
-            return encoded
+            epitaph = Epitaph(
+                self,
+                encoded,
+                *sorted(subdeps),
+                )
+        deps.add(epitaph)
+        return f"$_{epitaph}"
 
     def encode(self, arg: object, /, deps: set = None) -> str:
         return self.encoders[type(arg)](arg, deps=deps)
@@ -302,13 +316,12 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
             ))
         return f"{self.__class__.__qualname__}({substr})"
 
-    def get_hexcode(self, content: str, /) -> str:
-        return _hashlib.sha3_256(
-            (repr(self) + content).encode()
-            ).hexdigest()
-
     def auto_epitaph(self, arg, /) -> Epitaph:
-        return self(self.encode(arg, deps:=set()), deps)
+        return Epitaph(
+            self,
+            self.encode(arg, deps:=set()),
+            *sorted(deps),
+            )
 
     @classmethod
     def posformat_callsig(cls, caller, /, *args, **kwargs):
@@ -334,7 +347,11 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
     def custom_epitaph(self, strn, /, **substitutions):
         deps = set()
         encoded = self.custom_encode(strn, substitutions, deps=deps)
-        return self(encoded, deps)
+        return Epitaph(
+            self,
+            encoded,
+            *sorted(deps),
+            )
 
     def callsig_epitaph(self, caller, /, *args, **kwargs):
         strn, subs = self.posformat_callsig(caller, *args, **kwargs)
@@ -344,35 +361,48 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakValueDictionary):
         deps = set()
         if type(arg) is tuple:
             getstrn = self.encode_tuple(arg, deps=deps)
-            if len(arg) > 0:
+            if getstrn != '()':
                 getstrn = getstrn[1:-1]  # strip brackets
-            if len(arg) == 1:
-                getstrn += ','  # add trailing comma to form tuple
         else:
             getstrn = self.sub_encode(arg, deps)
-        return self(f"{self.sub_encode(obj, deps)}[{getstrn}]", deps)
+        return Epitaph(
+            self,
+            f"{self.sub_encode(obj, deps)}[{getstrn}]",
+            *sorted(deps),
+            )
 
     def getattr_epitaph(self, obj, /, *args):
         deps = set()
-        return self(f"{self.sub_encode(obj, deps)}.{'.'.join(args)}", deps)
+        return Epitaph(
+            self,
+            f"{self.sub_encode(obj, deps)}.{'.'.join(args)}",
+            *sorted(deps),
+            )
 
-    def __call__(
-            self, content='None', deps=None, hexcode=None, /
-            ) -> Epitaph:
-        if deps is None:
-            if isinstance(content, Epitaphable):
-                return content.epitaph
-            elif hasattr(content, '_make_epitaph_'):
-                return content._make_epitaph_(self)
-            return self.auto_epitaph(content)
-        if hexnone := (hexcode is None):
-            hexcode = self.get_hexcode(content)
-        if hexcode in self:
-            return self[hexcode]
-        if hexnone:
-            deps = (self, *sorted(deps))
-        epitaph = Epitaph(content, deps, hexcode, hexnone)
-        self[hexcode] = epitaph
+    def __call__(self, obj, /):
+        try:
+            meth = obj.__taphonomise__
+        except AttributeError as exc:
+            return self.auto_epitaph(obj)
+        return meth(self)
+
+    def __getitem__(self, obj, /):
+        try:
+            return super().__getitem__(obj)
+        except TypeError:
+            storable = False
+        except KeyError:
+            storable = True
+        try:
+            meth = obj.__taphonomise__
+        except AttributeError as exc:
+            raise NotEpitaphableError(obj) from exc
+        try:
+            epitaph = meth(self)
+        except Exception as exc:
+            raise TaphonomisationError(obj) from exc
+        if storable:
+            self[obj] = epitaph
         return epitaph
 
     def __reduce__(self, /):

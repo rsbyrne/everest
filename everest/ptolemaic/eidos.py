@@ -83,17 +83,15 @@ class _EidosBase_(metaclass=Eidos):
             raise RuntimeError from exc
         except KeyError as exc:
             raise AttributeError from exc
-        else:
-            for meth in meths:
-                val = meth(self)
-                if val is NotImplemented:
-                    continue
-                if not name.startswith('_'):
-                    val = _ptolemaic.convert(val)
-                object.__setattr__(self, name, val)
-                return val
-            else:
-                raise AttributeError(name)
+        for meth in meths:
+            val = meth(self)
+            if val is NotImplemented:
+                continue
+            if not name.startswith('_'):
+                val = _ptolemaic.convert(val)
+            object.__setattr__(self, name, val)
+            return val
+        raise AttributeError(name)
         # return object.__getattribute__(name)
 
     def __setattr__(self, name, val, /):
@@ -102,15 +100,12 @@ class _EidosBase_(metaclass=Eidos):
         except AttributeError as exc:
             raise RuntimeError from exc
         except KeyError as exc:
-            super().__setattr__(name, val)
-        else:
-            for meth in meths:
-                signal = meth(self, val)
-                if signal is NotImplemented:
-                    continue
-                break
-            else:
-                raise AttributeError(name)
+            return super().__setattr__(name, val)
+        for meth in meths:
+            signal = meth(self, val)
+            if signal is not NotImplemented:
+                return
+        raise AttributeError(name)
 
     def __delattr__(self, name, /):
         try:
@@ -118,15 +113,12 @@ class _EidosBase_(metaclass=Eidos):
         except AttributeError as exc:
             raise RuntimeError from exc
         except KeyError as exc:
-            super().__delattr__(name)
-        else:
-            for meth in meths:
-                signal = meth(self)
-                if signal is NotImplemented:
-                    continue
-                break
-            else:
-                raise AttributeError(name)
+            return super().__delattr__(name)
+        for meth in meths:
+            signal = meth(self)
+            if signal is not NotImplemented:
+                return
+        raise AttributeError(name)
 
 
 ###############################################################################

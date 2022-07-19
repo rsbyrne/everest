@@ -132,7 +132,7 @@ class Armature(_abc.ABCMeta):
 @_ur.Dat.register
 class _ArmatureBase_(metaclass=_abc.ABCMeta):
 
-    __req_slots__ = ('__weakref__', '_mutable', 'params', '_epitaph')
+    __req_slots__ = ('__weakref__', '_mutable', 'params')
     __slots__ = ()
 
     @classmethod

@@ -15,12 +15,12 @@ class Organ(_Comp):
         callble = obj.__mro_getattr__(name)
         bound = self._get_callble_bound(name, callble, obj)
         out = callble.__instantiate__(tuple(bound.arguments.values()))
-        out.prepare_innerobj(name, obj)
+        obj.register_innerobj(name, out)
         return out
 
     def _functionlike_getter(self, name, obj, /):
         out = super()._functionlike_getter(name, obj)
-        out.add_innerobj(name, obj)
+        obj.register_innerobj(name, out)
         return out
 
     def _get_getter_(self, obj, name, /):
