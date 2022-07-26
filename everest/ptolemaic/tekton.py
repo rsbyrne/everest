@@ -36,12 +36,11 @@ class Tekton(_Eidos, _Urgon):
     @property
     def arity(cls, /):
         try:
-            return cls._clsarity
-        except AttributeError:
+            return cls.__dict__['_clsarity']
+        except KeyError:
             fields = cls.__fields__
             out = len(fields) - len(fields.degenerates)
-            with cls.mutable:
-                cls._clsarity = out
+            type.__setattr__(cls, '_clsarity', out)
             return out
 
 
@@ -77,6 +76,12 @@ class _TektonBase_(metaclass=Tekton):
             **bound.arguments,
             **cls.__fields__.degenerates,
             })
+
+    @classmethod
+    def _construct_(cls, params: tuple, /):
+        if len(params) != cls.arity:
+            raise ValueError(params)
+        return super()._construct_(params)
 
 
 ###############################################################################

@@ -155,6 +155,8 @@ class Sett(metaclass=_Ousia):
         return NotImplemented
 
     def __includes__(self, arg, /):
+        if arg is Setts.NULL:
+            return True
         if not isinstance(arg, Sett):
             raise SettError
         if not issubclass(arg.signaltype, self.signaltype):
@@ -166,35 +168,67 @@ class Sett(metaclass=_Ousia):
             except AttributeError:
                 raise SettError
             out = meth(arg)
+            if out is NotImplemented:
+                raise SettError
         return bool(out)
 
-    def __or__(self, other, /):
-        if isinstance(other, SettUnion):
-            return SettUnion(self, *other)
+    def __entails__(self, other, /):
+        return NotImplemented
+
+    def union(self, other, /):
         return SettUnion(self, other)
+
+    def __or__(self, other, /):
+        return self.union(other)
 
     @property
     def __ror__(self, /):
         return self.__or__
 
-    def __and__(self, other, /):
-        if isinstance(other, SettIntersection):
-            return SettIntersection(self, *other)
+    def intersection(self, other, /):
         return SettIntersection(self, other)
+
+    def __and__(self, other, /):
+        return self.intersection(other)
 
     @property
     def __rand__(self, /):
         return self.__and__
 
     def __xor__(self, other, /):
-        return ~SettIntersection(self, other)
+        return ~(self & other)
 
     @property
     def __rxor__(self, /):
         return self.__xor__
 
-    def __invert__(self, /):
+    def invert(self, /):
         return SettInverse(self)
+
+    def __invert__(self, /):
+        return self.invert()
+
+
+class Degenerate(Sett, metaclass=_System):
+
+    member: ...
+
+    def get_signaltype(self, /):
+        return type(self.member)
+
+    def _contains_(self, arg, /):
+        return arg is self.member
+
+    def _includes_(self, arg, /):
+        if isinstance(arg, Degenerate):
+            return arg.member is self.member
+        return super()._includes_()
+
+    def __entails__(self, arg, /):
+        return self.member in arg
+
+    def __len__(self, /):
+        return 1
 
 
 class Setts(Sett, metaclass=_Enumm):
@@ -297,7 +331,7 @@ class Op(Sett):
     ...
 
 
-class Inverse(Op, metaclass=_Sprite):
+class SettInverse(Op, metaclass=_Sprite):
 
     sett: Sett
 
@@ -342,7 +376,7 @@ class VariadicOp(metaclass=_System):
         return params
 
 
-class Union(VariadicOp):
+class SettUnion(VariadicOp):
 
     def get_signaltype(self, /):
         typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
@@ -363,7 +397,7 @@ class Union(VariadicOp):
         return NotImplemented
 
 
-class Intersection(VariadicOp):
+class SettIntersection(VariadicOp):
 
     def get_signaltype(self, /):
         typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
@@ -381,9 +415,9 @@ class Intersection(VariadicOp):
         return all(sett.__includes__(arg) for sett in self.args)
 
 
-inverse = Inverse.__class_call__
-union = Union.__class_call__
-intersection = Intersection.__class_call__
+inverse = SettInverse.__class_call__
+union = SettUnion.__class_call__
+intersection = SettIntersection.__class_call__
 
 
 _Stele_.complete()

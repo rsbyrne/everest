@@ -21,8 +21,8 @@ class Urgon(_Bythos):
     @property
     def __signature__(cls, /):
         try:
-            return type.__getattribute__(cls, '_classsignature')
-        except AttributeError:
+            return cls.__dict__['_classsignature']
+        except KeyError:
             sig = cls.__get_signature__()
             type.__setattr__(cls, '_classsignature', sig)
             return sig

@@ -17,7 +17,6 @@ from .sprite import Sprite as _Sprite
 from .system import System as _System
 from . import sett as _sett
 from .stele import Stele as _Stele_
-from .semaphore import Dispatch as _Dispatch
 
 
 class _Stele_(_Stele_):
@@ -56,8 +55,16 @@ def convert(arg, /):
     if isinstance(arg, _collabc.Mapping):
         return ArbitraryMapp(arg)
     if isinstance(arg, _collabc.Iterable):
+        arg = tuple(arg)
+        if len(arg) == 1:
+            return convert(arg[0])
         return SwitchMapp(*arg)
     if isinstance(arg, _collabc.Callable):
+        if isinstance(arg, _types.MethodType):
+            if arg.__name__ == '__getitem__':
+                slf = arg.__self__
+                if isinstance(slf, Mapp):
+                    return slf
         return CallMapp(arg)
     raise TypeError(type(arg))
 
@@ -78,20 +85,17 @@ class Mapp(metaclass=_Ousia):
     def codomain(self, /):
         raise NotImplementedError
 
-    def __compose__(self, other, /):
-        return MappComposition(self, other)
-
-    def __rcompose__(self, other, /):
+    def compose(self, other, /):
         return MappComposition(other, self)
 
-    def __rshift__(self, arg, /):
-        return self.__compose__(arg)
+    def __matmul__(self, arg, /):
+        return self.compose(arg)
 
-    def __rrshift__(self, arg, /):
-        return self.__rcompose__(arg)
+    def __rmatmul__(self, arg, /):
+        return self.__ptolemaic_class__.compose(arg, self)
 
     def extend(self, arg, /):
-        return ChainMapp(arg, self)
+        return MappUnion(self, arg)
 
     def subtend(self, arg, /):
         raise NotImplementedError
@@ -206,7 +210,7 @@ class ArbitraryMapp(SuperMapp, metaclass=_System):
     def subtend(self, arg: _collabc.Mapping, /):
         mapping = {**self.mapping}
         for key in arg:
-            mapping[key] = mapping[key] >> arg[key]
+            mapping[key] = arg[key] @ mapping[key]
         return self.__ptolemaic_class__(mapping)
 
     def _repr_pretty_(self, p, cycle, root=None):
@@ -286,7 +290,7 @@ class ElasticMapp(MappVariadicOp):
         return self.__ptolemaic_class__(self, arg)
 
 
-class ChainMapp(ElasticMapp):
+class MappUnion(ElasticMapp):
 
     def __getitem__(self, arg, /):
         for mapp in self.args:
@@ -361,8 +365,7 @@ class StyleMapp(MappMultiOp, metaclass=_System):
         return params
 
     def __getitem__(self, arg, /):
-        if not isinstance(arg, _Dispatch):
-            arg = self.pre[arg]
+        arg = self.pre[arg]
         return self.post[arg.envelope][arg.content]
 
     def subtend(self, arg, /):

@@ -28,15 +28,17 @@ class PtolemaicMeta(_ur.DatMeta):
     def __instancecheck__(cls, other, /):
         if cls is not Ptolemaic:
             return super().__instancecheck__(other)
+        if isinstance(other, type):
+            return True
         typ = type(other)
         if issubclass(typ, cls):
             return True
-        if typ is type:
-            if other in _Primitive.TYPS:
-                return True
-            if other in _BUILTINS:
-                return True
-            return False
+        # if typ is type:
+        #     if other in _Primitive.TYPS:
+        #         return True
+        #     if other in _BUILTINS:
+        #         return True
+        #     return False
         if issubclass(typ, _types.ModuleType):
             return cls.check_module
         if issubclass(typ, _types.MethodType):
