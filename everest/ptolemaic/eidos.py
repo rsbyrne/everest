@@ -34,8 +34,7 @@ class Eidos(_Essence):
         for typ in meta._smartattrtypes:
             yield (
                 typ.__merge_name__,
-                typ.__merge_dyntyp__,
-                typ.__merge_fintyp__,
+                (typ.__merge_dyntyp__, typ.__merge_fintyp__)
                 )
 
     @classmethod

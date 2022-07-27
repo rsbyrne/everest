@@ -16,7 +16,7 @@ class Enumm(_Ousia):
     @classmethod
     def _yield_mergenames(meta, /):
         yield from super()._yield_mergenames()
-        yield ('__enumerators__', dict, _ptolemaic.PtolDict)
+        yield '__enumerators__', (dict, _ptolemaic.PtolDict)
 
     @classmethod
     def body_handle_anno(meta, body, name, note, val, /):

@@ -8,7 +8,7 @@ import itertools as _itertools
 import sys as _sys
 import weakref as _weakref
 from functools import partial as _partial
-from collections import abc as _collabc
+from collections import abc as _collabc, deque as _deque
 
 from everest.switch import Switch as _Switch
 
@@ -76,6 +76,21 @@ class Escaped:
                 pass
 
 
+class MroclassMerger(dict):
+
+    def __setitem__(self, name, val):
+        try:
+            deq = self[name]
+        except KeyError:
+            deq = _deque()
+            super().__setitem__(name, deq)
+        deq.extend(_itertools.filterfalse(deq.__contains__, val))
+
+    def update(self, vals, /):
+        for key, val in dict(vals).items():
+            self[key] = val
+
+
 class ClassBody(dict):
 
     BODIES = _weakref.WeakValueDictionary()
@@ -98,7 +113,6 @@ class ClassBody(dict):
             __module__=(lambda val: setattr(self, 'modname', val)),
             __qualname__=(lambda val: setattr(self, 'qualname', val)),
             __slots__=self.handle_slots,
-            __mergenames__=self._update_mergenames,
             )
         # self._sugar = _Switch(withsugar)
         self._redirects = dict(
@@ -245,12 +259,13 @@ class ClassBody(dict):
         bases = []
         if self.ismroclass:
             name, outer = self.name, self.outer
-            for overclassname in outer['__mroclasses__'][name]:
-                try:
-                    base = outer[overclassname]
-                except KeyError:
-                    base = outer.add_notion(overclassname)
-                bases.append(base)
+            for overclass in outer['__mroclasses__'][name]:
+                if isinstance(overclass, str):
+                    try:
+                        overclass = outer[overclass]
+                    except KeyError:
+                        overclass = outer.add_notion(overclass)
+                bases.append(overclass)
             for obase in outer.bases:
                 try:
                     mrobase = getattr(obase, name)
@@ -306,18 +321,24 @@ class ClassBody(dict):
             getattr(base, mname) for base in self.bases
             if hasattr(base, mname)
             )
-        if isinstance(dyntyp, type):
-            if issubclass(dyntyp, _collabc.Mapping):
-                dynobj = dyntyp(_itertools.chain.from_iterable(
-                    mp.items() for mp in mergees
-                    ))
-                addmeth = dynobj.update
-            else:
-                dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
-                addmeth = dynobj.extend
+        dynobj = dyntyp()
+        maplike = isinstance(dynobj, _collabc.Mapping)
+        if maplike:
+            addmeth = dynobj.update
         else:
-            dynobj = dyntyp(_itertools.chain.from_iterable(mergees))
             addmeth = dynobj.extend
+        try:
+            metameth = getattr(self.meta, f"_yield_{mname.strip('_')}")
+        except AttributeError:
+            pass
+        else:
+            addmeth(metameth())
+        if maplike:
+            addmeth(_itertools.chain.from_iterable(
+                mp.items() for mp in mergees
+                ))
+        else:
+            addmeth(_itertools.chain.from_iterable(mergees))
         return addmeth, dynobj
 
     def _add_mergechannel(self, mname, /):
@@ -344,21 +365,16 @@ class ClassBody(dict):
             self._add_mergechannel(mname)
 
     def _post_prepare_mergednames(self, /):
-        addmeth, dynobj = self._gather_mergenames('__mergenames__', dict)
-        dynobj.update(
-            (nm, (dyntyp, fintyp))
-            for nm, dyntyp, fintyp in self.meta._yield_mergenames()
-            )
-        dynobj['__mroclasses__'] = (dict, dict)
+        _, dynobj = self._gather_mergenames('__mergenames__', dict)
+        dynobj['__mroclasses__'] = (MroclassMerger, dict)
         self._update_mergenames(dynobj)
+        self._nametriggers['__mergenames__'] = self._update_mergenames
 
     def _update_mroclasses(self, vals, /):
-        vals = dict(vals)
-        mroclasses = self['__mroclasses__']
-        self.mroclassesmade.update(
-            (key, False) for key in vals if key not in mroclasses
-            )
+        mroclasses, mroclassesmade = self['__mroclasses__'], self.mroclassesmade
         mroclasses.update(vals)
+        for key in mroclasses:
+            mroclassesmade.setdefault(key, False)
 
     def _post_prepare_mroclasses(self, /):
         self.mroclassesmade = {key: False for key in self['__mroclasses__']}

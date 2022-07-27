@@ -20,7 +20,7 @@ class Sprite(_Ousia):
     @classmethod
     def _yield_mergenames(meta, /):
         yield from super()._yield_mergenames()
-        yield '__fields__', dict, dict
+        yield '__fields__', (dict, dict)
 
     @classmethod
     def body_handle_anno(meta, body, name, hint, default, /):

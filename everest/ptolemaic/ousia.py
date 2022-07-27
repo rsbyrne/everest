@@ -53,7 +53,7 @@ class Ousia(_Urgon):
     @classmethod
     def _yield_mergenames(meta, /):
         yield from super()._yield_mergenames()
-        yield '__req_slots__', dict, dict
+        yield '__req_slots__', (dict, dict)
 
     @classmethod
     def handle_slots(meta, body, slots, /):
