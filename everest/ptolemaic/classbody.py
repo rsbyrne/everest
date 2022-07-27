@@ -245,7 +245,7 @@ class ClassBody(dict):
         bases = []
         if self.ismroclass:
             name, outer = self.name, self.outer
-            for overclassname in outer.meta.__mroclasses__[name]:
+            for overclassname in outer['__mroclasses__'][name]:
                 try:
                     base = outer[overclassname]
                 except KeyError:
@@ -349,10 +349,21 @@ class ClassBody(dict):
             (nm, (dyntyp, fintyp))
             for nm, dyntyp, fintyp in self.meta._yield_mergenames()
             )
+        dynobj['__mroclasses__'] = (dict, dict)
         self._update_mergenames(dynobj)
 
+    def _update_mroclasses(self, vals, /):
+        vals = dict(vals)
+        mroclasses = self['__mroclasses__']
+        self.mroclassesmade.update(
+            (key, False) for key in vals if key not in mroclasses
+            )
+        mroclasses.update(vals)
+
     def _post_prepare_mroclasses(self, /):
-        self.mroclassesmade = {key: False for key in self.meta.__mroclasses__}
+        self.mroclassesmade = {key: False for key in self['__mroclasses__']}
+        self._nametriggers['__mroclasses__'] = self._update_mroclasses
+        self['__mroclasses__'] = dict(self.meta._yield_mroclasses())
 
     def _post_prepare_bodymeths(self, /):
         toadd = dict(

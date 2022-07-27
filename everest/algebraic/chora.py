@@ -3,276 +3,566 @@
 ###############################################################################
 
 
-from everest import incision as _incision
+import abc as _abc
+from collections import deque as _deque, abc as _collabc
+import types as _types
+import functools as _functools
+import itertools as _itertools
 
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.compound import Compound as _Compound
-from everest.ptolemaic.ousia import Ousia as _Ousia
+from ..ptolemaic.stele import Stele as _Stele_
+from ..ptolemaic.enumm import Enumm as _Enumm
+from ..ptolemaic.semaphore import Semaphore as _Semaphore
+from ..ptolemaic.system import System as _System
+from ..ptolemaic.essence import Essence as _Essence
+from ..ptolemaic.ousia import Ousia as _Ousia
 
-from .algebraic import (
-    Algebraic as _Algebraic, ALGEBRAICMETHODS as _ALGEBRAICMETHODS
-    )
-from .charmature import ChArmature as _ChArmature
+from . import sett as _sett, mapp as _mapp
 
 
-class TrivialException(Exception):
+class _Stele_(_Stele_):
+
+    def __call__(self, arg, /):
+        if arg is self:
+            arg = Chora
+        return convert(arg)
+
+    def __initialise__(self, /):
+        super().__initialise__()
+        try:
+            choras = self.Choras
+        except AttributeError:
+            pass
+        else:
+            with self.mutable:
+                for enumm in choras.enumerators:
+                    setattr(self, enumm.name, enumm)
+
+    def __instancecheck__(self, arg, /):
+        return isinstance(arg, Chora)
+
+    def __subclasscheck__(self, arg, /):
+        return issubclass(arg, Chora)
+
+    def __mro_entries__(self, bases, /):
+        return (self.Chora,)
+
+
+_Stele_.commence()
+
+
+class IncisionError(_mapp.MappError):
+
     ...
 
 
-CHORAMETHODS = (
-    '__pow__', '__rpow__',
-    '__matmul__', '__rmatmul__',
-    '__lshift__', '__rshift__',
-    *_incision.INCISABLEMETHS,
-    *_ALGEBRAICMETHODS,
-    )
+class IncisorError(_mapp.MappError):
+
+    ...
 
 
-class Chora(_incision.Incisable, _Algebraic):
-    '''The `Chora` type is the Ptolemaic implementation '''
-    '''of the Everest 'incision protocol'. '''
-    '''`Chora` objects can be thought of as representing 'space' '''
-    '''in both concrete and abstract ways.'''
+def convert(arg, /):
+    if isinstance(arg, Chora):
+        return arg
+    # if not isinstance(arg, type):
+    #     if hasattr(arg, '__chora_convert__'):
+    #         return arg.__chora_convert__()
+    raise TypeError(arg, type(arg))
 
 
-    MROCLASSES = ('Gen', 'Var', 'Empty', 'Degenerate')
+def _default_incise_retrieve_(obj, arg, /) -> _sett.NULL:
+    raise IncisionError(incisor)
 
-    @property
-    def __incise_empty__(self, /):
-        return self.Empty
+def _default_incise_slyce_(obj, incisor, /) -> _sett.NULL:
+    if isinstance(incisor, Chora):
+        return obj.compose(incisor)
+    raise IncisionError(incisor)
 
-    @property
-    def __incise_degenerate__(self, /):
-        return self.Degenerate
-
-    @property
-    def __incision_chain__(self, /):
-        return ChoraChain
-
-    @property
-    def __charmature_generic__(self, /):
-        return self.Gen
-
-    @property
-    def __charmature_variable__(self, /):
-        return self.Var
-
-    def __mod__(self, arg, /):
-        return self.__charmature_brace__(self.__incise_trivial__(), arg)
-
-    def __rmod__(self, arg, /):
-        return NotImplemented
-
-    def __matmul__(self, arg, /):
-        return Composition(self.__incise_trivial__(), arg)
-
-    def __rmatmul__(self, arg, /):
-        return NotImplemented
-
-    def __lshift(self, other, /):
-        return AbstractMapping(other, self)
-
-    def __rshift__(self, other, /):
-        return AbstractMapping(self, other)
+def _default_incise_trivial_(obj, incisor, /):
+    return obj
 
 
-    class Gen(_ChArmature, metaclass=_Compound):
-        ...
+class IncisionStyle(_Semaphore):
 
+    RETRIEVE: 'The procedure to return a single element.' \
+        = _default_incise_retrieve_
+    SLYCE: 'The procedure to return a subset of elements.' \
+        = _default_incise_slyce_
+    TRIVIAL: 'The procedure for trivial incisors like `...`.' \
+        = _default_incise_trivial_
+    # NULL: 'The special procedure for incisor `None`.'
 
-    class Var(_ChArmature, metaclass=_Ousia):
+    __slots__ = ('methname',)
 
-        __req_slots__ = ('_value',)
-        _var_slots__ = ('value',)
+    def __init__(self, /):
+        super().__init__()
+        self.methname = f"_incise_{self.name.lower()}_"
 
-        _default = None
+    class Dispatch(metaclass=_Essence):
 
-        @property
-        def value(self, /):
+        def __call__(self, arg, /):
+            envelope, content = self.params
             try:
-                return self._value
+                meth = getattr(arg, envelope.methname)
             except AttributeError:
-                val = self._default
-                self._alt_setattr__('_value', val)
-                return val
-
-        @value.setter
-        def value(self, val, /):
-            if val not in self.basis:
-                raise ValueError(val)
-            self._alt_setattr__('_value', val)
-
-        @value.deleter
-        def value(self, /):
-            self._alt_setattr__('_value', self._default)
+                meth = envelope._value_.__get__(arg)
+            return meth(content)
 
 
-    @_incision.Degenerate.register
-    class Degenerate(_incision.Incisable, _ChArmature, metaclass=_Compound):
+class Chora(_sett.Sett, _mapp.Mapp, metaclass=_Ousia):
 
-        arg: object
+    __mergenames__ = dict(__incision_styles__=list)
+    __incision_styles__ = IncisionStyle
 
-        def retrieve(self, /):
-            return self.arg
+    def _incise_handle_(self, incisor, /) -> IncisionStyle.Dispatch:
+        raise IncisorError(incisor)
 
-        def __incise__(self, incisor, /, *, caller):
-            if incisor is Ellipsis:
-                return caller.__incise_trivial__()
-            return caller.__incise_fail__(
-                incisor,
-                "Cannot further incise an already degenerate incisable."
-                )
+    def _incise_retrieve_(self, incisor, /):
+        raise IncisionError(incisor)
 
-        @property
-        def __getitem__(self, /):
-            raise ValueError("Cannot incise a degenerate.")
+    def _incise_slyce_(self, incisor, /):
+        raise IncisionError(incisor)
 
-        @property
-        def __contains__(self, /):
-            return self.retrieve().__eq__
+    def _incise_trivial_(self, incisor, /):
+        return self
 
-        def __includes__(self, _, /):
-            return False
+    def __getitem__(self, arg, /):
+        return self._incise_handle_(arg)(self)
 
+    def union(self, other, /):
+        raise NotImplementedError
 
-    @_incision.Empty.register
-    class Empty(_incision.Incisable, _ChArmature, metaclass=_Compound):
+    def intersection(self, other, /):
+        raise NotImplementedError
 
-        chora: _incision.Incisable
+    def invert(self, /):
+        raise NotImplementedError
 
-        def __incise__(self, incisor, /, *, caller):
-            return caller.__incise_fail__(
-                incisor,
-                "Cannot further incise an empty incisable."
-                )
+    def extend(self, other, /):
+        raise NotImplementedError
 
-        @property
-        def __getitem__(self, /):
-            raise ValueError("Cannot incise a degenerate.")
+    def compose(self, other, /):
+        return ChoraComposition(other, self)
 
-        def __contains__(self, _, /):
-            return False
+    @property
+    def domain(self, /):
+        return _sett.UNIVERSE
+
+    @property
+    def codomain(self, /):
+        return self
 
 
-class AbstractMapping(Chora, metaclass=_Compound):
+class Choras(Chora, metaclass=_Enumm):
 
-    fromchora: Chora
-    tochora: Chora
+    UNIVERSE: "A chora over the universal sett." = _sett.UNIVERSE
+    NULL: "A chora over the null sett." = _sett.NULL
+    POWER: "The power chora, containing all choras." = _sett(Chora)
 
-    def __incise_retrieve__(self, incisor, /):
-        return ArbitraryPair(self, *incisor)
+    def get_signaltype(self, /):
+        return self._value_.get_signaltype()
 
-    def __incise_slyce__(self, incisor, /):
-        return AbstractMapping(*incisor)
+    def _contains_(self, arg, /):
+        return True
 
-    def __incise__(self, incisor, /, *, caller):
-        if incisor is Ellipsis:
-            return caller.__incise_trivial__()
-        if not isinstance(incisor, tuple):
-            return caller.__incise_fail__(
-                incisor, "Incisors must be two-tuples."
-                )
-        if len(incisor) != 2:
-            return caller.__incise_fail__(
-                incisor, "Incisors must be two-tuples."
-                )
-        try:
-            outs = tuple(
-                _incision.Degenerator(chora)[subinc]
-                for subinc, chora in zip(incisor, self.params)
-                )
-        except _incision.IncisorTypeException as exc:
-            return caller.__incise_fail__(exc)
-        if all(isinstance(out, _incision.Degenerate) for out in outs):
-            return caller.__incise_retrieve__(out.retrieve() for out in outs)
-        return caller.__incise_slyce__(outs)
-
-    def __contains__(self, arg, /):
-        if not isinstance(arg, ArbitraryPair):
-            return False
-        return self.__includes__(arg.source)
-
-    def __includes__(self, arg, /):
-        if not isinstance(arg, AbstractMapping):
-            return False
-        return all((
-            self.fromchora.__includes__(arg.fromchora),
-            self.tochora.__includes__(arg.tochora),
-            ))
+    def _includes_(self, arg, /):
+        return True
 
 
-class ArbitraryPair(metaclass=_Compound):
+class SuperChora(Chora, _mapp.SuperMapp):
 
-    source: AbstractMapping
-    key: object
-    val: object
+    def subtend(self, other, /):
+        raise NotImplementedError
+
+
+class ChoraOp(SuperChora, _mapp.SuperMapp):
+
+    ...
+
+
+class ChoraMultiOp(ChoraOp, _mapp.MappMultiOp):
+
+    ...
+
+
+class ChoraVariadicOp(ChoraMultiOp, _mapp.MappVariadicOp):
+
+    ...
+
+
+class ChoraComposition(ChoraVariadicOp, _mapp.MappComposition):
+
+    def _incise_handle_(self, incisor, /) -> IncisionStyle.Dispatch:
+        for chora in self.args:
+            try:
+                return chora._incise_handle_(incisor)
+            except IncisorError:
+                continue
+        raise IncisorError(incisor)
+
+    def _incise_retrieve_(self, incisor, /):
+        for chora in self.args:
+            incisor = chora._incise_retrieve_(incisor)
+        return incisor
+
+    def _incise_slyce_(self, incisor, /):
+        chora, *others = self.args
+        return self.__ptolemaic_class__(chora._incise_slyce_(incisor), *others)
+
+    def _incise_trivial_(self, incisor, /):
+        return self
+
+
+class Choret(Chora):
 
     @classmethod
-    def parameterise(cls, /, *args, **kwargs):
-        params = super().parameterise(*args, **kwargs)
-        source, key, val = params.__dict__.values()
-        fromchora, tochora = source.params
-        if (key not in fromchora) or (val not in tochora):
-            cls.paramexc(message=(
-                "The `key` and `val` args must be proper members "
-                "of the `source` `fromchora` and `tochora` respectively."
-                ))
-        return params
+    def _yield_slots(cls, /):
+        yield from super()._yield_slots()
+        yield '_incise_handle_', _types.MethodType
+        for style in cls.__incision_styles__:
+            yield style.methname, _types.MethodType
+
+    @classmethod
+    def _incision_gather_methnames(cls, /):
+        channels = {'_incise_handle_': _deque()}
+        styles = cls.__incision_styles__
+        channels.update((style.methname, _deque()) for style in styles)
+        for name in dir(cls):
+            for prefix, deq in channels.items():
+                if name.startswith(prefix) and name != prefix:
+                    if name not in deq:
+                        deq.append(name)
+                continue
+        return (
+            channels.pop('_incise_handle_'),
+            {style: deq for style, deq in zip(styles, channels.values())},
+            )
+
+    def __init__(self, /):
+        super().__init__()
+        self._add_incision_methods()
+
+    def _add_incision_methods(self, /):
+        self._incise_handle_ = _mapp(
+            (getattr(self, nm) for nm in self._inchandlers)
+            ).__getitem__
+        for style, names in self._incmeths.items():
+            fallback = style._value_.__get__(self)
+            mapp = _mapp((*(getattr(self, nm) for nm in names), fallback))
+            setattr(self, style.methname, mapp.__getitem__)
+
+    def _incise_handle_ellipsis_(self, incisor: type(Ellipsis), /):
+        return IncisionStyle.TRIVIAL(incisor)
+
+    # def _incise_handle_none_(self, incisor: type(None), /):
+    #     return IncisionStyle.NULL(incisor)
+
+    def _incise_handle_chora_(self, incisor: Chora, /):
+        return IncisionStyle.SLYCE(incisor)
+
+    def _incise_slyce_chora_(self, incisor: Chora, /):
+        return self @ incisor
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls._inchandlers, cls._incmeths = \
+            cls._incision_gather_methnames()
+
+#     @property
+#     def _contains_(self, /):
+#         print('foo')
+#         return self._incise_retrieve_.__self__.codomain._contains_
+
+#     @property
+#     def _includes_(self, /):
+#         return self._incise_retrieve_.__self__.codomain._includes_
 
 
-class Composition(Chora, metaclass=_Compound):
-
-    fobj: Chora
-    gobj: Chora
+class Chorelle(ChoraOp):
 
     @property
-    def __incise__(self, /):
-        return self.gobj.__incise__
+    def chora(self, /):
+        return Choras.NULL
 
-    def __incise_slyce__(self, incisor, /):
-        return type(self)(self.fobj, self.gobj.__incise_slyce__(incisor))
+    def _incise_handle_(self, incisor, /):
+        return self.chora._incise_handle_(incisor)
 
-    def __incise_retrieve__(self, incisor, /):
-        return self.fobj[self.gobj.__incise_retrieve__(incisor)]
+    def _incise_retrieve_(self, incisor, /):
+        return self.chora._incise_retrieve_(incisor)
 
-    for methname in _incision.COLLECTIONLIKEMETHS:
-        exec('\n'.join((
-            f"@property",
-            f"def {methname}(self, /):",
-            f"    return self.gobj.{methname}",
-            )))
-    del methname
+    def _incise_slyce_(self, incisor, /):
+        return self.chora._incise_slyce_(incisor)
 
+    @property
+    def _contains_(self, /):
+        return self.chora._contains_
 
-class ChoraChain(_incision.IncisionChain):
-
-    for methname in _ALGEBRAICMETHODS:
-        exec('\n'.join((
-            f"@property",
-            f"def {methname}(self, /):",
-            f"    return self.last.{methname}",
-            )))
-    del methname
+    @property
+    def _includes_(self, /):
+        return self.chora._includes_
 
 
-class ChainChora(Chora, _incision.ChainIncisable):
-    ...
+class Dimension(Chorelle, metaclass=_System):
+
+    chora: Chora
+
+    def _incise_retrieve_(self, incisor: ..., /):
+        return _sett.Degenerate(self.chora._incise_retrieve_(incisor))
+
+    def _contains_(self, other, /):
+        if isinstance(other, _sett.Degenerate):
+            return self.chora._contains_(other.value)
+        return False
+
+    def _includes_(self, other, /):
+        if isinstance(other, self.__ptolemaic_class__):
+            return self.chora._includes_(other)
+        return False
+
+    @comp
+    def isdegenerate(self, /):
+        return isinstance(self.chora, _sett.Degenerate)
 
 
-@Chora.register
-class DeferChora(_incision.DeferIncisable, metaclass=_Essence):
+class MultiChora(Choret, ChoraVariadicOp):
 
-    for methname in _ALGEBRAICMETHODS:
-        exec('\n'.join((
-            f"@property",
-            f"def {methname}(self, /):",
-            f"    try:",
-            f"        return self.__incision_manager__.{methname}",
-            f"    except AttributeError:",
-            f"        raise NotImplementedError",
-            )))
-    del methname
+    labels: KW = ()
+
+    @comp
+    def dimensions(self, /):
+        return tuple(map(Dimension, self.args))
+
+    @comp
+    def depth(self, /):
+        return len(self.dimensions)
+
+    @comp
+    def active(self, /):
+        return tuple(
+            not isinstance(cho, _sett.Degenerate)
+            for cho in self.args
+            )
+
+    @comp
+    def activedimensions(self, /):
+        return tuple(_itertools.compress(self.dimensions, self.active))
+
+    @comp
+    def activedepth(self, /):
+        return len(self.activedimensions)
+
+    def _generic_multiincise(self, meth, incisor, /):
+        choras = tuple(meth(incisor))
+        if all(isinstance(chora, _sett.Degenerate) for chora in choras):
+            return IncisionStyle.RETRIEVE(tuple(
+                chora.value for chora in choras
+                ))
+        return IncisionStyle.SLYCE(choras)
+
+    @comp
+    def _mapping_multiincise(self, /):
+        return _functools.partial(
+            self._generic_multiincise, self._yield_mapping_multiincise
+            )
+
+    @comp
+    def _sequence_multiincise(self, /):
+        return _functools.partial(
+            self._generic_multiincise, self._yield_sequence_multiincise
+            )
+
+    @comp
+    def _single_multiincise(self, /):
+        return _functools.partial(
+            self._generic_multiincise, self._yield_single_multiincise
+            )
+
+    def _yield_mapping_multiincise(self, incisors: _collabc.Mapping, /):
+        for key, dim in zip(self.labels, self.dimensions):
+            try:
+                incisor = incisors[key]
+            except KeyError:
+                yield dim
+            else:
+                yield dim[incisor]
+
+    def _yield_single_multiincise(self, incisor: ..., /):
+        dimit = iter(self.dimensions)
+        while True:
+            dim = next(dimit)
+            if dim.isdegenerate:
+                yield dim.chora
+            else:
+                yield dim[incisor]
+                break
+        else:
+            raise IncisionError(incisor)
+        yield from dimit
+
+    def _yield_sequence_multiincise(self, incisors: _collabc.Sequence, /):
+        ncho = self.activedepth
+        ninc = len(incisors)
+        nell = incisors.count(...)
+        if nell:
+            ninc -= nell
+            if ninc % nell:
+                raise ValueError("Cannot resolve incision ellipses.")
+            ellreps = (ncho - ninc) // nell
+        dimit = iter(self.dimensions)
+        try:
+            for incisor in incisors:
+                if incisor is ...:
+                    count = 0
+                    while count < ellreps:
+                        dim = next(dimit)
+                        if not dim.isdegenerate:
+                            count += 1
+                        yield dim
+                else:
+                    while True:
+                        dim = next(dimit)
+                        if dim.isdegenerate:
+                            yield dim.chora
+                        else:
+                            yield dim[incisor]
+                            break
+        except StopIteration:
+            raise ValueError("Too many incisors in tuple incision.")
+        yield from dimit
+
+    def _incise_handle_mapping_(self, incisor: _collabc.Mapping, /):
+        if not incisor:
+            return IncisionStyle.TRIVIAL(incisor)
+        elif self.activedepth == 1:
+            return self._single_multiincise(incisor)
+        return self._mapping_multiincise(incisor)
+
+    def _incise_handle_sequence_(self, incisor: _collabc.Sequence, /):
+        if not incisor:
+            return IncisionStyle.TRIVIAL(incisor)
+        elif self.activedepth == 1:
+            return self._single_multiincise(incisor)
+        return self._sequence_multiincise(incisor)
+
+    def _incise_handle_single_(self, incisor: ..., /):
+        return self._single_multiincise(incisor)
+
+    def _incise_retrieve_tuple_(self, incisor: tuple, /):
+        return incisor
+
+    def _incise_slyce_tuple_(self, incisor: tuple, /):
+        return self.__ptolemaic_class__(*incisor, labels=self.labels)
+
+    def _contains_(self, arg, /):
+        choras = self.args
+        if len(arg) != len(choras):
+            return False
+        elif isinstance(arg, _collabc.Mapping):
+            for key, chora in zip(self.labels, choras):
+                if key in arg:
+                    if not chora._contains_(arg[key]):
+                        return False
+        else:
+            for val, chora in zip(arg, choras):
+                print(chora)
+                if not chora._contains_(val):
+                    return False
+        return True
+
+    def _includes_(self, arg, /):
+        choras = self.args
+        if len(arg) != len(choras):
+            return False
+        elif isinstance(arg, _collabc.Mapping):
+            for key, chora in zip(self.labels, choras):
+                if key in arg:
+                    if not chora._includes_(arg[key]):
+                        return False
+        else:
+            for val, chora in zip(arg, choras):
+                if not chora._includes_(val):
+                    return False
+        return True
+
+
+_Stele_.complete()
 
 
 ###############################################################################
 ###############################################################################
+
+
+# class MappChora(Chora):
+
+#     @property
+#     @_abc.abstractmethod
+#     def mapp(self, /) -> _mapp.Mapp:
+#         raise NotImplementedError
+
+#     def __getitem__(self, arg, /):
+#         return self.mapp[arg]
+
+#     @comp
+#     def domain(self, /):
+#         return self.mapp.pre.domain
+
+#     @comp
+#     def codomain(self, /):
+#         return self.mapp.post.codomain
+
+#     with escaped('methname'):
+#         for methname in (
+#                 'get_signaltype', '_contains_', '_includes_'
+#                 ):
+#             exec('\n'.join((
+#                 f"@property",
+#                 f"def {methname}(self, /):",
+#                 f"    return self.codomain.{methname}",
+#                 )))
+
+
+# class Chora(_sett.Sett, _mapp.Mapp):
+
+#     @_abc.abstractmethod
+#     def __handle_incisor__(self, incisor: ..., /) -> IncisionStyle.Dispatch:
+#         raise NotImplementedError
+
+#     @_abc.abstractmethod
+#     def __incise__(self, incisor: IncisionStyle.Dispatch, /) -> ...:
+#         raise NotImplementedError
+
+#     def __getitem__(self, incisor, /):
+#         return self.__incise__(self.__handle_incisor__(incisor))
+
+
+# class MappChora(Chora, metaclass=_System):
+
+#     handler: _mapp.Mapp
+#     mapper: _mapp.Mapp
+
+#     @classmethod
+#     def __parameterise__(cls, /, *args, **kwargs):
+#         params = super().__parameterise__(*args, **kwargs)
+#         params.handler = _mapp(params.handler)
+#         params.mapper = _mapp(params.mapper)
+#         return params
+
+#     @comp
+#     def domain(self, /):
+#         return self.handler.domain
+
+#     @comp
+#     def codomain(self, /):
+#         return self.mapper.codomain
+
+#     @comp
+#     def get_signaltype(self, /):
+#         return self.codomain.get_signaltype
+
+#     @comp
+#     def _contains_(self, /):
+#         return self.codomain._contains_
+
+#     @comp
+#     def _includes_(self, /):
+#         return self.codomain._contains_

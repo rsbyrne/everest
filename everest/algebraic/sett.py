@@ -9,13 +9,14 @@ import inspect as _inspect
 import types as _types
 import sys as _sys
 
-from . import ptolemaic as _ptolemaic
-from .essence import Essence as _Essence
-from .ousia import Ousia as _Ousia
-from .enumm import Enumm as _Enumm
-from .sprite import Sprite as _Sprite
-from .system import System as _System
-from .stele import Stele as _Stele_
+from ..ptolemaic import ptolemaic as _ptolemaic
+from ..ptolemaic.essence import Essence as _Essence
+from ..ptolemaic.ousia import Ousia as _Ousia
+from ..ptolemaic.enumm import Enumm as _Enumm
+from ..ptolemaic.sprite import Sprite as _Sprite
+from ..ptolemaic.system import System as _System
+from ..ptolemaic.stele import Stele as _Stele_
+
 from . import pseudotype as _pseudotype
 
 
@@ -55,6 +56,7 @@ _Stele_.commence()
 
 
 class SettError(RuntimeError):
+
     ...
 
 
@@ -63,16 +65,18 @@ def convert(arg, /):
         return arg
     if arg is Sett:
         return Setts.POWER
+    if isinstance(arg, type):
+        if isinstance(arg, _types.GenericAlias):
+            return SettBrace(
+                tuple(map(convert, arg.__args__)), arg.__origin__
+                )
+        return TypeSett(arg)
+    # if hasattr(arg, '__sett_convert__'):
+    #     return arg.__sett_convert__()
     if arg is NotImplemented:
         return Setts.NULL
     if arg in (_inspect._empty, Ellipsis):
         return Setts.UNIVERSE
-    if isinstance(arg, type):
-        if isinstance(arg, _types.GenericAlias):
-            return BraceSett(
-                tuple(map(convert, arg.__args__)), arg.__origin__
-                )
-        return TypeSett(arg)
     if isinstance(arg, _collabc.Container):
         return ContainerSett(arg)
     if isinstance(arg, _types.FunctionType):
@@ -208,27 +212,32 @@ class Sett(metaclass=_Ousia):
     def __invert__(self, /):
         return self.invert()
 
+    convert = staticmethod(convert)
+
 
 class Degenerate(Sett, metaclass=_System):
 
-    member: ...
+    value: ...
 
     def get_signaltype(self, /):
-        return type(self.member)
+        return type(self.value)
 
     def _contains_(self, arg, /):
-        return arg is self.member
+        return arg is self.value
 
     def _includes_(self, arg, /):
         if isinstance(arg, Degenerate):
-            return arg.member is self.member
+            return arg.member is self.value
         return super()._includes_()
 
     def __entails__(self, arg, /):
-        return self.member in arg
+        return self.value in arg
 
     def __len__(self, /):
         return 1
+
+    def __iter__(self, /):
+        yield self.value
 
 
 class Setts(Sett, metaclass=_Enumm):
@@ -288,7 +297,7 @@ class TypeSett(Sett, metaclass=_Sprite):
         return issubclass(arg, self.typ)
 
 
-class BraceSett(Sett, metaclass=_Sprite):
+class SettBrace(Sett, metaclass=_System):
 
     setts: _collabc.Iterable
     typ: type = tuple
@@ -296,7 +305,7 @@ class BraceSett(Sett, metaclass=_Sprite):
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        params.setts = tuple(map(convert, params.setts))
+        params.setts = tuple(map(cls.convert, params.setts))
         return params
 
     @property
@@ -315,7 +324,7 @@ class BraceSett(Sett, metaclass=_Sprite):
             )
 
     def _includes_(self, arg, /):
-        if not isinstance(arg, BraceSett):
+        if not isinstance(arg, SettBrace):
             return False
         if arg.breadth != self.breadth:
             return False
@@ -327,18 +336,18 @@ class BraceSett(Sett, metaclass=_Sprite):
             )
 
 
-class Op(Sett):
+class SettOp(Sett):
     ...
 
 
-class SettInverse(Op, metaclass=_Sprite):
+class SettInverse(SettOp, metaclass=_Sprite):
 
     sett: Sett
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        params.sett = convert(params.sett)
+        params.sett = cls.convert(params.sett)
         return bound
 
     def _contains_(self, arg, /):
@@ -351,12 +360,12 @@ class SettInverse(Op, metaclass=_Sprite):
         return self.sett
 
 
-class MultiOp(Op):
+class SettMultiOp(SettOp):
 
     ...
 
 
-class VariadicOp(metaclass=_System):
+class SettVariadicOp(metaclass=_System):
 
     args: ARGS
 
@@ -372,11 +381,11 @@ class VariadicOp(metaclass=_System):
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        params.args = tuple(sorted(set(map(convert, params.args))))
+        params.args = tuple(sorted(set(map(cls.convert, params.args))))
         return params
 
 
-class SettUnion(VariadicOp):
+class SettUnion(SettVariadicOp):
 
     def get_signaltype(self, /):
         typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
@@ -397,7 +406,7 @@ class SettUnion(VariadicOp):
         return NotImplemented
 
 
-class SettIntersection(VariadicOp):
+class SettIntersection(SettVariadicOp):
 
     def get_signaltype(self, /):
         typs = tuple(sorted(set(sett.signaltype for sett in self.args)))

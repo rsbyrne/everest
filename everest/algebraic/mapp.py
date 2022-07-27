@@ -10,13 +10,14 @@ import inspect as _inspect
 import types as _types
 from collections import abc as _collabc
 
-from everest.utilities import pretty as _pretty
+from ..utilities import pretty as _pretty
 
-from .ousia import Ousia as _Ousia
-from .sprite import Sprite as _Sprite
-from .system import System as _System
+from ..ptolemaic.ousia import Ousia as _Ousia
+from ..ptolemaic.sprite import Sprite as _Sprite
+from ..ptolemaic.system import System as _System
+from ..ptolemaic.stele import Stele as _Stele_
+
 from . import sett as _sett
-from .stele import Stele as _Stele_
 
 
 class _Stele_(_Stele_):
@@ -50,6 +51,9 @@ class MappError(RuntimeError):
 def convert(arg, /):
     if arg is Ellipsis:
         return CallMapp(_sett._Any_)
+    # if not isinstance(arg, type):
+    #     if hasattr(arg, '__mapp_convert__'):
+    #         return arg.__mapp_convert__()
     if isinstance(arg, Mapp):
         return arg
     if isinstance(arg, _collabc.Mapping):
@@ -100,6 +104,8 @@ class Mapp(metaclass=_Ousia):
     def subtend(self, arg, /):
         raise NotImplementedError
 
+    convert = staticmethod(convert)
+
 
 class RetrieveMapp(Mapp, metaclass=_System):
 
@@ -147,7 +153,7 @@ class CallMapp(Mapp, metaclass=_System):
         setts = self.setts
         if len(setts) == 1:
             return setts[0]
-        return _sett.BraceSett(setts)
+        return _sett.SettBrace(setts)
 
     @comp
     def codomain(self, /):
@@ -161,9 +167,7 @@ class CallMapp(Mapp, metaclass=_System):
         return lambda x: func(*x)
 
     def __getitem__(self, arg, /):
-        if arg in self.domain:
-            return self._getitem_(arg)
-        raise MappError(arg)
+        return self._getitem_(arg)
 
 
 class SuperMapp(Mapp):
@@ -248,7 +252,7 @@ class ModifiedMapp(MappOp, metaclass=_System):
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
-        params.mapp = convert(params.mapp)
+        params.mapp = cls.convert(params.mapp)
         return params
 
     def __getitem__(self, arg, /):
@@ -272,7 +276,7 @@ class MappVariadicOp(MappMultiOp, metaclass=_System):
             if isinstance(arg, cls):
                 yield from arg.args
             else:
-                yield convert(arg)
+                yield cls.convert(arg)
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
@@ -358,8 +362,8 @@ class StyleMapp(MappMultiOp, metaclass=_System):
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
         params = super().__parameterise__(*args, **kwargs)
-        pre = params.pre = convert(params.pre)
-        post = params.post = convert(params.post)
+        pre = params.pre = cls.convert(params.pre)
+        post = params.post = cls.convert(params.post)
         if not isinstance(pre, ElasticMapp):
             raise ValueError(pre)
         return params

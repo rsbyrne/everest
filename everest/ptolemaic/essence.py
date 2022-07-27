@@ -76,7 +76,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @classmethod
     def __meta_init__(meta, /):
-        meta.__mroclasses__ = _ur.PrimitiveDict(meta._yield_mroclasses())
+        pass
 
     ### Class construction:
 

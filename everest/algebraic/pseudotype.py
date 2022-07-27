@@ -7,8 +7,8 @@ import weakref as _weakref
 import functools as _functools
 import abc as _abc
 
-from .essence import Essence as _Essence
-from . import ptolemaic as _ptolemaic
+from ..ptolemaic.essence import Essence as _Essence
+from ..ptolemaic import ptolemaic as _ptolemaic
 
 
 class PseudoType(_Essence):
