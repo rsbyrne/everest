@@ -28,6 +28,11 @@ class _ConcreteBase_(metaclass=_abc.ABCMeta):
         return (cls.Base,)
 
 
+class ImmutableError(RuntimeError):
+
+    ...
+
+
 @_ur.Dat.register
 class Armature(_abc.ABCMeta):
 
@@ -224,14 +229,14 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
             if not name.startswith('_'):
                 val = type(self).param_convert(val)
             super().__setattr__(name, val)
-        else:
-            raise TypeError("Cannot alter attribute when immutable.")
+            return val
+        raise ImmutableError("Cannot alter attribute when immutable.")
 
     def __delattr__(self, name, /):
         if self._mutable:
             super().__delattr__(name)
         else:
-            raise TypeError("Cannot alter attribute when immutable.")
+            raise ImmutableError("Cannot alter attribute when immutable.")
 
     def __repr__(self, /):
         return f"<{self.Base.__qualname__}, id={id(self)}>"

@@ -153,7 +153,7 @@ class CallMapp(Mapp, metaclass=_System):
         setts = self.setts
         if len(setts) == 1:
             return setts[0]
-        return _sett.SettBrace(setts)
+        return _sett.SettBrace(*setts)
 
     @comp
     def codomain(self, /):

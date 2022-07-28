@@ -188,8 +188,8 @@ class _OusiaBase_(metaclass=Ousia):
             if not name.startswith('_'):
                 val = _ptolemaic.convert(val)
             object.__setattr__(self, name, val)
-        else:
-            raise RuntimeError("Cannot alter value while immutable.")
+            return val
+        raise RuntimeError("Cannot alter value while immutable.")
 
     def __delattr__(self, name, /):
         if self.mutable:

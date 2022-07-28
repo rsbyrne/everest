@@ -18,6 +18,7 @@ from ..ptolemaic.system import System as _System
 from ..ptolemaic.stele import Stele as _Stele_
 
 from . import pseudotype as _pseudotype
+from .algebraic import AlgebraicType as _AlgebraicType
 
 
 class _Stele_(_Stele_):
@@ -52,7 +53,7 @@ class _Stele_(_Stele_):
         return (self.Sett,)
 
 
-_Stele_.commence()
+_stele_ = _Stele_.commence()
 
 
 class SettError(RuntimeError):
@@ -67,9 +68,7 @@ def convert(arg, /):
         return Setts.POWER
     if isinstance(arg, type):
         if isinstance(arg, _types.GenericAlias):
-            return SettBrace(
-                tuple(map(convert, arg.__args__)), arg.__origin__
-                )
+            return SettBrace(*map(arg.__args__), typ=arg.__orign__)
         return TypeSett(arg)
     # if hasattr(arg, '__sett_convert__'):
     #     return arg.__sett_convert__()
@@ -114,105 +113,111 @@ class _Null_(metaclass=_Essence):
         return NotImplemented
 
 
-class Sett(metaclass=_Ousia):
+with _stele_.block:
 
-    __slots__ = dict(_signaltype=None)
 
-    # def __init__(self, /):
-    #     super().__init__()
-    #     self.
+    class _Sett_(metaclass=_AlgebraicType):
 
-    @property
-    def signaltype(self, /):
-        try:
-            return object.__getattribute__(self, '_signaltype')
-        except AttributeError:
-            typ = self.get_signaltype()
-            if typ is NotImplemented:
-                typ = _Null_
-            elif typ is Ellipsis:
-                typ = _Any_
-            elif isinstance(typ, Sett):
-                typ = typ.signaltype
-            object.__setattr__(self, '_signaltype', typ)
-            return typ
 
-    def get_signaltype(self, /):
-        return _Any_
+        class Base(metaclass=_Ousia):
 
-    def _contains_(self, arg, /):
-        return NotImplemented
+            __slots__ = dict(_signaltype=None)
 
-    def __contains__(self, arg, /):
-        if not isinstance(arg, self.signaltype):
-            return False
-        out = self._contains_(arg)
-        if out is NotImplemented:
-            try:
-                meth = arg.__constitutes__
-            except AttributeError:
-                raise SettError
-            out = meth(arg)
-        return bool(out)
+            # def __init__(self, /):
+            #     super().__init__()
+            #     self.
 
-    def _includes_(self, arg, /):
-        return NotImplemented
+            @property
+            def signaltype(self, /):
+                try:
+                    return object.__getattribute__(self, '_signaltype')
+                except AttributeError:
+                    typ = self.get_signaltype()
+                    if typ is NotImplemented:
+                        typ = _Null_
+                    elif typ is Ellipsis:
+                        typ = _Any_
+                    elif isinstance(typ, Sett):
+                        typ = typ.signaltype
+                    object.__setattr__(self, '_signaltype', typ)
+                    return typ
 
-    def __includes__(self, arg, /):
-        if arg is Setts.NULL:
-            return True
-        if not isinstance(arg, Sett):
-            raise SettError
-        if not issubclass(arg.signaltype, self.signaltype):
-            return False
-        out = self._includes_(arg)
-        if out is NotImplemented:
-            try:
-                meth = arg.__entails__
-            except AttributeError:
-                raise SettError
-            out = meth(arg)
-            if out is NotImplemented:
-                raise SettError
-        return bool(out)
+            def get_signaltype(self, /):
+                return _Any_
 
-    def __entails__(self, other, /):
-        return NotImplemented
+            def _contains_(self, arg, /):
+                return NotImplemented
 
-    def union(self, other, /):
-        return SettUnion(self, other)
+            def __contains__(self, arg, /):
+                if not isinstance(arg, self.signaltype):
+                    return False
+                out = self._contains_(arg)
+                if out is NotImplemented:
+                    try:
+                        meth = arg.__constitutes__
+                    except AttributeError:
+                        raise SettError
+                    out = meth(arg)
+                return bool(out)
 
-    def __or__(self, other, /):
-        return self.union(other)
+            def _includes_(self, arg, /):
+                return NotImplemented
 
-    @property
-    def __ror__(self, /):
-        return self.__or__
+            def __includes__(self, arg, /):
+                if arg is Setts.NULL:
+                    return True
+                if not isinstance(arg, Sett):
+                    raise SettError
+                if not issubclass(arg.signaltype, self.signaltype):
+                    return False
+                out = self._includes_(arg)
+                if out is NotImplemented:
+                    try:
+                        meth = arg.__entails__
+                    except AttributeError:
+                        raise SettError
+                    out = meth(arg)
+                    if out is NotImplemented:
+                        raise SettError
+                return bool(out)
 
-    def intersection(self, other, /):
-        return SettIntersection(self, other)
+            def __entails__(self, other, /):
+                return NotImplemented
 
-    def __and__(self, other, /):
-        return self.intersection(other)
+            def union(self, other, /):
+                return SettUnion(self, other)
 
-    @property
-    def __rand__(self, /):
-        return self.__and__
+            def __or__(self, other, /):
+                return self.union(other)
 
-    def __xor__(self, other, /):
-        return ~(self & other)
+            @property
+            def __ror__(self, /):
+                return self.__or__
 
-    @property
-    def __rxor__(self, /):
-        return self.__xor__
+            def intersection(self, other, /):
+                return SettIntersection(self, other)
 
-    def invert(self, /):
-        return SettInverse(self)
+            def __and__(self, other, /):
+                return self.intersection(other)
 
-    def __invert__(self, /):
-        return self.invert()
+            @property
+            def __rand__(self, /):
+                return self.__and__
 
-    convert = staticmethod(convert)
+            def __xor__(self, other, /):
+                return ~(self & other)
+
+            @property
+            def __rxor__(self, /):
+                return self.__xor__
+
+            def invert(self, /):
+                return SettInverse(self)
+
+            def __invert__(self, /):
+                return self.invert()
+
+            convert = staticmethod(convert)
 
 
 class Degenerate(Sett, metaclass=_System):
@@ -297,50 +302,39 @@ class TypeSett(Sett, metaclass=_Sprite):
         return issubclass(arg, self.typ)
 
 
-class SettBrace(Sett, metaclass=_System):
+class SettBrace(Variadic, metaclass=_System):
 
-    setts: _collabc.Iterable
-    typ: type = tuple
-
-    @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
-        params.setts = tuple(map(cls.convert, params.setts))
-        return params
+    typ: KW[type] = tuple
 
     @property
     def breadth(self, /):
-        return len(self.setts)
+        return len(self.args)
 
     def get_signaltype(self, /):
         return self.typ
 
-    def _contains_(self, arg, /):
-        if not isinstance(arg, self.typ):
+    def _contains_(self, other, /):
+        if not isinstance(other, self.typ):
             return False
         return all(
-            subarg in sett
-            for sett, subarg in zip(self.setts, arg)
+            subarg in arg
+            for arg, subarg in zip(self.args, other)
             )
 
-    def _includes_(self, arg, /):
-        if not isinstance(arg, SettBrace):
+    def _includes_(self, other, /):
+        if not isinstance(other, self.__ptolemaic_class__):
             return False
-        if arg.breadth != self.breadth:
+        if other.breadth != self.breadth:
             return False
-        if not issubclass(arg.typ, self.typ):
+        if not issubclass(other.typ, self.typ):
             return False
         return all(
             asett.__includes__(bsett)
-            for asett, bsett in zip(self.setts, arg.setts)
+            for asett, bsett in zip(self.args, other.args)
             )
 
 
-class SettOp(Sett):
-    ...
-
-
-class SettInverse(SettOp, metaclass=_Sprite):
+class SettInverse(Op, metaclass=_Sprite):
 
     sett: Sett
 
@@ -360,32 +354,7 @@ class SettInverse(SettOp, metaclass=_Sprite):
         return self.sett
 
 
-class SettMultiOp(SettOp):
-
-    ...
-
-
-class SettVariadicOp(metaclass=_System):
-
-    args: ARGS
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        out = super().__class_call__(*args, **kwargs)
-        if (nsetts := len(setts := out.args)) == 0:
-            return Setts.NULL
-        elif nsetts == 1:
-            return setts[0]
-        return out
-
-    @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
-        params.args = tuple(sorted(set(map(cls.convert, params.args))))
-        return params
-
-
-class SettUnion(SettVariadicOp):
+class SettUnion(Variadic):
 
     def get_signaltype(self, /):
         typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
@@ -406,7 +375,7 @@ class SettUnion(SettVariadicOp):
         return NotImplemented
 
 
-class SettIntersection(SettVariadicOp):
+class SettIntersection(Variadic):
 
     def get_signaltype(self, /):
         typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
