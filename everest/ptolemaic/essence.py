@@ -55,9 +55,13 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Meta init:
 
     @classmethod
-    def _yield_bodynametriggers(meta, /):
+    def _generic_yielder(meta, /):
         return
         yield
+
+    _yield_bodynametriggers = _generic_yielder
+    _yield_mergenames = _generic_yielder
+    _yield_mroclasses = _generic_yielder
 
     @classmethod
     def _yield_bodymeths(meta, body, /):
@@ -65,18 +69,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         yield
 
     @classmethod
-    def _yield_mergenames(meta, /):
-        return
-        yield
-
-    @classmethod
-    def _yield_mroclasses(meta, /):
-        return
-        yield
-
-    @classmethod
     def __meta_init__(meta, /):
-        pass
+        for mergename, _ in meta._yield_mergenames():
+            mergename = mergename.strip('_')
+            setattr(meta, f'_yield_{mergename}', meta._generic_yielder)
 
     ### Class construction:
 
@@ -99,10 +95,6 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     @classmethod
     def handle_slots(meta, body, slots, /):
         raise TypeError("Slots not supported under this metaclass.")
-
-    @classmethod
-    def classbody_finalise(meta, body, /):
-        pass
 
     @classmethod
     def decorate(meta, obj, /):

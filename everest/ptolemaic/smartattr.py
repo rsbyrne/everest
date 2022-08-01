@@ -118,5 +118,15 @@ class SmartAttr(metaclass=_Sprite):
             return _partial(meth, name)
 
 
+class Get(metaclass=_Sprite):
+
+    path: str
+
+    def __call__(self, obj, /):
+        for name in self.path.split('.'):
+            obj = getattr(obj, name)
+        return obj
+
+
 ###############################################################################
 ###############################################################################

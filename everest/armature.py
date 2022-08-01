@@ -25,7 +25,7 @@ class _ConcreteBase_(metaclass=_abc.ABCMeta):
 
     @classmethod
     def __mro_entries__(cls, bases: tuple, /):
-        return (cls.Base,)
+        return (cls.__abstract_class__,)
 
 
 class ImmutableError(RuntimeError):
@@ -73,7 +73,7 @@ class Armature(_abc.ABCMeta):
                 f"{arg0.__name__}_Concrete",
                 (_ConcreteBase_, arg0),
                 dict(
-                    Base=arg0,
+                    __abstract_class__=arg0,
                     __slots__=arg0.__req_slots__,
                     _clsmutable=_Switch(True),
                     )
@@ -97,7 +97,7 @@ class Armature(_abc.ABCMeta):
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if issubclass(cls, _ConcreteBase_):
-            cls.__ptolemaic_class__ = cls.Base
+            cls.__ptolemaic_class__ = cls.__abstract_class__
         else:
             cls.__ptolemaic_class__ = cls
             cls.__class_init__()
@@ -239,21 +239,21 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
             raise ImmutableError("Cannot alter attribute when immutable.")
 
     def __repr__(self, /):
-        return f"<{self.Base.__qualname__}, id={id(self)}>"
+        return f"<{self.__abstract_class__.__qualname__}, id={id(self)}>"
 
     def __str__(self, /):
-        return f"{self.Base.__qualname__}({repr(self.params)[1:-1]})"
+        return f"{self.__abstract_class__.__qualname__}({repr(self.params)[1:-1]})"
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self.Base.__qualname__
+            root = self.__abstract_class__.__qualname__
         _pretty.pretty_tuple(self.params, p, cycle, root=root)
 
     def __hash__(self, /):
-        return hash((self.Base, self.params))
+        return hash((self.__abstract_class__, self.params))
 
     def __reduce__(self, /):
-        return self.Base.__class_getitem__, (self.params,)
+        return self.__abstract_class__.__class_getitem__, (self.params,)
 
 
 Armature.BaseTyp = _ArmatureBase_

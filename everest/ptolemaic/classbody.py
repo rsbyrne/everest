@@ -108,6 +108,7 @@ class ClassBody(dict):
                 _clsmutable=_Switch(True),
                 ).items():
             super().__setitem__(nm, val)
+        self.outer = None
         self.innerobjs = {}
         self._nametriggers = dict(
             __module__=(lambda val: setattr(self, 'modname', val)),
@@ -450,8 +451,8 @@ class ClassBody(dict):
 
     def add_mroclass_premade(self, name, val, /):
         super().__setitem__(name, val)
-        self.protect_name(name)
         self.mroclassesmade[name] = True
+        self.protect_name(name)
 
     def add_mroclass(self, name, base=None, /):
         del self._nametriggers[name]
@@ -480,7 +481,6 @@ class ClassBody(dict):
         assert self._fullyprepared, (self.name,)
         self._finalise_mergenames()
         self._finalise_mroclasses()
-        self.meta.classbody_finalise(self)
         out = _abc.ABCMeta.__new__(
             self.meta, self.name, self.bases, dict(self)
             )

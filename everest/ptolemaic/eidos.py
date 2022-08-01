@@ -22,11 +22,8 @@ class Eidos(_Essence):
                 typ.__single_name__,
                 _partial(getattr(typ, '__body_call__'), body),
                 )
-    
-    @classmethod
-    def _yield_smartattrtypes(meta, /):
-        return
-        yield
+
+    _yield_smartattrtypes = _Essence._generic_yielder
 
     @classmethod
     def _yield_mergenames(meta, /):

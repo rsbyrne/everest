@@ -9,19 +9,18 @@ import inspect as _inspect
 import types as _types
 import sys as _sys
 
-from ..ptolemaic import ptolemaic as _ptolemaic
-from ..ptolemaic.essence import Essence as _Essence
-from ..ptolemaic.ousia import Ousia as _Ousia
-from ..ptolemaic.enumm import Enumm as _Enumm
-from ..ptolemaic.sprite import Sprite as _Sprite
-from ..ptolemaic.system import System as _System
-from ..ptolemaic.stele import Stele as _Stele_
-
+from . import ptolemaic as _ptolemaic
+from .essence import Essence as _Essence
+from .ousia import Ousia as _Ousia
+from .enumm import Enumm as _Enumm
+from .sprite import Sprite as _Sprite
+from .system import System as _System
+from .stele import Stele as _Stele
 from . import pseudotype as _pseudotype
 from .algebraic import AlgebraicType as _AlgebraicType
 
 
-class _Stele_(_Stele_):
+class _Stele(_Stele):
 
     def __call__(self, arg, /):
         if arg is self:
@@ -53,7 +52,7 @@ class _Stele_(_Stele_):
         return (self.Sett,)
 
 
-_stele_ = _Stele_.commence()
+_stele = _Stele.commence()
 
 
 class SettError(RuntimeError):
@@ -68,7 +67,7 @@ def convert(arg, /):
         return Setts.POWER
     if isinstance(arg, type):
         if isinstance(arg, _types.GenericAlias):
-            return SettBrace(*map(arg.__args__), typ=arg.__orign__)
+            return Brace(*map(arg.__args__), typ=arg.__orign__)
         return TypeSett(arg)
     # if hasattr(arg, '__sett_convert__'):
     #     return arg.__sett_convert__()
@@ -113,10 +112,19 @@ class _Null_(metaclass=_Essence):
         return NotImplemented
 
 
-with _stele_.block:
+with _stele.block:
 
 
     class _Sett_(metaclass=_AlgebraicType):
+
+
+        __mroclasses__ = dict(
+            Brace=('Variadic',),
+            Inverse=('Unary',),
+            Union=('Variadic',),
+            Intersection=('Variadic',),
+            Degenerate=('Base',),
+            )
 
 
         class Base(metaclass=_Ousia):
@@ -185,7 +193,7 @@ with _stele_.block:
                 return NotImplemented
 
             def union(self, other, /):
-                return SettUnion(self, other)
+                return self.__ptolemaic_class__.__corpus__.Union(self, other)
 
             def __or__(self, other, /):
                 return self.union(other)
@@ -195,7 +203,10 @@ with _stele_.block:
                 return self.__or__
 
             def intersection(self, other, /):
-                return SettIntersection(self, other)
+                return (
+                    self.__ptolemaic_class__.__corpus__.Intersection
+                    (self, other)
+                    )
 
             def __and__(self, other, /):
                 return self.intersection(other)
@@ -212,7 +223,7 @@ with _stele_.block:
                 return self.__xor__
 
             def invert(self, /):
-                return SettInverse(self)
+                return self.__ptolemaic_class__.__corpus__.Inverse(self)
 
             def __invert__(self, /):
                 return self.invert()
@@ -220,29 +231,115 @@ with _stele_.block:
             convert = staticmethod(convert)
 
 
-class Degenerate(Sett, metaclass=_System):
+        class Brace(metaclass=_System):
 
-    value: ...
+            typ: KW[type] = tuple
 
-    def get_signaltype(self, /):
-        return type(self.value)
+            @property
+            def breadth(self, /):
+                return len(self.args)
 
-    def _contains_(self, arg, /):
-        return arg is self.value
+            def get_signaltype(self, /):
+                return self.typ
 
-    def _includes_(self, arg, /):
-        if isinstance(arg, Degenerate):
-            return arg.member is self.value
-        return super()._includes_()
+            def _contains_(self, other, /):
+                if not isinstance(other, self.typ):
+                    return False
+                return all(
+                    subarg in arg
+                    for arg, subarg in zip(self.args, other)
+                    )
 
-    def __entails__(self, arg, /):
-        return self.value in arg
+            def _includes_(self, other, /):
+                if not isinstance(other, self.__ptolemaic_class__):
+                    return False
+                if other.breadth != self.breadth:
+                    return False
+                if not issubclass(other.typ, self.typ):
+                    return False
+                return all(
+                    asett.__includes__(bsett)
+                    for asett, bsett in zip(self.args, other.args)
+                    )
 
-    def __len__(self, /):
-        return 1
 
-    def __iter__(self, /):
-        yield self.value
+        class Inverse(metaclass=_System):
+
+            def _contains_(self, arg, /):
+                return arg not in self.arg
+
+            def _includes_(self, arg, /):
+                return not self.arg.__includes__(arg)
+
+            def __inverse__(self, /):
+                return self.arg
+
+
+        class Union(metaclass=_System):
+
+            def get_signaltype(self, /):
+                typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
+                if len(typs) == 1:
+                    return typs[0]
+                return typs
+
+            def _contains_(self, arg, /):
+                for sett in self.args:
+                    if arg in sett:
+                        return True
+                return False
+
+            def _includes_(self, arg, /):
+                for sett in self.args:
+                    if sett.__includes__(arg):
+                        return True
+                return NotImplemented
+
+
+        class Intersection(metaclass=_System):
+
+            def get_signaltype(self, /):
+                typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
+                if len(typs) == 1:
+                    return typs[0]
+                return _pseudotype.TypeIntersection(*typs)
+
+            def _contains_(self, arg, /):
+                for sett in self.args:
+                    if arg not in sett:
+                        return False
+                return True
+
+            def _includes_(self, arg, /):
+                return all(sett.__includes__(arg) for sett in self.args)
+
+
+        class Degenerate(metaclass=_System):
+
+            value: ...
+
+            def get_signaltype(self, /):
+                return type(self.value)
+
+            def _contains_(self, arg, /):
+                return arg is self.value
+
+            def _includes_(self, arg, /):
+                if isinstance(arg, Degenerate):
+                    return arg.member is self.value
+                return super()._includes_()
+
+            def __entails__(self, arg, /):
+                return self.value in arg
+
+            def __len__(self, /):
+                return 1
+
+            def __iter__(self, /):
+                yield self.value
+
+
+print(type(Base))
 
 
 class Setts(Sett, metaclass=_Enumm):
@@ -302,103 +399,7 @@ class TypeSett(Sett, metaclass=_Sprite):
         return issubclass(arg, self.typ)
 
 
-class SettBrace(Variadic, metaclass=_System):
-
-    typ: KW[type] = tuple
-
-    @property
-    def breadth(self, /):
-        return len(self.args)
-
-    def get_signaltype(self, /):
-        return self.typ
-
-    def _contains_(self, other, /):
-        if not isinstance(other, self.typ):
-            return False
-        return all(
-            subarg in arg
-            for arg, subarg in zip(self.args, other)
-            )
-
-    def _includes_(self, other, /):
-        if not isinstance(other, self.__ptolemaic_class__):
-            return False
-        if other.breadth != self.breadth:
-            return False
-        if not issubclass(other.typ, self.typ):
-            return False
-        return all(
-            asett.__includes__(bsett)
-            for asett, bsett in zip(self.args, other.args)
-            )
-
-
-class SettInverse(Op, metaclass=_Sprite):
-
-    sett: Sett
-
-    @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
-        params.sett = cls.convert(params.sett)
-        return bound
-
-    def _contains_(self, arg, /):
-        return arg not in self.sett
-
-    def _includes_(self, arg, /):
-        return not self.sett.__includes__(arg)
-
-    def __inverse__(self, /):
-        return self.sett
-
-
-class SettUnion(Variadic):
-
-    def get_signaltype(self, /):
-        typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
-        if len(typs) == 1:
-            return typs[0]
-        return typs
-
-    def _contains_(self, arg, /):
-        for sett in self.args:
-            if arg in sett:
-                return True
-        return False
-
-    def _includes_(self, arg, /):
-        for sett in self.args:
-            if sett.__includes__(arg):
-                return True
-        return NotImplemented
-
-
-class SettIntersection(Variadic):
-
-    def get_signaltype(self, /):
-        typs = tuple(sorted(set(sett.signaltype for sett in self.args)))
-        if len(typs) == 1:
-            return typs[0]
-        return _pseudotype.TypeIntersection(*typs)
-
-    def _contains_(self, arg, /):
-        for sett in self.args:
-            if arg not in sett:
-                return False
-        return True
-
-    def _includes_(self, arg, /):
-        return all(sett.__includes__(arg) for sett in self.args)
-
-
-inverse = SettInverse.__class_call__
-union = SettUnion.__class_call__
-intersection = SettIntersection.__class_call__
-
-
-_Stele_.complete()
+_Stele.complete()
 
 
 ###############################################################################

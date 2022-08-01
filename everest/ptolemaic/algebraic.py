@@ -5,10 +5,10 @@
 
 import abc as _abc
 
-from ..ptolemaic.essence import Essence as _Essence
-from ..ptolemaic.ousia import Ousia as _Ousia
-from ..ptolemaic.system import System as _System
-from ..ptolemaic.stele import Stele as _Stele
+from .essence import Essence as _Essence
+from .ousia import Ousia as _Ousia
+from .system import System as _System
+from .stele import Stele as _Stele
 
 
 with _Stele:
@@ -21,8 +21,8 @@ with _Stele:
             yield from super()._yield_mroclasses()
             yield 'Base', ()
             yield 'Op', ('Base',)
-            yield 'Multi', ('Op',)
-            yield 'Variadic', ('Multi',)
+            yield 'Unary', ('Op',)
+            yield 'Variadic', ('Op',)
 
 
     class _AlgebraicTypeBase_(metaclass=AlgebraicType):
@@ -41,14 +41,20 @@ with _Stele:
             ...
 
 
-        class Multi(metaclass=_Ousia):
+        class Unary(metaclass=_System):
 
-            ...
+            arg: get('__corpus__.Base')
+
+            @classmethod
+            def __parameterise__(cls, /, *args, **kwargs):
+                params = super().__parameterise__(*args, **kwargs)
+                params.arg = cls.convert(params.arg)
+                return params
 
 
         class Variadic(metaclass=_System):
 
-            args: ARGS
+            args: ARGS[get('__corpus__.Base')]
 
             @classmethod
             def __parameterise__(cls, /, *args, **kwargs):
@@ -59,16 +65,14 @@ with _Stele:
 
         @classmethod
         def __class_call__(cls, /, *args, **kwargs):
-            return cls._Base_(*args, **kwargs)
+            return cls.Base(*args, **kwargs)
 
         @classmethod
         def __class_init__(cls, /):
             super().__class_init__()
             cls.register(cls.Base)
-            print(cls.__relname__.strip('_'))
             setattr(cls.__corpus__, cls.__relname__.strip('_'), cls.Base)
             for name in cls.__mroclasses__:
-                print(name)
                 setattr(cls.__corpus__, name, getattr(cls, name))
 
 

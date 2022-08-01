@@ -6,7 +6,7 @@
 import inspect as _inspect
 import functools as _functools
 
-from .smartattr import SmartAttr as _SmartAttr
+from .smartattr import SmartAttr as _SmartAttr, Get as _Get
 from .sprite import Sprite as _Sprite
 from .enumm import Enumm as _Enumm
 
@@ -108,7 +108,7 @@ class Field(_SmartAttr):
         params.default = Signal.ANCILLARY
 
     def __directive_call__(self, body, name, /, content=NotImplemented):
-        body[self.__merge_name__][name] = self
+        super().__directive_call__(body, name, content)
         if content is not NotImplemented:
             body[name] = body['comp'](content)
         return name, content
@@ -126,15 +126,18 @@ class Field(_SmartAttr):
                 (0 if default is Signal.MANDATORY else 0.5),
                 ))
 
-    def get_parameter(self, name, /):
+    def get_parameter(self, kls, name, /):
         default = self.default
         if default is Signal.MANDATORY:
             default = _pempty
         elif default is Signal.ANCILLARY:
             default = NotImplemented
+        elif isinstance(default, _Get):
+            default = default(kls)
+        hint = (hint(kls) if isinstance(hint := self.hint, _Get) else hint)
         return _inspect.Parameter(
             name, self.kind._value_,
-            default=default, annotation=self.hint,
+            default=default, annotation=hint,
             )
 
     @classmethod

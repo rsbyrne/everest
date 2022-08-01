@@ -170,9 +170,10 @@ class Stele(metaclass=_SteleMeta_):
 
 
     def __setattr__(self, name, val, /):
-        val = super().__setattr__(name, val)
         if self._inblock_:
             setattr(self._module_, name, val)
+        else:
+            val = super().__setattr__(name, val)
         return val
 
 

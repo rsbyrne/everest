@@ -7,6 +7,7 @@ import inspect as _inspect
 
 from .urgon import Urgon as _Urgon
 from .eidos import Eidos as _Eidos
+from .smartattr import Get as _Get
 from . import field as _field
 from .ousia import Ousia as _Ousia
 from . import ptolemaic as _ptolemaic
@@ -22,6 +23,7 @@ class Tekton(_Eidos, _Urgon):
     @classmethod
     def _yield_bodymeths(meta, body, /):
         yield from super()._yield_bodymeths(body)
+        yield 'get', _Get
         for kind in _field.Kind:
             yield kind.name, kind
         for signal in _field.Signal:
@@ -57,7 +59,7 @@ class _TektonBase_(metaclass=Tekton):
     def __class_get_signature__(cls, /):
         fields = cls.__fields__
         parameters = (
-            field.get_parameter(name)
+            field.get_parameter(cls, name)
             for name, field in fields.items()
             if name not in fields.degenerates
             )
