@@ -34,7 +34,7 @@ class ImmutableError(RuntimeError):
 
 
 @_ur.Dat.register
-class Armature(_abc.ABCMeta):
+class DClass(_abc.ABCMeta):
 
     @classmethod
     def _merge_params(meta, bases, ns, /):
@@ -82,7 +82,7 @@ class Armature(_abc.ABCMeta):
         if not _ConcreteBase_ in bases:
             if not all(nm in ns for nm in ('__qualname__', '__module__')):
                 raise TypeError(
-                    "Armature-derived classes must be top-level classes."
+                    "DClass-derived classes must be top-level classes."
                     )
         params = meta._merge_params(bases, ns)
         slots = meta._get_merged_slots(bases, ns, params)
@@ -135,7 +135,7 @@ class Armature(_abc.ABCMeta):
 
 
 @_ur.Dat.register
-class _ArmatureBase_(metaclass=_abc.ABCMeta):
+class _DClassBase_(metaclass=_abc.ABCMeta):
 
     __req_slots__ = ('__weakref__', '_mutable', 'params')
     __slots__ = ()
@@ -256,7 +256,7 @@ class _ArmatureBase_(metaclass=_abc.ABCMeta):
         return self.__abstract_class__.__class_getitem__, (self.params,)
 
 
-Armature.BaseTyp = _ArmatureBase_
+DClass.BaseTyp = _DClassBase_
 
 
 ###############################################################################

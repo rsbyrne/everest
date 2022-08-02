@@ -184,12 +184,12 @@ class ChoraMultiOp(ChoraOp, _mapp.MappMultiOp):
     ...
 
 
-class ChoraVariadicOp(ChoraMultiOp, _mapp.MappVariadicOp):
+class ChoraEnnaryOp(ChoraMultiOp, _mapp.MappEnnaryOp):
 
     ...
 
 
-class ChoraComposition(ChoraVariadicOp, _mapp.MappComposition):
+class ChoraComposition(ChoraEnnaryOp, _mapp.MappComposition):
 
     def _incise_handle_(self, incisor, /) -> IncisionStyle.Dispatch:
         for chora in self.args:
@@ -324,7 +324,7 @@ class Dimension(Chorelle, metaclass=_System):
         return isinstance(self.chora, _sett.Degenerate)
 
 
-class MultiChora(Choret, ChoraVariadicOp):
+class MultiChora(Choret, ChoraEnnaryOp):
 
     labels: KW = ()
 

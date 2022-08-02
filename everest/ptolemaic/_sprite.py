@@ -3,7 +3,7 @@
 ###############################################################################
 
 
-from everest.armature import Armature as _Armature
+from everest.dclass import DClass as _DClass
 
 from . import ptolemaic as _ptolemaic
 from .utilities import get_ligatures as _get_ligatures
@@ -15,7 +15,7 @@ class SpriteMeta(type):
 
 
 @_ptolemaic.Kind.register
-class Sprite(_Armature, metaclass=SpriteMeta):
+class Sprite(_DClass, metaclass=SpriteMeta):
 
     @property
     def param_convert(cls, /):
@@ -29,7 +29,7 @@ class Sprite(_Armature, metaclass=SpriteMeta):
 
 
 @_ptolemaic.Case.register
-class _SpriteBase_(_Armature.BaseTyp):
+class _SpriteBase_(_DClass.BaseTyp):
 
     __req_slots__ = ('__corpus__', '__relname__')
     __slots__ = ()

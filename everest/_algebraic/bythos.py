@@ -18,8 +18,8 @@ from .chora import Chora as _Chora
 #     'incise_slyce', 'incise_fail',
 #     'incise_degenerate', 'incise_empty', 'incise_contains',
 #     'incise_includes', 'incise_length', 'incise_iter', 'incision_manager',
-#     'charmature_brace', 'charmature_truss',
-#     'charmature_generic', 'charmature_variable',
+#     'chdclass_brace', 'chdclass_truss',
+#     'chdclass_generic', 'chdclass_variable',
 #     )
 
 

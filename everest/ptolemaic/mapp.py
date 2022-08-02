@@ -266,7 +266,7 @@ class MappMultiOp(MappOp):
     ...
 
 
-class MappVariadicOp(MappMultiOp, metaclass=_System):
+class MappEnnaryOp(MappMultiOp, metaclass=_System):
 
     args: ARGS
 
@@ -288,7 +288,7 @@ class MappVariadicOp(MappMultiOp, metaclass=_System):
         return self.__ptolemaic_class__(*(arg @ sub for sub in arg))
 
 
-class ElasticMapp(MappVariadicOp):
+class ElasticMapp(MappEnnaryOp):
 
     def extend(self, arg, /):
         return self.__ptolemaic_class__(self, arg)
@@ -338,7 +338,7 @@ class SwitchMapp(ElasticMapp):
         return self.__ptolemaic_class__(*self.typemapp.subtend(arg).values())
 
 
-class MappComposition(MappVariadicOp, metaclass=_System):
+class MappComposition(MappEnnaryOp, metaclass=_System):
 
     @comp
     def domain(self, /):

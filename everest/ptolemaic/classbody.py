@@ -84,7 +84,11 @@ class MroclassMerger(dict):
         except KeyError:
             deq = _deque()
             super().__setitem__(name, deq)
-        deq.extend(_itertools.filterfalse(deq.__contains__, val))
+        if isinstance(val, str):
+            if val not in deq:
+                deq.append(val)
+        else:
+            deq.extend(_itertools.filterfalse(deq.__contains__, val))
 
     def update(self, vals, /):
         for key, val in dict(vals).items():
@@ -256,16 +260,32 @@ class ClassBody(dict):
                 outer.anticipate_mroclass(name)
         self.ismroclass = check
 
+    def get_overclass(self, /, *path):
+        path = iter(path)
+        strn = next(path)
+        try:
+            overclass = self[strn]
+        except KeyError:
+            overclass = self.add_notion(strn)
+        for strn in path:
+            overclass = getattr(overclass, strn)
+        return overclass
+
     def _post_prepare_bases(self, /):
         bases = []
         if self.ismroclass:
             name, outer = self.name, self.outer
             for overclass in outer['__mroclasses__'][name]:
                 if isinstance(overclass, str):
-                    try:
-                        overclass = outer[overclass]
-                    except KeyError:
-                        overclass = outer.add_notion(overclass)
+                    path = overclass.lstrip('.')
+                    ndots = len(overclass) - len(path)
+                    if ndots:
+                        body = self
+                        for _ in range(ndots):
+                            body = body.outer
+                        overclass = body.get_overclass(*path.split('.'))
+                    else:
+                        overclass = getattr(self.module, path)
                 bases.append(overclass)
             for obase in outer.bases:
                 try:
@@ -298,7 +318,11 @@ class ClassBody(dict):
                 if all(issubclass(meta, mt) for mt in metas):
                     break
             else:
-                raise RuntimeError("Could not identify proper metaclass.")
+                print(repr(bases))
+                raise RuntimeError(
+                    "Could not identify proper metaclass.",
+                    self.name, bases
+                    )
         for metabase in (meta, *meta.__bases__):
             try:
                 basetyp = metabase.BaseTyp

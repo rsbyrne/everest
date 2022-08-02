@@ -6,7 +6,7 @@
 from .algebraic import Algebraic as _Algebraic
 
 
-class ChArmature(_Algebraic):
+class ChDClass(_Algebraic):
     ...
 
 

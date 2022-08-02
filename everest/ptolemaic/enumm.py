@@ -63,8 +63,7 @@ class _EnummBase_(metaclass=Enumm):
     @classmethod
     def __class_post_construct__(cls, /):
         super().__class_post_construct__()
-        if cls.__enumerators__:
-            cls._add_enumerators_()
+        cls._add_enumerators_()
 
     @classmethod
     def _add_enumerators_(cls, /):

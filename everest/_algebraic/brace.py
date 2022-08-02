@@ -46,7 +46,7 @@ def process_labels(arg, /):
 
 def get_bracetyp_single(arg, default=None, /):
     try:
-        return arg.__charmature_brace__
+        return arg.__chdclass_brace__
     except (AttributeError, NotImplementedError) as exc:
         if default is None:
             raise exc
@@ -217,8 +217,8 @@ class Brace(BraceLike, _Algebraic, metaclass=_Bythos):
                 return self.__ptolemaic_class__.owner.owner(*incisor)
 
             @property
-            def __charmature_brace__(self, /):
-                return self.__ptolemaic_class__.owner.owner.__charmature_truss__
+            def __chdclass_brace__(self, /):
+                return self.__ptolemaic_class__.owner.owner.__chdclass_truss__
 
             def __mod__(self, arg, /):
                 return Brace.Oid(self, arg)

@@ -14,7 +14,7 @@ from .ousia import Ousia as _Ousia
 from . import exceptions as _exceptions
 
 
-class Armature(_Ousia):
+class DClass(_Ousia):
 
     @property
     def __signature__(cls, /):
@@ -42,7 +42,7 @@ class Param:
         return getattr(instance.params, self.name)
 
 
-class ArmatureBase(metaclass=Armature):
+class DClassBase(metaclass=DClass):
 
     MERGENAMES = ('__field_names__',)
     __field_names__ = ()

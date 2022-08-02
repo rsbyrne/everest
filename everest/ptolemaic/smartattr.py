@@ -7,7 +7,7 @@ from abc import abstractmethod as _abstractmethod
 from functools import partial as _partial
 import inspect as _inspect
 
-from everest.armature import Armature as _Armature
+from everest.dclass import DClass as _DClass
 
 from . import ptolemaic as _ptolemaic
 from .sprite import Sprite as _Sprite
@@ -33,7 +33,7 @@ class SmartAttrHolder(_Kwargs):
     ...
 
 
-class SmartAttrDirective(metaclass=_Armature):
+class SmartAttrDirective(metaclass=_DClass):
 
     typ: type
     kwargs: dict

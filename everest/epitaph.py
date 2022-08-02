@@ -24,7 +24,7 @@ from everest.utilities import (
     TypeMap as _TypeMap,
     )
 from everest import ur as _ur
-from everest.armature import Armature as _Armature
+from everest.dclass import DClass as _DClass
 
 
 _Callable = _collabc.Callable
@@ -234,7 +234,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakKeyDictionary):
         content = f"{repr(bytes(arg._array))},{repr(str(arg.dtype))}"
         return self.enfence(content, 'a')
 
-    def encode_armature(self, arg: _Armature, /, *, deps: set = None):
+    def encode_dclass(self, arg: _DClass, /, *, deps: set = None):
         typ = self.encode_content(arg.Base, deps=deps)
         content = self.encode_tuple(arg.params, deps)[1:-1]
         if not content:

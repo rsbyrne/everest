@@ -13,8 +13,8 @@ import types as _types
 import weakref as _weakref
 
 from everest.switch import Switch as _Switch
-from everest.armature import (
-    Armature as _Armature, ImmutableError as _ImmutableError
+from everest.dclass import (
+    DClass as _DClass, ImmutableError as _ImmutableError
     )
 
 # from .ousia import Ousia as _Ousia
@@ -22,7 +22,7 @@ from . import ptolemaic as _ptolemaic
 
 
 @_ptolemaic.Ptolemaic.register
-class _SteleMeta_(_Armature):
+class _SteleMeta_(_DClass):
 
     @property
     def __instancecheck__(cls, /):
@@ -99,6 +99,12 @@ class Stele(metaclass=_SteleMeta_):
             }
         super().__init__()
         self.initialise_innerobjs()
+        try:
+            meth = module.__dict__['__init__']
+        except KeyError:
+            pass
+        else:
+            meth(self)
 
     def __taphonomise__(self, taph, /):
         return taph(self._module_)

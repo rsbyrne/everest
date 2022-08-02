@@ -300,11 +300,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.epitaph.hashID
 
     @property
-    def __mro_entries__(cls, bases, /):
-        return (cls.__ptolemaic_class__,)
+    def __mro_entries__(cls, /):
+        return cls.__class_mro_entries__
 
 
 class _EssenceBase_(metaclass=Essence):
+
+    @classmethod
+    def __class_mro_entries__(cls, bases, /):
+        return (cls.__ptolemaic_class__,)
 
     @classmethod
     def __class_post_construct__(cls, /):
