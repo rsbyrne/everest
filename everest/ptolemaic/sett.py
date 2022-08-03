@@ -3,49 +3,19 @@
 ###############################################################################
 
 
-import abc as _abc
 from collections import abc as _collabc
 import inspect as _inspect
 import types as _types
 import sys as _sys
+import itertools as _itertools
 
 from . import ptolemaic as _ptolemaic
 from .essence import Essence as _Essence
-from .ousia import Ousia as _Ousia
 from .enumm import Enumm as _Enumm
-from .sprite import Sprite as _Sprite
 from .system import System as _System
-# from .stele import Stele as _Stele
 from . import pseudotype as _pseudotype
-from .thing import Thing as _Thing
-
-# class _Stele(_Stele):
-
-#     def __call__(self, arg, /):
-#         if arg is self:
-#             arg = Sett
-#         return Sett.convert(arg)
-
-#     def __instancecheck__(self, arg, /):
-#         return isinstance(arg, Sett)
-
-#     def __subclasscheck__(self, arg, /):
-#         return issubclass(arg, Sett)
-
-#     @property
-#     def register(self, /):
-#         return self.Sett.register
-
-#     def __mro_entries__(self, bases, /):
-#         return (self.Sett,)
-
-
-# _stele = _Stele.commence()
-
-
-def __init__(stele, /):
-    for enumm in stele.Setts.enumerators:
-        setattr(stele, enumm.name, enumm)
+from .algebra import Algebra as _Algebra
+from .brace import Brace as _Brace
 
 
 class _Any_(metaclass=_Essence):
@@ -78,7 +48,7 @@ class _Null_(metaclass=_Essence):
         return NotImplemented
 
 
-class Sett(_Thing):
+class Sett(metaclass=_Algebra):
 
 
     __mroclasses__ = dict(
@@ -89,6 +59,7 @@ class Sett(_Thing):
         Inverse=('.Unary', '.Base'),
         Union=('.Ennary', '.Base'),
         Intersection=('.Ennary', '.Base'),
+        Brace='.Base',
         )
 
     @classmethod
@@ -111,6 +82,11 @@ class Sett(_Thing):
         if isinstance(arg, _types.FunctionType):
             return cls.FromFunc(arg)
         return NotImplemented
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.Base.bracetyp = cls.Brace
 
 
     class Base(metaclass=_Essence):
@@ -211,6 +187,18 @@ class Sett(_Thing):
         def __invert__(self, /):
             return self.invert()
 
+        # def __pos__(self, /):
+        #     return self.bracetyp(self)
+
+        def __pow__(self, other, /):
+            return self.bracetyp(self, labels=other)
+
+        def __mul__(self, other, /):
+            return self.bracetyp.merge(self, other)
+
+        def __rmul__(self, other, /):
+            return self.bracetyp.merge(other, self)
+
 
     class Identity(metaclass=_Enumm):
 
@@ -255,7 +243,7 @@ class Sett(_Thing):
             return all(map(self.container.__contains__, arg))
 
 
-    class FromType(metaclass=_Sprite):
+    class FromType(metaclass=_System):
 
         typ: type
 
@@ -356,7 +344,7 @@ class Sett(_Thing):
             yield self.value
 
 
-    class Brace(metaclass=_Essence):
+    class Brace(_Brace):
 
 
         __mroclasses__ = dict(Base='..Base')
@@ -372,7 +360,7 @@ class Sett(_Thing):
                     return False
                 return all(
                     subarg in arg
-                    for arg, subarg in zip(self.args, other)
+                    for arg, subarg in _itertools.zip_longest(self.args, other)
                     )
 
             def _includes_(self, other, /):
@@ -387,6 +375,17 @@ class Sett(_Thing):
                     asett.__includes__(bsett)
                     for asett, bsett in zip(self.args, other.args)
                     )
+
+        class Power(metaclass=_System):
+
+            def _contains_(self, other, /):
+                if not isinstance(other, self.typ):
+                    return False
+                arg = self.arg
+                for item in other:
+                    if item not in arg:
+                        return False
+                return True
 
 
 _sys.modules[__name__] = Sett

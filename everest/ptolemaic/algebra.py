@@ -154,28 +154,29 @@ class _AlgebraBase_(metaclass=Algebra):
             return params
 
 
+class CompanionAlgebra(Algebra):
+
+    @classmethod
+    def __post_prepare__(meta, body, /, **kwargs):
+        super().__post_prepare__(body)
+        if body.iscosmic:
+            body['Element'] = Algebra.BaseTyp
+        else:
+            body['Element'] = body.outer.namespace
+
+
+class _CompanionAlgebraBase_(metaclass=CompanionAlgebra):
+
+    __mroclasses__ = dict(
+        Base='.Element.Operation',
+        )
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        if not cls.__cosmic__:
+            cls.Element = cls.__corpus__
+
+
 ###############################################################################
 ###############################################################################
-
-# import sys as _sys
-
-
-            # typ: KW[type] = tuple
-#     __mroclasses__ = dict(
-#         _Base_=(),
-#         Op=('Base',),
-#         Multi=('Op',),
-#         Ennary=('Multi',),
-#         )
-
-
-    # @classmethod
-    # def __class_mro_entries__(cls, bases, /):
-    #     return (cls.Base,)
-
-        # module = _sys.modules[cls.__module__]
-        # if isinstance(type(module), Algebra):
-        #     raise RuntimeError(
-        #         "Only one Algebra type may be defined per module."
-        #         )
-        # _sys.modules[cls.__module__] = cls

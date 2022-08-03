@@ -135,6 +135,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return meta.__class_construct_finalise__(body)
 
     @classmethod
+    def __post_prepare__(meta, body: _ClassBody, /, **kwargs):
+        body.update(kwargs)
+
+    @classmethod
     def __class_construct_finalise__(meta, body: _ClassBody, /):
         return body.finalise()
 

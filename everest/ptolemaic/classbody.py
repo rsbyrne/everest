@@ -84,11 +84,11 @@ class MroclassMerger(dict):
         except KeyError:
             deq = _deque()
             super().__setitem__(name, deq)
-        if isinstance(val, str):
+        if isinstance(val, (str, type)):
             if val not in deq:
-                deq.append(val)
+                deq.appendleft(val)
         else:
-            deq.extend(_itertools.filterfalse(deq.__contains__, val))
+            deq.extendleft(_itertools.filterfalse(deq.__contains__, val))
 
     def update(self, vals, /):
         for key, val in dict(vals).items():
@@ -98,6 +98,23 @@ class MroclassMerger(dict):
 class ClassBody(dict):
 
     BODIES = _weakref.WeakValueDictionary()
+
+    @property
+    class namespace:
+
+        __slots__ = ('classbody',)
+
+        def __init__(self, classbody, /):
+            object.__setattr__(self, 'classbody', classbody)
+
+        def __getattr__(self, name, /):
+            try:
+                return self.classbody[name]
+            except KeyError as exc:
+                raise AttributeError from exc
+
+        def __setattr__(self, name, val, /):
+            self.classbody[name] = val
 
     def __init__(
             self, meta, name, bases, /, *,
@@ -112,6 +129,7 @@ class ClassBody(dict):
                 _clsmutable=_Switch(True),
                 ).items():
             super().__setitem__(nm, val)
+        self.kwargs = kwargs
         self.outer = None
         self.innerobjs = {}
         self._nametriggers = dict(
@@ -260,33 +278,31 @@ class ClassBody(dict):
                 outer.anticipate_mroclass(name)
         self.ismroclass = check
 
-    def get_overclass(self, /, *path):
-        path = iter(path)
+    def get_from_path(self, path: str, /):
+        ndots = len(path) - len(path := path.lstrip('.'))
+        path = iter(path.split('.'))
         strn = next(path)
-        try:
-            overclass = self[strn]
-        except KeyError:
-            overclass = self.add_notion(strn)
+        if ndots:
+            obj = self
+            for _ in range(ndots-1):
+                obj = obj.outer
+            try:
+                obj = obj[strn]
+            except KeyError as exc:
+                if strn in self['__mroclasses__']:
+                    obj = obj.add_notion(strn)
+                else:
+                    raise AttributeError from exc
+        else:
+            obj = self.module
         for strn in path:
-            overclass = getattr(overclass, strn)
-        return overclass
+            obj = getattr(obj, strn)
+        return obj
 
     def _post_prepare_bases(self, /):
         bases = []
         if self.ismroclass:
             name, outer = self.name, self.outer
-            for overclass in outer['__mroclasses__'][name]:
-                if isinstance(overclass, str):
-                    path = overclass.lstrip('.')
-                    ndots = len(overclass) - len(path)
-                    if ndots:
-                        body = self
-                        for _ in range(ndots):
-                            body = body.outer
-                        overclass = body.get_overclass(*path.split('.'))
-                    else:
-                        overclass = getattr(self.module, path)
-                bases.append(overclass)
             for obase in outer.bases:
                 try:
                     mrobase = getattr(obase, name)
@@ -294,6 +310,10 @@ class ClassBody(dict):
                     continue
                 if mrobase not in bases:
                     bases.append(mrobase)
+            for item in outer['__mroclasses__'][name]:
+                if isinstance(item, str):
+                    item = outer.get_from_path(item)
+                bases.append(item)
         for base in self._rawbases:
             if isinstance(base, type):
                 if base not in bases:
@@ -318,7 +338,6 @@ class ClassBody(dict):
                 if all(issubclass(meta, mt) for mt in metas):
                     break
             else:
-                print(repr(bases))
                 raise RuntimeError(
                     "Could not identify proper metaclass.",
                     self.name, bases
@@ -459,6 +478,7 @@ class ClassBody(dict):
         self._post_prepare_mroclasses()
         self._post_prepare_bodymeths()
         self._post_prepare_nametriggers()
+        self.meta.__post_prepare__(self, **self.kwargs)
         self._fullyprepared = True
 
     def add_notion(self, name, base=None, /):
