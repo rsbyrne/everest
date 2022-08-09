@@ -59,7 +59,7 @@ class _SteleMeta_(_DClass):
         stele = _sys.modules[name]
         if not isinstance(stele, cls):
             raise RuntimeError("Cannot complete uncommenced stele.")
-        if not stele.mutable:
+        if not stele.__mutable__:
             raise RuntimeError("Cannot initialise already initialised stele.")
         _sys.modules[name].__initialise__()
 
@@ -81,8 +81,8 @@ class Stele(metaclass=_SteleMeta_):
     _ISSTELE_ = True
 
     @classmethod
-    def __parameterise__(cls, name, /):
-        return super().__parameterise__(name=name)
+    def _parameterise_(cls, name, /):
+        return super()._parameterise_(name=name)
 
     def initialise_innerobjs(self, skip=frozenset(), /):
         for name in tuple(innerobjs := self._innerobjs):
@@ -109,9 +109,9 @@ class Stele(metaclass=_SteleMeta_):
     def __taphonomise__(self, taph, /):
         return taph(self._module_)
 
-    def register_innerobj(self, name, obj, /):
+    def _register_innerobj(self, name, obj, /):
         _ptolemaic.configure_as_innerobj(obj, self, name)
-        if self.mutable:
+        if self.__mutable__:
             self._innerobjs[name] = obj
         else:
             try:
@@ -134,8 +134,8 @@ class Stele(metaclass=_SteleMeta_):
         if val is self:
             return name, _weakref.proxy(self)
         if isinstance(val, (_ptolemaic.Ideal, _ptolemaic.Case)):
-            if val.mutable:
-                self.register_innerobj(name, val)
+            if val.__mutable__:
+                self._register_innerobj(name, val)
         else:
             val = _ptolemaic.convert(val)
         return val

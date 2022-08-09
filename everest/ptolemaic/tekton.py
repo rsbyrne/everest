@@ -7,7 +7,7 @@ import inspect as _inspect
 
 from .urgon import Urgon as _Urgon
 from .eidos import Eidos as _Eidos
-from .smartattr import Get as _Get
+from .pathtools import Get as _Get
 from . import field as _field
 from .ousia import Ousia as _Ousia
 from . import ptolemaic as _ptolemaic
@@ -67,14 +67,14 @@ class _TektonBase_(metaclass=Tekton):
         return _inspect.Signature(parameters, return_annotation=retanno)
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
+    def _parameterise_(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.arguments = {
             key: val for key, val in bound.arguments.items()
             if val is not NotImplemented
             }
         bound.apply_defaults()
-        return super().__parameterise__(**{
+        return super()._parameterise_(**{
             **bound.arguments,
             **cls.__fields__.degenerates,
             })

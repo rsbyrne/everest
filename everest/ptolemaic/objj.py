@@ -3,23 +3,21 @@
 ###############################################################################
 
 
-from . import scroll as _scroll
 from .essence import Essence as _Essence
+from .algebra import Algebra as _Algebra
+from .sett import Sett as _Sett
+from .brace import Brace as _Brace
 
 
-_scroll.commence()
+class Objj(metaclass=_Algebra):
 
 
-a = 1
-b = [2, 3]
+    __mroclasses__ = dict(
+        Sett=_Sett,
+        Brace=_Brace,
+        )
 
 
-class A(metaclass=_Essence):
-    class B(metaclass=_Essence):
-        ...
-
-
-_scroll.complete()
 
 
 ###############################################################################

@@ -100,7 +100,7 @@ class Epitaph(_classtools.Freezable):
         try:
             return self._hashint
         except AttributeError:
-            with self.mutable:
+            with self.__mutable__:
                 out = self._hashint = int(self.hexcode, 16)
             return out
 
@@ -109,7 +109,7 @@ class Epitaph(_classtools.Freezable):
         try:
             return self._hashID
         except AttributeError:
-            with self.mutable:
+            with self.__mutable__:
                 out = self._hashID = _word.get_random_proper(
                     2, seed=self.hexcode
                     )
@@ -236,7 +236,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakKeyDictionary):
 
     def encode_dclass(self, arg: _DClass, /, *, deps: set = None):
         typ = self.encode_content(arg.Base, deps=deps)
-        content = self.encode_tuple(arg.params, deps)[1:-1]
+        content = self.encode_tuple(arg._params_, deps)[1:-1]
         if not content:
             content = '()'
         return f"{typ}[{content}]"       

@@ -37,22 +37,20 @@ class Pleroma(type):
 
     def __init__(meta, /, *args, **kwargs):
         type.__setattr__(meta, '_metamutable', _Switch(True))
-        meta._meta_softcache = {}
         super().__init__(*args, **kwargs)
-        meta.basetypname = f"_{meta.__name__}Base_"
         meta.__meta_init__()
-        meta.mutable = False
+        meta.__mutable__ = False
 
     @property
-    def mutable(meta, /):
+    def __mutable__(meta, /):
         return meta.__dict__['_metamutable']
 
-    @mutable.setter
-    def mutable(meta, val, /):
-        meta.mutable.toggle(val)
+    @__mutable__.setter
+    def __mutable__(meta, val, /):
+        meta.__mutable__.toggle(val)
 
     def __setattr__(meta, name, val, /):
-        if meta.mutable:
+        if meta.__mutable__:
             super().__setattr__(name, val)
         else:
             raise AttributeError(
@@ -60,7 +58,7 @@ class Pleroma(type):
                 )
 
     def __delattr__(meta, name, /):
-        if meta.mutable:
+        if meta.__mutable__:
             super().__delattr__(name)
         else:
             raise AttributeError(
@@ -78,15 +76,16 @@ class Pleroma(type):
     def BaseTyp(meta, /):
         try:
             return meta.__dict__['_BaseTyp']
-        except KeyError:
-            module = _getmodule(meta)
-            try:
-                basetyp = eval(meta.basetypname, {}, module.__dict__)
-            except (NameError, SyntaxError):
-                raise AttributeError('BaseTyp')
-            else:
-                type.__setattr__(meta, '_BaseTyp', basetyp)
-                return basetyp
+        except KeyError as exc:
+            raise AttributeError from exc
+            # module = _getmodule(meta)
+            # try:
+            #     basetyp = eval(meta.basetypname, {}, module.__dict__)
+            # except (NameError, SyntaxError):
+            #     raise AttributeError('BaseTyp')
+            # else:
+            #     type.__setattr__(meta, '_BaseTyp', basetyp)
+            #     return basetyp
 
     @property
     def taphonomy(meta, /):

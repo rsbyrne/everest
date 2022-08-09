@@ -78,8 +78,8 @@ class Screed(metaclass=_Sprite):
         return super().__class_call__(__content__, **__chapters__)
 
     @classmethod
-    def __parameterise__(cls, /, __content__='', **__chapters__):
-        params = super().__parameterise__()
+    def _parameterise_(cls, /, __content__='', **__chapters__):
+        params = super()._parameterise_()
         if isinstance(__content__, _collabc.Mapping):
             if __chapters__:
                 raise ValueError(
@@ -154,8 +154,8 @@ class Scroll(metaclass=_System):
         return self.__screed__.to_file(name, path)
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
+    def _parameterise_(cls, /, *args, **kwargs):
+        params = super()._parameterise_(*args, **kwargs)
         if not isinstance(arg := params.__screed__, Screed):
             params.__screed__ = Screed(arg)
         return params
@@ -177,7 +177,7 @@ class Scroll(metaclass=_System):
             scroll = self.__ptolemaic_class__.__class_alt_call__(
                 screed, **dict(self._subscroll_yield_injectables(screed))
                 )
-            self.register_innerobj(name, scroll)
+            self._register_innerobj(name, scroll)
             setattr(self, name, scroll)
 
     def _get_exec_globals(self, /):

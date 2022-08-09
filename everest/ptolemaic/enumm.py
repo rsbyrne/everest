@@ -4,11 +4,39 @@
 
 
 import abc as _abc
+import functools as _functools
+import types as _types
 
-from everest import ur as _ur
+from everest.ur import Dat as _Dat
 
 from . import ptolemaic as _ptolemaic
+from .sprite import Sprite as _Sprite
 from .ousia import Ousia as _Ousia
+
+
+class Member(metaclass=_Sprite):
+
+    note: str = None
+    value: ... = None
+
+    def __directive_call__(self, body, name, /):
+        note, value = self.__params__
+        newname = f"_{name}_value"
+        if isinstance(value, (_types.MethodType, _types.FunctionType)):
+            value.__name__ = newname
+            value.__qualname__ = '.'.join((
+                *'.'.split(value.__qualname__)[:-1], newname
+                ))
+            if note is None:
+                note = value.__doc__
+        body['__enumerators__'][name] = note
+        return newname, value
+
+    @classmethod
+    def __body_call__(cls, body, arg=None, /, **kwargs):
+        if arg is None:
+            return _functools.partial(cls.__body_call__, body, **kwargs)
+        return cls(value=arg, **kwargs)
 
 
 class Enumm(_Ousia):
@@ -16,15 +44,22 @@ class Enumm(_Ousia):
     @classmethod
     def _yield_mergenames(meta, /):
         yield from super()._yield_mergenames()
-        yield '__enumerators__', (dict, _ptolemaic.PtolDict)
+        yield '__enumerators__', dict
+
+    @classmethod
+    def _yield_bodymeths(meta, body, /):
+        yield from super()._yield_bodymeths(body)
+        yield 'member', _functools.partial(Member.__body_call__, body)
 
     @classmethod
     def body_handle_anno(meta, body, name, note, val, /):
-        body['__enumerators__'][name] = note
-        body[f'_{name}_'] = val
+        body[name] = Member(note, val)
 
     def __iter__(cls, /):
-        return iter(cls.enumerators)
+        return iter(cls._enumerators)
+
+    def __contains__(cls, arg, /):
+        return isinstance(arg, cls)
 
     ### Disabling redundant methods:
 
@@ -52,7 +87,7 @@ class Enumm(_Ousia):
 class _EnummBase_(metaclass=Enumm):
 
     __enumerators__ = {}
-    __slots__ = ('serial', 'note', '_value_')
+    __slots__ = ('serial', 'name', 'note', 'value')
 
     ### Class setup:
 
@@ -61,43 +96,38 @@ class _EnummBase_(metaclass=Enumm):
         return None
 
     @classmethod
-    def __class_post_construct__(cls, /):
-        super().__class_post_construct__()
-        cls._add_enumerators_()
-
-    @classmethod
-    def _add_enumerators_(cls, /):
+    def __class_init__(cls, /):
+        super().__class_init__()
         enumerators = []
         enumeratorsdict = {}
         _it = enumerate(cls.__enumerators__.items())
         for serial, (name, note) in _it:
-            obj = cls._instantiate_(_ptolemaic.convert((serial, note)))
+            if hasattr(cls, name):
+                continue
+            value = getattr(cls, f"_{name}_value", None)
+            obj = cls._instantiate_((serial, name, note, value))
+            if isinstance(value, property):
+                obj.value = value.__get__(obj)
             setattr(cls, name, obj)
-            setattr(obj, '_value_', getattr(cls, f"_{name}_", None))
-            for key, val in zip(('serial', 'note'), obj.params):
-                object.__setattr__(obj, key, val)
-            cls.register_innerobj(name, obj)
+            obj.serial, obj.name, obj.note, obj.value = obj.__params__
+            cls._register_innerobj(name, obj)
             enumerators.append(obj)
             enumeratorsdict[name] = obj
-        cls.enumerators = _ptolemaic.convert(enumerators)
-        cls.enumeratorsdict = _ptolemaic.convert(enumeratorsdict)
+        cls._enumerators = tuple(enumerators)
+        cls._enumeratorsdict = _Dat.convert(enumeratorsdict)
 
     ### Representations:
 
-    @property
-    def name(self, /):
-        return self.__relname__
-
     def _content_repr(self, /):
-        return ', '.join(map(repr, self.params))
+        return ', '.join(map(repr, self.__params__))
 
     def __repr__(self, /):
         return f"{self.rootrepr}.{self.__relname__}"
 
     def __class_getitem__(cls, arg: (int, str), /):
         if isinstance(arg, str):
-            return cls.enumeratorsdict[arg]
-        return cls.enumerators[arg]
+            return cls._enumeratorsdict[arg]
+        return cls._enumerators[arg]
 
     def __lt__(self, other, /):
         if isinstance(other, self.__ptolemaic_class__):

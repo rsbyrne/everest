@@ -6,15 +6,25 @@
 import abc as _abc
 import itertools as _itertools
 import sys as _sys
+import types as _types
 import weakref as _weakref
 from functools import partial as _partial
 from collections import abc as _collabc, deque as _deque
 
 from everest.switch import Switch as _Switch
+from everest.ur import (
+    Dat as _Dat, Primitive as _Primitive,
+    PrimitiveUniTuple as _PrimitiveUniTuple,
+    )
 
 from .pleroma import Pleroma as _Pleroma
 from .shadow import Shadow as _Shadow, Shade as _Shade
 from . import ptolemaic as _ptolemaic
+
+
+class LevelError(RuntimeError):
+
+    ...
 
 
 class AnnotationHandler(dict):
@@ -95,6 +105,14 @@ class MroclassMerger(dict):
             self[key] = val
 
 
+class _ClassBodyHelper_:
+
+    __slots__ = ('body',)
+
+    def __init__(self, body, /):
+        self.body = body
+
+
 class ClassBody(dict):
 
     BODIES = _weakref.WeakValueDictionary()
@@ -116,6 +134,28 @@ class ClassBody(dict):
         def __setattr__(self, name, val, /):
             self.classbody[name] = val
 
+    class _ptolemaic_helper(_ClassBodyHelper_):
+
+        def __mro_entries__(self, bases, /):
+            return (self.body._defaultbasetyp,)
+
+    class _mroclass_helper(_ClassBodyHelper_):
+
+        def __init__(self, /, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            body = self.body
+            body.lock.toggle(True)
+            body.awaiting_mroclass = True
+
+        def __mro_entries__(self, bases, /):
+            if len(bases) != 1:
+                raise RuntimeError(bases)
+            return (self.body._defaultbasetyp,)
+
+        def __call__(self, /, *mrobases):
+            self.body.awaiting_mroclass_names = mrobases
+            return self
+
     def __init__(
             self, meta, name, bases, /, *,
             modname=None, qualroot=None, qualname=None,
@@ -129,9 +169,13 @@ class ClassBody(dict):
                 _clsmutable=_Switch(True),
                 ).items():
             super().__setitem__(nm, val)
+        self.lock = _Switch(False)
+        # self._add_mroclass_sugar()
         self.kwargs = kwargs
         self.outer = None
         self.innerobjs = {}
+        self.awaiting_mroclass = False
+        self.awaiting_mroclass_names = ()
         self._nametriggers = dict(
             __module__=(lambda val: setattr(self, 'modname', val)),
             __qualname__=(lambda val: setattr(self, 'qualname', val)),
@@ -143,12 +187,14 @@ class ClassBody(dict):
             # sugar=self._sugar,
             __annotations__=AnnotationHandler(self.__setanno__),
             )
+        self._registeredfuncs = dict()
+        self._publicnames = set()
         self._shades = dict()
         self._protected = set(self)
         self._rawmeta = meta
         self._staticmeta = _staticmeta_
         self.name = name
-        self._rawbases = bases
+        self._rawbases = tuple(base for base in bases)
         self._fullyprepared = False
         self.escaped = set()
         self.escapedvals = dict()
@@ -186,9 +232,13 @@ class ClassBody(dict):
         if name in self.escaped:
             return self.escapedvals[name]
         try:
-            return self._redirects[name]
+            redir = self._redirects[name]
         except KeyError:
             pass
+        else:
+            if isinstance(redir, property):
+                return redir.__get__(self)
+            return redir
         try:
             return self._shades[name]
         except KeyError:
@@ -196,6 +246,10 @@ class ClassBody(dict):
         return super().__getitem__(name)
 
     def __setitem__(self, name, val, /):
+        if self.lock:
+            raise RuntimeError(
+                "Cannot set item while classbody is locked!"
+                )
         if val is NotImplemented:
             return
         if name in self.escaped:
@@ -221,12 +275,21 @@ class ClassBody(dict):
             return
         if name is None:
             return
+        if not name.startswith('_'):
+            self._publicnames.add(name)
+            if isinstance(val, _types.FunctionType):
+                if '.'.join(val.__qualname__.split('.')[:-1]) \
+                        == self._qualname:
+                    self._register_func(name, val)
         super().__setitem__(name, val)
 
     def __delitem__(self, name, /):
         if name in self.escaped:
             del self.escapedvals[name]
         super().__delitem__(name)
+
+    def _register_func(self, name, val, /):
+        self._registeredfuncs[name] = val
 
     @property
     def modname(self, /):
@@ -284,15 +347,22 @@ class ClassBody(dict):
         strn = next(path)
         if ndots:
             obj = self
-            for _ in range(ndots-1):
+            for i in range(ndots-1):
                 obj = obj.outer
-            try:
-                obj = obj[strn]
-            except KeyError as exc:
-                if strn in self['__mroclasses__']:
-                    obj = obj.add_notion(strn)
-                else:
-                    raise AttributeError from exc
+                if obj is None:
+                    raise LevelError(i)
+            if isinstance(obj, ClassBody):
+                if not strn:
+                    raise ValueError(
+                        "Cannot reference a class that has not been created yet."
+                        )
+                try:
+                    obj = obj[strn]
+                except KeyError as exc:
+                    if strn in obj['__mroclasses__']:
+                        obj = obj.add_notion(strn)
+                    else:
+                        raise AttributeError from exc
         else:
             obj = self.module
         for strn in path:
@@ -301,29 +371,38 @@ class ClassBody(dict):
 
     def _post_prepare_bases(self, /):
         bases = []
+        safeadd = lambda kls: (
+            None if any(issubclass(base, kls) for base in bases)
+            else bases.append(kls)
+            )
         if self.ismroclass:
+            # if self._rawbases:
+            #     raise RuntimeError
             name, outer = self.name, self.outer
             for obase in outer.bases:
                 try:
                     mrobase = getattr(obase, name)
                 except AttributeError:
                     continue
-                if mrobase not in bases:
-                    bases.append(mrobase)
+                safeadd(mrobase)
             for item in outer['__mroclasses__'][name]:
                 if isinstance(item, str):
-                    item = outer.get_from_path(item)
-                bases.append(item)
+                    try:
+                        item = outer.get_from_path(item)
+                    except LevelError:
+                        continue
+                safeadd(item)
+                # bases.extend(
+                #     entry for entry in base.__mro_entries__
+                #     if entry not in bases
+                #     )
+        # else:
         for base in self._rawbases:
             if isinstance(base, type):
                 if base not in bases:
                     bases.append(base)
             else:
                 raise TypeError(type(base))
-                # bases.extend(
-                #     entry for entry in base.__mro_entries__
-                #     if entry not in bases
-                #     )
         meta = self._rawmeta
         try:
             basetyp = meta.BaseTyp
@@ -347,8 +426,7 @@ class ClassBody(dict):
                 basetyp = metabase.BaseTyp
             except AttributeError:
                 continue
-            if not any(issubclass(base, basetyp) for base in bases):
-                bases.append(basetyp)
+            safeadd(basetyp)
             if (maxgens := meta._maxgenerations_) is not None:
                 counts = map(basetyp.count_generation, bases)
                 maxcount = max(val for val in counts if val is not None)
@@ -394,11 +472,12 @@ class ClassBody(dict):
         nametriggers[mname] = _partial(genericfunc, addmeth)
 
     def _update_mergenames(self, dct, /):
+        meta = self.meta
         dct = {
             key: (
-                (val[0], _ptolemaic.convert_type(val[1]))
+                (val[0], _Dat.convert_type(val[1]))
                 if isinstance(val, tuple)
-                else (val, _ptolemaic.convert_type(val))
+                else (val, _Dat.convert_type(val))
                 )
             for key, val in dct.items()
             }
@@ -431,6 +510,9 @@ class ClassBody(dict):
             for name, meth in self.meta._yield_bodymeths(self)
             )
         toadd['escaped'] = _partial(Escaped, self)
+        toadd['pathget'] = self.get_from_path
+        toadd['ptolemaic'] = property(self._ptolemaic_helper)
+        toadd['mroclass'] = property(self._mroclass_helper)
         self._redirects.update(toadd)
         self._protected.update(toadd)
 
@@ -455,19 +537,26 @@ class ClassBody(dict):
         try:
             outer = BODIES[modname, stump]
         except KeyError:
-            if False:  # if modname == '__main__':
+            # if False:  # if modname == '__main__':
+            #     iscosmic = False
+            #     outer = module
+            # else:
+            try:
+                module._ISSTELE_
+            except AttributeError:
+                iscosmic = True
+                outer = None
+            else:
                 iscosmic = False
                 outer = module
-            else:
-                try:
-                    module._ISSTELE_
-                except AttributeError:
-                    iscosmic = True
-                    outer = None
-                else:
-                    iscosmic = False
-                    outer = module
         else:
+            if outer.awaiting_mroclass:
+                outer.lock.toggle(False)
+                outer['__mroclasses__'] = {
+                    name: outer.awaiting_mroclass_names,
+                    }
+                outer.awaiting_mroclass = False
+                outer.awaiting_mroclass_names = ()
             iscosmic = False
         self.outer = outer
         self.iscosmic = iscosmic
@@ -483,7 +572,7 @@ class ClassBody(dict):
 
     def add_notion(self, name, base=None, /):
         if base is None:
-            base = self.meta._defaultbasetyp
+            base = self._defaultbasetyp
         out = self[name] = type(
             name, (base,), {},
             modname=self.modname, qualroot=self.qualname,
@@ -510,7 +599,7 @@ class ClassBody(dict):
         for mname, (_, fintyp) in mergenames.items():
             super().__setitem__(mname, fintyp(super().__getitem__(mname)))
         super().__setitem__(
-            '__mergenames__', _ptolemaic.convert(mergenames)
+            '__mergenames__', _Dat.convert(mergenames)
             )
 
     def _finalise_mroclasses(self, /):
@@ -518,22 +607,29 @@ class ClassBody(dict):
             if not check:
                 self.add_notion(mroname, self.get(mroname, None))
 
-    def register_innerobj(self, obj, name, /):
+    def _register_innerobj(self, obj, name, /):
         self.innerobjs[name] = obj
 
     def finalise(self, /):
         assert self._fullyprepared, (self.name,)
         self._finalise_mergenames()
         self._finalise_mroclasses()
-        out = _abc.ABCMeta.__new__(
-            self.meta, self.name, self.bases, dict(self)
-            )
+        try:
+            out = _abc.ABCMeta.__new__(
+                self.meta, self.name, self.bases, dict(self)
+                )
+        except TypeError as exc:
+            for base in self.bases[:]:
+                print('------')
+                print(repr(base))
+                print(base.__mro__[1:-2])
+            raise exc
         if self.iscosmic:
             type.__setattr__(out, '_clsiscosmic', True)
         else:
             name, outer = self.name, self.outer
             try:
-                meth = outer.register_innerobj
+                meth = outer._register_innerobj
             except AttributeError:
                 _ptolemaic.configure_as_innerobj(out, outer, name)
             else:
@@ -541,7 +637,11 @@ class ClassBody(dict):
             type.__setattr__(out, '_clsiscosmic', False)
         type.__setattr__(out, '_clsinnerobjs', {})
         for name, innerobj in self.innerobjs.items():
-            out.register_innerobj(innerobj, name)
+            out._register_innerobj(innerobj, name)
+        for funcname, func in self._registeredfuncs.items():
+            func.__relname__, func.__corpus__ = \
+                funcname, out
+        type.__setattr__(out, '_clspublicnames', self._publicnames)
         return out
 
     def __setanno__(self, name, val, /):

@@ -80,7 +80,7 @@ class Shadow(metaclass=_DClass):
     del methname
 
     def __hash__(self, /):  # Has to be added manually due to richops ^^^
-        return hash((self.Base, self.params))
+        return hash((self.__abstract_class__, self.__params__))
 
     @_abc.abstractmethod
     def get_evalstr(self, /):
@@ -123,7 +123,7 @@ class Operation(Shadow):
         try:
             return self._shades
         except AttributeError:
-            with self.mutable:
+            with self.__mutable__:
                 shades = self._shades = _ur.DatUniTuple(self.yield_shades())
             return shades
 

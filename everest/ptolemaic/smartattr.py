@@ -11,7 +11,7 @@ from everest.dclass import DClass as _DClass
 
 from . import ptolemaic as _ptolemaic
 from .sprite import Sprite as _Sprite
-from .content import Kwargs as _Kwargs
+from .ousia import Kwargs as _Kwargs
 
 
 def _fallback_getter(obj, name, instance, /):
@@ -60,8 +60,8 @@ class SmartAttr(metaclass=_Sprite):
         cls.__merge_name__ = f"__{singlename}s__"
 
     @classmethod
-    def __parameterise__(cls, /, *args, content=None, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
+    def _parameterise_(cls, /, *args, content=None, **kwargs):
+        params = super()._parameterise_(*args, **kwargs)
         if content is not None:
             cls.adjust_params_for_content(params, content)
         return params
@@ -116,16 +116,6 @@ class SmartAttr(metaclass=_Sprite):
             return _partial(_fallback_deleter, name, obj)
         else:
             return _partial(meth, name)
-
-
-class Get(metaclass=_Sprite):
-
-    path: str
-
-    def __call__(self, obj, /):
-        for name in self.path.split('.'):
-            obj = getattr(obj, name)
-        return obj
 
 
 ###############################################################################

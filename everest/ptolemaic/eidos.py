@@ -84,7 +84,7 @@ class _EidosBase_(metaclass=Eidos):
             if val is NotImplemented:
                 continue
             if not name.startswith('_'):
-                val = _ptolemaic.convert(val)
+                val = self.__ptolemaic_class__.convert(val)
             object.__setattr__(self, name, val)
             return val
         raise AttributeError(name)

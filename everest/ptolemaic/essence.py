@@ -5,13 +5,20 @@
 
 import abc as _abc
 import functools as _functools
+import types as _types
 
 from everest.bureau import FOCUS as _FOCUS
-from everest import ur as _ur
+from everest.ur import (
+    Primitive as _Primitive,
+    PrimitiveUniTuple as _PrimitiveUniTuple,
+    )
 
 from . import ptolemaic as _ptolemaic
 from .pleroma import Pleroma as _Pleroma
 from .classbody import ClassBody as _ClassBody
+
+
+_Ptolemaic = _ptolemaic.Ptolemaic
 
 
 @_ptolemaic.Ideal.register
@@ -30,6 +37,20 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     #     if cls.mutable:
     #         owner.register_innerobj(name, cls)
 
+    @classmethod
+    def convert(meta, arg, /):
+        if isinstance(arg, _Ptolemaic):
+            return arg
+        if isinstance(arg, _types.MethodType):
+            if isinstance(arg.__self__, _Ptolemaic):
+                return arg
+            raise TypeError(type(arg))
+        if isinstance(arg, _types.FunctionType):
+            if hasattr(arg, '__corpus__'):
+                return arg
+            raise TypeError(type(arg))
+        return _Primitive.convert(arg)
+
     @property
     def _configure_as_innerobj(cls, /):
         return cls._class_configure_as_innerobj   
@@ -42,15 +63,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
             return None
 
     @property
-    def __cosmic__(cls, /):
-        return cls.__corpus__ is None
-
-    @property
     def __relname__(cls, /):
         try:
             return cls.__dict__['__class_relname__']
         except KeyError:
             return cls.__qualname__
+
+    @property
+    def __progenitor__(cls, /):
+        return type(cls)
 
     ### Meta init:
 
@@ -77,11 +98,24 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Class construction:
 
     @classmethod
+    def _pre_filter_bases(meta, bases, /):
+        for base in bases:
+            if isinstance(base, Essence):
+                if not base.ismetabasetyp:
+                    yield base
+
+    @classmethod
     def __prepare__(meta, name, bases, /, **kwargs):
         '''Called before class body evaluation as the namespace.'''
+        try:
+            BaseTyp = meta.BaseTyp
+        except AttributeError:
+            _staticmeta_ = True
+        else:
+            _staticmeta_ = False
         return _ClassBody(
-            meta, name, bases,
-            _staticmeta_=(name == meta.basetypname), **kwargs,
+            meta, name, tuple(meta._pre_filter_bases(bases)),
+            _staticmeta_=_staticmeta_, **kwargs,
             )
 
     @classmethod
@@ -146,22 +180,35 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def __ptolemaic_class__(cls, /):
         return cls._get_ptolemaic_class()
 
+    @property
+    def ismetabasetyp(cls, /):
+        return cls.__dict__['_ismetabasetyp']
+
     ### Initialising the class:
 
     def __init__(cls, /, *args, **kwargs):
+        try:
+            BaseTyp = (meta := type(cls)).BaseTyp
+        except AttributeError:
+            cls._ismetabasetyp = True
+            type.__setattr__(meta, '_BaseTyp', cls)
+        else:
+            cls._ismetabasetyp = False
+            assert isinstance(cls, meta)
         _abc.ABCMeta.__init__(cls, *args, **kwargs)
         iscosmic = cls._clsiscosmic
         del cls._clsiscosmic
         cls.__class_post_construct__()
         if iscosmic:
             cls.__initialise__()
+            cls.__mutable__ = False
 
     @property
     def __initialise__(cls, /):
         return cls.__class_initialise__
 
     @property
-    def register_innerobj(cls, /):
+    def _register_innerobj(cls, /):
         return cls._class_register_innerobj
 
     ### Storage:
@@ -173,12 +220,12 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Implementing the attribute-freezing behaviour for classes:
 
     @property
-    def mutable(cls, /):
+    def __mutable__(cls, /):
         return cls.__dict__['_clsmutable']
 
-    @mutable.setter
-    def mutable(cls, val, /):
-        cls.mutable.toggle(val)
+    @__mutable__.setter
+    def __mutable__(cls, val, /):
+        cls.__mutable__.toggle(val)
 
     # def __getattribute__(cls, name, /):
     #     try:
@@ -195,11 +242,11 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         #         raise AttributeError from exc
 
     def __setattr__(cls, name, val, /):
-        if cls.mutable:
-            if name == 'mutable':
+        if cls.__mutable__:
+            if name == '__mutable__':
                 super().__setattr__(name, val)
             elif not name.startswith('_'):
-                _ptolemaic.convert(val)
+                cls.convert(val)
                 try:
                     setname = val.__set_name__
                 except AttributeError:
@@ -213,7 +260,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
                 )
 
     def __delattr__(cls, name, /):
-        if cls.mutable:
+        if cls.__mutable__:
             super().__delattr__(name)
         else:
             raise RuntimeError(
@@ -261,7 +308,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def __taphonomise__(cls, /):
-        return cls._class__taphonomise__
+        return cls.__class_taphonomise__
 
     @property
     def epitaph(cls, /):
@@ -321,7 +368,7 @@ class _EssenceBase_(metaclass=Essence):
     @classmethod
     def _class_register_innerobj(cls, name, obj, /):
         _ptolemaic.configure_as_innerobj(obj, cls, name)
-        if cls.mutable:
+        if cls.__mutable__:
             cls._clsinnerobjs[name] = obj
         else:
             try:
@@ -332,12 +379,24 @@ class _EssenceBase_(metaclass=Essence):
                 meth()
 
     @classmethod
+    def _yield_publicnames(cls, /):
+        for base in cls.__bases__:
+            if isinstance(base, Essence):
+                yield from base.__public__
+        yield from cls.__public_new__
+
+    @classmethod
     def __class_initialise__(cls, /):
+        cls.__public_new__ = _PrimitiveUniTuple(cls._clspublicnames)
+        type.__delattr__(cls, '_clspublicnames')
+        cls.__public__ = _PrimitiveUniTuple(cls._yield_publicnames())
         cls.__class_init__()
-        assert cls.mutable, cls
-        cls.mutable = False
-        for name, obj in cls._clsinnerobjs.items():
+        assert cls.__mutable__, cls
+        innerobjs = cls._clsinnerobjs
+        for name, obj in innerobjs.items():
             obj.__initialise__()
+        for obj in innerobjs.values():
+            obj.__mutable__ = False
         type.__delattr__(cls, '_clsinnerobjs')
 
     @classmethod
@@ -349,7 +408,7 @@ class _EssenceBase_(metaclass=Essence):
         return cls
 
     @classmethod
-    def _class__taphonomise__(cls, taph, /):
+    def __class_taphonomise__(cls, taph, /):
         if (corpus := cls.__corpus__) is None:
             return taph.auto_epitaph(cls)
         return taph.getattr_epitaph(corpus, cls.__relname__)
@@ -380,8 +439,7 @@ class _EssenceBase_(metaclass=Essence):
         return None
 
 
-with Essence.mutable:
-    Essence._defaultbasetyp = Essence.BaseTyp
+_ClassBody._defaultbasetyp = _EssenceBase_
 
 
 ###############################################################################

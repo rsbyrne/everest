@@ -12,93 +12,104 @@ from .system import System as _System
 from . import ptolemaic as _ptolemaic
 
 
-class Algebra(_Essence):
+class AlgebraType(metaclass=_Essence):
 
     @classmethod
-    def _yield_mroclasses(meta, /):
-        yield from super()._yield_mroclasses()
-        yield 'Base', ()
-        # yield 'Error', ()
-        yield 'Identity', '.Base'
-        yield 'Operation', ()
-        yield 'Nullary', '.Operation'
-        yield 'Unary', '.Operation'
-        yield 'Ennary', '.Operation'
+    def __algebratype_init__(cls, /):
+        pass
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        if cls is not cls.__class__:
+            cls.__algebratype_init__()
+
+
+class Algebra(_Essence):
+
+    ...
 
 
 class _AlgebraBase_(metaclass=Algebra):
 
+    @classmethod
+    def __subalgebra_init__(cls, corpus, /):
+        pass
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         Base = cls.Base
         cls.register(Base)
+        if cls is not __class__:
+            for base in Base.__bases__:
+                if issubclass(base, _AlgebraBase_.Base):
+                    base.algebra.register(cls)
         Base.algebra = cls
-        for enumm in cls.Identity.enumerators:
-            setattr(cls, enumm.name, enumm)
-        cls.Operation.convert = cls.convert
+        cls.Armature.algconvert = cls.algconvert
+        if isinstance(corpus := cls.__corpus__, Algebra):
+            cls.__subalgebra_init__(corpus)
 
     @classmethod
     def __class_call__(cls, arg, /):
-        return cls.convert(arg)
+        return cls.algconvert(arg)
 
     @classmethod
-    def convert(cls, arg, /):
-        out = cls._convert_(arg)
+    def algconvert(cls, arg, /):
+        out = cls._algconvert_(arg)
         if out is NotImplemented:
             raise TypeError(type(arg))
         return out
 
     @classmethod
-    def _convert_(cls, arg, /):
+    def _algconvert_(cls, arg, /):
         if isinstance(arg, cls):
             return arg
         return NotImplemented
 
 
-    class Error(RuntimeError):
+    class Base(mroclass(AlgebraType)):
 
         ...
 
 
-    class Base(metaclass=_Essence):
+    class Special(mroclass('.Base'), metaclass=_Enumm):
 
-        ...
+        @classmethod
+        def __class_init__(cls, /):
+            super().__class_init__()
+            if isinstance(corpus := cls.__corpus__, Algebra):
+                for enumm in cls:
+                    setattr(corpus, enumm.name, enumm)
 
 
-    class Identity(metaclass=_Enumm):
-
-        ...
-
-
-    class Operation(metaclass=_Essence):
+    class Armature(mroclass(AlgebraType)):
 
         __mergenames__ = dict(__algparams__=(dict, dict))
 
         @classmethod
         @_abc.abstractmethod
-        def convert(cls, arg, /):
+        def algconvert(cls, arg, /):
             raise NotImplementedError
 
 
-    class Nullary(metaclass=_System):
+    class Nullary(mroclass('.Armature'), metaclass=_System):
 
         ...
 
 
-    class Unary(metaclass=_System):
+    class Unary(mroclass, metaclass=_System):
 
         __algparams__ = dict(
             idempotent=False,
             invertible=False,
             )
 
-        arg: get('__corpus__.Base')
+        arg: get('..Base')
 
         @classmethod
         def __class_call__(cls, /, *args, **kwargs):
-            params = cls.__parameterise__(*args, **kwargs)
+            params = cls._parameterise_(*args, **kwargs)
             algparams = cls.__algparams__
             if isinstance(arg := params.arg, cls):
                 if algparams['idempotent']:
@@ -108,9 +119,9 @@ class _AlgebraBase_(metaclass=Algebra):
             return cls.__retrieve__(tuple(params.__dict__.values()))
 
         @classmethod
-        def __parameterise__(cls, /, *args, **kwargs):
-            params = super().__parameterise__(*args, **kwargs)
-            arg = cls.convert(params.arg)
+        def _parameterise_(cls, /, *args, **kwargs):
+            params = super()._parameterise_(*args, **kwargs)
+            arg = cls.algconvert(params.arg)
             algparams = cls.__algparams__
             if algparams['idempotent']:
                 if isinstance(arg, cls):
@@ -119,7 +130,7 @@ class _AlgebraBase_(metaclass=Algebra):
             return params
 
 
-    class Ennary(metaclass=_System):
+    class Ennary(mroclass('.Armature'), metaclass=_System):
 
         __algparams__ = dict(
             unique=False,
@@ -128,12 +139,12 @@ class _AlgebraBase_(metaclass=Algebra):
             arity=None,
             )
 
-        args: ARGS[get('__corpus__.Base')]
+        args: ARGS[pathget('..Base')]
 
         @classmethod
-        def __parameterise__(cls, /, *args, **kwargs):
-            params = super().__parameterise__(*args, **kwargs)
-            args = map(cls.convert, params.args)
+        def _parameterise_(cls, /, *args, **kwargs):
+            params = super()._parameterise_(*args, **kwargs)
+            args = map(cls.algconvert, params.args)
             algparams = cls.__algparams__
             if algparams['associative']:
                 args = _itertools.chain.from_iterable(
@@ -152,30 +163,6 @@ class _AlgebraBase_(metaclass=Algebra):
                     raise ValueError("Wrong arity.")
             params.args = tuple(args)
             return params
-
-
-class CompanionAlgebra(Algebra):
-
-    @classmethod
-    def __post_prepare__(meta, body, /, **kwargs):
-        super().__post_prepare__(body)
-        if body.iscosmic:
-            body['Element'] = Algebra.BaseTyp
-        else:
-            body['Element'] = body.outer.namespace
-
-
-class _CompanionAlgebraBase_(metaclass=CompanionAlgebra):
-
-    __mroclasses__ = dict(
-        Base='.Element.Operation',
-        )
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        if not cls.__cosmic__:
-            cls.Element = cls.__corpus__
 
 
 ###############################################################################

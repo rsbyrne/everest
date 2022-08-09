@@ -6,8 +6,11 @@
 import inspect as _inspect
 import functools as _functools
 
-from .smartattr import SmartAttr as _SmartAttr, Get as _Get
+from .smartattr import (
+    SmartAttr as _SmartAttr, SmartAttrHolder as _SmartAttrHolder
+    )
 from .sprite import Sprite as _Sprite
+from .pathtools import Get as _Get
 from .enumm import Enumm as _Enumm
 
 
@@ -15,13 +18,13 @@ _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
 
 
-class Fields(_SmartAttr.__merge_fintyp__):
+class Fields(_SmartAttrHolder):
 
     __slots__ = ('_signature', 'defaults', 'degenerates')
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        return super().__parameterise__(cls.__content_type__(
+    def _parameterise_(cls, /, *args, **kwargs):
+        return super()._parameterise_(cls.__content_type__(
             sorted(dict(*args, **kwargs).items(), key=(lambda x: x[1].score))
             ))
 
@@ -91,8 +94,8 @@ class Field(_SmartAttr):
     __merge_fintyp__ = Fields
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
+    def _parameterise_(cls, /, *args, **kwargs):
+        params = super()._parameterise_(*args, **kwargs)
         if not isinstance(kind := params.kind, Kind):
             params.kind = Kind[kind]
         return params
@@ -136,7 +139,7 @@ class Field(_SmartAttr):
             default = default(kls)
         hint = (hint(kls) if isinstance(hint := self.hint, _Get) else hint)
         return _inspect.Parameter(
-            name, self.kind._value_,
+            name, self.kind.value,
             default=default, annotation=hint,
             )
 
@@ -157,7 +160,7 @@ class Field(_SmartAttr):
         return cls(**kwargs)
 
     def _get_getter_(self, obj, name, /):
-        return lambda inst: inst.params[inst._field_indexer(name)]
+        return lambda inst: inst.__params__[inst._field_indexer(name)]
 
     def _get_setter_(self, obj, name, /):
         return super()._get_setter_(None, name)
@@ -166,7 +169,7 @@ class Field(_SmartAttr):
         return super()._get_deleter_(None, name)
 
 
-with Field.mutable:
+with Field.__mutable__:
     for kind in Kind:
         setattr(Field, kind.name, kind)
     del kind

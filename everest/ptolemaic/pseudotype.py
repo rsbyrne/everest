@@ -7,8 +7,10 @@ import weakref as _weakref
 import functools as _functools
 import abc as _abc
 
-from ..ptolemaic.essence import Essence as _Essence
-from ..ptolemaic import ptolemaic as _ptolemaic
+from everest.ur import Dat as _Dat
+
+from .essence import Essence as _Essence
+from . import ptolemaic as _ptolemaic
 
 
 class PseudoType(_Essence):
@@ -27,12 +29,9 @@ class PseudoType(_Essence):
         try:
             return premade[args]
         except KeyError:
+            args = tuple(map(meta.convert, args))
             out = meta.__class_construct__(
-                meta.__name__,
-                (),
-                dict(
-                    args=_ptolemaic.convert(args),
-                    ),
+                meta.__name__, (), dict(args=_Dat.convert(args)),
                 modname=__name__,
                 )
             premade[args] = out
@@ -42,7 +41,7 @@ class PseudoType(_Essence):
 class _PseudoTypeBase_(metaclass=PseudoType):
 
     @classmethod
-    def _class__taphonomise__(cls, taph, /):
+    def __class_taphonomise__(cls, taph, /):
         return taph.getitem_epitaph(type(cls), tuple(cls.args))
 
     @classmethod

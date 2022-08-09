@@ -6,22 +6,21 @@
 from everest.utilities import pretty as _pretty
 
 from .enumm import Enumm as _Enumm
+from .essence import Essence as _Essence
 from .sprite import Sprite as _Sprite
 
 
 class Semaphore(metaclass=_Enumm):
 
-    __mroclasses__ = dict(Dispatch=())
-
-    class Dispatch(metaclass=_Sprite):
+    class Dispatch(mroclass, metaclass=_Sprite):
 
         envelope: object
         content: object = None
 
         @classmethod
-        def __parameterise__(cls, /, *args, **kwargs):
-            params = super().__parameterise__(*args, **kwargs)
-            if params.envelope not in cls.__corpus__.enumerators:
+        def _parameterise_(cls, /, *args, **kwargs):
+            params = super()._parameterise_(*args, **kwargs)
+            if params.envelope not in cls.__corpus__:
                 raise ValueError(params.envelope)
             return params
 

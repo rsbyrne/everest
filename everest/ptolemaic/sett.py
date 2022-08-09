@@ -6,7 +6,7 @@
 from collections import abc as _collabc
 import inspect as _inspect
 import types as _types
-import sys as _sys
+# import sys as _sys
 import itertools as _itertools
 
 from . import ptolemaic as _ptolemaic
@@ -51,27 +51,26 @@ class _Null_(metaclass=_Essence):
 class Sett(metaclass=_Algebra):
 
 
-    __mroclasses__ = dict(
-        FromFunc='.Base',
-        FromContainer='.Base',
-        FromType='.Base',
-        Degenerate=('.Nullary', '.Base'),
-        Inverse=('.Unary', '.Base'),
-        Union=('.Ennary', '.Base'),
-        Intersection=('.Ennary', '.Base'),
-        Brace='.Base',
-        )
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.Base.bracetyp = cls.Brace
 
     @classmethod
-    def _convert_(cls, arg, /):
-        out = super()._convert_(arg)
+    def _algconvert_(cls, arg, /):
+        out = super()._algconvert_(arg)
         if out is not NotImplemented:
             return out
         if arg is cls.Base:
-            return cls.Identity.POWER
+            return cls.Special.POWER
         if isinstance(arg, type):
-            # if isinstance(arg, _types.GenericAlias):
-            #     return cls.Brace(*map(arg.__args__), typ=arg.__orign__)
+            if isinstance(arg, _types.GenericAlias):
+                args, origin = arg.__args__, arg.__origin__
+                if len(args) == 1:
+                    labels = ...
+                else:
+                    labels = None
+                return cls.Brace(*map(cls, args), labels=labels, typ=origin)
             return cls.FromType(arg)
         if arg is NotImplemented:
             return cls.NULL
@@ -83,13 +82,8 @@ class Sett(metaclass=_Algebra):
             return cls.FromFunc(arg)
         return NotImplemented
 
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.Base.bracetyp = cls.Brace
 
-
-    class Base(metaclass=_Essence):
+    class Base(mroclass('..Armature')):
 
         __req_slots__ = dict(_signaltype=None)
 
@@ -187,9 +181,6 @@ class Sett(metaclass=_Algebra):
         def __invert__(self, /):
             return self.invert()
 
-        # def __pos__(self, /):
-        #     return self.bracetyp(self)
-
         def __pow__(self, other, /):
             return self.bracetyp(self, labels=other)
 
@@ -199,24 +190,33 @@ class Sett(metaclass=_Algebra):
         def __rmul__(self, other, /):
             return self.bracetyp.merge(other, self)
 
+        # def __pos__(self, /):
+        #     return self.bracetyp(self)
 
-    class Identity(metaclass=_Enumm):
+
+    class Special(mroclass):
 
         UNIVERSE: "The universal set, containing everything." = _Any_
         NULL: "The null set, containing nothing." = _Null_
-        POWER: "The power set, containing all sets." = None
+        POWER: "The power set, containing all sets." = pathget('..Base')
+
+        __slots__ = ('sett',)
+
+        def __init__(self, /):
+            super().__init__()
+            self.sett = self.__ptolemaic_class__.__corpus__(self.value)
 
         def get_signaltype(self, /):
-            return self._value_
+            return self.value
 
         def _contains_(self, arg, /):
-            return True
+            return self.sett._contains_(arg)
 
         def _includes_(self, arg, /):
-            return True
+            return self.sett._includes_(arg)
 
 
-    class FromFunc(metaclass=_System):
+    class FromFunc(mroclass('.Base'), metaclass=_System):
 
         func: _collabc.Callable
 
@@ -228,7 +228,7 @@ class Sett(metaclass=_Algebra):
             return self.func
 
 
-    class FromContainer(metaclass=_System):
+    class FromContainer(mroclass('.Base'), metaclass=_System):
 
         container: _collabc.Container
 
@@ -243,7 +243,7 @@ class Sett(metaclass=_Algebra):
             return all(map(self.container.__contains__, arg))
 
 
-    class FromType(metaclass=_System):
+    class FromType(mroclass('.Base'), metaclass=_System):
 
         typ: type
 
@@ -257,7 +257,32 @@ class Sett(metaclass=_Algebra):
             return issubclass(arg, self.typ)
 
 
-    class Inverse(metaclass=_System):
+    class Degenerate(mroclass('.Nullary', '.Base'), metaclass=_System):
+
+        value: ...
+
+        def get_signaltype(self, /):
+            return type(self.value)
+
+        def _contains_(self, arg, /):
+            return arg is self.value
+
+        def _includes_(self, arg, /):
+            if isinstance(arg, Degenerate):
+                return arg.member is self.value
+            return super()._includes_()
+
+        def __entails__(self, arg, /):
+            return self.value in arg
+
+        def __len__(self, /):
+            return 1
+
+        def __iter__(self, /):
+            yield self.value
+
+
+    class Inverse(mroclass('.Unary', '.Base'), metaclass=_System):
 
         __algparams__ = dict(
             invertible=True,
@@ -270,7 +295,7 @@ class Sett(metaclass=_Algebra):
             return not self.arg.__includes__(arg)
 
 
-    class Union(metaclass=_System):
+    class Union(mroclass('.Ennary', '.Base'), metaclass=_System):
 
         __algparams__ = dict(
             unique=True, associative=True, commutative=True
@@ -297,7 +322,7 @@ class Sett(metaclass=_Algebra):
             return NotImplemented
 
 
-    class Intersection(metaclass=_System):
+    class Intersection(mroclass('.Ennary', '.Base'), metaclass=_System):
 
         __algparams__ = dict(
             unique=True, associative=True, commutative=True
@@ -319,38 +344,10 @@ class Sett(metaclass=_Algebra):
             return all(sett.__includes__(arg) for sett in self.args)
 
 
-    class Degenerate(metaclass=_System):
-
-        value: ...
-
-        def get_signaltype(self, /):
-            return type(self.value)
-
-        def _contains_(self, arg, /):
-            return arg is self.value
-
-        def _includes_(self, arg, /):
-            if isinstance(arg, Degenerate):
-                return arg.member is self.value
-            return super()._includes_()
-
-        def __entails__(self, arg, /):
-            return self.value in arg
-
-        def __len__(self, /):
-            return 1
-
-        def __iter__(self, /):
-            yield self.value
+    class Brace(mroclass(_Brace)):
 
 
-    class Brace(_Brace):
-
-
-        __mroclasses__ = dict(Base='..Base')
-
-
-        class Base(metaclass=_Essence):
+        class Base(mroclass('..Base')):
 
             def get_signaltype(self, /):
                 return self.typ
@@ -376,7 +373,7 @@ class Sett(metaclass=_Algebra):
                     for asett, bsett in zip(self.args, other.args)
                     )
 
-        class Power(metaclass=_System):
+        class Power(mroclass, metaclass=_System):
 
             def _contains_(self, other, /):
                 if not isinstance(other, self.typ):
@@ -388,8 +385,23 @@ class Sett(metaclass=_Algebra):
                 return True
 
 
-_sys.modules[__name__] = Sett
+# _sys.modules[__name__] = Sett
 
 
 ###############################################################################
+
+
+assert ('foo', 1., 2) in \
+    Sett(str) * Sett(float) * Sett(int)
+
+assert ('foo', (1., 2)) in \
+    Sett(str) * (Sett(float) * Sett(int))**1
+
+assert ((0, 1), (2, 3), (4, 5)) in \
+    (Sett(int)**2)**3
+
+assert ((), (1, 2), (3, 4, 5)) in \
+    (Sett(int)**...)**3
+
+
 ###############################################################################

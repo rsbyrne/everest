@@ -8,6 +8,7 @@ from collections import abc as _collabc
 import types as _types
 from enum import Enum as _Enum
 import functools as _functools
+import builtins as _builtins
 
 import numpy as _np
 
@@ -290,6 +291,10 @@ class Primitive(Dat):
         type(NotImplemented),
         Exception,
         )
+    SPECIALCASES = tuple(
+        val for key, val in _builtins.__dict__.items()
+        if not key.startswith('_') and callable(val)
+        )
 
     @classmethod
     @_functools.lru_cache()
@@ -307,6 +312,8 @@ class Primitive(Dat):
     @classmethod
     def convert(cls, obj, /):
         if isinstance(obj, Primitive):
+            return obj
+        if obj in cls.SPECIALCASES:
             return obj
         return cls.convert_type(type(obj))(obj)
 

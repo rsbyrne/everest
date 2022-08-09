@@ -7,7 +7,7 @@ import abc as _abc
 import itertools as _itertools
 from collections import abc as _collabc
 
-from everest.utilities import reseed as _reseed
+from everest.utilities import reseed as _reseed, pretty as _pretty
 from everest.bureau import FOCUS as _FOCUS
 from everest.switch import Switch as _Switch
 from everest import ur as _ur
@@ -22,7 +22,7 @@ class ConcreteBase:
 
     for methname in (
             '__class_call__',
-            'create_concrete', 'pre_create_concrete',
+            '_create_concrete', '_pre_create_concrete',
             ):
         exec('\n'.join((
             f"@classmethod",
@@ -37,17 +37,28 @@ class ConcreteBase:
 @_ptolemaic.Kind.register
 class Ousia(_Urgon):
 
+    @classmethod
+    def convert(meta, arg, /):
+        try:
+            return super().convert(arg)
+        except TypeError:
+            try:
+                colltyp = Pentheros[type(arg)]
+            except KeyError as exc:
+                raise TypeError from exc
+            return colltyp(arg)
+
     @property
     def Concrete(cls, /):
         cls = cls.__ptolemaic_class__
         try:
             return cls.__dict__['_Concrete']
         except KeyError:
-            with cls.mutable:
+            with cls.__mutable__:
                 out = cls._Concrete = _abc.ABCMeta.__new__(
-                    type(cls), *cls.pre_create_concrete()
+                    type(cls), *cls._pre_create_concrete()
                     )
-                out.mutable = False
+                out.__mutable__ = False
             return out
 
     @classmethod
@@ -67,9 +78,13 @@ class _OusiaBase_(metaclass=Ousia):
 
     __slots__ = (
         '__weakref__',
-        'params', '_mutable', '_pyhash', '_sessioncacheref',
+        '__params__', '_mutable', '_pyhash', '_sessioncacheref',
         '_innerobjs', '__corpus__', '__relname__', '_instancesignature',
         )
+
+    @property
+    def __progenitor__(self, /):
+        return self.__ptolemaic_class__
 
     @classmethod
     def __class_contains__(cls, arg, /):
@@ -94,15 +109,10 @@ class _OusiaBase_(metaclass=Ousia):
 
     ### Descriptor behaviours for class and instance:
 
-    def register_innerobj(self, name, obj, /):
+    def _register_innerobj(self, name, obj, /):
         _ptolemaic.configure_as_innerobj(obj, self, name)
-        if self.mutable:
-            try:
-                innerobjs = object.__getattribute__(self, '_innerobjs')
-            except AttributeError:
-                innerobjs = {}
-                object.__setattr__(self, '_innerobjs', innerobjs)
-            innerobjs[name] = obj
+        if self.__mutable__:
+            self._innerobjs[name] = obj
         else:
             try:
                 meth = obj.__initialise__
@@ -118,7 +128,7 @@ class _OusiaBase_(metaclass=Ousia):
         yield from cls.__req_slots__.items()
 
     @classmethod
-    def pre_create_concrete(cls, /):
+    def _pre_create_concrete(cls, /):
         cls = cls.__ptolemaic_class__
         return (
             f"{cls.__name__}_Concrete",
@@ -132,22 +142,19 @@ class _OusiaBase_(metaclass=Ousia):
             )
 
     @classmethod
-    def create_concrete(cls, /):
-        return type(*cls.pre_create_concrete())
+    def _create_concrete(cls, /):
+        return type(*cls._pre_create_concrete())
 
     ### Object creation:
 
     def __initialise__(self, /):
         self.__init__()
-        self.mutable = False
-        try:
-            innerobjs = self._innerobjs
-        except AttributeError:
-            pass
-        else:
-            for name, obj in innerobjs.items():
-                obj.__initialise__()
-            object.__delattr__(self, '_innerobjs')
+        innerobjs = self._innerobjs
+        for name, obj in innerobjs.items():
+            obj.__initialise__()
+        for obj in innerobjs.values():
+            obj.__mutable__ = False
+        del self._innerobjs
 
     @classmethod
     def _instantiate_(cls, params: tuple = (), /):
@@ -156,43 +163,40 @@ class _OusiaBase_(metaclass=Ousia):
         switch = _Switch(True)
         object.__setattr__(obj, '_mutable', switch)
         obj._pyhash = _reseed.rdigits(16)
-        obj.params = params
+        obj.__params__ = params
+        obj._innerobjs = {}
         return obj
 
     @classmethod
     def __instantiate__(cls, params: tuple = (), /):
-        return cls._instantiate_(_ptolemaic.convert(params))
+        return cls._instantiate_(cls.___parameterise__(params))
 
     @classmethod
     def _construct_(cls, params: tuple = (), /):
         obj = cls.__instantiate__(params)
         obj.__corpus__ = obj.__relname__ = None
         obj.__initialise__()
+        obj.__mutable__ = False
         return obj
 
     @classmethod
     def __class_alt_call__(cls, /, *args, **kwargs):
-        return cls.__instantiate__(tuple(
-            cls.__parameterise__(*args, **kwargs)
-            .__dict__.values()
-            ))
-
-    @property
-    def __cosmic__(self, /):
-        return self.__corpus__ is None
+        return cls.__instantiate__(
+            cls.___parameterise__(cls._parameterise_(*args, **kwargs))
+            )
 
     ### Storage:
 
     def __setattr__(self, name, val, /):
-        if self.mutable:
+        if self.__mutable__:
             if not name.startswith('_'):
-                val = _ptolemaic.convert(val)
+                val = self.__ptolemaic_class__.convert(val)
             object.__setattr__(self, name, val)
             return val
         raise RuntimeError("Cannot alter value while immutable.")
 
     def __delattr__(self, name, /):
-        if self.mutable:
+        if self.__mutable__:
             object.__delattr__(self, name)
         else:
             raise RuntimeError("Cannot alter value while immutable.")
@@ -201,12 +205,12 @@ class _OusiaBase_(metaclass=Ousia):
     ### Implementing the attribute-freezing behaviour for instances:
 
     @property
-    def mutable(self, /):
+    def __mutable__(self, /):
         return self._mutable
 
-    @mutable.setter
-    def mutable(self, value, /):
-        self.mutable.toggle(value)
+    @__mutable__.setter
+    def __mutable__(self, value, /):
+        self.__mutable__.toggle(value)
 
     ### Representations:
 
@@ -224,10 +228,10 @@ class _OusiaBase_(metaclass=Ousia):
     @property
     # @_caching.soft_cache()
     def contentrepr(self, /):
-        return repr(self.params)
+        return repr(self.__params__)
 
     def __repr__(self, /):
-        if self.__cosmic__:
+        if self.__corpus__ is None:
             return f"<{self.rootrepr}, id={id(self)}>"
         return f"{self.__corpus__}.{self.__relname__}"
 
@@ -235,9 +239,9 @@ class _OusiaBase_(metaclass=Ousia):
         return f"{self.rootrepr}({self.contentrepr})"
 
     def __taphonomise__(self, taph, /):
-        if self.__cosmic__:
+        if self.__corpus__ is None:
             return taph.getitem_epitaph(
-                self.__ptolemaic_class__, tuple(self.params)
+                self.__ptolemaic_class__, tuple(self.__params__)
                 )
         return taph.getattr_epitaph(self.__corpus__, self.__relname__)
 
@@ -283,6 +287,146 @@ class _OusiaBase_(metaclass=Ousia):
     @property
     def __ptolemaic_class__(self, /):
         return type(self)._get_ptolemaic_class()
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.__ptolemaic_class__.__qualname__
+        _pretty.pretty_tuple(self.__params__, p, cycle, root=root)
+
+
+class Pentheros(Ousia):
+
+    _colltyps = {}
+
+    @classmethod
+    def __meta_getitem__(meta, arg, /):
+        return meta._colltyps[arg]
+
+
+@_collabc.Collection.register
+class _PentherosBase_(metaclass=Pentheros):
+
+    __slots__ = ('_content',)
+
+    __content_type__ = None
+    __content_meths__ = ()
+    _types = {}
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        if cls is not __class__:
+            if (typ := cls.__content_type__) not in (dct := Pentheros._colltyps):
+                dct[typ] = cls
+
+    def __init__(self, /):
+        self._content = self._make_content()
+
+    @_abc.abstractmethod
+    def _make_content(self, /):
+        raise NotImplementedError
+
+
+@_collabc.Sequence.register
+class Tuuple(metaclass=Pentheros):
+
+    @classmethod
+    def _parameterise_(cls, /, *args, **kwargs):
+        try:
+            return tuple(*args, **kwargs)
+        except TypeError:
+            return tuple(args, **kwargs)
+
+    def _make_content(self, /):
+        return self.__params__
+
+    __content_type__ = tuple
+    __content_meths__ = (
+        '__len__', '__contains__', '__iter__',
+        '__getitem__', '__reversed__', 'index', 'count',
+        )
+
+    with escaped('methname'):
+        for methname in __content_meths__:
+            exec('\n'.join((
+                f"@property",
+                f"def {methname}(self, /):",
+                f"    return self._content.{methname}",
+                )))
+
+
+@_collabc.Mapping.register
+class Binding(metaclass=Pentheros):
+
+    @classmethod
+    def _parameterise_(cls, /, *args, **kwargs):
+        dct = dict(*args, **kwargs)
+        return tuple(map(Tuuple, (dct.keys(), dct.values())))
+
+    def _make_content(self, /):
+        return _ur.DatDict(zip(*self.__params__))
+
+    __content_type__ = dict
+    __content_meths__ = (
+        '__len__', '__contains__', '__iter__',
+        '__getitem__', 'keys', 'items', 'values', 'get',
+        )
+
+    with escaped('methname'):
+        for methname in __content_meths__:
+            exec('\n'.join((
+                f"@property",
+                f"def {methname}(self, /):",
+                f"    return self._content.{methname}",
+                )))
+
+    def __init__(self, /):
+        self._content = _ur.DatDict(zip(*self.__params__))
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.__ptolemaic_class__.__qualname__
+        _pretty.pretty_dict(self._content, p, cycle, root=root)
+
+
+class Kwargs(Binding):
+
+    @classmethod
+    def _parameterise_(cls, /, *args, **kwargs):
+        keys, vals = super()._parameterise_(*args, **kwargs)
+        if not all(type(key) is str for key in keys):
+            raise ValueError(
+                f"Only string keys are permitted "
+                f"as inputs to {__class__.__name__}."
+                )
+        return keys, vals
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if root is None:
+            root = self.__ptolemaic_class__.__qualname__
+        _pretty.pretty_kwargs(self._content, p, cycle, root=root)
+
+    def __taphonomise__(self, taph, /):
+        return taph.callsig_epitaph(self.__ptolemaic_class__, **self)
+
+
+# @_collabc.Sequence.register
+# class Arraay(Collection):
+
+#     __content_type__ = _ur.DatArray
+#     __content_meths__ = (
+#         '__len__', '__contains__', '__iter__',
+#         '__getitem__', 'dtype', 'shape',
+#         '__reversed__', 'index', 'count',
+#         )
+
+#     with escaped('methname'):
+#         for methname in __content_meths__:
+#             exec('\n'.join((
+#                 f"@property",
+#                 f"def {methname}(self, /):",
+#                 f"    return self._content.{methname}",
+#                 )))
 
 
 ###############################################################################
@@ -346,7 +490,7 @@ class _OusiaBase_(metaclass=Ousia):
 #             raise RuntimeError from exc
 #         except KeyError:
 #             if name in typ.__slots__:
-#                 if self.mutable:
+#                 if self.__mutable__:
 #                     object.__setattr__(self, name, val)
 #                 else:
 #                     raise AttributeError(
@@ -371,7 +515,7 @@ class _OusiaBase_(metaclass=Ousia):
 #             raise RuntimeError from exc
 #         except KeyError:
 #             if name in typ.__slots__:
-#                 if self.mutable:
+#                 if self.__mutable__:
 #                     object.__delattr__(self, name)
 #                 else:
 #                     try:

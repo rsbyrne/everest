@@ -104,12 +104,12 @@ class DClass(_abc.ABCMeta):
         cls._clsmutable.toggle(True)
 
     @property
-    def mutable(cls, /):
+    def __mutable__(cls, /):
         return cls.__dict__['_clsmutable']
 
-    @mutable.setter
-    def mutable(cls, val, /):
-        cls.mutable.toggle(val)
+    @__mutable__.setter
+    def __mutable__(cls, val, /):
+        cls.__mutable__.toggle(val)
 
     def __setattr__(cls, name, val, /):
         if cls.__dict__['_clsmutable']:
@@ -137,7 +137,7 @@ class DClass(_abc.ABCMeta):
 @_ur.Dat.register
 class _DClassBase_(metaclass=_abc.ABCMeta):
 
-    __req_slots__ = ('__weakref__', '_mutable', 'params')
+    __req_slots__ = ('__weakref__', '_mutable', '__params__')
     __slots__ = ()
 
     @classmethod
@@ -159,7 +159,7 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
 
     def __initialise__(self, /):
         self.__init__()
-        self.mutable = False
+        self.__mutable__ = False
 
     @classmethod
     def _instantiate_(cls, params: tuple, /):
@@ -167,7 +167,7 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
         obj = Concrete.__new__(Concrete)
         mutable = _Switch(True)
         object.__setattr__(obj, '_mutable', mutable)
-        object.__setattr__(obj, 'params', params)
+        object.__setattr__(obj, '__params__', params)
         for name, val in zip(cls.__fields__, params):
             object.__setattr__(obj, name, val)
         return obj
@@ -217,12 +217,12 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
         return cls.__retrieve__(arg)
 
     @property
-    def mutable(self, /):
+    def __mutable__(self, /):
         return self._mutable
 
-    @mutable.setter
-    def mutable(self, value, /):
-        self.mutable.toggle(value)
+    @__mutable__.setter
+    def __mutable__(self, value, /):
+        self.__mutable__.toggle(value)
 
     def __setattr__(self, name, val, /):
         if self._mutable:
@@ -242,18 +242,18 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
         return f"<{self.__abstract_class__.__qualname__}, id={id(self)}>"
 
     def __str__(self, /):
-        return f"{self.__abstract_class__.__qualname__}({repr(self.params)[1:-1]})"
+        return f"{self.__abstract_class__.__qualname__}({repr(self.__params__)[1:-1]})"
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.__abstract_class__.__qualname__
-        _pretty.pretty_tuple(self.params, p, cycle, root=root)
+        _pretty.pretty_tuple(self.__params__, p, cycle, root=root)
 
     def __hash__(self, /):
-        return hash((self.__abstract_class__, self.params))
+        return hash((self.__abstract_class__, self.__params__))
 
     def __reduce__(self, /):
-        return self.__abstract_class__.__class_getitem__, (self.params,)
+        return self.__abstract_class__.__class_getitem__, (self.__params__,)
 
 
 DClass.BaseTyp = _DClassBase_

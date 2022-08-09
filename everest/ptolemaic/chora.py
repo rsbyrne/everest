@@ -33,8 +33,8 @@ class _Stele_(_Stele_):
         except AttributeError:
             pass
         else:
-            with self.mutable:
-                for enumm in choras.enumerators:
+            with self.__mutable__:
+                for enumm in choras:
                     setattr(self, enumm.name, enumm)
 
     def __instancecheck__(self, arg, /):
@@ -100,11 +100,11 @@ class IncisionStyle(_Semaphore):
     class Dispatch(metaclass=_Essence):
 
         def __call__(self, arg, /):
-            envelope, content = self.params
+            envelope, content = self.__params__
             try:
                 meth = getattr(arg, envelope.methname)
             except AttributeError:
-                meth = envelope._value_.__get__(arg)
+                meth = envelope.value.__get__(arg)
             return meth(content)
 
 
@@ -159,7 +159,7 @@ class Choras(Chora, metaclass=_Enumm):
     POWER: "The power chora, containing all choras." = _sett(Chora)
 
     def get_signaltype(self, /):
-        return self._value_.get_signaltype()
+        return self.value.get_signaltype()
 
     def _contains_(self, arg, /):
         return True
@@ -246,7 +246,7 @@ class Choret(Chora):
             (getattr(self, nm) for nm in self._inchandlers)
             ).__getitem__
         for style, names in self._incmeths.items():
-            fallback = style._value_.__get__(self)
+            fallback = style.value.__get__(self)
             mapp = _mapp((*(getattr(self, nm) for nm in names), fallback))
             setattr(self, style.methname, mapp.__getitem__)
 
@@ -541,8 +541,8 @@ _Stele_.complete()
 #     mapper: _mapp.Mapp
 
 #     @classmethod
-#     def __parameterise__(cls, /, *args, **kwargs):
-#         params = super().__parameterise__(*args, **kwargs)
+#     def _parameterise_(cls, /, *args, **kwargs):
+#         params = super()._parameterise_(*args, **kwargs)
 #         params.handler = _mapp(params.handler)
 #         params.mapper = _mapp(params.mapper)
 #         return params

@@ -8,19 +8,11 @@ from collections import abc as _collabc
 
 from everest.ptolemaic.essence import Essence as _Essence
 from everest.ptolemaic.system import System as _System
-from everest.ptolemaic.algebra import CompanionAlgebra as _CompanionAlgebra
+from everest.ptolemaic.algebra import Algebra as _Algebra
 
 
-class Brace(metaclass=_CompanionAlgebra):
+class Brace(metaclass=_Algebra):
 
-
-    __mroclasses__ = dict(
-        Power=('.Element.Unary', '.Base'),
-        Finite='.Base',
-        Single=('.Element.Unary', '.Finite'),
-        Symmetric=('.Element.Unary', '.Finite'),
-        Asymmetric=('.Element.Ennary', '.Finite'),
-        )
 
     @classmethod
     def __class_call__(
@@ -45,8 +37,8 @@ class Brace(metaclass=_CompanionAlgebra):
         return cls.Symmetric(arg0, labels=labels, typ=typ)
 
     @classmethod
-    def _convert_(cls, arg, /):
-        out = super()._convert_(arg)
+    def _algconvert_(cls, arg, /):
+        out = super()._algconvert_(arg)
         if out is not NotImplemented:
             return out
         if isinstance(arg, _collabc.Mapping):
@@ -58,11 +50,11 @@ class Brace(metaclass=_CompanionAlgebra):
     @classmethod
     def merge(cls, /, *args):
         return cls(*_itertools.chain.from_iterable(
-            cls.convert(arg).args for arg in args
+            cls.algconvert(arg).args for arg in args
             ))
 
 
-    class Base(metaclass=_Essence):
+    class Base(mroclass('..Armature')):
 
         @property
         def typ(self, /):
@@ -85,12 +77,12 @@ class Brace(metaclass=_CompanionAlgebra):
             return (self.breadth,)
 
 
-    class Power(metaclass=_System):
+    class Power(mroclass('..Unary', '.Base'), metaclass=_System):
 
         typ: KW[type] = tuple
 
 
-    class Finite(metaclass=_System):
+    class Finite(mroclass('.Base'), metaclass=_System):
 
         typ: KW[type] = tuple
 
@@ -108,7 +100,7 @@ class Brace(metaclass=_CompanionAlgebra):
             return self.algebra.merge(other, self)
 
 
-    class Single(metaclass=_System):
+    class Single(mroclass('..Unary', '.Finite'), metaclass=_System):
 
         @comp
         def args(self, /):
@@ -122,7 +114,7 @@ class Brace(metaclass=_CompanionAlgebra):
             return 1
 
 
-    class Symmetric(metaclass=_System):
+    class Symmetric(mroclass('..Unary', '.Finite'), metaclass=_System):
 
         labels: KW[...]
 
@@ -132,10 +124,9 @@ class Brace(metaclass=_CompanionAlgebra):
             return tuple(arg for _ in range(len(self.labels)))
 
 
-    class Asymmetric(metaclass=_System):
+    class Asymmetric(mroclass('..Ennary', '.Finite'), metaclass=_System):
 
         labels: KW[...] = None
-
 
 
 ###############################################################################

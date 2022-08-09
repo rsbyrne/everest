@@ -78,28 +78,28 @@ class Ptolemaic(_ur.Dat, metaclass=PtolemaicMeta):
     def check_module(cls, module, /):
         return True
 
-    @classmethod
-    @_functools.lru_cache()
-    def convert_type(cls, typ: type, /):
-        if issubclass(typ, Ptolemaic):
-            return typ
-        if issubclass(typ, set):
-            return PtolSet
-        if issubclass(typ, _np.ndarray):
-            return PtolArray
-        if issubclass(typ, _collabc.Mapping):
-            return PtolDict
-        if issubclass(typ, _collabc.Iterable):
-            return PtolTuple
-        raise TypeError(typ)
+#     @classmethod
+#     @_functools.lru_cache()
+#     def convert_type(cls, typ: type, /):
+#         if issubclass(typ, Ptolemaic):
+#             return typ
+#         if issubclass(typ, set):
+#             return PtolSet
+#         if issubclass(typ, _np.ndarray):
+#             return PtolArray
+#         if issubclass(typ, _collabc.Mapping):
+#             return PtolDict
+#         if issubclass(typ, _collabc.Iterable):
+#             return PtolTuple
+#         raise TypeError(typ)
 
-    @classmethod
-    def convert(cls, obj, /):
-        if isinstance(obj, Ptolemaic):
-            return obj
-        if isinstance(obj, type):
-            return cls.convert_type(obj)
-        return cls.convert_type(type(obj))(obj)
+#     @classmethod
+#     def convert(cls, obj, /):
+#         if isinstance(obj, Ptolemaic):
+#             return obj
+#         if isinstance(obj, type):
+#             return cls.convert_type(obj)
+#         return cls.convert_type(type(obj))(obj)
 
 
 for typ in Ptolemaic.TYPS:
@@ -107,8 +107,8 @@ for typ in Ptolemaic.TYPS:
 del typ
 
 
-convert_type = Ptolemaic.convert_type
-convert = Ptolemaic.convert
+# convert_type = Ptolemaic.convert_type
+# convert = Ptolemaic.convert
 
 
 Ptolemaic.register(PtolemaicMeta)
@@ -141,34 +141,34 @@ class Case(metaclass=Transcendant):
     ...
 
 
-@_ur.DatTuple.register
-class PtolTuple(_ur.TupleBase, Ptolemaic):
+# @_ur.DatTuple.register
+# class PtolTuple(_ur.TupleBase, Ptolemaic):
 
-    __slots__ = ()
-
-
-@_ur.DatUniTuple.register
-class PtolUniTuple(_ur.UniTupleBase, Ptolemaic):
-
-    __slots__ = ()
+#     __slots__ = ()
 
 
-@_ur.DatSet.register
-class PtolSet(_ur.SetBase, Ptolemaic):
+# @_ur.DatUniTuple.register
+# class PtolUniTuple(_ur.UniTupleBase, Ptolemaic):
 
-    __slots__ = ()
-
-
-@_ur.DatDict.register
-class PtolDict(_ur.DictBase, Ptolemaic):
-
-    __slots__ = ()
+#     __slots__ = ()
 
 
-@_ur.DatArray.register
-class PtolArray(_ur.ArrayBase, Ptolemaic):
+# @_ur.DatSet.register
+# class PtolSet(_ur.SetBase, Ptolemaic):
 
-    __slots__ = ()
+#     __slots__ = ()
+
+
+# @_ur.DatDict.register
+# class PtolDict(_ur.DictBase, Ptolemaic):
+
+#     __slots__ = ()
+
+
+# @_ur.DatArray.register
+# class PtolArray(_ur.ArrayBase, Ptolemaic):
+
+#     __slots__ = ()
 
 
 def get_innerobj_taphonomiser(owner, name, /):
@@ -179,13 +179,13 @@ def get_innerobj_taphonomiser(owner, name, /):
 
 def configure_as_innerobj(obj, owner, name, /):
     if isinstance(obj, Ideal):
-        assert obj.mutable
+        assert obj.__mutable__
         obj.__class_relname__ = name
         obj.__class_corpus__ = owner
         if isinstance(owner, Ideal):
             obj.__qualname__ = owner.__qualname__ + '.' + name
     elif isinstance(obj, Case):
-        assert obj.mutable
+        assert obj.__mutable__
         obj.__corpus__, obj.__relname__ = owner, name
     else:
         if hasattr(obj, '__corpus__'):

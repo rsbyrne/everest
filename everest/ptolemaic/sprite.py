@@ -59,7 +59,7 @@ class _SpriteBase_(metaclass=Sprite):
     ### Class instantiation:
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
+    def _parameterise_(cls, /, *args, **kwargs):
         bound = cls.__signature__.bind(*args, **kwargs)
         bound.arguments = {
             key: val for key, val in bound.arguments.items()
@@ -78,7 +78,7 @@ class _SpriteBase_(metaclass=Sprite):
 
     def __getattr__(self, name, /):
         try:
-            val = dict(zip(self.__fields__, self.params))[name]
+            val = dict(zip(self.__fields__, self.__params__))[name]
         except KeyError as exc:
             raise AttributeError from exc
         if val is NotImplemented:
@@ -89,13 +89,13 @@ class _SpriteBase_(metaclass=Sprite):
     ### Representations:
 
     def _content_repr(self, /):
-        return ', '.join(map(repr, self.params))
+        return ', '.join(map(repr, self.__params__))
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.rootrepr
         _pretty.pretty_kwargs(
-            dict(zip(self.__fields__, self.params)), p, cycle, root=root
+            dict(zip(self.__fields__, self.__params__)), p, cycle, root=root
             )
 
 

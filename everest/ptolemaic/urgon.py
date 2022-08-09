@@ -5,7 +5,7 @@
 
 import abc as _abc
 import weakref as _weakref
-import types as _types
+from types import SimpleNamespace as _SimpleNamespace
 import inspect as _inspect
 
 from .bythos import Bythos as _Bythos
@@ -59,9 +59,15 @@ class _UrgonBase_(metaclass=Urgon):
 
     @classmethod
     def __construct__(cls, params: tuple = (), /):
-        return cls._construct_(_ptolemaic.convert(params))
+        return cls._construct_(cls.___parameterise__(params))
 
-    __parameterise__ = _types.SimpleNamespace
+    _parameterise_ = _SimpleNamespace
+
+    @classmethod
+    def ___parameterise__(cls, /, params):
+        if isinstance(params, _SimpleNamespace):
+            params = params.__dict__.values()
+        return tuple(map(cls.convert, params))
 
     @classmethod
     def _retrieve_(cls, params: tuple, /):
@@ -74,14 +80,13 @@ class _UrgonBase_(metaclass=Urgon):
 
     @classmethod
     def __retrieve__(cls, params: tuple, /):
-        return cls._retrieve_(_ptolemaic.convert(params))
+        return cls._retrieve_(cls.___parameterise__(params))
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return cls.__retrieve__(tuple(
-            cls.__parameterise__(*args, **kwargs)
-            .__dict__.values()
-            ))
+        return cls._retrieve_(
+            cls.___parameterise__(cls._parameterise_(*args, **kwargs))
+            )
 
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):

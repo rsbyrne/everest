@@ -183,8 +183,8 @@ class ArbitraryMapp(SuperMapp, metaclass=_System):
     mapping: _collabc.Mapping
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        return super().__parameterise__(dict(*args, **kwargs))
+    def _parameterise_(cls, /, *args, **kwargs):
+        return super()._parameterise_(dict(*args, **kwargs))
 
     with escaped('methname'):
         for methname in (
@@ -251,7 +251,7 @@ class ModifiedMapp(MappOp, metaclass=_System):
         return self.mapp.codomain
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
+    def _parameterise_(cls, /, *args, **kwargs):
         params.mapp = cls.convert(params.mapp)
         return params
 
@@ -279,8 +279,8 @@ class MappEnnaryOp(MappMultiOp, metaclass=_System):
                 yield cls.convert(arg)
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
+    def _parameterise_(cls, /, *args, **kwargs):
+        params = super()._parameterise_(*args, **kwargs)
         params.args = tuple(cls._unpack_args(params.args))
         return params
 
@@ -360,8 +360,8 @@ class StyleMapp(MappMultiOp, metaclass=_System):
     post: Mapp
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
+    def _parameterise_(cls, /, *args, **kwargs):
+        params = super()._parameterise_(*args, **kwargs)
         pre = params.pre = cls.convert(params.pre)
         post = params.post = cls.convert(params.post)
         if not isinstance(pre, ElasticMapp):
