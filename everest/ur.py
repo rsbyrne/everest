@@ -201,6 +201,7 @@ class Dat(Ur, metaclass=DatMeta):
         _types.BuiltinFunctionType,
         _types.BuiltinMethodType,
         _functools.partial,
+        property,
         classmethod,
         staticmethod,
         )

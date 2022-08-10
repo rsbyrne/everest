@@ -7,7 +7,6 @@ import inspect as _inspect
 
 from .urgon import Urgon as _Urgon
 from .eidos import Eidos as _Eidos
-from .pathtools import Get as _Get
 from . import field as _field
 from .ousia import Ousia as _Ousia
 from . import ptolemaic as _ptolemaic
@@ -23,7 +22,6 @@ class Tekton(_Eidos, _Urgon):
     @classmethod
     def _yield_bodymeths(meta, body, /):
         yield from super()._yield_bodymeths(body)
-        yield 'get', _Get
         for kind in _field.Kind:
             yield kind.name, kind
         for signal in _field.Signal:
@@ -31,8 +29,6 @@ class Tekton(_Eidos, _Urgon):
 
     @classmethod
     def body_handle_anno(meta, body, name, hint, val, /):
-        if not isinstance(hint, _ptolemaic.Ptolemaic):
-            hint = str(hint)
         body[name] = _field.Field.from_annotation(hint, val)
 
     @property
@@ -80,10 +76,11 @@ class _TektonBase_(metaclass=Tekton):
             })
 
     @classmethod
-    def _construct_(cls, params: tuple, /):
+    def _post_parameterise_(cls, params, /):
+        params = super()._post_parameterise_(params)
         if len(params) != cls.arity:
             raise ValueError(params)
-        return super()._construct_(params)
+        return params
 
 
 ###############################################################################

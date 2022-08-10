@@ -7,12 +7,12 @@ from everest.utilities import pretty as _pretty
 
 from .enumm import Enumm as _Enumm
 from .essence import Essence as _Essence
-from .sprite import Sprite as _Sprite
+from .message import Message as _Message
 
 
 class Semaphore(metaclass=_Enumm):
 
-    class Dispatch(mroclass, metaclass=_Sprite):
+    class Dispatch(mroclass(_Message)):
 
         envelope: object
         content: object = None

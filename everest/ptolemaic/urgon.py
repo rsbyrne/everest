@@ -6,10 +6,18 @@
 import abc as _abc
 import weakref as _weakref
 from types import SimpleNamespace as _SimpleNamespace
-import inspect as _inspect
 
 from .bythos import Bythos as _Bythos
 from . import ptolemaic as _ptolemaic
+
+
+class AltReturn(Exception):
+
+    __slots__ = ('value',)
+
+    def __init__(self, value, /):
+        self.value = value
+        
 
 
 class Urgon(_Bythos):
@@ -27,8 +35,22 @@ class Urgon(_Bythos):
             type.__setattr__(cls, '_classsignature', sig)
             return sig
 
+    def __call__(cls, /, *args, **kwargs):
+        try:
+            params = cls.__parameterise__(*args, **kwargs)
+        except AltReturn as exc:
+            return exc.value
+        if cls.cacheable:
+            return cls._retrieve_(params)
+        return cls._construct_(params)
+
+    def altreturn(cls, value, /):
+        raise AltReturn(value)
+
 
 class _UrgonBase_(metaclass=Urgon):
+
+    cacheable = False
 
     @classmethod
     def __class_contains__(cls, arg, /):
@@ -39,18 +61,16 @@ class _UrgonBase_(metaclass=Urgon):
         return issubclass(arg, cls.__signature__.return_annotation)
 
     @classmethod
+    @_abc.abstractmethod
     def __class_get_signature__(cls, /):
-        try:
-            func = cls.__class_call__
-        except AttributeError:
-            func = lambda: None
-        return _inspect.signature(func)
+        raise NotImplementedError
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         # cls.__signature__ = cls.__get_signature__()
-        cls._premade = _weakref.WeakValueDictionary()
+        if cls.cacheable:
+            cls._premade = _weakref.WeakValueDictionary()
 
     @classmethod
     @_abc.abstractmethod
@@ -59,15 +79,19 @@ class _UrgonBase_(metaclass=Urgon):
 
     @classmethod
     def __construct__(cls, params: tuple = (), /):
-        return cls._construct_(cls.___parameterise__(params))
+        return cls._construct_(cls._post_parameterise_(params))
 
     _parameterise_ = _SimpleNamespace
 
     @classmethod
-    def ___parameterise__(cls, /, params):
+    def _post_parameterise_(cls, params, /):
         if isinstance(params, _SimpleNamespace):
             params = params.__dict__.values()
         return tuple(map(cls.convert, params))
+
+    @classmethod
+    def __parameterise__(cls, /, *args, **kwargs):
+        return cls._post_parameterise_(cls._parameterise_(*args, **kwargs))
 
     @classmethod
     def _retrieve_(cls, params: tuple, /):
@@ -80,16 +104,12 @@ class _UrgonBase_(metaclass=Urgon):
 
     @classmethod
     def __retrieve__(cls, params: tuple, /):
-        return cls._retrieve_(cls.___parameterise__(params))
-
-    @classmethod
-    def __class_call__(cls, /, *args, **kwargs):
-        return cls._retrieve_(
-            cls.___parameterise__(cls._parameterise_(*args, **kwargs))
-            )
+        return cls._retrieve_(cls._post_parameterise_(params))
 
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):
+        if cls.cacheable:
+            return cls.__construct__(arg)
         return cls.__retrieve__(arg)
 
 

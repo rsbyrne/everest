@@ -4,33 +4,35 @@
 
 
 import abc as _abc
-import itertools as _itertools
 
-from .essence import Essence as _Essence
+from .urgon import Urgon as _Urgon
 from .enumm import Enumm as _Enumm
-from .system import System as _System
-from . import ptolemaic as _ptolemaic
+from .ousia import Ousia as _Ousia
+from .tekton import Tekton as _Tekton
+from .message import Message as _Message
 
 
-class AlgebraType(metaclass=_Essence):
+class Algebra(_Urgon):
 
-    @classmethod
-    def __algebratype_init__(cls, /):
-        pass
+    def register_algclass(cls, kls, /):
+        cls.__algclasses__.append(kls)
 
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        if cls is not cls.__class__:
-            cls.__algebratype_init__()
+    def __call__(cls, arg0, /, *argn, **kwargs):
+        if not (argn or kwargs):
+            if isinstance(arg0, cls):
+                return arg0
+            for kls in cls.__mro__:
+                try:
+                    meth = kls.__dict__['_algconvert_']
+                except KeyError:
+                    continue
+                out = meth.__func__(cls, arg0)
+                if out is not NotImplemented:
+                    return out
+        return super().__call__(arg0, *argn, **kwargs)
 
 
-class Algebra(_Essence):
-
-    ...
-
-
-class _AlgebraBase_(metaclass=Algebra):
+class AbstractAlgebra(metaclass=Algebra):
 
     @classmethod
     def __subalgebra_init__(cls, corpus, /):
@@ -39,129 +41,130 @@ class _AlgebraBase_(metaclass=Algebra):
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        Base = cls.Base
+        Base = cls.__Base__
+        assert Base.__corpus__ is cls, (cls, Base, Base.__corpus__)
         cls.register(Base)
         if cls is not __class__:
-            for base in Base.__bases__:
-                if issubclass(base, _AlgebraBase_.Base):
-                    base.algebra.register(cls)
+            for kls in Base.__bases__:
+                if issubclass(kls, __class__.__Base__):
+                    # i.e. the algebra should be a subclass
+                    # of all of its base's bases' algebras.
+                    kls.algebra.register(cls)
         Base.algebra = cls
-        cls.Armature.algconvert = cls.algconvert
         if isinstance(corpus := cls.__corpus__, Algebra):
             cls.__subalgebra_init__(corpus)
-
-    @classmethod
-    def __class_call__(cls, arg, /):
-        return cls.algconvert(arg)
-
-    @classmethod
-    def algconvert(cls, arg, /):
-        out = cls._algconvert_(arg)
-        if out is NotImplemented:
-            raise TypeError(type(arg))
-        return out
+        algclasses = cls.__algclasses__ = tuple(
+            kls for kls in (getattr(cls, nm) for nm in cls.__mroclasses__)
+            if (issubclass(kls, Base) and kls is not Base)
+            )
+        Nullary = cls.__Nullary__
+        for kls in algclasses:
+            if issubclass(kls, Nullary) and kls is not Nullary:
+                name = kls.__relname__
+                upper = name.strip('_').upper()
+                if name == upper:
+                    raise RuntimeError(name, upper)
+                if isinstance(kls, _Ousia):
+                    obj = kls.__class_alt_call__()
+                    cls._register_innerobj(upper, obj)
+                else:
+                    obj = kls()
+                setattr(cls, upper, obj)
 
     @classmethod
     def _algconvert_(cls, arg, /):
-        if isinstance(arg, cls):
-            return arg
         return NotImplemented
 
 
-    class Base(mroclass(AlgebraType)):
+    class __Base__(mroclass, metaclass=_Tekton):
 
         ...
 
 
-    class Special(mroclass('.Base'), metaclass=_Enumm):
+    AlgebraType = __Base__
+
+
+    class __Nullary__(mroclass('.__Base__')):
+
+        ...
+
+
+    class __Unary__(mroclass('.__Base__')):
+
+        idempotent = False
+        invertible = False
+
+        arg: POS['..__Base__']
 
         @classmethod
         def __class_init__(cls, /):
             super().__class_init__()
-            if isinstance(corpus := cls.__corpus__, Algebra):
-                for enumm in cls:
-                    setattr(corpus, enumm.name, enumm)
-
-
-    class Armature(mroclass(AlgebraType)):
-
-        __mergenames__ = dict(__algparams__=(dict, dict))
-
-        @classmethod
-        @_abc.abstractmethod
-        def algconvert(cls, arg, /):
-            raise NotImplementedError
-
-
-    class Nullary(mroclass('.Armature'), metaclass=_System):
-
-        ...
-
-
-    class Unary(mroclass, metaclass=_System):
-
-        __algparams__ = dict(
-            idempotent=False,
-            invertible=False,
-            )
-
-        arg: get('..Base')
-
-        @classmethod
-        def __class_call__(cls, /, *args, **kwargs):
-            params = cls._parameterise_(*args, **kwargs)
-            algparams = cls.__algparams__
-            if isinstance(arg := params.arg, cls):
-                if algparams['idempotent']:
-                    return arg
-                if algparams['invertible']:
-                    return arg.arg
-            return cls.__retrieve__(tuple(params.__dict__.values()))
+            cls.srcalg = cls.__signature__.parameters['arg'].annotation
 
         @classmethod
         def _parameterise_(cls, /, *args, **kwargs):
             params = super()._parameterise_(*args, **kwargs)
-            arg = cls.algconvert(params.arg)
-            algparams = cls.__algparams__
-            if algparams['idempotent']:
-                if isinstance(arg, cls):
-                    arg = arg.arg
+            arg = cls.srcalg(params.arg)
+            if isinstance(arg, cls):
+                if cls.idempotent:
+                    cls.altreturn(arg)
+                if cls.invertible:
+                    cls.altreturn(arg.arg)
             params.arg = arg
             return params
 
 
-    class Ennary(mroclass('.Armature'), metaclass=_System):
+    class __Ennary__(mroclass('.__Base__'), metaclass=_Tekton):
 
-        __algparams__ = dict(
-            unique=False,
-            commutative=False,
-            associative=False,
-            arity=None,
-            )
+        unique=False
+        commutative=False
+        associative=False
+        identity=None
 
-        args: ARGS[pathget('..Base')]
+        args: ARGS['..__Base__']
+
+        @classmethod
+        def __class_init__(cls, /):
+            super().__class_init__()
+            srcalg = cls.__signature__.parameters['args'].annotation
+            if not isinstance(srcalg, Algebra):
+                srcalg = srcalg.algebra
+            cls.srcalg = srcalg
 
         @classmethod
         def _parameterise_(cls, /, *args, **kwargs):
             params = super()._parameterise_(*args, **kwargs)
-            args = map(cls.algconvert, params.args)
-            algparams = cls.__algparams__
-            if algparams['associative']:
+            args = map(cls.srcalg, params.args)
+            if cls.associative:
                 args = _itertools.chain.from_iterable(
                     arg.args if isinstance(arg, cls) else (arg,)
                     for arg in args
                     )
-            if algparams['unique']:
-                if algparams['commutative']:
+            if cls.unique:
+                if cls.commutative:
                     args = sorted(set(args))
                 else:
-                    args = _ptolemaic.PtolUniTuple(args)
-            elif algparams['commutative']:
+                    seen = set()
+                    processed = []
+                    for arg in args:
+                        if arg not in seen:
+                            processed.append(arg)
+                            seen.add(arg)
+                    args = tuple(args)
+            elif cls.commutative:
                 args = sorted(args)
-            if (arity := algparams['arity']) is not None:
-                if len(args) != arity:
-                    raise ValueError("Wrong arity.")
-            params.args = tuple(args)
+            if hasidentity := (identity := cls.identity) is not None:
+                args = tuple(arg for arg in args if arg is not identity)
+            else:
+                args = tuple(args)
+            nargs = len(args)
+            if nargs == 0:
+                if hasidentity:
+                    cls.altreturn(identity)
+                raise ValueError("No arguments.")
+            if nargs == 1:
+                cls.altreturn(args[0])
+            params.args = args
             return params
 
 

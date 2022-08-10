@@ -9,16 +9,13 @@ import types as _types
 
 from everest.bureau import FOCUS as _FOCUS
 from everest.ur import (
-    Primitive as _Primitive,
     PrimitiveUniTuple as _PrimitiveUniTuple,
     )
 
 from . import ptolemaic as _ptolemaic
 from .pleroma import Pleroma as _Pleroma
 from .classbody import ClassBody as _ClassBody
-
-
-_Ptolemaic = _ptolemaic.Ptolemaic
+from .wisp import Wisp as _Wisp
 
 
 @_ptolemaic.Ideal.register
@@ -37,19 +34,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     #     if cls.mutable:
     #         owner.register_innerobj(name, cls)
 
-    @classmethod
-    def convert(meta, arg, /):
-        if isinstance(arg, _Ptolemaic):
-            return arg
-        if isinstance(arg, _types.MethodType):
-            if isinstance(arg.__self__, _Ptolemaic):
-                return arg
-            raise TypeError(type(arg))
-        if isinstance(arg, _types.FunctionType):
-            if hasattr(arg, '__corpus__'):
-                return arg
-            raise TypeError(type(arg))
-        return _Primitive.convert(arg)
+    convert = _Wisp.convert
 
     @property
     def _configure_as_innerobj(cls, /):
@@ -101,8 +86,9 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     def _pre_filter_bases(meta, bases, /):
         for base in bases:
             if isinstance(base, Essence):
-                if not base.ismetabasetyp:
-                    yield base
+                if base.ismetabasetyp:
+                    continue
+            yield base
 
     @classmethod
     def __prepare__(meta, name, bases, /, **kwargs):
@@ -214,7 +200,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
     ### Storage:
 
     @property
-    def taphonomy(cls, /):
+    def _taphonomy_(cls, /):
         return _FOCUS.bureau.taphonomy
 
     ### Implementing the attribute-freezing behaviour for classes:
@@ -298,7 +284,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def __call__(cls, /):
-        return cls.__class_call__
+        raise NotImplementedError
 
     ### Methods relating to class serialisation:
 
@@ -311,8 +297,8 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.__class_taphonomise__
 
     @property
-    def epitaph(cls, /):
-        return cls.taphonomy[cls]
+    def _epitaph_(cls, /):
+        return cls._taphonomy_[cls]
 
     ### Operations:
 
@@ -340,15 +326,15 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def hexcode(cls, /):
-        return cls.epitaph.hexcode
+        return cls._epitaph_.hexcode
 
     @property
     def hashint(cls, /):
-        return cls.epitaph.hashint
+        return cls._epitaph_.hashint
 
     @property
     def hashID(cls, /):
-        return cls.epitaph.hashID
+        return cls._epitaph_.hashID
 
     @property
     def __mro_entries__(cls, /):
@@ -440,6 +426,32 @@ class _EssenceBase_(metaclass=Essence):
 
 
 _ClassBody._defaultbasetyp = _EssenceBase_
+
+
+class Any(metaclass=Essence):
+
+    @classmethod
+    def __class_instancecheck__(cls, other, /):
+        return isinstance(other, _ptolemaic.Case)
+
+    @classmethod
+    def __subclasshook__(cls, other, /):
+        if cls is __class__:
+            return isinstance(cls, _ptolemaic.Ideal)
+        return NotImplemented
+
+
+class Null(metaclass=Essence):
+
+    @classmethod
+    def __class_instancecheck__(cls, other, /):
+        return False
+
+    @classmethod
+    def __subclasshook__(cls, other, /):
+        if cls is __class__:
+            return False
+        return NotImplemented
 
 
 ###############################################################################

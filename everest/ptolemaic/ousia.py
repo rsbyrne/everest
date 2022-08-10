@@ -14,39 +14,30 @@ from everest import ur as _ur
 
 from . import ptolemaic as _ptolemaic
 from .urgon import Urgon as _Urgon
+from .essence import Essence as _Essence
 
 
-class ConcreteBase:
+class ConcreteBase(metaclass=_Essence):
 
-    __slots__ = ()
-
-    for methname in (
-            '__class_call__',
-            '_create_concrete', '_pre_create_concrete',
-            ):
-        exec('\n'.join((
-            f"@classmethod",
-            f"def {methname}(cls, /, *_, **__):",
-            f"    raise AttributeError(",
-            f"        '{methname} not supported on Concrete subclasses.'",
-            f"        )",
-            )))
-    del methname
+    with escaped('methname'):
+        for methname in (
+                '_parameterise_', '_post_parameterise_', '__parameterise__',
+                '_construct_', '__construct__',
+                '_retrieve_', '__retrieve__',
+                '_instantiate_', '__instantiate__',
+                '_create_concrete', '_pre_create_concrete',
+                ):
+            exec('\n'.join((
+                f"@classmethod",
+                f"def {methname}(cls, /, *_, **__):",
+                f"    raise AttributeError(",
+                f"        '{methname} not supported on Concrete subclasses.'",
+                f"        )",
+                )))
 
 
 @_ptolemaic.Kind.register
 class Ousia(_Urgon):
-
-    @classmethod
-    def convert(meta, arg, /):
-        try:
-            return super().convert(arg)
-        except TypeError:
-            try:
-                colltyp = Pentheros[type(arg)]
-            except KeyError as exc:
-                raise TypeError from exc
-            return colltyp(arg)
 
     @property
     def Concrete(cls, /):
@@ -81,6 +72,8 @@ class _OusiaBase_(metaclass=Ousia):
         '__params__', '_mutable', '_pyhash', '_sessioncacheref',
         '_innerobjs', '__corpus__', '__relname__', '_instancesignature',
         )
+
+    cacheable = True
 
     @property
     def __progenitor__(self, /):
@@ -169,7 +162,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     @classmethod
     def __instantiate__(cls, params: tuple = (), /):
-        return cls._instantiate_(cls.___parameterise__(params))
+        return cls._instantiate_(cls._post_parameterise_(params))
 
     @classmethod
     def _construct_(cls, params: tuple = (), /):
@@ -181,9 +174,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     @classmethod
     def __class_alt_call__(cls, /, *args, **kwargs):
-        return cls.__instantiate__(
-            cls.___parameterise__(cls._parameterise_(*args, **kwargs))
-            )
+        return cls.__instantiate__(cls.__parameterise__(*args, **kwargs))
 
     ### Storage:
 
@@ -223,7 +214,7 @@ class _OusiaBase_(metaclass=Ousia):
         return self._root_repr()
 
     def _content_repr(self, /):
-        raise NotImplementedError
+        return ', '.join(map(repr, self.__params__))
 
     @property
     # @_caching.soft_cache()
@@ -246,27 +237,27 @@ class _OusiaBase_(metaclass=Ousia):
         return taph.getattr_epitaph(self.__corpus__, self.__relname__)
 
     @property
-    def taphonomy(self, /):
-        return self.__ptolemaic_class__.taphonomy
+    def _taphonomy_(self, /):
+        return self.__ptolemaic_class__._taphonomy_
 
     @property
-    def epitaph(self, /):
-        return self.taphonomy[self]
+    def _epitaph_(self, /):
+        return self._taphonomy_[self]
 
     def __reduce__(self, /):
-        return self.epitaph, ()
+        return self._epitaph_, ()
 
     @property
     def hexcode(self, /):
-        return self.epitaph.hexcode
+        return self._epitaph_.hexcode
 
     @property
     def hashint(self, /):
-        return self.epitaph.hashint
+        return self._epitaph_.hashint
 
     @property
     def hashID(self, /):
-        return self.epitaph.hashID
+        return self._epitaph_.hashID
 
     def __eq__(self, other, /):
         return hash(self) == hash(other)
@@ -294,252 +285,5 @@ class _OusiaBase_(metaclass=Ousia):
         _pretty.pretty_tuple(self.__params__, p, cycle, root=root)
 
 
-class Pentheros(Ousia):
-
-    _colltyps = {}
-
-    @classmethod
-    def __meta_getitem__(meta, arg, /):
-        return meta._colltyps[arg]
-
-
-@_collabc.Collection.register
-class _PentherosBase_(metaclass=Pentheros):
-
-    __slots__ = ('_content',)
-
-    __content_type__ = None
-    __content_meths__ = ()
-    _types = {}
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        if cls is not __class__:
-            if (typ := cls.__content_type__) not in (dct := Pentheros._colltyps):
-                dct[typ] = cls
-
-    def __init__(self, /):
-        self._content = self._make_content()
-
-    @_abc.abstractmethod
-    def _make_content(self, /):
-        raise NotImplementedError
-
-
-@_collabc.Sequence.register
-class Tuuple(metaclass=Pentheros):
-
-    @classmethod
-    def _parameterise_(cls, /, *args, **kwargs):
-        try:
-            return tuple(*args, **kwargs)
-        except TypeError:
-            return tuple(args, **kwargs)
-
-    def _make_content(self, /):
-        return self.__params__
-
-    __content_type__ = tuple
-    __content_meths__ = (
-        '__len__', '__contains__', '__iter__',
-        '__getitem__', '__reversed__', 'index', 'count',
-        )
-
-    with escaped('methname'):
-        for methname in __content_meths__:
-            exec('\n'.join((
-                f"@property",
-                f"def {methname}(self, /):",
-                f"    return self._content.{methname}",
-                )))
-
-
-@_collabc.Mapping.register
-class Binding(metaclass=Pentheros):
-
-    @classmethod
-    def _parameterise_(cls, /, *args, **kwargs):
-        dct = dict(*args, **kwargs)
-        return tuple(map(Tuuple, (dct.keys(), dct.values())))
-
-    def _make_content(self, /):
-        return _ur.DatDict(zip(*self.__params__))
-
-    __content_type__ = dict
-    __content_meths__ = (
-        '__len__', '__contains__', '__iter__',
-        '__getitem__', 'keys', 'items', 'values', 'get',
-        )
-
-    with escaped('methname'):
-        for methname in __content_meths__:
-            exec('\n'.join((
-                f"@property",
-                f"def {methname}(self, /):",
-                f"    return self._content.{methname}",
-                )))
-
-    def __init__(self, /):
-        self._content = _ur.DatDict(zip(*self.__params__))
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_dict(self._content, p, cycle, root=root)
-
-
-class Kwargs(Binding):
-
-    @classmethod
-    def _parameterise_(cls, /, *args, **kwargs):
-        keys, vals = super()._parameterise_(*args, **kwargs)
-        if not all(type(key) is str for key in keys):
-            raise ValueError(
-                f"Only string keys are permitted "
-                f"as inputs to {__class__.__name__}."
-                )
-        return keys, vals
-
-    def _repr_pretty_(self, p, cycle, root=None):
-        if root is None:
-            root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_kwargs(self._content, p, cycle, root=root)
-
-    def __taphonomise__(self, taph, /):
-        return taph.callsig_epitaph(self.__ptolemaic_class__, **self)
-
-
-# @_collabc.Sequence.register
-# class Arraay(Collection):
-
-#     __content_type__ = _ur.DatArray
-#     __content_meths__ = (
-#         '__len__', '__contains__', '__iter__',
-#         '__getitem__', 'dtype', 'shape',
-#         '__reversed__', 'index', 'count',
-#         )
-
-#     with escaped('methname'):
-#         for methname in __content_meths__:
-#             exec('\n'.join((
-#                 f"@property",
-#                 f"def {methname}(self, /):",
-#                 f"    return self._content.{methname}",
-#                 )))
-
-
 ###############################################################################
 ###############################################################################
-
-
-
-#     @property
-#     # @_caching.weak_cache()
-#     def __dict__(self, /):
-#         try:
-#             out = super().__getattribute__('_sessioncacheref')()
-#             if out is None:
-#                 raise AttributeError
-#             return out
-#         except AttributeError:
-#             out = _FOCUS.request_session_storer(self)
-#             try:
-#                 super().__setattr__('_sessioncacheref', _weakref.ref(out))
-#             except AttributeError:
-#                 raise RuntimeError(
-#                     "Could not set the session cache on this object."
-#                     )
-#             return out
-
-#     def reset(self, /):
-#         self.__dict__.clear()
-#         for dep in self.dependants:
-#             dep.reset()
-
-#     def __getattr__(self, name, /):
-#         typ = type(self)
-#         try:
-#             meth = typ._getters_[name]
-#         except AttributeError as exc:
-#             raise RuntimeError from exc
-#         except KeyError:
-#             pass
-#         else:
-#             val = meth(self, name)
-#             if not name.startswith('_'):
-#                 val = type(self).param_convert(val)
-#             object.__setattr__(self, name, val)
-#             return val
-#         if name in typ.__slots__:
-#             raise AttributeError(name)
-#         try:
-#             return object.__getattribute__(self, '__dict__')[name]
-#         except AttributeError as exc:
-#             raise RuntimeError from exc
-#         except KeyError as exc:
-#             raise AttributeError from exc
-
-#     def __setattr__(self, name, val, /):
-#         typ = type(self)
-#         if not name.startswith('_'):
-#             val = typ.param_convert(val)
-#         try:
-#             meth = typ._setters_[name]
-#         except AttributeError as exc:
-#             raise RuntimeError from exc
-#         except KeyError:
-#             if name in typ.__slots__:
-#                 if self.__mutable__:
-#                     object.__setattr__(self, name, val)
-#                 else:
-#                     raise AttributeError(
-#                         name, "Cannot alter slot while frozen."
-#                         )
-#             else:
-#                 try:
-#                     super().__setattr__(name, val)
-#                 except AttributeError:
-#                     try:
-#                         object.__getattribute__(self, '__dict__')[name] = val
-#                     except AttributeError as exc:
-#                         raise RuntimeError from exc
-#         else:
-#             meth(self, name, val)
-
-#     def __delattr__(self, name, /):
-#         typ = type(self)
-#         try:
-#             meth = typ._deleters_[name]
-#         except AttributeError as exc:
-#             raise RuntimeError from exc
-#         except KeyError:
-#             if name in typ.__slots__:
-#                 if self.__mutable__:
-#                     object.__delattr__(self, name)
-#                 else:
-#                     try:
-#                         super().__delattr__(name, val)
-#                     except AttributeError:
-#                         try:
-#                             del object.__getattribute__(
-#                                 self, '__dict__'
-#                                 )[name]
-#                         except AttributeError as exc:
-#                             raise RuntimeError from exc
-#                         except KeyError as exc:
-#                             raise AttributeError from exc
-#         else:
-#             meth(self, name)
-
-#     @property
-#     def dependants(self, /):
-#         return tuple(sorted(self._dependants))
-
-#     def add_dependant(self, other, /):
-#         self._dependants.add(other)
-
-    # @property
-    # @_caching.weak_cache()
-    # def drawer(self, /):
-    #     return _FOCUS.request_bureau_storer(self)

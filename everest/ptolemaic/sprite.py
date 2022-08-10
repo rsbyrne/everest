@@ -88,9 +88,6 @@ class _SpriteBase_(metaclass=Sprite):
 
     ### Representations:
 
-    def _content_repr(self, /):
-        return ', '.join(map(repr, self.__params__))
-
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.rootrepr

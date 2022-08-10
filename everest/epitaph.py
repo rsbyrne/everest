@@ -100,7 +100,7 @@ class Epitaph(_classtools.Freezable):
         try:
             return self._hashint
         except AttributeError:
-            with self.__mutable__:
+            with self.mutable:
                 out = self._hashint = int(self.hexcode, 16)
             return out
 
@@ -109,7 +109,7 @@ class Epitaph(_classtools.Freezable):
         try:
             return self._hashID
         except AttributeError:
-            with self.__mutable__:
+            with self.mutable:
                 out = self._hashID = _word.get_random_proper(
                     2, seed=self.hexcode
                     )

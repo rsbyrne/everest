@@ -18,36 +18,6 @@ from .algebra import Algebra as _Algebra
 from .brace import Brace as _Brace
 
 
-class _Any_(metaclass=_Essence):
-
-    @classmethod
-    def __class_instancecheck__(cls, other, /):
-        return True
-
-    @classmethod
-    def __subclasshook__(cls, other, /):
-        if cls is _Any_:
-            return True
-        return NotImplemented
-
-    @classmethod
-    def __class_call__(cls, arg, /):
-        return arg
-
-
-class _Null_(metaclass=_Essence):
-
-    @classmethod
-    def __class_instancecheck__(cls, other, /):
-        return False
-
-    @classmethod
-    def __subclasshook__(cls, other, /):
-        if cls is _Null_:
-            return False
-        return NotImplemented
-
-
 class Sett(metaclass=_Algebra):
 
 
@@ -55,12 +25,10 @@ class Sett(metaclass=_Algebra):
     def __class_init__(cls, /):
         super().__class_init__()
         cls.Base.bracetyp = cls.Brace
+        cls.Base.register(cls._NullSett_)
 
     @classmethod
     def _algconvert_(cls, arg, /):
-        out = super()._algconvert_(arg)
-        if out is not NotImplemented:
-            return out
         if arg is cls.Base:
             return cls.Special.POWER
         if isinstance(arg, type):
@@ -72,7 +40,7 @@ class Sett(metaclass=_Algebra):
                     labels = None
                 return cls.Brace(*map(cls, args), labels=labels, typ=origin)
             return cls.FromType(arg)
-        if arg is NotImplemented:
+        if arg is None:
             return cls.NULL
         if arg in (_inspect._empty, Ellipsis):
             return cls.UNIVERSE
@@ -83,7 +51,10 @@ class Sett(metaclass=_Algebra):
         return NotImplemented
 
 
-    class Base(mroclass('..Armature')):
+    Element = _Any_
+
+
+    class Base(mroclass('..Operation')):
 
         __req_slots__ = dict(_signaltype=None)
 
@@ -93,7 +64,7 @@ class Sett(metaclass=_Algebra):
                 return object.__getattribute__(self, '_signaltype')
             except AttributeError:
                 typ = self.get_signaltype()
-                if typ is NotImplemented:
+                if typ is None:
                     typ = _Null_
                 elif typ is Ellipsis:
                     typ = _Any_
@@ -103,7 +74,7 @@ class Sett(metaclass=_Algebra):
                 return typ
 
         def get_signaltype(self, /):
-            return _Any_
+            return self.algebra.Element
 
         def _contains_(self, arg, /):
             return NotImplemented
@@ -194,26 +165,43 @@ class Sett(metaclass=_Algebra):
         #     return self.bracetyp(self)
 
 
+    class _NullSett_(Base, metaclass=_System):
+
+        def __contains__(self, arg, /):
+            return False
+
+        def __includes__(self, arg, /):
+            return arg is self
+
+        def __entails__(self, arg, /):
+            return True
+
+
+    NULL = _NullSett_()
+
+
     class Special(mroclass):
 
-        UNIVERSE: "The universal set, containing everything." = _Any_
-        NULL: "The null set, containing nothing." = _Null_
-        POWER: "The power set, containing all sets." = pathget('..Base')
+        @member
+        @property
+        def UNIVERSE(self, /):
+            "The universal set, containing everything."
+            return (alg := self.algebra)(alg.Element)
 
-        __slots__ = ('sett',)
-
-        def __init__(self, /):
-            super().__init__()
-            self.sett = self.__ptolemaic_class__.__corpus__(self.value)
+        @member
+        @property
+        def POWER(self, /):
+            "The power set, containing all sets."
+            return Sett(self.algebra)
 
         def get_signaltype(self, /):
-            return self.value
+            return self.value.signaltype
 
         def _contains_(self, arg, /):
-            return self.sett._contains_(arg)
+            return self.value._contains_(arg)
 
         def _includes_(self, arg, /):
-            return self.sett._includes_(arg)
+            return self.value._includes_(arg)
 
 
     class FromFunc(mroclass('.Base'), metaclass=_System):
@@ -246,6 +234,13 @@ class Sett(metaclass=_Algebra):
     class FromType(mroclass('.Base'), metaclass=_System):
 
         typ: type
+
+        @classmethod
+        def _parameterise_(cls, /, *args, **kwargs):
+            params = super()._parameterise_(*args, **kwargs)
+            if not issubclass(typ := params.typ, cls.algebra.Element):
+                raise ValueError(typ)
+            return params
 
         def get_signaltype(self, /):
             return self.typ
@@ -391,17 +386,17 @@ class Sett(metaclass=_Algebra):
 ###############################################################################
 
 
-assert ('foo', 1., 2) in \
-    Sett(str) * Sett(float) * Sett(int)
+# assert ('foo', 1., 2) in \
+#     Sett(str) * Sett(float) * Sett(int)
 
-assert ('foo', (1., 2)) in \
-    Sett(str) * (Sett(float) * Sett(int))**1
+# assert ('foo', (1., 2)) in \
+#     Sett(str) * (Sett(float) * Sett(int))**1
 
-assert ((0, 1), (2, 3), (4, 5)) in \
-    (Sett(int)**2)**3
+# assert ((0, 1), (2, 3), (4, 5)) in \
+#     (Sett(int)**2)**3
 
-assert ((), (1, 2), (3, 4, 5)) in \
-    (Sett(int)**...)**3
+# assert ((), (1, 2), (3, 4, 5)) in \
+#     (Sett(int)**...)**3
 
 
 ###############################################################################

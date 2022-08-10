@@ -6,9 +6,9 @@
 import abc as _abc
 from collections import namedtuple as _namedtuple, abc as _collabc
 import weakref as _weakref
-import types as _types
 import inspect as _inspect
 import itertools as _itertools
+from types import SimpleNamespace as _SimpleNamespace
 
 from everest import ur as _ur
 from everest.utilities import pretty as _pretty
@@ -114,7 +114,7 @@ class DClass(_abc.ABCMeta):
     def __setattr__(cls, name, val, /):
         if cls.__dict__['_clsmutable']:
             if not name.startswith('_'):
-                val = cls.param_convert(val)
+                val = type(cls).convert(val)
             super().__setattr__(name, val)
         else:
             raise TypeError("Cannot alter attribute when immutable.")
@@ -129,9 +129,9 @@ class DClass(_abc.ABCMeta):
     def __call__(cls, /):
         return cls.__class_call__
 
-    @property
-    def param_convert(cls, /):
-        return _ur.Dat.convert
+    @classmethod
+    def convert(meta, arg, /):
+        return _ur.Dat.convert(arg)
 
 
 @_ur.Dat.register
@@ -174,7 +174,7 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
 
     @classmethod
     def __instantiate__(cls, params: tuple, /):
-        return cls._instantiate_(tuple(map(cls.param_convert, params)))
+        return cls._instantiate_(cls._post_parameterise_(params))
 
     @classmethod
     def _construct_(cls, params: tuple, /):
@@ -184,7 +184,7 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
 
     @classmethod
     def __construct__(cls, params: tuple, /):
-        return cls._construct_(tuple(map(cls.param_convert, params)))
+        return cls._construct_(cls._post_parameterise_(params))
 
     @classmethod
     def _retrieve_(cls, params: tuple, /):
@@ -197,20 +197,27 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
 
     @classmethod
     def __retrieve__(cls, params: tuple, /):
-        return cls._retrieve_(tuple(map(cls.param_convert, params)))
+        return cls._retrieve_(cls._post_parameterise_(params))
+
+    @classmethod
+    def _parameterise_(cls, /, *args, **kwargs):
+        bound = cls.__signature__.bind(*args, **kwargs)
+        bound.apply_defaults()
+        return _SimpleNamespace(**bound.arguments)
+
+    @classmethod
+    def _post_parameterise_(cls, params, /):
+        if isinstance(params, _SimpleNamespace):
+            params = params.__dict__.values()
+        return tuple(map(type(cls).convert, params))
 
     @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
-        bound = cls.__signature__.bind(*args, **kwargs)
-        bound.apply_defaults()
-        return _types.SimpleNamespace(**bound.arguments)
+        return cls._post_parameterise_(cls._parameterise_(*args, **kwargs))
 
     @classmethod
     def __class_call__(cls, /, *args, **kwargs):
-        return cls.__retrieve__(tuple(
-            cls.__parameterise__(*args, **kwargs)
-            .__dict__.values()
-            ))
+        return cls.__retrieve__(cls.__parameterise__(*args, **kwargs))
 
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):
@@ -227,7 +234,7 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
     def __setattr__(self, name, val, /):
         if self._mutable:
             if not name.startswith('_'):
-                val = type(self).param_convert(val)
+                val = type(type(self)).convert(val)
             super().__setattr__(name, val)
             return val
         raise ImmutableError("Cannot alter attribute when immutable.")

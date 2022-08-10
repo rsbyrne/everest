@@ -6,16 +6,25 @@
 import itertools as _itertools
 from collections import abc as _collabc
 
-from everest.ptolemaic.essence import Essence as _Essence
-from everest.ptolemaic.system import System as _System
-from everest.ptolemaic.algebra import Algebra as _Algebra
+from .essence import Essence as _Essence
+from .system import System as _System
+from .algebra import (
+    Algebra as _Algebra,
+    AbstractAlgebra as _absalg,
+    )
+from .essence import Any as _Any, Null as _Null
 
 
 class Brace(metaclass=_Algebra):
 
 
+    def __class_getitem__(cls, arg, /):
+        if isinstance(arg, tuple):
+            return cls(*arg)
+        return cls(arg)
+
     @classmethod
-    def __class_call__(
+    def _parameterise_(
             cls, arg0, /, *argn, labels=None, typ=NotImplemented
             ):
         if argn:
@@ -23,38 +32,35 @@ class Brace(metaclass=_Algebra):
             if labels is None:
                 labels = tuple(_itertools.repeat(None, len(args)))
             if len(aset := set(args)) < 2:
-                return cls.Symmetric(aset.pop(), labels=labels, typ=typ)
-            return cls.Asymmetric(*args, labels=labels, typ=typ)
+                cls.altreturn(cls.Symmetric(aset.pop(), labels=labels, typ=typ))
+            cls.altreturn(cls.Asymmetric(*args, labels=labels, typ=typ))
         if labels is Ellipsis:
-            return cls.Power(arg0, typ=typ)
+            cls.altreturn(cls.Power(arg0, typ=typ))
         if labels is None:
             labels = 1
         if isinstance(labels, int):
             if labels == 1:
-                return cls.Single(arg0, typ=typ)
+                cls.altreturn(cls.Single(arg0, typ=typ))
             else:
                 labels = tuple(range(labels))
-        return cls.Symmetric(arg0, labels=labels, typ=typ)
+        cls.altreturn(cls.Symmetric(arg0, labels=labels, typ=typ))
 
     @classmethod
     def _algconvert_(cls, arg, /):
-        out = super()._algconvert_(arg)
-        if out is not NotImplemented:
-            return out
         if isinstance(arg, _collabc.Mapping):
             return cls(*arg.values(), labels=tuple(arg.keys()))
         if isinstance(arg, _collabc.Iterable):
-            return cls(*arg)
-        return cls(arg)
+            return cls(*arg, labels=None)
+        return cls.Single(arg)
 
     @classmethod
     def merge(cls, /, *args):
         return cls(*_itertools.chain.from_iterable(
-            cls.algconvert(arg).args for arg in args
-            ))
+            cls(arg).args for arg in args
+            ), labels=None)
 
 
-    class Base(mroclass('..Armature')):
+    class __Base__(mroclass):
 
         @property
         def typ(self, /):
@@ -77,12 +83,19 @@ class Brace(metaclass=_Algebra):
             return (self.breadth,)
 
 
-    class Power(mroclass('..Unary', '.Base'), metaclass=_System):
+    class Power(
+            mroclass('.__Unary__',),
+            metaclass=_System,
+            ):
 
+        arg: pathget('..Base', fallback=_Null)
         typ: KW[type] = tuple
 
 
-    class Finite(mroclass('.Base'), metaclass=_System):
+    class __Finite__(
+            mroclass('.__Base__'),
+            metaclass=_System,
+            ):
 
         typ: KW[type] = tuple
 
@@ -100,7 +113,12 @@ class Brace(metaclass=_Algebra):
             return self.algebra.merge(other, self)
 
 
-    class Single(mroclass('..Unary', '.Finite'), metaclass=_System):
+    class Single(
+            mroclass('.__Unary__', '.__Finite__'),
+            metaclass=_System,
+            ):
+
+        arg: pathget('..Base', fallback=_Null)
 
         @comp
         def args(self, /):
@@ -114,9 +132,13 @@ class Brace(metaclass=_Algebra):
             return 1
 
 
-    class Symmetric(mroclass('..Unary', '.Finite'), metaclass=_System):
+    class Symmetric(
+            mroclass('.__Unary__', '.__Finite__'),
+            metaclass=_System,
+            ):
 
-        labels: KW[...]
+        arg: pathget('..Base', fallback=_Null)
+        labels: KW
 
         @comp
         def args(self, /):
@@ -124,9 +146,13 @@ class Brace(metaclass=_Algebra):
             return tuple(arg for _ in range(len(self.labels)))
 
 
-    class Asymmetric(mroclass('..Ennary', '.Finite'), metaclass=_System):
+    class Asymmetric(
+            mroclass('.__Ennary__', '.__Finite__'),
+            metaclass=_System,
+            ):
 
-        labels: KW[...] = None
+        args: pathget('..Base', fallback=_Null)
+        labels: KW = None
 
 
 ###############################################################################

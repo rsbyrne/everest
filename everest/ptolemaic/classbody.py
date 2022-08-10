@@ -20,11 +20,10 @@ from everest.ur import (
 from .pleroma import Pleroma as _Pleroma
 from .shadow import Shadow as _Shadow, Shade as _Shade
 from . import ptolemaic as _ptolemaic
-
-
-class LevelError(RuntimeError):
-
-    ...
+from .wisp import (
+    Wisp as _Wisp, Property as _Property, Classmethod as _Classmethod
+    )
+from .pathget import PathGet as _PathGet, PathError as _PathError
 
 
 class AnnotationHandler(dict):
@@ -94,15 +93,27 @@ class MroclassMerger(dict):
         except KeyError:
             deq = _deque()
             super().__setitem__(name, deq)
-        if isinstance(val, (str, type)):
+        if isinstance(val, str):
+            val = _PathGet(val)
+        elif isinstance(val, tuple):
+            if val:
+                val = _PathGet(*val)
+            else:
+                val = None
+        if val is not None:
+            if not isinstance(val, (type, _PathGet)):
+                raise TypeError(val)
             if val not in deq:
                 deq.appendleft(val)
-        else:
-            deq.extendleft(_itertools.filterfalse(deq.__contains__, val))
+            else:
+                deq.extendleft(_itertools.filterfalse(deq.__contains__, val))
 
     def update(self, vals, /):
         for key, val in dict(vals).items():
-            self[key] = val
+            if key not in self:
+                super().__setitem__(key, _deque())
+            for subval in val:
+                self[key] = subval
 
 
 class _ClassBodyHelper_:
@@ -162,11 +173,13 @@ class ClassBody(dict):
             _staticmeta_=False,
             **kwargs,
             ):
+        pubnames = self._publicnames = []
         for nm, val in dict(
                 # __name__=name,  # Breaks things in a really interesting way!
                 __slots__=(),
                 __class_relname__=name,
                 _clsmutable=_Switch(True),
+                _clspublicnames=pubnames,
                 ).items():
             super().__setitem__(nm, val)
         self.lock = _Switch(False)
@@ -187,8 +200,7 @@ class ClassBody(dict):
             # sugar=self._sugar,
             __annotations__=AnnotationHandler(self.__setanno__),
             )
-        self._registeredfuncs = dict()
-        self._publicnames = set()
+        self._registeredorgans = dict()
         self._shades = dict()
         self._protected = set(self)
         self._rawmeta = meta
@@ -245,6 +257,9 @@ class ClassBody(dict):
             pass
         return super().__getitem__(name)
 
+    def _check_is_localfunc(self, func, /):
+        return '.'.join(func.__qualname__.split('.')[:-1]) == self._qualname
+
     def __setitem__(self, name, val, /):
         if self.lock:
             raise RuntimeError(
@@ -276,11 +291,28 @@ class ClassBody(dict):
         if name is None:
             return
         if not name.startswith('_'):
-            self._publicnames.add(name)
+            self._publicnames.append(name)
             if isinstance(val, _types.FunctionType):
-                if '.'.join(val.__qualname__.split('.')[:-1]) \
-                        == self._qualname:
-                    self._register_func(name, val)
+                if self._check_is_localfunc(val):
+                    self._register_organ(name, val)
+            elif isinstance(val, property):
+                subvals = []
+                for strn in ('fget', 'fset', 'fdel'):
+                    newname = f'_{name}_{strn}'
+                    subval = getattr(val, strn)
+                    subvals.append(subval)
+                    if subval is not None:
+                        if self._check_is_localfunc(subval):
+                            self._register_organ(newname, subval)
+                            super().__setitem__(newname, subval)
+                val = _Property(*subvals)
+            elif isinstance(val, classmethod):
+                func = val.__func__
+                if self._check_is_localfunc(func):
+                    self._register_organ(f"_classmethod_{name}", func)
+                val = _Classmethod(func)
+            else:
+                val = _Wisp.convert(val)
         super().__setitem__(name, val)
 
     def __delitem__(self, name, /):
@@ -288,8 +320,50 @@ class ClassBody(dict):
             del self.escapedvals[name]
         super().__delitem__(name)
 
-    def _register_func(self, name, val, /):
-        self._registeredfuncs[name] = val
+    def _register_organ(self, name, val, /):
+        val.__corpus__ = Ellipsis
+        self._registeredorgans[name] = val
+
+    def get_from_path(self, /, *paths: str, fallback=NotImplemented):
+        for path in paths:
+            ndots = len(path) - len(path := path.lstrip('.'))
+            path = iter(path.split('.'))
+            strn = next(path)
+            if ndots:
+                obj = self
+                for i in range(ndots-1):
+                    obj = obj.outer
+                    if obj is None:
+                        continue
+                if isinstance(obj, ClassBody):
+                    if not strn:
+                        continue
+                    try:
+                        obj = obj[strn]
+                    except KeyError as exc:
+                        if strn in obj['__mroclasses__']:
+                            obj = obj.add_notion(strn)
+                        else:
+                            continue
+            else:
+                obj = self.module
+            for strn in path:
+                try:
+                    obj = getattr(obj, strn)
+                except AttributeError:
+                    continue
+            break
+        else:
+            if fallback is NotImplemented:
+                raise _PathError("Path retrieval failed!")
+            return fallback
+        return obj
+
+    def _pathget_bodymeth(self, /, *args, live=False, **kwargs):
+        getter = _PathGet(*args, **kwargs)
+        if live:
+            body['__livepaths__'][name] = getter
+        return getter
 
     @property
     def modname(self, /):
@@ -326,48 +400,18 @@ class ClassBody(dict):
 
     def _post_prepare_ismroclass(self, /):
         outer = self.outer
-        if not isinstance(outer, ClassBody):
-            check = False
-        else:
+        if isinstance(outer, ClassBody):
             name, made = self.name, outer.mroclassesmade
             try:
-                madecheck = made[name]
-            except KeyError:
-                check = False
-            else:
-                if madecheck:
+                if made[name]:
                     raise RuntimeError("Mroclass already created!")
-                check = True
+            except KeyError:
+                pass
+            else:
                 outer.anticipate_mroclass(name)
-        self.ismroclass = check
-
-    def get_from_path(self, path: str, /):
-        ndots = len(path) - len(path := path.lstrip('.'))
-        path = iter(path.split('.'))
-        strn = next(path)
-        if ndots:
-            obj = self
-            for i in range(ndots-1):
-                obj = obj.outer
-                if obj is None:
-                    raise LevelError(i)
-            if isinstance(obj, ClassBody):
-                if not strn:
-                    raise ValueError(
-                        "Cannot reference a class that has not been created yet."
-                        )
-                try:
-                    obj = obj[strn]
-                except KeyError as exc:
-                    if strn in obj['__mroclasses__']:
-                        obj = obj.add_notion(strn)
-                    else:
-                        raise AttributeError from exc
-        else:
-            obj = self.module
-        for strn in path:
-            obj = getattr(obj, strn)
-        return obj
+                self.ismroclass = True
+                return
+        self.ismroclass = False
 
     def _post_prepare_bases(self, /):
         bases = []
@@ -386,10 +430,12 @@ class ClassBody(dict):
                     continue
                 safeadd(mrobase)
             for item in outer['__mroclasses__'][name]:
-                if isinstance(item, str):
+                if isinstance(item, _PathGet):
                     try:
-                        item = outer.get_from_path(item)
-                    except LevelError:
+                        item = outer.get_from_path(
+                            *item.paths, fallback=item.fallback
+                            )
+                    except _PathError:
                         continue
                 safeadd(item)
                 # bases.extend(
@@ -490,14 +536,26 @@ class ClassBody(dict):
     def _post_prepare_mergednames(self, /):
         _, dynobj = self._gather_mergenames('__mergenames__', dict)
         dynobj['__mroclasses__'] = (MroclassMerger, dict)
+        dynobj['__livepaths__'] = dict
         self._update_mergenames(dynobj)
         self._nametriggers['__mergenames__'] = self._update_mergenames
+        self._nametriggers['__livepaths__'] = self._update_livepaths
+
+    def _post_prepare_livepaths(self, /):
+        for name, getter in self['__livepaths__'].items():
+            self[name] = getter
 
     def _update_mroclasses(self, vals, /):
         mroclasses, mroclassesmade = self['__mroclasses__'], self.mroclassesmade
         mroclasses.update(vals)
         for key in mroclasses:
             mroclassesmade.setdefault(key, False)
+
+    def _update_livepaths(self, vals, /):
+        livepaths = self['__livepaths__']
+        for name, getter in dict(vals).items():
+            livepaths[name] = getter
+            self[name] = getter
 
     def _post_prepare_mroclasses(self, /):
         self.mroclassesmade = {key: False for key in self['__mroclasses__']}
@@ -510,7 +568,7 @@ class ClassBody(dict):
             for name, meth in self.meta._yield_bodymeths(self)
             )
         toadd['escaped'] = _partial(Escaped, self)
-        toadd['pathget'] = self.get_from_path
+        toadd['pathget'] = self._pathget_bodymeth
         toadd['ptolemaic'] = property(self._ptolemaic_helper)
         toadd['mroclass'] = property(self._mroclass_helper)
         self._redirects.update(toadd)
@@ -564,6 +622,7 @@ class ClassBody(dict):
         self._post_prepare_ismroclass()
         self._post_prepare_bases()
         self._post_prepare_mergednames()
+        self._post_prepare_livepaths()
         self._post_prepare_mroclasses()
         self._post_prepare_bodymeths()
         self._post_prepare_nametriggers()
@@ -580,6 +639,7 @@ class ClassBody(dict):
         return out
 
     def anticipate_mroclass(self, name, /):
+        self.mroclassesmade[name] = True
         self._nametriggers[name] = _partial(self.add_mroclass_premade, name)
 
     def add_mroclass_premade(self, name, val, /):
@@ -614,16 +674,16 @@ class ClassBody(dict):
         assert self._fullyprepared, (self.name,)
         self._finalise_mergenames()
         self._finalise_mroclasses()
-        try:
-            out = _abc.ABCMeta.__new__(
-                self.meta, self.name, self.bases, dict(self)
-                )
-        except TypeError as exc:
-            for base in self.bases[:]:
-                print('------')
-                print(repr(base))
-                print(base.__mro__[1:-2])
-            raise exc
+        # try:
+        out = _abc.ABCMeta.__new__(
+            self.meta, self.name, self.bases, dict(self)
+            )
+        # except TypeError as exc:
+        #     for base in self.bases[:]:
+        #         print('------')
+        #         print(repr(base))
+        #         print(base.__mro__[1:-2])
+        #     raise exc
         if self.iscosmic:
             type.__setattr__(out, '_clsiscosmic', True)
         else:
@@ -638,10 +698,8 @@ class ClassBody(dict):
         type.__setattr__(out, '_clsinnerobjs', {})
         for name, innerobj in self.innerobjs.items():
             out._register_innerobj(innerobj, name)
-        for funcname, func in self._registeredfuncs.items():
-            func.__relname__, func.__corpus__ = \
-                funcname, out
-        type.__setattr__(out, '_clspublicnames', self._publicnames)
+        for funcname, func in self._registeredorgans.items():
+            func.__relname__, func.__corpus__ = funcname, out
         return out
 
     def __setanno__(self, name, val, /):

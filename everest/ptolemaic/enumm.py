@@ -8,13 +8,14 @@ import functools as _functools
 import types as _types
 
 from everest.ur import Dat as _Dat
+from everest.dclass import DClass as _DClass
 
 from . import ptolemaic as _ptolemaic
 from .sprite import Sprite as _Sprite
 from .ousia import Ousia as _Ousia
 
 
-class Member(metaclass=_Sprite):
+class Member(metaclass=_DClass):
 
     note: str = None
     value: ... = None
@@ -27,6 +28,9 @@ class Member(metaclass=_Sprite):
             value.__qualname__ = '.'.join((
                 *'.'.split(value.__qualname__)[:-1], newname
                 ))
+            if note is None:
+                note = value.__doc__
+        if isinstance(value, property):
             if note is None:
                 note = value.__doc__
         body['__enumerators__'][name] = note
@@ -67,29 +71,30 @@ class Enumm(_Ousia):
     def __call__(cls, /):
         raise TypeError("Cannot manually call an Enumm type.")
 
-    @property
-    def __class_call__(cls, /):
-        raise TypeError("Cannot manually call an Enumm type.")
-
-    @property
-    def __construct__(cls, /):
-        raise TypeError("Cannot manually call an Enumm type.")
-
-    @property
-    def __retrieve__(cls, /):
-        raise TypeError("Cannot manually call an Enumm type.")
-
-    @property
-    def __instantiate__(cls, /):
-        raise TypeError("Cannot manually call an Enumm type.")
-
 
 class _EnummBase_(metaclass=Enumm):
 
     __enumerators__ = {}
-    __slots__ = ('serial', 'name', 'note', 'value')
+    __slots__ = ('serial', 'name', 'note')
+
+    conservative = False
 
     ### Class setup:
+
+    with escaped('methname'):
+        for methname in (
+                '_parameterise_', '__parameterise__',
+                '_construct_', '__construct__',
+                '_retrieve_', '__retrieve__',
+                '__instantiate__',
+                ):
+            exec('\n'.join((
+                f"@classmethod",
+                f"def {methname}(cls, /, *_, **__):",
+                f"    raise AttributeError(",
+                f"        '{methname} not supported on Enumm types.'",
+                f"        )",
+                )))
 
     @classmethod
     def __class_get_signature__(cls, /):
@@ -100,16 +105,15 @@ class _EnummBase_(metaclass=Enumm):
         super().__class_init__()
         enumerators = []
         enumeratorsdict = {}
-        _it = enumerate(cls.__enumerators__.items())
-        for serial, (name, note) in _it:
-            if hasattr(cls, name):
-                continue
-            value = getattr(cls, f"_{name}_value", None)
-            obj = cls._instantiate_((serial, name, note, value))
-            if isinstance(value, property):
-                obj.value = value.__get__(obj)
+        items = cls.__enumerators__.items()
+        if cls.conservative:
+            items = (
+                (name, note) for name, note in items if not hasattr(cls, name)
+                )
+        for serial, (name, note) in enumerate(items):
+            obj = cls._instantiate_()
+            obj.serial, obj.name, obj.note = serial, name, note
             setattr(cls, name, obj)
-            obj.serial, obj.name, obj.note, obj.value = obj.__params__
             cls._register_innerobj(name, obj)
             enumerators.append(obj)
             enumeratorsdict[name] = obj
@@ -138,6 +142,10 @@ class _EnummBase_(metaclass=Enumm):
         if isinstance(other, self.__ptolemaic_class__):
             return self.serial > other.serial
         return super().__gt__(other)
+
+    @property
+    def value(self, /):
+        return getattr(self, f"_{self.name}_value")
 
 
 ###############################################################################

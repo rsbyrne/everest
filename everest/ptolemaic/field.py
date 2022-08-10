@@ -10,8 +10,10 @@ from .smartattr import (
     SmartAttr as _SmartAttr, SmartAttrHolder as _SmartAttrHolder
     )
 from .sprite import Sprite as _Sprite
-from .pathtools import Get as _Get
+from .pathget import PathGet as _PathGet
 from .enumm import Enumm as _Enumm
+from .essence import Any as _Any, Null as _Null
+from . import ptolemaic as _ptolemaic
 
 
 _pkind = _inspect._ParameterKind
@@ -89,15 +91,43 @@ class Field(_SmartAttr):
     __slots__ = ('score', 'degenerate')
 
     default: ... = Signal.MANDATORY
-    kind: ... = Kind.POSKW
+    kind: ... = NotImplemented
 
     __merge_fintyp__ = Fields
 
     @classmethod
+    def _process_kind(cls, kind, /):
+        if kind is NotImplemented:
+            return kind
+        if isinstance(kind, Kind):
+            return kind
+        return Kind[kind]
+
+    @classmethod
+    def _process_hint(cls, hint, /):
+        if isinstance(hint, _PathGet):
+            return hint
+        elif isinstance(hint, type):
+            if isinstance(hint, _ptolemaic.Ptolemaic):
+                return hint
+            raise TypeError(hint)
+        if isinstance(hint, str):
+            return _PathGet(hint)
+        if isinstance(hint, tuple):
+            return tuple(map(cls._process_hint, hint))
+        if hint is Ellipsis:
+            return _Any
+        if hint is None:
+            return _Null
+        if hint is NotImplemented:
+            return hint
+        raise ValueError(hint)
+
+    @classmethod
     def _parameterise_(cls, /, *args, **kwargs):
         params = super()._parameterise_(*args, **kwargs)
-        if not isinstance(kind := params.kind, Kind):
-            params.kind = Kind[kind]
+        params.kind = cls._process_kind(params.kind)
+        params.hint = cls._process_hint(params.hint)
         return params
 
     @classmethod
@@ -110,6 +140,23 @@ class Field(_SmartAttr):
                 )
         params.default = Signal.ANCILLARY
 
+    @classmethod
+    def _merge_smartattrs(cls, prev, current, /):
+        if prev is current:
+            return prev
+        pairs = tuple(
+            tuple(getattr(obj, nm, NotImplemented) for obj in (prev, current))
+            for nm in cls.__fields__
+            )
+        if all(pair[1] is NotImplemented for pair in pairs):
+            return prev
+        if all(pair[0] is NotImplemented for pair in pairs):
+            return current
+        return cls(*(
+            first if second is NotImplemented else second
+            for first, second in pairs
+            ))
+
     def __directive_call__(self, body, name, /, content=NotImplemented):
         super().__directive_call__(body, name, content)
         if content is not NotImplemented:
@@ -118,29 +165,46 @@ class Field(_SmartAttr):
 
     def __init__(self, /):
         super().__init__()
-        kind = self.kind
-        default = self.default
         degenerate = self.degenerate = False
         if degenerate:
             self.score = -1
         else:
             self.score = sum((
-                self.kind.serial,
-                (0 if default is Signal.MANDATORY else 0.5),
+                getattr(self, 'kind', Kind.POSKW).serial,
+                (0.5 if hasattr(self, 'default') else 0),
                 ))
 
-    def get_parameter(self, kls, name, /):
-        default = self.default
+    @classmethod
+    def _get_parameter_default(cls, kls, default, /):
         if default is Signal.MANDATORY:
-            default = _pempty
-        elif default is Signal.ANCILLARY:
-            default = NotImplemented
-        elif isinstance(default, _Get):
-            default = default(kls)
-        hint = (hint(kls) if isinstance(hint := self.hint, _Get) else hint)
+            return _pempty
+        if default is Signal.ANCILLARY:
+            return NotImplemented
+        if isinstance(default, _PathGet):
+            return default(kls)
+        return default
+
+    @classmethod
+    def _get_parameter_hint(cls, kls, hint, /):
+        if isinstance(hint, tuple):
+            return tuple(
+                cls._get_parameter_hint(kls, subhint)
+                for subhint in hint
+                )
+        if isinstance(hint, _PathGet):
+            return hint(kls)
+        return hint
+
+    def get_parameter(self, kls, name, /):
         return _inspect.Parameter(
-            name, self.kind.value,
-            default=default, annotation=hint,
+            name,
+            getattr(self, 'kind', Kind.POSKW).value,
+            default=self._get_parameter_default(
+                kls, getattr(self, 'default', Signal.MANDATORY)
+                ),
+            annotation=self._get_parameter_hint(
+                kls, getattr(self, 'hint', _Any)
+                ),
             )
 
     @classmethod

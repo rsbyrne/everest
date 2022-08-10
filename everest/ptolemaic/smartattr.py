@@ -11,7 +11,7 @@ from everest.dclass import DClass as _DClass
 
 from . import ptolemaic as _ptolemaic
 from .sprite import Sprite as _Sprite
-from .ousia import Kwargs as _Kwargs
+from .wisp import Kwargs as _Kwargs
 
 
 def _fallback_getter(obj, name, instance, /):
@@ -50,8 +50,8 @@ class SmartAttr(metaclass=_Sprite):
     __merge_dyntyp__ = dict
     __merge_fintyp__ = SmartAttrHolder
 
-    hint: ... = object
-    note: str = ''
+    hint: ... = NotImplemented
+    note: str = NotImplemented
 
     @classmethod
     def __class_init__(cls, /):
@@ -82,9 +82,20 @@ class SmartAttr(metaclass=_Sprite):
         if params.note == '':
             params.note = content.__doc__
 
+    @classmethod
+    def _merge_smartattrs(cls, prev, current, /):
+        return current
+
     def __directive_call__(self, body, name, /, content=NotImplemented):
-        body[self.__merge_name__][name] = self
-        body.enroll_shade(name)
+        mergedct = body[self.__merge_name__]
+        try:
+            prev = mergedct[name]
+        except KeyError:
+            mergedct[name] = self
+            body.enroll_shade(name)
+        else:
+            mergedct[name] = \
+                self.__ptolemaic_class__._merge_smartattrs(prev, self)
         return name, content
 
     @classmethod

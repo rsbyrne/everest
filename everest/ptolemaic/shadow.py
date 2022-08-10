@@ -8,7 +8,8 @@ from collections import abc as _collabc
 import operator as _operator
 
 from everest import ur as _ur
-from everest.dclass import DClass as _DClass
+
+from .wisp import Wisp as _Wisp
 
 
 _UNARYOPS = _ur.DatDict(
@@ -46,7 +47,7 @@ def get_evalstr(obj, /):
     return repr(obj)
 
 
-class Shadow(metaclass=_DClass):
+class Shadow(metaclass=_Wisp):
 
     __slots__ = ('evalstr',)
 

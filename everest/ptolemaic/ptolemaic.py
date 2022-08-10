@@ -40,16 +40,21 @@ class PtolemaicMeta(_ur.DatMeta):
         #         return True
         #     return False
         if issubclass(typ, _types.ModuleType):
-            return cls.check_module
+            return cls.check_module(typ)
         if issubclass(typ, _types.MethodType):
             return cls.__instancecheck__(other.__self__)
-        if issubclass(typ, _types.FunctionType):
-            return cls.check_func(other)
+        if issubclass(typ, (_types.FunctionType, property)):
+            return hasattr(other, '__corpus__')
+        if issubclass(typ, property):
+            return all(map(
+                cls.__instancecheck__,
+                (other.fget, other.fset, other.fdel),
+                ))
         if issubclass(typ, _functools.partial):
             if not cls.__instancecheck__(other.func):
                 return False
             params = _itertools.chain(other.args, other.keywords.values())
-            return all(map(cls.__instancheck__, params))
+            return all(map(cls.__instancecheck__, params))
         return super().__instancecheck__(other)
 
 
