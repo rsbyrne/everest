@@ -7,6 +7,7 @@ import abc as _abc
 from collections import abc as _collabc
 from types import FunctionType as _FunctionType
 import types as _types
+from types import SimpleNamespace as _SimpleNamespace
 from weakref import WeakKeyDictionary as _WeakKeyDictionary
 
 from everest.dclass import DClass as _DClass
@@ -174,7 +175,7 @@ class Binding(Pentheros):
         return tuple(map(Tuuple, (dct.keys(), dct.values())))
 
     def _make_content(self, /):
-        return _ur.DatDict(zip(*self.__params__))
+        return dict(zip(*self.__params__))
 
     __content_type__ = dict
     __content_meths__ = (
@@ -189,10 +190,6 @@ class Binding(Pentheros):
             f"    return self._content.{methname}",
             )))
     del methname
-
-    def __init__(self, /):
-        super().__init__()
-        self._content = _ur.DatDict(zip(*self.__params__))
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
@@ -219,6 +216,27 @@ class Kwargs(Binding):
 
     def __taphonomise__(self, taph, /):
         return taph.callsig_epitaph(self.__ptolemaic_class__, **self)
+
+
+class Namespace(Kwargs):
+
+    __content_type__ = _SimpleNamespace
+
+    @classmethod
+    def _parameterise_(cls, arg=None, **kwargs):
+        if arg is not None:
+            if kwargs:
+                raise ValueError
+            if not isinstance(arg, _SimpleNamespace):
+                arg = _SimpleNamespace(**dict(arg))
+            kwargs = arg.__dict__
+        return tuple(map(Tuuple, (kwargs.keys(), kwargs.values())))
+
+    def __getattr__(self, name, /):
+        try:
+            return self[name]
+        except KeyError as exc:
+            raise AttributeError from exc
 
 
 # @_collabc.Sequence.register

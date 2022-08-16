@@ -116,12 +116,36 @@ class MroclassMerger(dict):
                 self[key] = subval
 
 
-class _ClassBodyHelper_:
+class ClassBodyHelper:
 
     __slots__ = ('body',)
 
     def __init__(self, body, /):
         self.body = body
+
+
+class PtolemaicHelper(ClassBodyHelper):
+
+    def __mro_entries__(self, bases, /):
+        return (self.body._defaultbasetyp,)
+
+
+class MROClassHelper(ClassBodyHelper):
+
+    def __init__(self, /, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        body = self.body
+        body.lock.toggle(True)
+        body.awaiting_mroclass = True
+
+    def __mro_entries__(self, bases, /):
+        if len(bases) != 1:
+            raise RuntimeError(bases)
+        return (self.body._defaultbasetyp,)
+
+    def __call__(self, /, *mrobases):
+        self.body.awaiting_mroclass_names.extendleft(mrobases)
+        return self
 
 
 class ClassBody(dict):
@@ -145,28 +169,6 @@ class ClassBody(dict):
         def __setattr__(self, name, val, /):
             self.classbody[name] = val
 
-    class _ptolemaic_helper(_ClassBodyHelper_):
-
-        def __mro_entries__(self, bases, /):
-            return (self.body._defaultbasetyp,)
-
-    class _mroclass_helper(_ClassBodyHelper_):
-
-        def __init__(self, /, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            body = self.body
-            body.lock.toggle(True)
-            body.awaiting_mroclass = True
-
-        def __mro_entries__(self, bases, /):
-            if len(bases) != 1:
-                raise RuntimeError(bases)
-            return (self.body._defaultbasetyp,)
-
-        def __call__(self, /, *mrobases):
-            self.body.awaiting_mroclass_names = mrobases
-            return self
-
     def __init__(
             self, meta, name, bases, /, *,
             modname=None, qualroot=None, qualname=None,
@@ -188,7 +190,7 @@ class ClassBody(dict):
         self.outer = None
         self.innerobjs = {}
         self.awaiting_mroclass = False
-        self.awaiting_mroclass_names = ()
+        self.awaiting_mroclass_names = _deque()
         self._nametriggers = dict(
             __module__=(lambda val: setattr(self, 'modname', val)),
             __qualname__=(lambda val: setattr(self, 'qualname', val)),
@@ -569,8 +571,8 @@ class ClassBody(dict):
             )
         toadd['escaped'] = _partial(Escaped, self)
         toadd['pathget'] = self._pathget_bodymeth
-        toadd['ptolemaic'] = property(self._ptolemaic_helper)
-        toadd['mroclass'] = property(self._mroclass_helper)
+        toadd['ptolemaic'] = property(PtolemaicHelper)
+        toadd['mroclass'] = property(MROClassHelper)
         self._redirects.update(toadd)
         self._protected.update(toadd)
 
@@ -614,7 +616,7 @@ class ClassBody(dict):
                     name: outer.awaiting_mroclass_names,
                     }
                 outer.awaiting_mroclass = False
-                outer.awaiting_mroclass_names = ()
+                outer.awaiting_mroclass_names.clear()
             iscosmic = False
         self.outer = outer
         self.iscosmic = iscosmic

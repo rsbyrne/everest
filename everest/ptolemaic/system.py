@@ -63,12 +63,12 @@ class _SystemBase_(metaclass=System):
     def _content_repr(self, /):
         return ', '.join(
             f"{key}={repr(val)}"
-            for key, val in zip(self.__fields__, self.__params__)
+            for key, val in self.params.items()
             )
 
     def _repr_pretty_(self, p, cycle, root=None):
         bound = self.__ptolemaic_class__.__signature__.bind_partial()
-        bound.arguments.update(zip(self.__fields__, self.__params__))
+        bound.arguments.update(self.params)
         if root is None:
             root = self.rootrepr
         _pretty.pretty_argskwargs(

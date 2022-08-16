@@ -68,17 +68,11 @@ class _SpriteBase_(metaclass=Sprite):
         bound.apply_defaults()
         return _SimpleNamespace(**bound.arguments)
 
-    @classmethod
-    def _construct_(cls, params: tuple, /):
-        if len(params) != cls.arity:
-            raise ValueError(params)
-        return super()._construct_(params)
-
     ### Storage:
 
     def __getattr__(self, name, /):
         try:
-            val = dict(zip(self.__fields__, self.__params__))[name]
+            val = self.params[name]
         except KeyError as exc:
             raise AttributeError from exc
         if val is NotImplemented:

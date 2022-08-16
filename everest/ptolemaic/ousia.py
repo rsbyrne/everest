@@ -13,7 +13,7 @@ from everest.switch import Switch as _Switch
 from everest import ur as _ur
 
 from . import ptolemaic as _ptolemaic
-from .urgon import Urgon as _Urgon
+from .urgon import Urgon as _Urgon, Params as _Params
 from .essence import Essence as _Essence
 
 
@@ -21,7 +21,7 @@ class ConcreteBase(metaclass=_Essence):
 
     with escaped('methname'):
         for methname in (
-                '_parameterise_', '_post_parameterise_', '__parameterise__',
+                '_parameterise_', '__parameterise__',
                 '_construct_', '__construct__',
                 '_retrieve_', '__retrieve__',
                 '_instantiate_', '__instantiate__',
@@ -69,7 +69,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     __slots__ = (
         '__weakref__',
-        '__params__', '_mutable', '_pyhash', '_sessioncacheref',
+        '__params__', 'params', '_mutable', '_pyhash', '_sessioncacheref',
         '_innerobjs', '__corpus__', '__relname__', '_instancesignature',
         )
 
@@ -150,23 +150,24 @@ class _OusiaBase_(metaclass=Ousia):
         del self._innerobjs
 
     @classmethod
-    def _instantiate_(cls, params: tuple = (), /):
+    def _instantiate_(cls, params: _Params, /):
         Concrete = cls.Concrete
         obj = Concrete.__new__(Concrete)
         switch = _Switch(True)
         object.__setattr__(obj, '_mutable', switch)
         obj._pyhash = _reseed.rdigits(16)
-        obj.__params__ = params
+        obj.params = params
+        obj.__params__ = tuple(params.values())
         obj._innerobjs = {}
         return obj
 
     @classmethod
-    def __instantiate__(cls, params: tuple = (), /):
-        return cls._instantiate_(cls._post_parameterise_(params))
+    def __instantiate__(cls, params: _Params, /):
+        return cls._instantiate_(_Params(params))
 
     @classmethod
-    def _construct_(cls, params: tuple = (), /):
-        obj = cls.__instantiate__(params)
+    def _construct_(cls, params: _Params, /):
+        obj = cls._instantiate_(params)
         obj.__corpus__ = obj.__relname__ = None
         obj.__initialise__()
         obj.__mutable__ = False
@@ -174,7 +175,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     @classmethod
     def __class_alt_call__(cls, /, *args, **kwargs):
-        return cls.__instantiate__(cls.__parameterise__(*args, **kwargs))
+        return cls._instantiate_(cls.__parameterise__(*args, **kwargs))
 
     ### Storage:
 
@@ -205,6 +206,9 @@ class _OusiaBase_(metaclass=Ousia):
 
     ### Representations:
 
+    def _content_repr(self, /):
+        return repr(self.__params__)
+
     def _root_repr(self, /):
         return self.__ptolemaic_class__.__qualname__
 
@@ -213,13 +217,10 @@ class _OusiaBase_(metaclass=Ousia):
     def rootrepr(self, /):
         return self._root_repr()
 
-    def _content_repr(self, /):
-        return ', '.join(map(repr, self.__params__))
-
     @property
     # @_caching.soft_cache()
     def contentrepr(self, /):
-        return repr(self.__params__)
+        return self._content_repr()
 
     def __repr__(self, /):
         if self.__corpus__ is None:
@@ -232,7 +233,7 @@ class _OusiaBase_(metaclass=Ousia):
     def __taphonomise__(self, taph, /):
         if self.__corpus__ is None:
             return taph.getitem_epitaph(
-                self.__ptolemaic_class__, tuple(self.__params__)
+                self.__ptolemaic_class__, self.__params__
                 )
         return taph.getattr_epitaph(self.__corpus__, self.__relname__)
 
@@ -282,7 +283,7 @@ class _OusiaBase_(metaclass=Ousia):
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
             root = self.__ptolemaic_class__.__qualname__
-        _pretty.pretty_tuple(self.__params__, p, cycle, root=root)
+        _pretty.pretty_kwargs(self.params, p, cycle, root=root)
 
 
 ###############################################################################

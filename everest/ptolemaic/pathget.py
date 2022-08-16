@@ -49,7 +49,7 @@ class PathGet(metaclass=_Wisp):
                         continue
                 else:
                     obj = obj.__corpus__
-            return obj
+            return _Wisp.convert(obj)
         else:
             if (fallback := self.fallback) is NotImplemented:
                 raise AttributeError(obj, self)

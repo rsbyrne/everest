@@ -75,13 +75,6 @@ class _TektonBase_(metaclass=Tekton):
             **cls.__fields__.degenerates,
             })
 
-    @classmethod
-    def _post_parameterise_(cls, params, /):
-        params = super()._post_parameterise_(params)
-        if len(params) != cls.arity:
-            raise ValueError(params)
-        return params
-
 
 ###############################################################################
 ###############################################################################

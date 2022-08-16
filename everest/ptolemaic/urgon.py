@@ -7,8 +7,14 @@ import abc as _abc
 import weakref as _weakref
 from types import SimpleNamespace as _SimpleNamespace
 
+from .wisp import Namespace as _Namespace
 from .bythos import Bythos as _Bythos
 from . import ptolemaic as _ptolemaic
+
+
+class Params(_Namespace):
+
+    ...
 
 
 class AltReturn(Exception):
@@ -17,7 +23,6 @@ class AltReturn(Exception):
 
     def __init__(self, value, /):
         self.value = value
-        
 
 
 class Urgon(_Bythos):
@@ -73,28 +78,21 @@ class _UrgonBase_(metaclass=Urgon):
             cls._premade = _weakref.WeakValueDictionary()
 
     @classmethod
-    @_abc.abstractmethod
-    def _construct_(cls, params: tuple = (), /):
-        raise NotImplementedError
+    def _construct_(cls, params, /):
+        return params
 
     @classmethod
     def __construct__(cls, params: tuple = (), /):
-        return cls._construct_(cls._post_parameterise_(params))
+        return cls._construct_(Params(params))
 
     _parameterise_ = _SimpleNamespace
 
     @classmethod
-    def _post_parameterise_(cls, params, /):
-        if isinstance(params, _SimpleNamespace):
-            params = params.__dict__.values()
-        return tuple(map(cls.convert, params))
-
-    @classmethod
     def __parameterise__(cls, /, *args, **kwargs):
-        return cls._post_parameterise_(cls._parameterise_(*args, **kwargs))
+        return Params(cls._parameterise_(*args, **kwargs))
 
     @classmethod
-    def _retrieve_(cls, params: tuple, /):
+    def _retrieve_(cls, params: Params, /):
         premade = cls._premade
         try:
             return premade[params]
@@ -103,8 +101,8 @@ class _UrgonBase_(metaclass=Urgon):
             return obj
 
     @classmethod
-    def __retrieve__(cls, params: tuple, /):
-        return cls._retrieve_(cls._post_parameterise_(params))
+    def __retrieve__(cls, params: Params, /):
+        return cls._retrieve_(Params(params))
 
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):

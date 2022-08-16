@@ -111,7 +111,7 @@ class _EnummBase_(metaclass=Enumm):
                 (name, note) for name, note in items if not hasattr(cls, name)
                 )
         for serial, (name, note) in enumerate(items):
-            obj = cls._instantiate_()
+            obj = cls._instantiate_(_Ousia.BaseTyp.__parameterise__())
             obj.serial, obj.name, obj.note = serial, name, note
             setattr(cls, name, obj)
             cls._register_innerobj(name, obj)

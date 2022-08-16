@@ -10,6 +10,7 @@ from everest import ur as _ur
 from . import ptolemaic as _ptolemaic
 from .essence import Essence as _Essence
 from .smartattr import SmartAttr as _SmartAttr
+from .pathget import PathGet as _PathGet
 
 
 class Eidos(_Essence):
@@ -72,6 +73,19 @@ class _EidosBase_(metaclass=Eidos):
             smartattrs.extend(dct)
         cls._smartattrs_ = _ur.PrimitiveUniTuple(smartattrs)
 
+    def __getattribute__(self, name, /):
+        try:
+            return object.__getattribute__(self, name)
+        except AttributeError:
+            val = self.__getattr__(name)
+            if not name.startswith('_'):
+                if isinstance(val, _PathGet):
+                    val = val(self)
+                else:
+                    val = self.__ptolemaic_class__.convert(val)
+            object.__setattr__(self, name, val)
+            return val
+
     def __getattr__(self, name, /):
         try:
             meths = object.__getattribute__(self, '_getters_')[name]
@@ -83,9 +97,6 @@ class _EidosBase_(metaclass=Eidos):
             val = meth(self)
             if val is NotImplemented:
                 continue
-            if not name.startswith('_'):
-                val = self.__ptolemaic_class__.convert(val)
-            object.__setattr__(self, name, val)
             return val
         raise AttributeError(name)
         # return object.__getattribute__(name)
