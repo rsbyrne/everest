@@ -7,9 +7,10 @@ import inspect as _inspect
 
 from .urgon import Urgon as _Urgon
 from .eidos import Eidos as _Eidos
-from . import field as _field
+from .field import Kind as _Kind, Signal as _Signal, Field as _Field
 from .ousia import Ousia as _Ousia
 from . import ptolemaic as _ptolemaic
+from .pathget import PathGet as _PathGet
 
 
 class Tekton(_Eidos, _Urgon):
@@ -17,19 +18,19 @@ class Tekton(_Eidos, _Urgon):
     @classmethod
     def _yield_smartattrtypes(meta, /):
         yield from super()._yield_smartattrtypes()
-        yield _field.Field
+        yield _Field
 
     @classmethod
     def _yield_bodymeths(meta, body, /):
         yield from super()._yield_bodymeths(body)
-        for kind in _field.Kind:
+        for kind in _Kind:
             yield kind.name, kind
-        for signal in _field.Signal:
+        for signal in _Signal:
             yield signal.name, signal
 
     @classmethod
     def body_handle_anno(meta, body, name, hint, val, /):
-        body[name] = _field.Field.from_annotation(hint, val)
+        body[name] = _Field.from_annotation(hint, val)
 
     @property
     def arity(cls, /):
@@ -70,10 +71,20 @@ class _TektonBase_(metaclass=Tekton):
             if val is not NotImplemented
             }
         bound.apply_defaults()
-        return super()._parameterise_(**{
+        params = super()._parameterise_(**{
             **bound.arguments,
             **cls.__fields__.degenerates,
             })
+        dct = params.__dict__
+        for key, val in tuple(dct.items()):
+            if val is _Signal.CALLBACK:
+                val = getattr(cls, key)
+                if isinstance(val, str):
+                    val = eval(val, {}, dct)
+                else:
+                    val = getattr(cls, key)(params)
+                dct[key] = val
+        return params
 
 
 ###############################################################################

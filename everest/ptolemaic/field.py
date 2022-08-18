@@ -12,7 +12,8 @@ from .smartattr import (
 from .sprite import Sprite as _Sprite
 from .pathget import PathGet as _PathGet
 from .enumm import Enumm as _Enumm
-from .essence import Any as _Any, Null as _Null
+from .semaphore import Semaphore as _Semaphore
+from .essence import Any as _Any
 from . import ptolemaic as _ptolemaic
 
 
@@ -20,34 +21,11 @@ _pkind = _inspect._ParameterKind
 _pempty = _inspect._empty
 
 
-class Fields(_SmartAttrHolder):
-
-    __slots__ = ('_signature', 'defaults', 'degenerates')
-
-    @classmethod
-    def _parameterise_(cls, /, *args, **kwargs):
-        return super()._parameterise_(cls.__content_type__(
-            sorted(dict(*args, **kwargs).items(), key=(lambda x: x[1].score))
-            ))
-
-    def __init__(self, /):
-        super().__init__()
-        self.degenerates = {
-            name: field.default
-            for name, field in self.items() if field.degenerate
-            }
-
-    def __contains__(self, fieldvals: tuple) -> bool:
-        for val, field in zip(fieldvals, self):
-            if val not in field:
-                return False
-        return True
-
-
 class Signal(metaclass=_Enumm):
 
     MANDATORY: 'Signals a mandatory argument.'
-    ANCILLARY: 'Signals an optional argument.'
+    ANCILLARY: 'Signals an ancillary argument.'
+    CALLBACK: 'Signals a callback argument.'
 
 
 class FieldHint(metaclass=_Sprite):
@@ -86,6 +64,37 @@ class Kind(metaclass=_Enumm):
         return FieldHint(kind=self, hint=arg)
 
 
+class Fields(_SmartAttrHolder):
+
+    __slots__ = ('_signature', 'defaults', 'degenerates')
+
+    @classmethod
+    def _parameterise_(cls, /, *args, **kwargs):
+        return super()._parameterise_(cls.__content_type__(
+            sorted(dict(*args, **kwargs).items(), key=(lambda x: x[1].score))
+            ))
+
+    def __init__(self, /):
+        super().__init__()
+        self.degenerates = {
+            name: field.default
+            for name, field in self.items() if field.degenerate
+            }
+
+    def __contains__(self, fieldvals: tuple) -> bool:
+        for val, field in zip(fieldvals, self):
+            if val not in field:
+                return False
+        return True
+
+    @property
+    def npos(self, /):
+        return sum(
+            1 if getattr(fld, 'kind', None) is Kind.POS else 0
+            for fld in self.values()
+            )
+
+
 class Field(_SmartAttr):
 
     __slots__ = ('score', 'degenerate')
@@ -104,30 +113,9 @@ class Field(_SmartAttr):
         return Kind[kind]
 
     @classmethod
-    def _process_hint(cls, hint, /):
-        if isinstance(hint, _PathGet):
-            return hint
-        elif isinstance(hint, type):
-            if isinstance(hint, _ptolemaic.Ptolemaic):
-                return hint
-            raise TypeError(hint)
-        if isinstance(hint, str):
-            return _PathGet(hint)
-        if isinstance(hint, tuple):
-            return tuple(map(cls._process_hint, hint))
-        if hint is Ellipsis:
-            return _Any
-        if hint is None:
-            return _Null
-        if hint is NotImplemented:
-            return hint
-        raise ValueError(hint)
-
-    @classmethod
     def _parameterise_(cls, /, *args, **kwargs):
         params = super()._parameterise_(*args, **kwargs)
         params.kind = cls._process_kind(params.kind)
-        params.hint = cls._process_hint(params.hint)
         return params
 
     @classmethod
@@ -138,7 +126,7 @@ class Field(_SmartAttr):
                 "It is forbidden to provide the 'default' argument " 
                 "when content is also provided."
                 )
-        params.default = Signal.ANCILLARY
+        params.default = Signal.CALLBACK
 
     @classmethod
     def _merge_smartattrs(cls, prev, current, /):
@@ -157,11 +145,11 @@ class Field(_SmartAttr):
             for first, second in pairs
             ))
 
-    def __directive_call__(self, body, name, /, content=NotImplemented):
-        super().__directive_call__(body, name, content)
-        if content is not NotImplemented:
-            body[name] = body['comp'](content)
-        return name, content
+    # def __directive_call__(self, body, name, /, content=NotImplemented):
+    #     super().__directive_call__(body, name, content)
+    #     if content is not NotImplemented:
+    #         body[name] = body['comp'](content)
+    #     return name, content
 
     def __init__(self, /):
         super().__init__()

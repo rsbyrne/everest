@@ -155,12 +155,21 @@ class ClassBody(dict):
     @property
     class namespace:
 
-        __slots__ = ('classbody',)
+        __slots__ = ('classbody', 'dct')
 
         def __init__(self, classbody, /):
+            outer = classbody.outer
+            if isinstance(outer, ClassBody):
+                outer = outer.namespace
+            dct = dict(__corpus__ = outer)
+            object.__setattr__(self, 'dct', dct)
             object.__setattr__(self, 'classbody', classbody)
 
         def __getattr__(self, name, /):
+            try:
+                return self.dct[name]
+            except KeyError:
+                pass
             try:
                 return self.classbody[name]
             except KeyError as exc:
@@ -286,7 +295,7 @@ class ClassBody(dict):
         if isinstance(val, _Shadow):
             self.meta.process_shadow(self, name, val)
             return
-        if isinstance(val, Directive):
+        while isinstance(val, Directive):
             name, val = val.__directive_call__(self, name)
         if val is NotImplemented:
             return
@@ -313,6 +322,8 @@ class ClassBody(dict):
                 if self._check_is_localfunc(func):
                     self._register_organ(f"_classmethod_{name}", func)
                 val = _Classmethod(func)
+            elif isinstance(val, staticmethod):
+                pass
             else:
                 val = _Wisp.convert(val)
         super().__setitem__(name, val)
@@ -325,41 +336,6 @@ class ClassBody(dict):
     def _register_organ(self, name, val, /):
         val.__corpus__ = Ellipsis
         self._registeredorgans[name] = val
-
-    def get_from_path(self, /, *paths: str, fallback=NotImplemented):
-        for path in paths:
-            ndots = len(path) - len(path := path.lstrip('.'))
-            path = iter(path.split('.'))
-            strn = next(path)
-            if ndots:
-                obj = self
-                for i in range(ndots-1):
-                    obj = obj.outer
-                    if obj is None:
-                        continue
-                if isinstance(obj, ClassBody):
-                    if not strn:
-                        continue
-                    try:
-                        obj = obj[strn]
-                    except KeyError as exc:
-                        if strn in obj['__mroclasses__']:
-                            obj = obj.add_notion(strn)
-                        else:
-                            continue
-            else:
-                obj = self.module
-            for strn in path:
-                try:
-                    obj = getattr(obj, strn)
-                except AttributeError:
-                    continue
-            break
-        else:
-            if fallback is NotImplemented:
-                raise _PathError("Path retrieval failed!")
-            return fallback
-        return obj
 
     def _pathget_bodymeth(self, /, *args, live=False, **kwargs):
         getter = _PathGet(*args, **kwargs)
@@ -434,9 +410,7 @@ class ClassBody(dict):
             for item in outer['__mroclasses__'][name]:
                 if isinstance(item, _PathGet):
                     try:
-                        item = outer.get_from_path(
-                            *item.paths, fallback=item.fallback
-                            )
+                        item = item(self.outer.namespace, self.module.__dict__)
                     except _PathError:
                         continue
                 safeadd(item)
@@ -550,8 +524,13 @@ class ClassBody(dict):
     def _update_mroclasses(self, vals, /):
         mroclasses, mroclassesmade = self['__mroclasses__'], self.mroclassesmade
         mroclasses.update(vals)
+        nametriggers = self._nametriggers
+        redirects = self._redirects
         for key in mroclasses:
             mroclassesmade.setdefault(key, False)
+            if not mroclassesmade[key]:
+                nametriggers[key] = _partial(self.add_mroclass, key)
+                redirects[key] = property(_partial(type(self).add_mroclass, name=key))
 
     def _update_livepaths(self, vals, /):
         livepaths = self['__livepaths__']
@@ -631,7 +610,7 @@ class ClassBody(dict):
         self.meta.__post_prepare__(self, **self.kwargs)
         self._fullyprepared = True
 
-    def add_notion(self, name, base=None, /):
+    def add_notion(self, name, base=None):
         if base is None:
             base = self._defaultbasetyp
         out = self[name] = type(
@@ -640,17 +619,21 @@ class ClassBody(dict):
             )
         return out
 
-    def anticipate_mroclass(self, name, /):
+    def anticipate_mroclass(self, name):
         self.mroclassesmade[name] = True
         self._nametriggers[name] = _partial(self.add_mroclass_premade, name)
 
-    def add_mroclass_premade(self, name, val, /):
-        super().__setitem__(name, val)
+    def add_mroclass_premade(self, name, val):
+        # super().__setitem__(name, val)
+        del self._nametriggers[name]
+        del self._redirects[name]
+        self[name] = val
         self.mroclassesmade[name] = True
         self.protect_name(name)
 
-    def add_mroclass(self, name, base=None, /):
+    def add_mroclass(self, name, base=None):
         del self._nametriggers[name]
+        del self._redirects[name]
         out = self.add_notion(name, base)
         self.mroclassesmade[name] = True
         self.protect_name(name)

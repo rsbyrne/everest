@@ -47,6 +47,8 @@ class System(_Tekton, _Ousia):
 
 class _SystemBase_(metaclass=System):
 
+    name: KW[...] = None
+
     ### Class setup:
 
     @classmethod

@@ -3,133 +3,91 @@
 ###############################################################################
 
 
-import functools as _functools
+from functools import partial as _partial, lru_cache as _lru_cache
 
-from .demiurge import Demiurge as _Demiurge
-from .ousia import Ousia as _Ousia
 from .system import System as _System
 from .essence import Essence as _Essence
-from .pathget import PathGet as _PathGet
-from .wisp import Namespace as _Namespace
 
 
-class Algebraic(metaclass=_Essence):
-
-    ...
+class Realm(metaclass=_System):
 
 
-class Operator(metaclass=_Demiurge):
+    class Subject(mroclass, metaclass=_System):
 
-    opname: POS[str]
-    sources: ARGS['Algebra']
-    properties: KWARGS
+        realm: POS['..']
 
-    @classmethod
-    def _parameterise_(cls, opname, arg0=None, /, *argn, **kwargs):
-        if arg0 is None:
-            args = ()
-        elif argn or kwargs:
-            args = (arg0, *argn)
-        else:
-            args, kwargs = arg0
-        return super()._parameterise_(opname, *args, **kwargs)
+        @classmethod
+        @_lru_cache
+        def __class_get__(cls, instance, owner=None, /):
+            if instance is None:
+                return cls
+            return _partial(cls, instance)
 
-    @classmethod
-    def _construct_(cls, params, /):
-        sources, properties = params.sources, params.properties
+
+    class Operation(mroclass('.Subject')):
+
+        realm: POS['..']
+        operator: POS['Algebra.Subject']
+        arguments: ARGS['Realm.Subject']
+
+
+class Algebra(Realm):
+
+
+    def __call__(self, opname, target, *sources, **properties):
         arity = len(sources)
         if arity == 0:
-            kls = cls.Nullary
+            cll = self.Nullary
         if arity == 1:
-            kls = cls.Unary
+            cll = self.Unary
         elif arity == 2:
-            kls = cls.Binary
+            cll = self.Binary
         else:
             raise ValueError
-        return kls(params.opname, *sources, **properties)
+        return cll(opname, target, *sources, **properties)
 
 
-    class _DemiBase_(ptolemaic):
+    class Subject(mroclass):
 
-        opname: POS[str]
+        @classmethod
+        def __class_init__(cls, /):
+            super().__class_init__()
+            cls.algarity = cls.__fields__.npos - 2
 
-        def __call__(self, dest: 'Algebra', /, *args):
-            return Operation(self, dest, *args)
+        target: POS[Realm]
 
-        oparity = None
+        def __call__(self, /, *args):
+            if len(args) != self.algarity:
+                raise ValueError(
+                    f"Wrong number of args for this operator: "
+                    f"{len(args)} != arity={self.algarity}"
+                    )
+            return self.target.Operation(self, *args)
 
 
-    class Nullary(demiclass):
+    class Nullary(mroclass('.Subject')):
 
-        oparity = 0
+        ...
 
 
-    class Unary(demiclass):
+    class Unary(mroclass('.Subject')):
 
-        oparity = 1
-
-        source: POS['Algebra']
+        source = field('target', kind=POS, hint=Realm)
         idempotent: KW[bool] = False
         invertible: KW[bool] = False
 
+        @classmethod
+        def _parameterise_(cls, /, *args, **kwargs):
+            params = super()._parameterise_(*args, **kwargs)
 
-    class Binary(demiclass):
 
-        oparity = 2
+    class Binary(mroclass('.Subject')):
 
-        lsource: POS['Algebra']
-        rsource: POS['Algebra']
+        lsource = rsource = field('target', kind=POS, hint=Realm)
         commutative: KW[bool] = False
         associative: KW[bool] = False
-        identity: KW['..Nullary'] = None
-        distributive: KW['._Base_'] = None
-
-
-class Operation(Algebraic, metaclass=_System):
-
-    operator: POS[Operator]
-    dest: POS['Algebra']
-    args: ARGS[Algebraic]
-
-    @classmethod
-    def _parameterise_(cls, /, *args, **kwargs):
-        params = super()._parameterise_(*args, **kwargs)
-        if len(params.args) != params.operator.oparity:
-            raise ValueError("Wrong number of arguments for operator.")
-        return params
-
-
-class Algebra(metaclass=_System):
-
-    operators: ARGS[Operator]
-
-    __slots__ = ('op',)
-
-    @classmethod
-    def _parameterise_(cls, /, *args, **kwargs):
-        params = super()._parameterise_(*args, **kwargs)
-        operators = params.operators
-        if len(set(op.opname for op in operators)) != len(operators):
-            raise ValueError("All operators must have unique names.")
-        params.operators = tuple(sorted(
-            params.operators, key = lambda op: (op.oparity, op.opname)
-            ))
-        return params
-
-    def __init__(self, /):
-        super().__init__()
-        self.op = OperatorSet((op.opname, op) for op in self.operators)
-
-
-class OperatorSet(_Namespace):
-
-    algebra: Algebra
-
-    def __init__(self, /):
-        super().__init__()
-        algebra = self.algebra
-        for key, val in tuple((content := self._content).items()):
-            content[key] = _functools.partial(val, algebra)
+        identity: KW['Realm.Subject'] = None
+        distributive: KW['Algebra.Subject'] = None
 
 
 ###############################################################################

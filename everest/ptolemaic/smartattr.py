@@ -12,6 +12,8 @@ from everest.dclass import DClass as _DClass
 from . import ptolemaic as _ptolemaic
 from .sprite import Sprite as _Sprite
 from .wisp import Kwargs as _Kwargs
+from .essence import Any as _Any, Null as _Null
+from .pathget import PathGet as _PathGet
 
 
 def _fallback_getter(obj, name, instance, /):
@@ -54,6 +56,26 @@ class SmartAttr(metaclass=_Sprite):
     note: str = NotImplemented
 
     @classmethod
+    def _process_hint(cls, hint, /):
+        if isinstance(hint, _PathGet):
+            return hint
+        elif isinstance(hint, type):
+            if isinstance(hint, _ptolemaic.Ptolemaic):
+                return hint
+            raise TypeError(hint)
+        if isinstance(hint, str):
+            return _PathGet(hint)
+        if isinstance(hint, tuple):
+            return tuple(map(cls._process_hint, hint))
+        if hint is Ellipsis:
+            return _Any
+        if hint is None:
+            return _Null
+        if hint is NotImplemented:
+            return hint
+        raise ValueError(hint)
+
+    @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         singlename = cls.__single_name__ = cls.__name__.lower()
@@ -64,10 +86,13 @@ class SmartAttr(metaclass=_Sprite):
         params = super()._parameterise_(*args, **kwargs)
         if content is not None:
             cls.adjust_params_for_content(params, content)
+        params.hint = cls._process_hint(params.hint)
         return params
 
     @classmethod
     def adjust_params_for_content(cls, params, content, /):
+        if isinstance(content, str):
+            return
         if isinstance(content, (staticmethod, classmethod)):
             content = content.__func__
         if params.hint is object:
