@@ -245,10 +245,10 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
         else:
             raise ImmutableError("Cannot alter attribute when immutable.")
 
-    def __repr__(self, /):
-        return f"<{self.__abstract_class__.__qualname__}, id={id(self)}>"
+    # def __repr__(self, /):
+    #     return f"<{self.__abstract_class__.__qualname__}, id={id(self)}>"
 
-    def __str__(self, /):
+    def __repr__(self, /):
         return f"{self.__abstract_class__.__qualname__}({repr(self.__params__)[1:-1]})"
 
     def _repr_pretty_(self, p, cycle, root=None):

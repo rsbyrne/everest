@@ -280,10 +280,18 @@ class _OusiaBase_(metaclass=Ousia):
     def __ptolemaic_class__(self, /):
         return type(self)._get_ptolemaic_class()
 
-    def _repr_pretty_(self, p, cycle, root=None):
+    def _pretty_repr_(self, p, cycle, root=None):
         if root is None:
             root = self.__ptolemaic_class__.__qualname__
         _pretty.pretty_kwargs(self.params, p, cycle, root=root)
+
+    def _repr_pretty_(self, p, cycle, root=None):
+        if (corpus := self.__corpus__) is None:
+            self._pretty_repr_(p, cycle, root=root)
+        else:
+            _pretty.pretty_attribute(
+                self.__relname__, corpus, p, cycle, root=root
+                )
 
 
 ###############################################################################

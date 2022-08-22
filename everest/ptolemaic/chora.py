@@ -319,7 +319,7 @@ class Dimension(Chorelle, metaclass=_System):
             return self.chora._includes_(other)
         return False
 
-    @comp
+    @prop
     def isdegenerate(self, /):
         return isinstance(self.chora, _sett.Degenerate)
 
@@ -328,26 +328,26 @@ class MultiChora(Choret, ChoraEnnaryOp):
 
     labels: KW = ()
 
-    @comp
+    @prop
     def dimensions(self, /):
         return tuple(map(Dimension, self.args))
 
-    @comp
+    @prop
     def depth(self, /):
         return len(self.dimensions)
 
-    @comp
+    @prop
     def active(self, /):
         return tuple(
             not isinstance(cho, _sett.Degenerate)
             for cho in self.args
             )
 
-    @comp
+    @prop
     def activedimensions(self, /):
         return tuple(_itertools.compress(self.dimensions, self.active))
 
-    @comp
+    @prop
     def activedepth(self, /):
         return len(self.activedimensions)
 
@@ -359,19 +359,19 @@ class MultiChora(Choret, ChoraEnnaryOp):
                 ))
         return IncisionStyle.SLYCE(choras)
 
-    @comp
+    @prop
     def _mapping_multiincise(self, /):
         return _functools.partial(
             self._generic_multiincise, self._yield_mapping_multiincise
             )
 
-    @comp
+    @prop
     def _sequence_multiincise(self, /):
         return _functools.partial(
             self._generic_multiincise, self._yield_sequence_multiincise
             )
 
-    @comp
+    @prop
     def _single_multiincise(self, /):
         return _functools.partial(
             self._generic_multiincise, self._yield_single_multiincise
@@ -502,11 +502,11 @@ _Stele_.complete()
 #     def __getitem__(self, arg, /):
 #         return self.mapp[arg]
 
-#     @comp
+#     @prop
 #     def domain(self, /):
 #         return self.mapp.pre.domain
 
-#     @comp
+#     @prop
 #     def codomain(self, /):
 #         return self.mapp.post.codomain
 
@@ -547,22 +547,22 @@ _Stele_.complete()
 #         params.mapper = _mapp(params.mapper)
 #         return params
 
-#     @comp
+#     @prop
 #     def domain(self, /):
 #         return self.handler.domain
 
-#     @comp
+#     @prop
 #     def codomain(self, /):
 #         return self.mapper.codomain
 
-#     @comp
+#     @prop
 #     def get_signaltype(self, /):
 #         return self.codomain.get_signaltype
 
-#     @comp
+#     @prop
 #     def _contains_(self, /):
 #         return self.codomain._contains_
 
-#     @comp
+#     @prop
 #     def _includes_(self, /):
 #         return self.codomain._contains_

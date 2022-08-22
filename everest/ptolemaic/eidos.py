@@ -88,11 +88,14 @@ class _EidosBase_(metaclass=Eidos):
 
     def __getattr__(self, name, /):
         try:
-            meths = object.__getattribute__(self, '_getters_')[name]
+            getters = object.__getattribute__(self, '_getters_')
         except AttributeError as exc:
             raise RuntimeError from exc
-        except KeyError as exc:
-            raise AttributeError from exc
+        else:
+            try:
+                meths = getters[name]
+            except KeyError as exc:
+                raise AttributeError from exc
         for meth in meths:
             val = meth(self)
             if val is NotImplemented:

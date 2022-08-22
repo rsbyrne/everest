@@ -24,7 +24,7 @@ class Semaphore(metaclass=_Enumm):
                 raise ValueError(params.envelope)
             return params
 
-        def _repr_pretty_(self, p, cycle, /, root=None):
+        def _pretty_repr_(self, p, cycle, /, root=None):
             return _pretty.pretty_call(
                 self.envelope, ((self.content,), {}), p, cycle, root=root
                 )

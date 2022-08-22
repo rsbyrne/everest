@@ -39,6 +39,11 @@ def pretty_method(obj, p, cycle, /, root=''):
     p.text(f'.{obj.__name__}')
 
 
+def pretty_attribute(name, host, p, cycle, /, root=''):
+    pretty(host, p, cycle, root=root)
+    p.text('.' + name)
+
+
 def pretty_kwargs(obj, p, cycle, /, root=''):
     if cycle:
         p.text(root + '(...)')

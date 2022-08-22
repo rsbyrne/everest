@@ -99,7 +99,7 @@ class Brace(metaclass=_Algebra):
 
         typ: KW[type] = tuple
 
-        @comp
+        @prop
         def breadth(self, /):
             return len(self.labels)
 
@@ -120,7 +120,7 @@ class Brace(metaclass=_Algebra):
 
         arg: pathget('..Base', fallback=_Null)
 
-        @comp
+        @prop
         def args(self, /):
             return (self.arg,)
 
@@ -140,7 +140,7 @@ class Brace(metaclass=_Algebra):
         arg: pathget('..Base', fallback=_Null)
         labels: KW
 
-        @comp
+        @prop
         def args(self, /):
             arg = self.arg
             return tuple(arg for _ in range(len(self.labels)))

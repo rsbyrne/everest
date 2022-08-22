@@ -111,7 +111,7 @@ class RetrieveMapp(Mapp, metaclass=_System):
 
     codomain: _sett.Sett
 
-    @comp
+    @prop
     def domain(self, /):
         return self.codomain
 
@@ -136,7 +136,7 @@ class CallMapp(Mapp, metaclass=_System):
 
     func: _collabc.Callable
 
-    @comp
+    @prop
     def setts(self, /):
         return tuple(
             _sett(pm.annotation)
@@ -144,22 +144,22 @@ class CallMapp(Mapp, metaclass=_System):
             if pm.kind.value < 2
             )
 
-    @comp
+    @prop
     def arity(self, /):
         return len(self.setts)
 
-    @comp
+    @prop
     def domain(self, /):
         setts = self.setts
         if len(setts) == 1:
             return setts[0]
         return _sett.SettBrace(*setts)
 
-    @comp
+    @prop
     def codomain(self, /):
         return _sett(self.func.__annotations__.get('return', ...))
 
-    @comp
+    @prop
     def _getitem_(self, /):
         func = self.func
         if self.arity == 1:
@@ -200,11 +200,11 @@ class ArbitraryMapp(SuperMapp, metaclass=_System):
     def __getitem__(self, arg, /):
         return self.mapping[arg]
 
-    @comp
+    @prop
     def domain(self, /):
         return _sett(tuple(self.mapping))
 
-    @comp
+    @prop
     def codomain(self, /):
         return _sett(tuple(self.mapping.values()))
 
@@ -304,28 +304,28 @@ class MappUnion(ElasticMapp):
                 continue
         raise MappError(arg)
 
-    @comp
+    @prop
     def domain(self, /):
         return _sett.union(arg.domain for arg in self.args)
 
-    @comp
+    @prop
     def codomain(self, /):
         return _sett.union(arg.codomain for arg in self.args)
 
 
 class SwitchMapp(ElasticMapp):
 
-    @comp
+    @prop
     def typemapp(self, /):
         return TypeMapp(
             (mp.domain.signaltype, mp) for mp in self.args
             )
 
-    @comp
+    @prop
     def domain(self, /):
         return _sett.union(*(mp.domain for mp in self.args))
 
-    @comp
+    @prop
     def codomain(self, /):
         return _sett.union(*(mp.codomain for mp in self.args))
 
@@ -340,11 +340,11 @@ class SwitchMapp(ElasticMapp):
 
 class MappComposition(MappEnnaryOp, metaclass=_System):
 
-    @comp
+    @prop
     def domain(self, /):
         return self.args[0].domain
 
-    @comp
+    @prop
     def codomain(self, /):
         return self.args[-1].codomain
 
@@ -384,11 +384,11 @@ class StyleMapp(MappMultiOp, metaclass=_System):
             self.post.subtend(arg.post),
             )
 
-    @comp
+    @prop
     def domain(self, /):
         return self.pre.domain
 
-    @comp
+    @prop
     def codomain(self, /):
         return self.post.domain
 

@@ -87,33 +87,80 @@ class Escaped:
 
 class MroclassMerger(dict):
 
-    def __setitem__(self, name, val):
+    def __init__(self, /, body, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.body = body
+        self.made = {key: False for key in self}
+
+    def _process_bases(self, bases, /):
+        if not isinstance(bases, _collabc.Iterable):
+            bases = (bases,)
+        for base in bases:
+            if isinstance(base, _PathGet):
+                yield base
+            elif isinstance(base, type):
+                yield base
+            elif isinstance(base, str):
+                yield _PathGet(base)
+            elif isinstance(base, _collabc.Iterable):
+                yield _PathGet(*base)
+            else:
+                raise ValueError(base)
+
+    def _setitem_(self, name, val, /):
         try:
             deq = self[name]
         except KeyError:
             deq = _deque()
             super().__setitem__(name, deq)
-        if isinstance(val, str):
-            val = _PathGet(val)
-        elif isinstance(val, tuple):
-            if val:
-                val = _PathGet(*val)
-            else:
-                val = None
-        if val is not None:
-            if not isinstance(val, (type, _PathGet)):
-                raise TypeError(val)
-            if val not in deq:
-                deq.appendleft(val)
-            else:
-                deq.extendleft(_itertools.filterfalse(deq.__contains__, val))
+            isnew = True
+        else:
+            isnew = False
+        deq.extendleft(_itertools.filterfalse(
+            deq.__contains__,
+            self._process_bases(val),
+            ))
+        return isnew
+
+    def __setitem__(self, name, val, /):
+        self.update({name: val})
 
     def update(self, vals, /):
+        body = self.body
+        made = self.made
+        nametriggers = body._nametriggers
+        redirects = body._redirects
         for key, val in dict(vals).items():
-            if key not in self:
-                super().__setitem__(key, _deque())
-            for subval in val:
-                self[key] = subval
+            if self._setitem_(key, val):
+                made[key] = False
+                nametriggers[key] = _partial(self.add, key)
+                redirects[key] = property(_partial(self.redirect, name=key))
+
+    def finalise(self, /):
+        body = self.body
+        for mroname, check in self.made.items():
+            if not check:
+                self.add(mroname)
+
+    def register(self, name, kls, /):
+        body = self.body
+        # super().__setitem__(name, val)
+        del body._nametriggers[name]
+        del body._redirects[name]
+        body[name] = kls
+        self.made[name] = True
+        body.protect_name(name)
+
+    def add(self, name, base=None):
+        body = self.body
+        out = body.add_notion(name, base)
+        return out
+
+    def anticipate(self, name):
+        self.body._nametriggers[name] = _partial(self.register, name)
+
+    def redirect(self, _, name):
+        return self.add(name)
 
 
 class ClassBodyHelper:
@@ -194,7 +241,6 @@ class ClassBody(dict):
                 ).items():
             super().__setitem__(nm, val)
         self.lock = _Switch(False)
-        # self._add_mroclass_sugar()
         self.kwargs = kwargs
         self.outer = None
         self.innerobjs = {}
@@ -379,14 +425,14 @@ class ClassBody(dict):
     def _post_prepare_ismroclass(self, /):
         outer = self.outer
         if isinstance(outer, ClassBody):
-            name, made = self.name, outer.mroclassesmade
+            name, made = self.name, outer['__mroclasses__'].made
             try:
                 if made[name]:
                     raise RuntimeError("Mroclass already created!")
             except KeyError:
                 pass
             else:
-                outer.anticipate_mroclass(name)
+                outer['__mroclasses__'].anticipate(name)
                 self.ismroclass = True
                 return
         self.ismroclass = False
@@ -511,7 +557,7 @@ class ClassBody(dict):
 
     def _post_prepare_mergednames(self, /):
         _, dynobj = self._gather_mergenames('__mergenames__', dict)
-        dynobj['__mroclasses__'] = (MroclassMerger, dict)
+        dynobj['__mroclasses__'] = (_partial(MroclassMerger, self), dict)
         dynobj['__livepaths__'] = dict
         self._update_mergenames(dynobj)
         self._nametriggers['__mergenames__'] = self._update_mergenames
@@ -521,27 +567,11 @@ class ClassBody(dict):
         for name, getter in self['__livepaths__'].items():
             self[name] = getter
 
-    def _update_mroclasses(self, vals, /):
-        mroclasses, mroclassesmade = self['__mroclasses__'], self.mroclassesmade
-        mroclasses.update(vals)
-        nametriggers = self._nametriggers
-        redirects = self._redirects
-        for key in mroclasses:
-            mroclassesmade.setdefault(key, False)
-            if not mroclassesmade[key]:
-                nametriggers[key] = _partial(self.add_mroclass, key)
-                redirects[key] = property(_partial(type(self).add_mroclass, name=key))
-
     def _update_livepaths(self, vals, /):
         livepaths = self['__livepaths__']
         for name, getter in dict(vals).items():
             livepaths[name] = getter
             self[name] = getter
-
-    def _post_prepare_mroclasses(self, /):
-        self.mroclassesmade = {key: False for key in self['__mroclasses__']}
-        self._nametriggers['__mroclasses__'] = self._update_mroclasses
-        self['__mroclasses__'] = dict(self.meta._yield_mroclasses())
 
     def _post_prepare_bodymeths(self, /):
         toadd = dict(
@@ -560,10 +590,6 @@ class ClassBody(dict):
         triggers.update(
             (name, _partial(meth, self))
             for name, meth in self.meta._yield_bodynametriggers()
-            )
-        triggers.update(
-            (name, _partial(self.add_mroclass, name))
-            for name in self.mroclassesmade
             )
 
     def _post_prepare(self, /):
@@ -591,9 +617,7 @@ class ClassBody(dict):
         else:
             if outer.awaiting_mroclass:
                 outer.lock.toggle(False)
-                outer['__mroclasses__'] = {
-                    name: outer.awaiting_mroclass_names,
-                    }
+                outer['__mroclasses__'][name] = outer.awaiting_mroclass_names
                 outer.awaiting_mroclass = False
                 outer.awaiting_mroclass_names.clear()
             iscosmic = False
@@ -604,7 +628,6 @@ class ClassBody(dict):
         self._post_prepare_bases()
         self._post_prepare_mergednames()
         self._post_prepare_livepaths()
-        self._post_prepare_mroclasses()
         self._post_prepare_bodymeths()
         self._post_prepare_nametriggers()
         self.meta.__post_prepare__(self, **self.kwargs)
@@ -619,26 +642,6 @@ class ClassBody(dict):
             )
         return out
 
-    def anticipate_mroclass(self, name):
-        self.mroclassesmade[name] = True
-        self._nametriggers[name] = _partial(self.add_mroclass_premade, name)
-
-    def add_mroclass_premade(self, name, val):
-        # super().__setitem__(name, val)
-        del self._nametriggers[name]
-        del self._redirects[name]
-        self[name] = val
-        self.mroclassesmade[name] = True
-        self.protect_name(name)
-
-    def add_mroclass(self, name, base=None):
-        del self._nametriggers[name]
-        del self._redirects[name]
-        out = self.add_notion(name, base)
-        self.mroclassesmade[name] = True
-        self.protect_name(name)
-        return out
-
     def _finalise_mergenames(self, /):
         mergenames = self.mergenames
         for mname, (_, fintyp) in mergenames.items():
@@ -647,18 +650,13 @@ class ClassBody(dict):
             '__mergenames__', _Dat.convert(mergenames)
             )
 
-    def _finalise_mroclasses(self, /):
-        for mroname, check in self.mroclassesmade.items():
-            if not check:
-                self.add_notion(mroname, self.get(mroname, None))
-
     def _register_innerobj(self, obj, name, /):
         self.innerobjs[name] = obj
 
     def finalise(self, /):
         assert self._fullyprepared, (self.name,)
+        self['__mroclasses__'].finalise()
         self._finalise_mergenames()
-        self._finalise_mroclasses()
         # try:
         out = _abc.ABCMeta.__new__(
             self.meta, self.name, self.bases, dict(self)

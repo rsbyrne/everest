@@ -6,6 +6,7 @@
 from abc import abstractmethod as _abstractmethod
 from functools import partial as _partial
 import inspect as _inspect
+import types as _types
 
 from everest.dclass import DClass as _DClass
 
@@ -14,6 +15,7 @@ from .sprite import Sprite as _Sprite
 from .wisp import Kwargs as _Kwargs
 from .essence import Any as _Any, Null as _Null
 from .pathget import PathGet as _PathGet
+from .enumm import Enumm as _Enumm
 
 
 def _fallback_getter(obj, name, instance, /):
@@ -28,6 +30,15 @@ def _fallback_deleter(obj, name, instance, val, /):
     raise AttributeError(
         f"Can't set attribute: {instance}, {name}"
         )
+
+
+class ContentType(metaclass=_Enumm):
+
+    UNKNOWN: None
+    CLASSLIKE: None
+    STATICLIKE: None
+    CLASSMETHOD: None
+    INSTANCEMETHOD: None
 
 
 class SmartAttrHolder(_Kwargs):
@@ -90,22 +101,36 @@ class SmartAttr(metaclass=_Sprite):
         return params
 
     @classmethod
+    def adjust_params_for_content_signature(cls, params, sig, contenttype):
+        if params.hint is object:
+            if (retanno := sig.return_annotation) is not sig.empty:
+                params.hint = retanno
+
+    @classmethod
     def adjust_params_for_content(cls, params, content, /):
         if isinstance(content, str):
             return
-        if isinstance(content, (staticmethod, classmethod)):
+        if isinstance(content, (staticmethod, _types.MethodType)):
+            contenttype = ContentType.STATICLIKE
             content = content.__func__
-        if params.hint is object:
-            try:
-                sig = _inspect.signature(content)
-            except TypeError:
-                pass
-            else:
-                retanno = sig.return_annotation
-                if retanno is not sig.empty:
-                    params.hint = retanno
+        elif isinstance(content, classmethod):
+            contenttype = ContentType.CLASSMETHOD
+            content = content.__func__
+        elif isinstance(content, _types.FunctionType):
+            contenttype = ContentType.INSTANCEMETHOD
+        elif isinstance(content, type):
+            contenttype = ContentType.CLASSLIKE
+        try:
+            sig = _inspect.signature(content)
+        except TypeError:
+            pass
+        else:
+            cls.adjust_params_for_content_signature(params, sig, contenttype)
         if params.note == '':
-            params.note = content.__doc__
+            try:
+                params.note = content.__doc__
+            except AttributeError:
+                pass
 
     @classmethod
     def _merge_smartattrs(cls, prev, current, /):
@@ -124,10 +149,12 @@ class SmartAttr(metaclass=_Sprite):
         return name, content
 
     @classmethod
-    def __body_call__(cls, body, arg=None, /, **kwargs):
-        if arg is None:
+    def __body_call__(cls, body, content=None, /, **kwargs):
+        if content is None:
             return _partial(cls.__body_call__, body, **kwargs)
-        return SmartAttrDirective(cls, kwargs, arg)
+        if isinstance(content, _PathGet):
+            content = content(body.namespace)
+        return SmartAttrDirective(cls, kwargs, content)
 
     def _get_getter_(self, obj, name, /):
         try:

@@ -57,7 +57,7 @@ class PathGet(metaclass=_Wisp):
                 return _Wisp.convert(obj)
         else:
             if (fallback := self.fallback) is NotImplemented:
-                raise PathError("Path retrieval failed!", obj, self)
+                raise PathError("Path retrieval failed!", obj, self.paths)
             return fallback
 
 

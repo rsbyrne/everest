@@ -3,58 +3,83 @@
 ###############################################################################
 
 
-from functools import partial as _partial, lru_cache as _lru_cache
+from functools import partial as _partial
 
 from .system import System as _System
 from .essence import Essence as _Essence
+from .pathget import PathGet as _PathGet
 
 
-class Realm(metaclass=_System):
+class Noum(metaclass=_System):
+
+    operator: POS['Basic.Operator']
+    arguments: ARGS['Noum']
+
+    @prop
+    def canonical(self, /):
+        out = self.operator.canonise(*self.arguments)
+        if out is NotImplemented:
+            return self
+        return out
 
 
-    class Subject(mroclass, metaclass=_System):
-
-        realm: POS['..']
-
-        @classmethod
-        @_lru_cache
-        def __class_get__(cls, instance, owner=None, /):
-            if instance is None:
-                return cls
-            return _partial(cls, instance)
-
-
-    class Operation(mroclass('.Subject')):
-
-        realm: POS['..']
-        operator: POS['Algebra.Subject']
-        arguments: ARGS['Realm.Subject']
-
-
-class Algebra(Realm):
-
-
-    def __call__(self, opname, target, *sources, **properties):
-        arity = len(sources)
+def _operator_bodymeth_(body, /, arg0=0, *argn, **kwargs):
+    if isinstance(arg0, _PathGet):
+        arg0 = arg0(body.namespace)
+    if isinstance(arg0, Basic.Operator):
+        optyp = arg0
+        args = argn
+    else:
+        if isinstance(arg0, int):
+            if argn:
+                raise ValueError(
+                    "Cannot pass both int flag and sources to operator constructor."
+                    )
+            args = tuple(NotImplemented for _ in range(arg0))
+        else:
+            args = (arg0, *argn)
+        arity = len(args)
         if arity == 0:
-            cll = self.Nullary
-        if arity == 1:
-            cll = self.Unary
+            optyp = body['Nullary']
+        elif arity == 1:
+            optyp = body['Unary']
         elif arity == 2:
-            cll = self.Binary
+            optyp = body['Binary']
         else:
             raise ValueError
-        return cll(opname, target, *sources, **properties)
+    return body['organ'](
+        **optyp.__signature__.bind_partial(
+            body['pathget']('.'), *args, **kwargs
+            ).arguments,
+        )(optyp)
 
 
-    class Subject(mroclass):
+class Algebra(_System):
+
+    @classmethod
+    def _yield_bodymeths(meta, body, /):
+        yield from super()._yield_bodymeths(body)
+        yield 'operator', _partial(_operator_bodymeth_, body)
+
+
+class Basic(metaclass=Algebra):
+
+
+    class Operator(mroclass, metaclass=_System):
+
+        # @classmethod
+        # @_lru_cache
+        # def __class_get__(cls, instance, owner=None):
+        #     if instance is None:
+        #         return cls
+        #     return _partial(cls, instance)
 
         @classmethod
         def __class_init__(cls, /):
             super().__class_init__()
-            cls.algarity = cls.__fields__.npos - 2
+            cls.algarity = cls.__fields__.npos - 1
 
-        target: POS[Realm]
+        target: POS
 
         def __call__(self, /, *args):
             if len(args) != self.algarity:
@@ -62,32 +87,37 @@ class Algebra(Realm):
                     f"Wrong number of args for this operator: "
                     f"{len(args)} != arity={self.algarity}"
                     )
-            return self.target.Operation(self, *args)
+            return Noum(self, *args)
 
 
-    class Nullary(mroclass('.Subject')):
+    class Nullary(mroclass('.Operator')):
 
         ...
 
 
-    class Unary(mroclass('.Subject')):
+    class Unary(mroclass('.Operator')):
 
-        source = field('target', kind=POS, hint=Realm)
+        source = field('target', kind=POS, hint='Basic')
         idempotent: KW[bool] = False
         invertible: KW[bool] = False
 
-        @classmethod
-        def _parameterise_(cls, /, *args, **kwargs):
-            params = super()._parameterise_(*args, **kwargs)
+        def canonise(self, arg: Noum, /):
+            if isinstance(arg, Noum):
+                if arg.operator is self:
+                    if self.idempotent:
+                        return arg
+                    if self.invertible:
+                        return arg.arguments[0]
+            return NotImplemented
 
 
-    class Binary(mroclass('.Subject')):
+    class Binary(mroclass('.Operator')):
 
-        lsource = rsource = field('target', kind=POS, hint=Realm)
+        lsource = rsource = field('target', kind=POS, hint='Basic')
         commutative: KW[bool] = False
         associative: KW[bool] = False
-        identity: KW['Realm.Subject'] = None
-        distributive: KW['Algebra.Subject'] = None
+        identity: KW[Noum] = None
+        distributive: KW['Basic.Operator'] = None
 
 
 ###############################################################################

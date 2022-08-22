@@ -82,7 +82,7 @@ class _SpriteBase_(metaclass=Sprite):
 
     ### Representations:
 
-    def _repr_pretty_(self, p, cycle, root=None):
+    def _pretty_repr_(self, p, cycle, root=None):
         if root is None:
             root = self.rootrepr
         _pretty.pretty_kwargs(
