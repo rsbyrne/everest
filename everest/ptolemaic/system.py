@@ -71,10 +71,16 @@ class _SystemBase_(metaclass=System):
     def _pretty_repr_(self, p, cycle, root=None):
         bound = self.__ptolemaic_class__.__signature__.bind_partial()
         bound.arguments.update(self.params)
+        args = tuple(arg for arg in bound.args if arg is not NotImplemented)
+        kwargs = {
+            key: val
+            for key, val in bound.kwargs.items()
+            if val is not NotImplemented
+            }
         if root is None:
             root = self.rootrepr
         _pretty.pretty_argskwargs(
-            (bound.args, bound.kwargs), p, cycle, root=root
+            (args, kwargs), p, cycle, root=root
             )
 
 

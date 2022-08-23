@@ -8,189 +8,13 @@ import abc as _abc
 import weakref as _weakref
 import itertools as _itertools
 from collections import deque as _deque
+from collections import abc as _collabc
 import abc as _abc
 
 from everest.utilities import pretty as _pretty
 
 from .system import System as _System
 from .pathget import PathGet as _PathGet
-from .demiurge import Demiurge as _Demiurge
-from .tekton import Tekton as _Tekton
-
-
-def distribute(factors, under, /):
-    chunks = _deque()
-    buff = _deque()
-    for factor in factors:
-        if isinstance(factor, Operator._Operation_):
-            if factor.operator is under:
-                chunks.append(tuple(
-                    (*buff, term) for term in factor.arguments
-                    ))
-                buff.clear()
-            else:
-                buff.append(factor)
-        else:
-            buff.append(factor)
-    if chunks:
-        chunks.append(tuple((*term, *buff) for term in chunks.pop()))
-        return tuple(map(tuple, map(
-            _itertools.chain.from_iterable, _itertools.product(*chunks)
-            )))
-    return (tuple(buff),)
-
-
-class Operator(metaclass=_System):
-
-    algebra: POS['_AlgebraBase_']
-
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls.algarity = cls.__fields__.npos - 1
-
-    def _register_operation_(self, op, /):
-        self.algebra._registeredoperations_.add(op)
-
-    def __call__(self, /, *args, **kwargs):
-        out = self._Operation_(self, *args, **kwargs)
-        self._register_operation_(out)
-        return out
-
-    @property
-    def realm(self, /):
-        return self.algebra.realm
-
-    class _Operation_(mroclass, metaclass=_System):
-
-        operator: POS['Operator']
-
-        @_abc.abstractmethod
-        def canonise(self, /, *_):
-            raise NotImplementedError
-
-
-class Nullary(Operator):
-
-    class _Operation_(mroclass):
-
-        def canonise(self, /):
-            return self
-
-
-class Unary(Operator):
-
-    source = field('algebra.realm', kind=POS, hint='Realm')
-    idempotent: KW[bool] = False
-    invertible: KW[bool] = False
-
-    class _Operation_(mroclass):
-
-        argument: POS
-
-        def canonise(self, /):
-            operator, argument = self.operator, self.argument
-            argument = operator.source.canonise(argument)
-            if isinstance(argument, _Operation_):
-                if argument.operator is self:
-                    if operator.idempotent:
-                        return argument
-                    if operator.invertible:
-                        return argument.source.canonise(
-                            argument.argument
-                            )
-            return argument
-
-        def _pretty_repr_(self, p, cycle, root=None):
-            _pretty.pretty_call(
-                self.operator, ((self.argument,), {}),
-                p, cycle, root=root,
-                )
-
-
-class Ennary(Operator):
-
-    source = field('algebra.realm', kind=POS, hint='Realm')
-    unique: KW[bool] = False
-    commutative: KW[bool] = False
-    associative: KW[bool] = False
-    identity: KW = None
-    distributive: KW[Operator] = None
-
-    def __call__(self, /, *args):
-        if not args:
-            identity = self.identity
-            if identity is None:
-                raise ValueError("No args!")
-            return identity
-        if len(args) == 1:
-            return args[0]
-        return super().__call__(*args)
-
-    class _Operation_(mroclass):
-
-        arguments: ARGS
-
-        def _unpack_associative(self, args, /):
-            for arg in args:
-                if isinstance(arg, Operator._Operation_):
-                    if arg.operator is self:
-                        yield from arg.arguments
-                    else:
-                        yield arg
-                else:
-                    yield arg
-
-        def canonise(self, /):
-            operator = self.operator
-            inargs = args = tuple(map(
-                operator.source.algebra.canonise,
-                self.arguments,
-                ))
-            if operator.associative:
-                args = self._unpack_associative(args)
-            if operator.unique:
-                if operator.commutative:
-                    args = sorted(set(args))
-                else:
-                    seen = set()
-                    processed = []
-                    for arg in args:
-                        if arg not in seen:
-                            processed.append(arg)
-                            seen.add(arg)
-                    args = tuple(args)
-            elif operator.commutative:
-                args = sorted(args)
-            if hasidentity := (identity := operator.identity) is not None:
-                args = tuple(arg for arg in args if arg is not identity)
-            else:
-                args = tuple(args)
-            if (distr := operator.distributive):
-                return distr(
-                    *(operator(*factors)
-                    for factors in distribute(args, distr))
-                    )
-            return operator(*args)
-
-        def _pretty_repr_(self, p, cycle, root=None):
-            _pretty.pretty_call(
-                self.operator, (self.arguments, {}),
-                p, cycle, root=root,
-                )
-
-
-    #     class Binary(mroclass('.Operator')):
-
-    #         lsource = rsource = field('realm', kind=POS, hint='Realm')
-    #         commutative: KW[bool] = False
-    #         associative: KW[bool] = False
-    #         identity: KW[Noum] = None
-    #         distributive: KW['Realm.Operator'] = None
-
-    #         def canonise(self, larg, rarg, /):
-    #             if self.commutative:
-    #                 larg, rarg = sorted((larg, rarg))
 
 
 def _operator_bodymeth_(body, arg0=0, /, *argn, **kwargs):
@@ -212,7 +36,7 @@ def _operator_bodymeth_(body, arg0=0, /, *argn, **kwargs):
             args = (arg0, *argn)
         arity = len(args)
         if arity == 0:
-            optyp = Nullary
+            optyp = Constant
         elif arity == 1:
             optyp = Unary
         elif arity == 2:
@@ -220,9 +44,7 @@ def _operator_bodymeth_(body, arg0=0, /, *argn, **kwargs):
         else:
             raise ValueError
     return body['organ'](
-        **optyp.__signature__.bind_partial(
-            _PathGet('.'), *args, **kwargs
-            ).arguments,
+        **optyp.__signature__.bind_partial(*args, **kwargs).arguments,
         )(optyp)
 
 
@@ -236,41 +58,285 @@ class Algebra(_System):
 
 class _AlgebraBase_(metaclass=Algebra):
 
+    target: POSKW['.'] = ANCILLARY
+    @prop
+    def target(self, /):
+        return self
 
-    realm: POS['Realm']
+    @prop
+    def symbols(self, /):
+        return frozenset()
 
-    __slots__ = ('_registeredoperations_',)
+    __slots__ = ('_registeredelements_',)
 
     def __init__(self, /):
         super().__init__()
-        self._registeredoperations_ = _weakref.WeakSet()
+        self._registeredelements_ = _weakref.WeakSet()
+
+    def _register_element_(self, op, /):
+        self._registeredelements_.add(op)
 
     def __contains__(self, other, /):
-        if other in self.realm.symbols:
-            return True
-        return other in self._registeredoperations_
+        return other in self._registeredelements_
 
     def canonise(self, other, /):
-        if other in self.realm.symbols:
-            return other
-        if other in self._registeredoperations_:
+        if other in self:
             return other.canonise()
         raise ValueError(other)
 
 
-class Realm(metaclass=_System):
+class _Form_(metaclass=_System):
+
+    operator: POS['Operator']
+
+    @_abc.abstractmethod
+    def canonise(self, /):
+        return self
+
+
+class Constant(_Form_):
+
+    operator: FIXED = NotImplemented
+    @prop
+    def operator(self, /):
+        return self.hashID
+
+    def __initialise__(self, /):
+        super().__initialise__()
+        self.algebra._register_element_(self)
+
+    def canonise(self, /):
+        return self
 
     @property
-    def symbols(self, /):
-        return frozenset()
+    def algebra(self, /):
+        return self.__corpus__
 
-    @organ(realm=pathget('.'))
-    class algebra(mroclass, metaclass=Algebra):
-        ...
+    def _construct_(self, /):
+        raise RuntimeError(
+            "Constants should only be instantiated "
+            "as organs of instances of algebras."
+            )
 
-    def __contains__(self, other, /):
-        return other in self.algebra
+
+class Operator(metaclass=_System):
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.algarity = cls.__fields__.npos - 1
+
+    def _construct_(self, /):
+        raise RuntimeError(
+            "Operators should only be instantiated "
+            "as organs of instances of algebras."
+            )
+
+    def __call__(self, /, *args, **kwargs):
+        out = self._Operation_(self, *args, **kwargs)
+        self.algebra._register_element_(out)
+        return out
+
+    @property
+    def algebra(self, /):
+        return self.__corpus__
+
+    @property
+    def target(self, /):
+        return self.algebra.target
+
+    class _Operation_(mroclass(_Form_)):
+
+        operator: POS['Operator']
+
+        def _pretty_repr_(self, p, cycle, root=None):
+            _pretty.pretty_call(
+                self.operator, (self.__params__[1:], {}),
+                p, cycle, root=root,
+                )
+
+
+class Selector(Operator):
+
+    alphabet: KW[_collabc.Container]
+
+    class _Operation_(mroclass):
+
+        symbol: POS = None
+
+        @classmethod
+        def __parameterise__(cls, /, *args, **kwargs):
+            params = super().__parameterise__(*args, **kwargs)
+            if params.symbol not in params.operator.alphabet:
+                raise ValueError(params)
+            return params
+
+        def canonise(self, /):
+            return self
+
+
+def distribute(factors, under, /):
+    chunks = _deque()
+    buff = _deque()
+    for factor in factors:
+        if factor.operator is under:
+            chunks.append(tuple(
+                (*buff, term) for term in factor.arguments
+                ))
+            buff.clear()
+        else:
+            buff.append(factor)
+    if chunks:
+        chunks.append(tuple((*term, *buff) for term in chunks.pop()))
+        return tuple(map(tuple, map(
+            _itertools.chain.from_iterable, _itertools.product(*chunks)
+            )))
+    return (tuple(buff),)
+
+
+class Unary(Operator):
+
+    source: POS[_AlgebraBase_] = ANCILLARY
+    @prop
+    def source(self, /):
+        return self.target
+    idempotent: KW[bool] = False
+    invertible: KW[bool] = False
+    distributive: KW[Operator] = None
+
+    class _Operation_(mroclass):
+
+        argument: POS
+
+        def canonise(self, /):
+            argument = self.argument.canonise()
+            operator = argument.operator
+            if operator is self:
+                if operator.idempotent:
+                    return argument
+                if operator.invertible:
+                    return argument.argument.canonise()
+                return self
+            if operator is (distr := operator.distributive):
+                return distr(
+                    *(operator(arg) for arg in argument.arguments)
+                    ).canonise()
+            return argument
+
+        def _pretty_repr_(self, p, cycle, root=None):
+            _pretty.pretty_call(
+                self.operator, (self.arguments, {}),
+                p, cycle, root=root,
+                )
+
+
+#     class Identity(metaclass=_System)
+
+
+#     class Binary(mroclass('.Operator')):
+
+#         lsource: POS[_AlgebraBase_] = ANCILLARY
+#         @prop
+#         def lsource(self, /):
+#             return self.target
+#         rsource: POS[_AlgebraBase_] = ANCILLARY
+#         @prop
+#         def rsource(self, /):
+#             return self.target
+#         commutative: KW[bool] = False
+#         identity: KW[_Form_] = None
+#         linverse: KW[Operator] = None
+#         rinverse: KW[Operator] = None
+
+#         @classmethod
+#         def __parameterise__(cls, /, *args, **kwargs):
+#             params = super().__parameterise__(*args, **kwargs)
+#             lid, rid = params.lidentity, params.ridentity
+#             return params
+
+#         def canonise(self, /):
+#             operator = self.operator
+#             (larg, rarg) = (arg.canonise() for arg in self.arguments)
+#             if 
 
 
 ###############################################################################
 ###############################################################################
+
+
+# class Ennary(Operator):
+
+#     source: POS[_AlgebraBase_] = ANCILLARY
+#     @prop
+#     def source(self, /):
+#         return self.target
+#     unique: KW[bool] = False
+#     commutative: KW[bool] = False
+#     associative: KW[bool] = False
+#     identity: KW[_Form_] = None
+#     inverse: KW[Operator] = None
+#     distributive: KW[Operator] = None
+
+#     def __call__(self, /, *args):
+#         if not args:
+#             identity = self.identity
+#             if identity is None:
+#                 raise ValueError("No args!")
+#             return identity
+#         if len(args) == 1:
+#             return args[0]
+#         return super().__call__(*args)
+
+#     class _Operation_(mroclass):
+
+#         arguments: ARGS
+
+#         def _unpack_associative(self, args, /):
+#             for arg in args:
+#                 if arg.operator is self:
+#                     yield from arg.arguments
+#                 else:
+#                     yield arg
+
+#         def canonise(self, /):
+#             operator = self.operator
+#             inargs = args = tuple(map(
+#                 operator.source.canonise,
+#                 self.arguments,
+#                 ))
+#             if operator.associative:
+#                 args = self._unpack_associative(args)
+#             if operator.unique:
+#                 if operator.commutative:
+#                     args = sorted(set(args))
+#                 else:
+#                     seen = set()
+#                     processed = []
+#                     for arg in args:
+#                         if arg not in seen:
+#                             processed.append(arg)
+#                             seen.add(arg)
+#                     args = tuple(args)
+#             elif operator.commutative:
+#                 args = sorted(args)
+#             if hasidentity := (identity := operator.identity) is not None:
+#                 args = tuple(arg for arg in args if arg is not identity)
+# #             if (inverse := operator.inverse):
+# #                 if operator.commutative:
+# #                     args = _deque(args)
+# #                     while args:
+# #                         chosen = args.popleft()
+# #                         for i, arg in enumerate(args):
+# #                             if arg.operator is inverse:
+                                
+# #                     for arg in args:
+# #                         if
+#             if (distr := operator.distributive):
+#                 out = distr(
+#                     *(operator(*factors)
+#                     for factors in distribute(args, distr))
+#                     )
+#                 if out is self:
+#                     return out
+#                 return out.canonise()
+#             return operator(*args)

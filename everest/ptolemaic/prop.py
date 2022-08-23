@@ -36,7 +36,7 @@ class Prop(_SmartAttr):
             if isinstance(val, _Shade):
                 if val.prefix is not None:
                     raise NotImplementedError
-                val = _PathGet(val.name)
+                val = _PathGet(f".{val.name}")
             bindings[key] = val
         return _SmartAttrDirective(
             cls, {'bindings': bindings, **_attrkwargs_}, content

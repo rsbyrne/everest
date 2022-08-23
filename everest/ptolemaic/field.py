@@ -56,6 +56,8 @@ class Kind(metaclass=_Enumm):
         = _pkind['KEYWORD_ONLY']
     KWARGS: 'Gather extra keyword arguments' \
         = _pkind['VAR_KEYWORD']
+    FIXED: 'A field whose value is fixed.' \
+        = _pempty
 
     def __call__(self, note, /):
         return FieldNote(kind=self, note=note)
@@ -77,7 +79,7 @@ class Fields(_SmartAttrHolder):
     def __init__(self, /):
         super().__init__()
         self.degenerates = {
-            name: field.default
+            name: getattr(field, 'default', NotImplemented)
             for name, field in self.items() if field.degenerate
             }
 
@@ -99,7 +101,7 @@ class Field(_SmartAttr):
 
     __slots__ = ('score', 'degenerate')
 
-    default: ... = Signal.MANDATORY
+    default: ... = NotImplemented
     kind: ... = NotImplemented
 
     __merge_fintyp__ = Fields
@@ -121,7 +123,7 @@ class Field(_SmartAttr):
     @classmethod
     def adjust_params_for_content(cls, params, content, /):
         super().adjust_params_for_content(params, content)
-        if params.default is not Signal.MANDATORY:
+        if params.default is not NotImplemented:
             raise ValueError(
                 "It is forbidden to provide the 'default' argument " 
                 "when content is also provided."
@@ -153,12 +155,13 @@ class Field(_SmartAttr):
 
     def __init__(self, /):
         super().__init__()
-        degenerate = self.degenerate = False
+        kind = getattr(self, 'kind', Kind.POSKW)
+        degenerate = self.degenerate = kind is Kind.FIXED
         if degenerate:
             self.score = -1
         else:
             self.score = sum((
-                getattr(self, 'kind', Kind.POSKW).serial,
+                kind.serial,
                 (0.5 if hasattr(self, 'default') else 0),
                 ))
 
