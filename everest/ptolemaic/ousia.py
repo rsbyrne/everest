@@ -107,12 +107,8 @@ class _OusiaBase_(metaclass=Ousia):
         if self.__mutable__:
             self._innerobjs[name] = obj
         else:
-            try:
-                meth = obj.__initialise__
-            except AttributeError:
-                pass
-            else:
-                meth()
+            obj.__initialise__()
+            obj.__mutable__ = False
 
     ## Configuring the class:
 

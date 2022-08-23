@@ -80,7 +80,7 @@ class _TektonBase_(metaclass=Tekton):
             if val is _Signal.CALLBACK:
                 val = getattr(cls, key)
                 if isinstance(val, str):
-                    val = eval(val, {}, dct)
+                    val = eval(val, {'cls': cls}, dct)
                 else:
                     val = getattr(cls, key)(params)
                 dct[key] = val

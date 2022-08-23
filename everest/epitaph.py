@@ -234,20 +234,19 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakKeyDictionary):
         content = f"{repr(bytes(arg._array))},{repr(str(arg.dtype))}"
         return self.enfence(content, 'a')
 
-    def encode_dclass(self, arg: _DClass, /, *, deps: set = None):
-        typ = self.encode_content(arg.Base, deps=deps)
-        content = self.encode_tuple(arg._params_, deps)[1:-1]
+    def encode_dclassinstance(self, arg: _DClass.BaseTyp, /, *, deps: set = None):
+        typ = self.encode_content(arg.__abstract_class__, deps=deps)
+        content = self.encode_tuple(arg.__params__, deps=deps)[1:-1]
         if not content:
             content = '()'
         return f"{typ}[{content}]"       
 
-    def _encode_pickle(self,arg: object, /, *, deps: set = None) -> str:
-        # return self.enfence(_pickle.dumps(arg), 'p')
-        raise NotImplementedError
+#     def _encode_pickle(self,arg: object, /, *, deps: set = None) -> str:
+#         return self.enfence(_pickle.dumps(arg), 'p')
 
-    @property
-    def _encode_fallback(self, /):
-        return self._encode_pickle
+#     @property
+#     def _encode_fallback(self, /):
+#         return self._encode_pickle
 
     def yield_encoders(self, /):
         prefix = 'encode_'
@@ -256,7 +255,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakKeyDictionary):
                 meth = getattr(self, attr)
                 hint = meth.__annotations__['arg']
                 yield hint, meth
-        yield object, self._encode_fallback
+        # yield object, self._encode_fallback
 
     def decode_signifier(self:'s', /, *args):
         return _ur.Signifier(*args)
@@ -396,11 +395,15 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakKeyDictionary):
         try:
             meth = obj.__taphonomise__
         except AttributeError as exc:
-            raise NotEpitaphableError(obj) from exc
-        try:
-            epitaph = meth(self)
-        except Exception as exc:
-            raise TaphonomisationError(obj) from exc
+            try:
+                epitaph = self.auto_epitaph(obj)
+            except Exception as exc:
+                raise NotEpitaphableError(obj) from exc
+        else:
+            try:
+                epitaph = meth(self)
+            except Exception as exc:
+                raise TaphonomisationError(obj) from exc
         if storable:
             self[obj] = epitaph
         return epitaph

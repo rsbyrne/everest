@@ -22,23 +22,23 @@ class Demiurge(_Tekton):
         yield from super()._yield_bodymeths(body)
         yield 'demiclass', property(DemiclassHelper)
 
-    def __call__(cls, arg0, /, *argn, **kwargs):
-        if not (argn or kwargs):
-            if isinstance(arg0, cls):
-                return arg0
-            for kls in cls.__mro__:
-                try:
-                    meth = kls.__dict__['_demiconvert_']
-                except KeyError:
-                    continue
-                out = meth.__func__(cls, arg0)
-                if out is not NotImplemented:
-                    return out
-        return super().__call__(arg0, *argn, **kwargs)
-
 
 class _DemiurgeBase_(metaclass=Demiurge):
 
+
+    @classmethod
+    def demiconvert(cls, arg, /):
+        if isinstance(arg, cls):
+            return arg
+        for kls in cls.__mro__:
+            try:
+                meth = kls.__dict__['_demiconvert_']
+            except KeyError:
+                continue
+            out = meth.__func__(cls, arg)
+            if out is not NotImplemented:
+                return out
+        raise ValueError(arg)
 
     @classmethod
     def _demiconvert_(cls, arg, /):
