@@ -18,6 +18,10 @@ from .shadow import Shade as _Shade
 from .pathget import PathGet as _PathGet
 
 
+# def patheval(strn, /):
+    
+
+
 class Prop(_SmartAttr):
 
     bindings: dict
@@ -71,19 +75,30 @@ class Prop(_SmartAttr):
             except KeyError:
                 pass
             else:
-                if isinstance(val, _PathGet):
-                    val = val(corpus)
+                if not self.asorgan:
+                    if isinstance(val, _PathGet):
+                        val = val(corpus)
                 arguments[key] = val
         return bound
 
     def _prop_getter(self, name, obj, /):
-        callble = obj.__mro_getattr__(name).__get__(obj)
-        bound = self._get_callble_bound(name, callble, obj)
+        content = obj.__mro_getattr__(name)
         asorgan = self.asorgan
-        if isinstance(callble, _ptolemaic.Kind):
-            if asorgan:
-                callble = callble.__class_alt_call__
-        out = callble(*bound.args, **bound.kwargs)
+        if isinstance(content, str):
+            exec('\n'.join((
+                f"def {name}(self):",
+                f"    return {content}",
+                )))
+            out = eval(name)(obj)
+        elif callable(content):
+            callble = content.__get__(obj)
+            bound = self._get_callble_bound(name, callble, obj)
+            if isinstance(callble, _ptolemaic.Kind):
+                if asorgan:
+                    callble = callble.__class_alt_call__
+            out = callble(*bound.args, **bound.kwargs)
+        else:
+            raise RuntimeError(name)
         if asorgan:
             obj._register_innerobj(name, out)
         return out

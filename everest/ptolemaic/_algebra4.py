@@ -339,60 +339,58 @@ class Ennary(Operator):
             #     return out.canonise()
             # return operator(*args)
 
-
-
-class Binary(mroclass('.Operator')):
-
-    lsource: POS[_AlgebraBase_] = ANCILLARY
-    @prop
-    def lsource(self, /):
-        return self.target
-    rsource: POS[_AlgebraBase_] = ANCILLARY
-    @prop
-    def rsource(self, /):
-        return self.target
-    lidentity: KW[_Form_] = None
-    ridentity: KW[_Form_] = None
-    linverse: KW[Unary] = None
-    rinverse: KW[Unary] = None
-
-    @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
-        params = super().__parameterise__(*args, **kwargs)
-        ids = set((params.lidentity, params.ridentity))
-        if len(ids) > 1 and None not in ids:
-            raise ValueError(
-                "A binary operator cannot have two different identities."
-                )
-        return params
-
-    def canonise(self, /):
-        operator = self.operator
-        lid, rid = self.lidentity, self.ridentity
-        linv, rinv = self.linverse, self.rinverse
-        (larg, rarg) = (arg.canonise() for arg in self.arguments)
-        if distr := self.distributive:
-            dinv = distr.inverse
-            if larg.operator is dinv:
-                linv = True
-                larg = larg.argument
-            if rarg.operator is dinv:
-                rinv = True
-                rarg = rarg.argument
-            dide = distr.identity
-            if any(arg.operator is dide for arg in (larg, rarg)):
-                return dide
-            if larg is lid:
-                return rarg
-            if rarg is rid:
-                return larg
-            if larg.operator is linv:
-                if larg.argument is rarg:
-                    return lid
-            if rarg.operator is rinv:
-                if rarg.argument is larg:
-                    return rid
-
-
 ###############################################################################
 ###############################################################################
+
+
+# class Binary(mroclass('.Operator')):
+
+#     lsource: POS[_AlgebraBase_] = ANCILLARY
+#     @prop
+#     def lsource(self, /):
+#         return self.target
+#     rsource: POS[_AlgebraBase_] = ANCILLARY
+#     @prop
+#     def rsource(self, /):
+#         return self.target
+#     lidentity: KW[_Form_] = None
+#     ridentity: KW[_Form_] = None
+#     linverse: KW[Unary] = None
+#     rinverse: KW[Unary] = None
+
+#     @classmethod
+#     def __parameterise__(cls, /, *args, **kwargs):
+#         params = super().__parameterise__(*args, **kwargs)
+#         ids = set((params.lidentity, params.ridentity))
+#         if len(ids) > 1 and None not in ids:
+#             raise ValueError(
+#                 "A binary operator cannot have two different identities."
+#                 )
+#         return params
+
+#     def canonise(self, /):
+#         operator = self.operator
+#         lid, rid = self.lidentity, self.ridentity
+#         linv, rinv = self.linverse, self.rinverse
+#         (larg, rarg) = (arg.canonise() for arg in self.arguments)
+#         if distr := self.distributive:
+#             dinv = distr.inverse
+#             if larg.operator is dinv:
+#                 linv = True
+#                 larg = larg.argument
+#             if rarg.operator is dinv:
+#                 rinv = True
+#                 rarg = rarg.argument
+#             dide = distr.identity
+#             if any(arg.operator is dide for arg in (larg, rarg)):
+#                 return dide
+#             if larg is lid:
+#                 return rarg
+#             if rarg is rid:
+#                 return larg
+#             if larg.operator is linv:
+#                 if larg.argument is rarg:
+#                     return lid
+#             if rarg.operator is rinv:
+#                 if rarg.argument is larg:
+#                     return rid

@@ -110,6 +110,8 @@ class SmartAttr(metaclass=_Sprite):
     def adjust_params_for_content(cls, params, content, /):
         if isinstance(content, str):
             return
+        if isinstance(content, _PathGet):
+            return
         if isinstance(content, (staticmethod, _types.MethodType)):
             contenttype = ContentType.STATICLIKE
             content = content.__func__

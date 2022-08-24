@@ -44,7 +44,7 @@ class System(_Tekton, _Ousia):
         func = staticmethod(eval(name))
         func.__module__ = body['__module__']
         func.__qualname__ = body['__qualname__'] + '.' + name
-        body[name] = body['comp'](func)
+        body[name] = body['prop'](func)
 
 
 class _SystemBase_(metaclass=System):

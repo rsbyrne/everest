@@ -3,237 +3,291 @@
 ###############################################################################
 
 
-import abc as _abc
-import types as _types
-from collections import abc as _collabc
 from functools import partial as _partial
+import abc as _abc
+import weakref as _weakref
+import itertools as _itertools
+from collections import deque as _deque
+from collections import abc as _collabc
+import abc as _abc
+
+from everest.utilities import pretty as _pretty
 
 from .system import System as _System
-from .enumm import Enumm as _Enumm
-from .wisp import Namespace as _Namespace
+from .pathget import PathGet as _PathGet
 
 
-class Property(metaclass=_Enumm):
+def _operator_bodymeth_(body, arg0=0, /, *argn, **kwargs):
+    ns = body.namespace
+    if isinstance(arg0, _PathGet):
+        arg0 = arg0(ns)
+    if isinstance(arg0, type):
+        optyp = arg0
+        args = argn
+    else:
+        if isinstance(arg0, int):
+            if argn:
+                raise ValueError(
+                    "Cannot pass both int flag and sources "
+                    "to operator constructor."
+                    )
+            args = tuple(NotImplemented for _ in range(arg0))
+        else:
+            args = (arg0, *argn)
+        arity = len(args)
+        if arity == 0:
+            optyp = Constant
+        elif arity == 1:
+            optyp = Unary
+        elif arity == 2:
+            optyp = Ennary
+        else:
+            raise ValueError
+    return body['organ'](
+        **optyp.__signature__.bind_partial(*args, **kwargs).arguments,
+        )(optyp)
 
-    IDEMPOTENT: None
-    INVERTIBLE: None
 
-    UNIQUE: None
-    COMMUTATIVE: None
-    ASSOCIATIVE: None
-
-
-class RelationshipType(metaclass=_Enumm):
-
-    IDENTITY: None
-    INVERSE: None
-    DISTROVER: None
-
-    def __call__(self, /, *args, **kwargs):
-        return Relationship(self, *args, **kwargs)
-
-
-class Relationship(metaclass=_System):
-
-    typ: POS[RelationshipType]
-    participants: ARGS[str]
-
-
-class Operator(metaclass=_System):
-    '''Instances of this class represent algebraic operators '''
-    '''like addition, multiplication, or negation.'''
-
-    sources: tuple['Algebra'] = ()
-    properties: tuple[Property] = ()
-    relationships: tuple[Relationship] = ()
+class Algebra(_System):
 
     @classmethod
-    def _construct_(cls, params, /):
-        raise RuntimeError(
-            "Operators should only be instantiated as organs of algebras."
-            )
-
-    def __call__(self, /, *args):
-        return Form(self, *args)
+    def _yield_bodymeths(meta, body, /):
+        yield from super()._yield_bodymeths(body)
+        yield 'operator', _partial(_operator_bodymeth_, body)
 
 
-class Specification(metaclass=_System):
+class _AlgebraBase_(metaclass=Algebra):
 
-    sources: tuple['Algebra'] = ()
-    properties: tuple[Property] = ()
-    relationships: tuple[Relationship] = ()
+    target: POSKW['.'] = ANCILLARY
+    @prop
+    def target(self, /):
+        return self
 
-    def __call__(self, algebra, /):
-        return Operator.__class_alt_call__(
-            self.sources, self.properties, self.relationships
-            )
+    @prop
+    def symbols(self, /):
+        return frozenset()
 
-
-class Algebra(metaclass=_System):
-
-    specs: KWARGS[Specification]
-
-    @classmethod
-    def _parameterise_(cls, /, *args, **kwargs):
-        params = super()._parameterise_(*args, **kwargs)
-        params.specs = {
-            name: Specification(*spec) 
-            if not isinstance(spec, Specification)
-            else spec
-            for name, spec in params.specs.items()
-            }
-        return params
-
-    __slots__ = ('operators',)
+    __slots__ = ('_registeredelements_',)
 
     def __init__(self, /):
         super().__init__()
-        ops = self.operators = {
-            name: spec(self) for name, spec in self.specs.items()
-            }
-        for name, op in ops.items():
-            self._register_innerobj(name, op)
+        self._registeredelements_ = _weakref.WeakSet()
 
-    def __getattribute__(self, name, /):
-        try:
-            return object.__getattribute__(self, 'operators')[name]
-        except (AttributeError, KeyError):
-            return super().__getattribute__(name)
+    def _register_element_(self, op, /):
+        self._registeredelements_.add(op)
+
+    def __contains__(self, other, /):
+        return other in self._registeredelements_
+
+    def canonise(self, other, /):
+        if other in self:
+            return other.canonise()
+        raise ValueError(other)
 
 
-class Form(metaclass=_System):
-    '''Instances of this type '''
-    '''represent the results of algebraic operations '''
-    '''as carried out by instances of the Operator class.'''
+class _Form_(metaclass=_System):
 
-    operator: POS[Operator]
-    arguments: ARGS['Form']
+    operator: POS['Operator']
+
+    @_abc.abstractmethod
+    def canonise(self, /):
+        return self
+
+
+class Constant(_Form_):
+
+    operator: FIXED = NotImplemented
+    @prop
+    def operator(self, /):
+        return Ellipsis
+
+    def __initialise__(self, /):
+        super().__initialise__()
+        self.algebra._register_element_(self)
+
+    def canonise(self, /):
+        return self
+
+    @property
+    def algebra(self, /):
+        return self.__corpus__
+
+    def _construct_(self, /):
+        raise RuntimeError(
+            "Constants should only be instantiated "
+            "as organs of instances of algebras."
+            )
+
+
+class Operator(metaclass=_System):
+
+    @classmethod
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.algarity = cls.__fields__.npos - 1
+
+    def _construct_(self, /):
+        raise RuntimeError(
+            "Operators should only be instantiated "
+            "as organs of instances of algebras."
+            )
+
+    def __call__(self, /, *args, **kwargs):
+        out = self._Operation_(self, *args, **kwargs)
+        self.algebra._register_element_(out)
+        return out
+
+    @property
+    def algebra(self, /):
+        return self.__corpus__
+
+    @property
+    def target(self, /):
+        return self.algebra.target
+
+    class _Operation_(mroclass(_Form_)):
+
+        operator: POS['Operator']
+
+        def _pretty_repr_(self, p, cycle, root=None):
+            _pretty.pretty_call(
+                self.operator, (self.__params__[1:], {}),
+                p, cycle, root=root,
+                )
+
+
+class Selector(Operator):
+
+    alphabet: KW[_collabc.Container]
+
+    class _Operation_(mroclass):
+
+        symbol: POS = None
+
+        @classmethod
+        def __parameterise__(cls, /, *args, **kwargs):
+            params = super().__parameterise__(*args, **kwargs)
+            if params.symbol not in params.operator.alphabet:
+                raise ValueError(params)
+            return params
+
+        def canonise(self, /):
+            return self
+
+
+def distribute(factors, under, /):
+    chunks = _deque()
+    buff = _deque()
+    for factor in factors:
+        if factor.operator is under:
+            chunks.append(tuple(
+                (*buff, term) for term in factor.arguments
+                ))
+            buff.clear()
+        else:
+            buff.append(factor)
+    if chunks:
+        chunks.append(tuple((*term, *buff) for term in chunks.pop()))
+        return tuple(map(tuple, map(
+            _itertools.chain.from_iterable, _itertools.product(*chunks)
+            )))
+    return (tuple(buff),)
+
+
+class Unary(Operator):
+
+    source: POS[_AlgebraBase_] = ANCILLARY
+    source = prop('self.target')
+    idempotent: KW[bool] = False
+    reversible: KW[bool] = False
+    distributive: KW[Operator] = None
+
+    class _Operation_(mroclass):
+
+        argument: POS
+
+        def canonise(self, /):
+            argument = self.argument.canonise()
+            operator = argument.operator
+            if operator is self:
+                if operator.idempotent:
+                    return argument
+                if operator.reversible:
+                    return argument.argument.canonise()
+                return self
+            if operator is (distr := operator.distributive):
+                return distr(
+                    *(operator(arg) for arg in argument.arguments)
+                    ).canonise()
+            return argument
+
+
+class Ennary(Operator):
+
+    source: POS[_AlgebraBase_] = ANCILLARY
+    source = prop('self.target')
+    unique: KW[bool] = False
+    commutative: KW[bool] = False
+    associative: KW[bool] = False
+    identity: KW[_Form_] = None
+    inverse: KW[Operator] = None
+    distributive: KW[Operator] = None
+
+    def __call__(self, /, *args):
+        if not args:
+            identity = self.identity
+            if identity is None:
+                raise ValueError("No args!")
+            return identity
+        if len(args) == 1:
+            return args[0]
+        return super().__call__(*args)
+
+    def unpack_associative(self, args, /):
+        for arg in args:
+            if arg.operator is operator:
+                yield from arg.arguments
+            else:
+                yield arg
+
+    # def gather_distributive_inverses(self, args, /):
+    #     isinv = False
+    #     dinv = self.distributive.inverse
+    #     if not dinv:
+    #         return isinv, args
+    #     out = _deque()
+    #     for arg in args:
+    #         if arg.operator is dinv
+
+    class _Operation_(mroclass):
+
+        arguments: ARGS
+
+        def canonise(self, /):
+            raise NotImplementedError
+        #     op = self.operator
+        #     args = tuple(arg.canonise() for arg in self.arguments)
+        #     if operator.associative:
+        #         args = op.unpack_associative(args)
+        #     # if distr := op.distributive:
+        #     #     newargs = []
+        #     #     for arg in 
+        #     if op.unique:
+        #         if op.commutative:
+        #             args = sorted(set(args))
+        #         else:
+        #             seen = set()
+        #             processed = []
+        #             for arg in args:
+        #                 if arg not in seen:
+        #                     processed.append(arg)
+        #                     seen.add(arg)
+        #             args = tuple(args)
+        #     elif op.commutative:
+        #         args = sorted(args)
+        #     if op.identity:
+        #         args = tuple(arg for arg in args if arg is not op.identity)
 
 
 ###############################################################################
 ###############################################################################
-
-
-#     operators: KWARGS[Operator]
-
-#     __slots__ = ('ops',)
-
-#     def __init__(self, /):
-#         super().__init__()
-#         self.ops = _Namespace(**{
-#             opname: _partial(Form, self, opname)
-#             for opname in self.operators
-#             })
-
-#     @classmethod
-#     def _canonise_unary_(cls, form, /):
-#         operator = form.operator
-#         arg = form.argument.canonical
-#         if arg.operator is operator:
-#             if operator.idempotent:
-#                 return arg
-#             if operator.invertible:
-#                 return arg.argument
-#             return arg
-#         if dnames := operator.distrovers:
-#             for dname in dnames:
-#                 dop = 
-
-#     def canonise(self, form, /):
-#         if form.algebra is not self:
-#             return form
-#         if isinstance(form, Unary):
-#             return self._canonise_unary_(form)
-
-#     __slots__ = ('operators',)
-
-#     def __initialise__(self, /):
-#         ops = {}
-#         for name, spec in self.specifications.items():
-#             op = ops[name] = spec(self)
-#             self._register_innerobj(name, op)
-#         self.operators = ops
-#         super().__initialise__()
-
-
-#     class Specification(mroclass, metaclass=System):
-#         '''Instances of this type '''
-#         '''abstractly represent operators and their relationships '''
-#         '''within the context of a certain type of Algebra.'''
-
-#         name: POS[str]
-#         typ: POS[str]
-#         target: POS[Realm]
-#         sources: ARGS[Realm]
-#         properties: KWARGS
-
-#         def __call__(self, algebra, /):
-#             return getattr(algebra, self.typ).__class_alt_call__(
-#                 self.target, *self.sources, **self.properties
-#                 )
-
-
-# class Realm(metaclass=_System):
-#     '''Instances of this class abstractly represent the 'spaces' '''
-#     '''between which algebraic operators operator.'''
-
-#     def __contains__(self, other, /):
-#         return False
-
-
-# class Subject(metaclass=_System):
-#     '''Instances of this class abstractly represent the sorts of entities '''
-#     '''that Realms are imagined to contain. '''
-#     '''Realms 'recognise' their subjects but not vice versa.'''
-
-#     name: POS
-
-
-# class Operator(metaclass=_System):
-#     '''Instances of this class represent algebraic operators '''
-#     '''like addition, multiplication, or negation.'''
-
-#     target: POS[Realm]
-
-#     @_abc.abstractmethod
-#     def canonise_form(self, algebra, opname, /, *_, **__):
-#         raise NotImplementedError
-
-
-# class Unary(Operator):
-#     '''Instances of this class represent algebraic operators '''
-#     '''with only one argument, like negation (-a).'''
-
-#     source: POS[Realm] = None
-#     idempotent: KW[bool] = False
-#     invertible: KW[bool] = False
-#     distrovers: KW[tuple[str]] = ()
-
-#     @classmethod
-#     def _parameterise_(cls, /, *args, **kwargs):
-#         params = super()._parameterise_(*args, **kwargs)
-#         if params.source is None:
-#             params.source = params.target
-#         return params
-
-
-# class Ennary(Operator):
-#     '''Instances of this class represent algebraic operators '''
-#     '''with multiple arguments, '''
-#     '''with the proviso that all the arguments come from the same 'realm'; '''
-#     '''a familiar example would be simple addition: (a+b).'''
-
-#     source: POS[Realm] = None
-#     unique: KW[bool] = False
-#     commutative: KW[bool] = False
-#     associative: KW[bool] = False
-#     # identity: KW[_Form_] = None
-#     # inverse: KW[Operator] = None
-#     distrovers: KW[tuple[str]] = ()
-
-#     @classmethod
-#     def _parameterise_(cls, /, *args, **kwargs):
-#         params = super()._parameterise_(*args, **kwargs)
-#         if params.source is None:
-#             params.source = params.target
-#         return params
