@@ -57,10 +57,15 @@ class _EidosBase_(metaclass=Eidos):
         methname = f"_get{nm[:-2]}_"
         for typ in type(cls)._smartattrtypes:
             for name, val in getattr(cls, typ.__merge_name__).items():
-                meth = getattr(val, methname)(
+                getter = getattr(val, methname)
+                meth = getter(
                     getattr(cls, name, NotImplemented), name
                     )
-                out.setdefault(name, []).append(meth)
+                try:
+                    meths = out[name]
+                except KeyError:
+                    meths = out[name] = []
+                meths.append(meth)
         return _ur.DatDict(out)
 
     @classmethod

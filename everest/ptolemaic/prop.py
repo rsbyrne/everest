@@ -76,7 +76,7 @@ class Prop(_SmartAttr):
                 arguments[key] = val
         return bound
 
-    def _callble_getter(self, name, obj, /):
+    def _prop_getter(self, name, obj, /):
         callble = obj.__mro_getattr__(name).__get__(obj)
         bound = self._get_callble_bound(name, callble, obj)
         asorgan = self.asorgan
@@ -89,7 +89,7 @@ class Prop(_SmartAttr):
         return out
 
     def _get_getter_(self, obj, name, /):
-        return _partial(self._callble_getter, name)
+        return _partial(self._prop_getter, name)
 
 
 ###############################################################################
