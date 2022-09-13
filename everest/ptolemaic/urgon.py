@@ -7,7 +7,7 @@ import abc as _abc
 import weakref as _weakref
 from types import SimpleNamespace as _SimpleNamespace
 
-from .wisp import Namespace as _Namespace
+from .wisp import Namespace as _Namespace, Partial as _Partial
 from .bythos import Bythos as _Bythos
 from . import ptolemaic as _ptolemaic
 
@@ -15,14 +15,6 @@ from . import ptolemaic as _ptolemaic
 class Params(_Namespace):
 
     ...
-
-
-class AltReturn(Exception):
-
-    __slots__ = ('value',)
-
-    def __init__(self, value, /):
-        self.value = value
 
 
 class Urgon(_Bythos):
@@ -41,16 +33,10 @@ class Urgon(_Bythos):
             return sig
 
     def __call__(cls, /, *args, **kwargs):
-        try:
-            params = cls.__parameterise__(*args, **kwargs)
-        except AltReturn as exc:
-            return exc.value
-        if cls.cacheable:
-            return cls._retrieve_(params)
-        return cls._construct_(params)
-
-    def altreturn(cls, value, /):
-        raise AltReturn(value)
+        return (
+            (cls._retrieve_ if cls.cacheable else cls._construct_)
+            (cls._parameterise_(*args, **kwargs))
+            )
 
 
 class _UrgonBase_(metaclass=Urgon):
@@ -78,21 +64,23 @@ class _UrgonBase_(metaclass=Urgon):
             cls._premade = _weakref.WeakValueDictionary()
 
     @classmethod
+    @_abc.abstractmethod
     def _construct_(cls, params, /):
-        return params
-
-    @classmethod
-    def __construct__(cls, params: tuple = (), /):
-        return cls._construct_(Params(params))
+        raise NotImplementedError
 
     _parameterise_ = _SimpleNamespace
 
     @classmethod
-    def __parameterise__(cls, /, *args, **kwargs):
+    def parameterise(cls, /, *args, **kwargs):
         return Params(cls._parameterise_(*args, **kwargs))
 
     @classmethod
+    def partial(cls, /, *args, **kwargs):
+        return _Partial(cls, *args, **kwargs)
+
+    @classmethod
     def _retrieve_(cls, params: Params, /):
+        params = Params(params)
         premade = cls._premade
         try:
             return premade[params]
@@ -100,15 +88,11 @@ class _UrgonBase_(metaclass=Urgon):
             obj = premade[params] = cls._construct_(params)
             return obj
 
-    @classmethod
-    def __retrieve__(cls, params: Params, /):
-        return cls._retrieve_(Params(params))
-
     # Special-cased, so no need for @classmethod
     def __class_getitem__(cls, arg, /):
         if cls.cacheable:
-            return cls.__construct__(arg)
-        return cls.__retrieve__(arg)
+            return cls._construct_(arg)
+        return cls._retrieve_(arg)
 
 
 ###############################################################################

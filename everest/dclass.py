@@ -253,7 +253,7 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self.__abstract_class__.__qualname__
+            root = self.__abstract_class__
         _pretty.pretty_tuple(self.__params__, p, cycle, root=root)
 
     def __hash__(self, /):

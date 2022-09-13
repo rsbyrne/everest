@@ -21,10 +21,10 @@ class ConcreteBase(metaclass=_Essence):
 
     with escaped('methname'):
         for methname in (
-                '_parameterise_', '__parameterise__',
-                '_construct_', '__construct__',
-                '_retrieve_', '__retrieve__',
-                '_instantiate_', '__instantiate__',
+                '_parameterise_',
+                '_construct_',
+                '_retrieve_',
+                '_instantiate_',
                 '_create_concrete', '_pre_create_concrete',
                 ):
             exec('\n'.join((
@@ -146,7 +146,8 @@ class _OusiaBase_(metaclass=Ousia):
         del self._innerobjs
 
     @classmethod
-    def _instantiate_(cls, params: _Params, /):
+    def _instantiate_(cls, params, /):
+        params = _Params(params)
         Concrete = cls.Concrete
         obj = Concrete.__new__(Concrete)
         switch = _Switch(True)
@@ -158,11 +159,7 @@ class _OusiaBase_(metaclass=Ousia):
         return obj
 
     @classmethod
-    def __instantiate__(cls, params: _Params, /):
-        return cls._instantiate_(_Params(params))
-
-    @classmethod
-    def _construct_(cls, params: _Params, /):
+    def _construct_(cls, params, /):
         obj = cls._instantiate_(params)
         obj.__corpus__ = obj.__relname__ = None
         obj.__initialise__()
@@ -171,7 +168,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     @classmethod
     def __class_alt_call__(cls, /, *args, **kwargs):
-        return cls._instantiate_(cls.__parameterise__(*args, **kwargs))
+        return cls._instantiate_(cls._parameterise_(*args, **kwargs))
 
     ### Storage:
 
@@ -188,7 +185,6 @@ class _OusiaBase_(metaclass=Ousia):
             object.__delattr__(self, name)
         else:
             raise RuntimeError("Cannot alter value while immutable.")
-
 
     ### Implementing the attribute-freezing behaviour for instances:
 
@@ -278,7 +274,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     def _pretty_repr_(self, p, cycle, root=None):
         if root is None:
-            root = self.__ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__
         _pretty.pretty_kwargs(self.params, p, cycle, root=root)
 
     def _repr_pretty_(self, p, cycle, root=None):

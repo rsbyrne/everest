@@ -83,10 +83,9 @@ class _EnummBase_(metaclass=Enumm):
 
     with escaped('methname'):
         for methname in (
-                '_parameterise_', '__parameterise__',
-                '_construct_', '__construct__',
-                '_retrieve_', '__retrieve__',
-                '__instantiate__',
+                '_parameterise_',
+                '_construct_',
+                '_retrieve_',
                 ):
             exec('\n'.join((
                 f"@classmethod",
@@ -111,7 +110,7 @@ class _EnummBase_(metaclass=Enumm):
                 (name, note) for name, note in items if not hasattr(cls, name)
                 )
         for serial, (name, note) in enumerate(items):
-            obj = cls._instantiate_(_Ousia.BaseTyp.__parameterise__())
+            obj = cls._instantiate_(_Ousia.BaseTyp._parameterise_())
             obj.serial, obj.name, obj.note = serial, name, note
             setattr(cls, name, obj)
             cls._register_innerobj(name, obj)

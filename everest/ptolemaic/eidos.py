@@ -78,20 +78,22 @@ class _EidosBase_(metaclass=Eidos):
             smartattrs.extend(dct)
         cls._smartattrs_ = _ur.PrimitiveUniTuple(smartattrs)
 
-    def __getattribute__(self, name, /):
+    def __getattr__(self, name, /):
         try:
             return object.__getattribute__(self, name)
         except AttributeError:
-            val = self.__getattr__(name)
+            val = type(self)._getattr_(self, name)
             if not name.startswith('_'):
                 if isinstance(val, _PathGet):
                     val = val(self)
                 else:
-                    val = self.__ptolemaic_class__.convert(val)
+                    val = object.__getattribute__(
+                        self, '__ptolemaic_class__'
+                        ).convert(val)
             object.__setattr__(self, name, val)
             return val
 
-    def __getattr__(self, name, /):
+    def _getattr_(self, name, /):
         try:
             getters = object.__getattribute__(self, '_getters_')
         except AttributeError as exc:

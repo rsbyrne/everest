@@ -9,6 +9,7 @@ from types import FunctionType as _FunctionType
 import types as _types
 from types import SimpleNamespace as _SimpleNamespace
 from weakref import WeakKeyDictionary as _WeakKeyDictionary
+from functools import partial as _partial
 
 from everest.dclass import DClass as _DClass
 from everest import ur as _ur
@@ -112,12 +113,16 @@ class Pentheros(metaclass=Wisp):
 
     __content_type__ = object
     __content_meths__ = ()
+    __convert_type__ = None
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         if cls is not __class__:
-            if (typ := cls.__content_type__) not in (dct := Wisp._convtyps):
+            typ = cls.__convert_type__
+            if typ is None:
+                typ = cls.__content_type__
+            if typ not in (dct := Wisp._convtyps):
                 dct[typ] = cls
 
     @classmethod
@@ -193,7 +198,7 @@ class Binding(Pentheros):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self.__ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__
         _pretty.pretty_dict(self._content, p, cycle, root=root)
 
 
@@ -211,7 +216,7 @@ class Kwargs(Binding):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self.__ptolemaic_class__.__qualname__
+            root = self.__ptolemaic_class__
         _pretty.pretty_kwargs(self._content, p, cycle, root=root)
 
     def __taphonomise__(self, taph, /):
@@ -237,6 +242,31 @@ class Namespace(Kwargs):
             return self[name]
         except KeyError as exc:
             raise AttributeError from exc
+
+
+class Partial(Tuuple):
+
+    __convert_type__ = _partial
+
+    __slots__ = ('_partial', 'tocall', 'callargs', 'callkwargs')
+
+    @classmethod
+    def _parameterise_(cls, arg0, /, *args, **kwargs):
+        if not (args or kwargs):
+            if isinstance(arg0, _partial):
+                return super()._parameterise_(arg0.func, arg0.args, arg0.keywords)
+        return super()._parameterise_((
+            arg0, args, kwargs
+            ))
+
+    def __init__(self, /):
+        super().__init__()
+        tocall, args, kwargs = self
+        self._partial = _partial(tocall, *args, **kwargs)
+        self.tocall, self.callargs, self.callkwargs = tocall, args, kwargs
+
+    def __call__(self, /, *args, **kwargs):
+        return self._partial(*args, **kwargs)
 
 
 # @_collabc.Sequence.register

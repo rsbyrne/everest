@@ -85,15 +85,11 @@ class Prop(_SmartAttr):
         content = obj.__mro_getattr__(name)
         asorgan = self.asorgan
         if isinstance(content, str):
-            exec('\n'.join((
-                f"def {name}(self):",
-                f"    return {content}",
-                )))
-            out = eval(name)(obj)
+            out = eval(content, {'self': obj}, self.bindings)
         elif callable(content):
             callble = content.__get__(obj)
             bound = self._get_callble_bound(name, callble, obj)
-            if isinstance(callble, _ptolemaic.Kind):
+            if isinstance(callble, _ptolemaic.Ideal):
                 if asorgan:
                     callble = callble.__class_alt_call__
             out = callble(*bound.args, **bound.kwargs)

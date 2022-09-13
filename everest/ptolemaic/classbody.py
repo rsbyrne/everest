@@ -116,10 +116,10 @@ class MroclassMerger(dict):
             isnew = True
         else:
             isnew = False
-        deq.extendleft(_itertools.filterfalse(
+        deq.extendleft(reversed(tuple(_itertools.filterfalse(
             deq.__contains__,
             self._process_bases(val),
-            ))
+            ))))
         return isnew
 
     def __setitem__(self, name, val, /):
@@ -662,10 +662,13 @@ class ClassBody(dict):
             self.meta, self.name, self.bases, dict(self)
             )
         # except TypeError as exc:
+        #     print('v---------v')
         #     for base in self.bases[:]:
-        #         print('------')
+        #         print('v------v')
         #         print(repr(base))
         #         print(base.__mro__[1:-2])
+        #         print('^------^')
+        #     print('^---------^')
         #     raise exc
         if self.iscosmic:
             type.__setattr__(out, '_clsiscosmic', True)

@@ -215,7 +215,7 @@ class Field(_SmartAttr):
         return cls(**kwargs)
 
     def _get_getter_(self, obj, name, /):
-        return lambda inst: inst.__params__[inst._field_indexer(name)]
+        return lambda inst: getattr(inst.params, name)
 
     def _get_setter_(self, obj, name, /):
         return super()._get_setter_(None, name)

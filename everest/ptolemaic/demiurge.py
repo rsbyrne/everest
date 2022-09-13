@@ -3,7 +3,11 @@
 ###############################################################################
 
 
+import abc as _abc
+from types import SimpleNamespace as _Ns
+
 from .classbody import MROClassHelper as _MROClassHelper
+from .wisp import Partial as _Partial
 from .tekton import Tekton as _Tekton
 from .system import System as _System
 
@@ -25,6 +29,30 @@ class Demiurge(_Tekton):
 
 class _DemiurgeBase_(metaclass=Demiurge):
 
+    cacheable = True
+
+    @classmethod
+    def _get_returnanno(cls, /):
+        return cls
+
+    @classmethod
+    @_abc.abstractmethod
+    def _dispatch_(cls, params, /) -> _Partial:
+        raise NotImplementedError
+
+    @classmethod
+    def _construct_(cls, params, /):
+        kls, klsargs, klskwargs = cls._dispatch_(params)
+        return kls._construct_(kls._parameterise_(*klsargs, **klskwargs))
+
+    @classmethod
+    def _instantiate_(cls, params, /):
+        kls, klsargs, klskwargs = cls._dispatch_(params)
+        return kls._instantiate_(kls._parameterise_(*klsargs, **klskwargs))
+
+    @classmethod
+    def __class_alt_call__(cls, /, *args, **kwargs):
+        return cls._instantiate_(cls._parameterise_(*args, **kwargs))
 
     @classmethod
     def demiconvert(cls, arg, /):

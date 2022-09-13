@@ -50,11 +50,11 @@ class PtolemaicMeta(_ur.DatMeta):
                 cls.__instancecheck__,
                 (other.fget, other.fset, other.fdel),
                 ))
-        if issubclass(typ, _functools.partial):
-            if not cls.__instancecheck__(other.func):
-                return False
-            params = _itertools.chain(other.args, other.keywords.values())
-            return all(map(cls.__instancecheck__, params))
+        # if issubclass(typ, _functools.partial):
+        #     if not cls.__instancecheck__(other.func):
+        #         return False
+        #     params = _itertools.chain(other.args, other.keywords.values())
+        #     return all(map(cls.__instancecheck__, params))
         return super().__instancecheck__(other)
 
 

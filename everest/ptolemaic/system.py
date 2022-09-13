@@ -55,11 +55,6 @@ class _SystemBase_(metaclass=System):
     def _get_returnanno(cls, /):
         return cls
 
-    @classmethod
-    def __class_init__(cls, /):
-        super().__class_init__()
-        cls._field_indexer = tuple(cls.__fields__).index
-
     ### Representations:
 
     def _content_repr(self, /):
@@ -78,7 +73,7 @@ class _SystemBase_(metaclass=System):
             if val is not NotImplemented
             }
         if root is None:
-            root = self.rootrepr
+            root = self.__ptolemaic_class__
         _pretty.pretty_argskwargs(
             (args, kwargs), p, cycle, root=root
             )
