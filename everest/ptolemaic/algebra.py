@@ -97,7 +97,7 @@ class Operator(metaclass=_Demiurge):
 
         def __contains__(self, other, /):
             if super().__contains__(other):
-                return all(arg in self.source for arg in self.arguments)
+                return all(arg in self.source for arg in other.arguments)
 
         def __call__(self, /, *args, **kwargs):
             if (source := self.source) is self:
