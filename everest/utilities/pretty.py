@@ -48,12 +48,12 @@ def pretty_kwargs(obj, p, cycle, /, root=None):
     if root is not None:
         pretty(root, p, cycle)
     if cycle:
-        p.text(root + '(...)')
+        p.text('(...)')
         return
     if not obj:
-        p.text(root + '()')
+        p.text('()')
         return
-    with p.group(4, root + '(', ')'):
+    with p.group(4, '(', ')'):
         kwargit = iter(obj.items())
         p.breakable()
         key, val = next(kwargit)

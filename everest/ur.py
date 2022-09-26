@@ -304,9 +304,9 @@ class Primitive(Dat):
             return typ
         if issubclass(typ, set):
             return PrimitiveSet
-        if issubclass(typ, _collabc.Mapping):
+        if issubclass(typ, dict):
             return PrimitiveDict
-        if issubclass(typ, _collabc.Iterable):
+        if issubclass(typ, tuple):
             return PrimitiveTuple
         raise TypeError(typ)
 

@@ -25,7 +25,7 @@ class _ConcreteBase_(metaclass=_abc.ABCMeta):
 
     @classmethod
     def __mro_entries__(cls, bases: tuple, /):
-        return (cls.__abstract_class__,)
+        return (cls._abstract_class_,)
 
 
 class ImmutableError(RuntimeError):
@@ -73,7 +73,7 @@ class DClass(_abc.ABCMeta):
                 f"{arg0.__name__}_Concrete",
                 (_ConcreteBase_, arg0),
                 dict(
-                    __abstract_class__=arg0,
+                    _abstract_class_=arg0,
                     __slots__=arg0.__req_slots__,
                     _clsmutable=_Switch(True),
                     )
@@ -97,7 +97,7 @@ class DClass(_abc.ABCMeta):
     def __init__(cls, /, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if issubclass(cls, _ConcreteBase_):
-            cls.__ptolemaic_class__ = cls.__abstract_class__
+            cls.__ptolemaic_class__ = cls._abstract_class_
         else:
             cls.__ptolemaic_class__ = cls
             cls.__class_init__()
@@ -246,21 +246,21 @@ class _DClassBase_(metaclass=_abc.ABCMeta):
             raise ImmutableError("Cannot alter attribute when immutable.")
 
     # def __repr__(self, /):
-    #     return f"<{self.__abstract_class__.__qualname__}, id={id(self)}>"
+    #     return f"<{self._abstract_class_.__qualname__}, id={id(self)}>"
 
     def __repr__(self, /):
-        return f"{self.__abstract_class__.__qualname__}({repr(self.__params__)[1:-1]})"
+        return f"{self._abstract_class_.__qualname__}({repr(self.__params__)[1:-1]})"
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self.__abstract_class__
+            root = self._abstract_class_
         _pretty.pretty_tuple(self.__params__, p, cycle, root=root)
 
     def __hash__(self, /):
-        return hash((self.__abstract_class__, self.__params__))
+        return hash((self._abstract_class_, self.__params__))
 
     def __reduce__(self, /):
-        return self.__abstract_class__.__class_getitem__, (self.__params__,)
+        return self._abstract_class_.__class_getitem__, (self.__params__,)
 
 
 DClass.BaseTyp = _DClassBase_

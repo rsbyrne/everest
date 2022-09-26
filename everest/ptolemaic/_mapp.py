@@ -96,7 +96,7 @@ class Mapp(metaclass=_Ousia):
         return self.compose(arg)
 
     def __rmatmul__(self, arg, /):
-        return self.__ptolemaic_class__.compose(arg, self)
+        return self._abstract_class_.compose(arg, self)
 
     def extend(self, arg, /):
         return MappUnion(self, arg)
@@ -209,13 +209,13 @@ class ArbitraryMapp(SuperMapp, metaclass=_System):
         return _sett(tuple(self.mapping.values()))
 
     def extend(self, arg: _collabc.Mapping, /):
-        return self.__ptolemaic_class__({**self.mapping, **arg})
+        return self._abstract_class_({**self.mapping, **arg})
 
     def subtend(self, arg: _collabc.Mapping, /):
         mapping = {**self.mapping}
         for key in arg:
             mapping[key] = arg[key] @ mapping[key]
-        return self.__ptolemaic_class__(mapping)
+        return self._abstract_class_(mapping)
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
@@ -285,13 +285,13 @@ class MappEnnaryOp(MappMultiOp, metaclass=_System):
         return params
 
     def subtend(self, arg, /):
-        return self.__ptolemaic_class__(*(arg @ sub for sub in arg))
+        return self._abstract_class_(*(arg @ sub for sub in arg))
 
 
 class ElasticMapp(MappEnnaryOp):
 
     def extend(self, arg, /):
-        return self.__ptolemaic_class__(self, arg)
+        return self._abstract_class_(self, arg)
 
 
 class MappUnion(ElasticMapp):
@@ -335,7 +335,7 @@ class SwitchMapp(ElasticMapp):
     def subtend(self, arg, /):
         if isinstance(arg, SwitchMapp):
             arg = arg.typemapp
-        return self.__ptolemaic_class__(*self.typemapp.subtend(arg).values())
+        return self._abstract_class_(*self.typemapp.subtend(arg).values())
 
 
 class MappComposition(MappEnnaryOp, metaclass=_System):
@@ -379,7 +379,7 @@ class StyleMapp(MappMultiOp, metaclass=_System):
                 "with another StyleMapp:"),
                 type(arg),
                 )
-        return self.__ptolemaic_class__(
+        return self._abstract_class_(
             self.pre.extend(arg.pre),
             self.post.subtend(arg.post),
             )

@@ -235,7 +235,7 @@ class Taphonomy(_classtools.Freezable, _weakref.WeakKeyDictionary):
         return self.enfence(content, 'a')
 
     def encode_dclassinstance(self, arg: _DClass.BaseTyp, /, *, deps: set = None):
-        typ = self.encode_content(arg.__abstract_class__, deps=deps)
+        typ = self.encode_content(arg._abstract_class_, deps=deps)
         content = self.encode_tuple(arg.__params__, deps=deps)[1:-1]
         if not content:
             content = '()'

@@ -112,6 +112,7 @@ class _EnummBase_(metaclass=Enumm):
         for serial, (name, note) in enumerate(items):
             obj = cls._instantiate_(_Ousia.BaseTyp._parameterise_())
             obj.serial, obj.name, obj.note = serial, name, note
+            obj.__relname__ = name
             setattr(cls, name, obj)
             cls._register_innerobj(name, obj)
             enumerators.append(obj)
@@ -133,12 +134,12 @@ class _EnummBase_(metaclass=Enumm):
         return cls._enumerators[arg]
 
     def __lt__(self, other, /):
-        if isinstance(other, self.__ptolemaic_class__):
+        if isinstance(other, self._abstract_class_):
             return self.serial < other.serial
         return super().__lt__(other)
 
     def __gt__(self, other, /):
-        if isinstance(other, self.__ptolemaic_class__):
+        if isinstance(other, self._abstract_class_):
             return self.serial > other.serial
         return super().__gt__(other)
 

@@ -81,7 +81,7 @@ class Shadow(metaclass=_Wisp):
     del methname
 
     def __hash__(self, /):  # Has to be added manually due to richops ^^^
-        return hash((self.__abstract_class__, self.__params__))
+        return hash((self._abstract_class_, self.__params__))
 
     @_abc.abstractmethod
     def get_evalstr(self, /):

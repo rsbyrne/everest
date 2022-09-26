@@ -41,7 +41,7 @@ class Ousia(_Urgon):
 
     @property
     def Concrete(cls, /):
-        cls = cls.__ptolemaic_class__
+        cls = cls._abstract_class_
         try:
             return cls.__dict__['_Concrete']
         except KeyError:
@@ -77,7 +77,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     @property
     def __progenitor__(self, /):
-        return self.__ptolemaic_class__
+        return self._abstract_class_
 
     @classmethod
     def __class_contains__(cls, arg, /):
@@ -95,7 +95,7 @@ class _OusiaBase_(metaclass=Ousia):
             try:
                 meth = self.__get_signature__
             except AttributeError:
-                raise TypeError(self.__ptolemaic_class__)
+                raise TypeError(self._abstract_class_)
             sig = meth()
             object.__setattr__(self, '_instancesignature', sig)
             return sig
@@ -118,7 +118,7 @@ class _OusiaBase_(metaclass=Ousia):
 
     @classmethod
     def _pre_create_concrete(cls, /):
-        cls = cls.__ptolemaic_class__
+        cls = cls._abstract_class_
         return (
             f"{cls.__name__}_Concrete",
             (ConcreteBase, cls),
@@ -175,7 +175,7 @@ class _OusiaBase_(metaclass=Ousia):
     def __setattr__(self, name, val, /):
         if self.__mutable__:
             if not name.startswith('_'):
-                val = self.__ptolemaic_class__.convert(val)
+                val = self._abstract_class_.convert(val)
             object.__setattr__(self, name, val)
             return val
         raise RuntimeError("Cannot alter value while immutable.")
@@ -202,7 +202,7 @@ class _OusiaBase_(metaclass=Ousia):
         return repr(self.__params__)
 
     def _root_repr(self, /):
-        return self.__ptolemaic_class__.__qualname__
+        return self._abstract_class_.__qualname__
 
     @property
     # @_caching.soft_cache()
@@ -225,13 +225,13 @@ class _OusiaBase_(metaclass=Ousia):
     def __taphonomise__(self, taph, /):
         if self.__corpus__ is None:
             return taph.getitem_epitaph(
-                self.__ptolemaic_class__, self.__params__
+                self._abstract_class_, self.__params__
                 )
         return taph.getattr_epitaph(self.__corpus__, self.__relname__)
 
     @property
     def _taphonomy_(self, /):
-        return self.__ptolemaic_class__._taphonomy_
+        return self._abstract_class_._taphonomy_
 
     @property
     def _epitaph_(self, /):
@@ -269,12 +269,12 @@ class _OusiaBase_(metaclass=Ousia):
         return object.__getattribute__(self, '_pyhash')
 
     @property
-    def __ptolemaic_class__(self, /):
+    def _abstract_class_(self, /):
         return type(self)._get_ptolemaic_class()
 
     def _pretty_repr_(self, p, cycle, root=None):
         if root is None:
-            root = self.__ptolemaic_class__
+            root = self._abstract_class_
         _pretty.pretty_kwargs(self.params, p, cycle, root=root)
 
     def _repr_pretty_(self, p, cycle, root=None):

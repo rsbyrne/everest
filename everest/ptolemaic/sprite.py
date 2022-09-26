@@ -84,7 +84,7 @@ class _SpriteBase_(metaclass=Sprite):
 
     def _pretty_repr_(self, p, cycle, root=None):
         if root is None:
-            root = self.rootrepr
+            root = self._abstract_class_
         _pretty.pretty_kwargs(
             dict(zip(self.__fields__, self.__params__)), p, cycle, root=root
             )

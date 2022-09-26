@@ -11,6 +11,14 @@ from .system import System as _System
 from .essence import Essence as _Essence
 from .pathget import PathGet as _PathGet
 from .demiurge import Demiurge as _Demiurge
+from .prop import Prop as _Prop
+
+
+class Realm(metaclass=_Essence):
+
+    @_abc.abstractmethod
+    def __contains__(self, other: 'Expression', /):
+        raise NotImplementedError
 
 
 class Expression(metaclass=_Essence):
@@ -18,39 +26,50 @@ class Expression(metaclass=_Essence):
     ...
 
 
-class Algebra(metaclass=_Essence):
+# class Realm(metaclass=_System):
 
-    @_abc.abstractmethod
-    def __call__(self, /, *_, **__) -> Expression:
-        raise NotImplementedError
+#     def __contains__(self, other, /):
+#         return isinstance(other, Expression)
 
-    @_abc.abstractmethod
-    def __contains__(self, other: Expression, /):
-        raise NotImplementedError
-
-
-class Axiom(Algebra, metaclass=_System):
-
-    @_abc.abstractmethod
-    def get_operator(self, symbol, /):
-        raise NotImplementedError
-
-    def __call__(self, symbol, /, *args, **kwargs):
-        return self.get_operator(symbol)(*args, source=self, **kwargs)
+#     def canonise(self, exp: Expression, /):
+#         if exp in self:
+#             return exp
+#         raise ValueError(exp)
 
 
-class Operator(metaclass=_Demiurge):
+class Expressor(metaclass=_Demiurge):
 
 
-    valence: POS[int]
-    args: ARGS
-    kwargs: KWARGS
+    extends: POS[Realm]
+    sources: ARGS[Realm]
+    valence: KW[int, type(...)] = None
+    opkwargs: KWARGS
+
+    # @classmethod
+    # def _process_source(cls, source, /):
+    #     if source is None:
+    #         return NotImplemented
+    #     if isinstance(source, str):
+    #         return _PathGet('..' + src)
+    #     return source
 
     @classmethod
-    def _parameterise_(cls, /, *args, **kwargs):
-        params = super()._parameterise_(*args, **kwargs)
-        if (valence := params.valence) is not Ellipsis:
-            params.valence = int(valence)
+    def _parameterise_(cls, extends=None, arg0=NotImplemented, /, *argn, **kwargs):
+        if isinstance(arg0, int) or arg0 is Ellipsis:
+            if argn:
+                raise ValueError
+            params = super()._parameterise_(extends, valence=arg0, **kwargs)
+        elif arg0 is NotImplemented:
+            params = super()._parameterise_(extends, **kwargs)
+        else:
+            params = super()._parameterise_(extends, arg0, *argn, **kwargs)
+            # params.sources = tuple(map(cls._process_source, params.sources))
+        valence = params.valence
+        if valence is None:
+            valence = len(params.sources)
+        elif not valence is Ellipsis:
+            valence = int(valence)
+        params.valence = valence
         return params
 
     @classmethod
@@ -63,74 +82,258 @@ class Operator(metaclass=_Demiurge):
         elif valence is Ellipsis:
             kls = cls.Ennary
         else:
-            raise ValueError
-        return kls.partial(*params.args, **params.kwargs)
+            raise ValueError(valence)
+        return kls.partial(params.extends, *params.sources, **params.opkwargs)
 
 
-    class _DemiBase_(Algebra):
+    class _DemiBase_(Realm):
 
-        symbol: POS
 
-        def __contains__(self, other: Expression, /):
-            if isinstance(other, self.Expression):
-                return other.symbol == self.symbol
+        extends: POS[Realm] = None
+        extends = prop('self.__corpus__')
+        symbol: KW = ANCILLARY
+        symbol = prop('self')
 
-        def __call__(self, /, *args, **kwargs):
-            return self.Expression(self.symbol, *args, **kwargs)
+        def __contains__(self, other, /):
+            if isinstance(other, self._Expression_):
+                return other.header is self.symbol
 
-        class Expression(mroclass(Expression), metaclass=_System):
 
-            symbol: POS
+        class _Expression_(mroclass(Expression), metaclass=_System):
 
-            arguments = prop(())
+            header: POS
+            contents = ()
+
+            def _pretty_repr_(self, p, cycle, root=None):
+                kwargs = {}
+                for key, field in self._abstract_class_.__fields__.items():
+                    if field.kind.value > 2:
+                        val = getattr(self, key)
+                        try:
+                            default = field.default
+                        except AttributeError:
+                            pass
+                        else:
+                            if val == default:
+                                continue
+                        kwargs[key] = val
+                _pretty.pretty_call(
+                    self.header, (self.contents, kwargs),
+                    p, cycle, root=root,
+                    )
+
+
+        def __call__(self, /, *args, **kwargs) -> _Expression_:
+            return self._Expression_(self.symbol, *args, **kwargs)
 
 
     class Nullary(demiclass):
 
-        ...
+        def __call__(self, /, **kwargs) -> _Expression_:
+            return super().__call__(**kwargs)
 
 
     class NonNullary(demiclass):
 
-        source: POS[Algebra] = ANCILLARY
+        source: POS[Realm] = ANCILLARY
         source = prop('self')
+
+        @_abc.abstractmethod
+        def check_content(self, other, /) -> bool:
+            raise NotImplementedError
 
         def __contains__(self, other, /):
             if super().__contains__(other):
-                return all(arg in self.source for arg in other.arguments)
-
-        def __call__(self, /, *args, **kwargs):
-            if (source := self.source) is self:
-                source = kwargs.pop('source', source)
-            return super().__call__(*args, source=source, **kwargs)
-
-        class Expression(mroclass):
-
-            @classmethod
-            def _parameterise_(cls, /, arg0, *argn, source=None, **kwargs):
-                if source is not None:
-                    if not all(arg in source for arg in argn):
-                        raise ValueError(
-                            "All arguments of an expression "
-                            "must be valid members of the given source."
-                            )
-                return super()._parameterise_(arg0, *argn, **kwargs)
+                return self.check_content(other)
+            if (extends := self.extends) is not None:
+                return other in extends
 
 
     class Unary(demiclass('.NonNullary')):
 
-        class Expression(mroclass):
 
-            argument: POS[Expression]
-            arguments = '(self.argument,)'
+        def check_content(self, other, /) -> bool:
+            return other.content in self.source
+
+
+        class _Expression_(mroclass):
+
+            content: POS
+            iterations: KW = 1
+            
+            contents = prop('(self.content,)')
+
+            @classmethod
+            def _parameterise_(cls, /, *args, **kwargs):
+                params = super()._parameterise_(*args, **kwargs)
+                iterations = int(params.iterations)
+                if iterations <= 0:
+                    raise ValueError(iterations)
+                content = params.content
+                if content.header is params.header:
+                    params.content = content.content
+                    iterations += content.iterations
+                params.iterations = iterations
+                return params
+
+
+        def __call__(self, arg, /, **kwargs) -> _Expression_:
+            if not arg in self.source:
+                raise ValueError(arg)
+            return super().__call__(arg, **kwargs)
 
 
     class Ennary(demiclass('.NonNullary')):
 
-        class Expression(mroclass):
 
-            arguments: ARGS[Expression]
+        minargs: int = 0
+
+        def check_operands(self, contents: tuple, /):
+            if len(contents) < self.minargs:
+                return False
+            return all(arg in self.source for arg in contents)
+
+        def check_content(self, other, /):
+            return self.check_operands(other.contents)
+
+        def __contains__(self, other, /):
+            if super().__contains__(other):
+                return self.check_operands(other.contents)
+
+
+        class _Expression_(mroclass):
+
+            contents: ARGS
+            repetitions: KW = 1
+
+            @classmethod
+            def _parameterise_(cls, /, *args, **kwargs):
+                params = super()._parameterise_(*args, **kwargs)
+                repetitions = params.repetitions
+                contents = params.contents
+                if repetitions is not Ellipsis:
+                    repetitions = params.repetitions = int(repetitions)
+                    if repetitions <= 0:
+                        raise ValueError(repetitions)
+                return params
+
+
+        def __call__(self, /, *args, **kwargs):
+            if not self.check_operands(args):
+                raise ValueError(args)
+            return super().__call__(*args, **kwargs)
+
+
+class Operator(_Prop):
+
+    asorgan: bool = True
+
+    @classmethod
+    def __body_call__(cls, body, /, *args, **kwargs):
+        return super().__body_call__(
+            body, Expressor, bindings=((NotImplemented, *args), kwargs)
+            )
+
+
+# class Constant(_Prop):
+
+#     __slots__ = ('operator',)
+
+#     def __init__()
+
+#     def __directive_call__(self, body, name, /, content=NotImplemented):
+#         body[f'_{name}_op'] = Operator
+
+#     def _prop_getter(self, name, obj, /):
+#         out = super()._prop_getter(name, obj)
+#         if isinstance(out, Operator.Nullary):
+#             return out()
+
+
+class Algebra(_System):
+
+    @classmethod
+    def _yield_smartattrtypes(meta, /):
+        yield from super()._yield_smartattrtypes()
+        yield Operator
+
+
+class _AlgebraBase_(Realm, metaclass=Algebra):
+
+    @prop
+    def operators(self, /):
+        return {
+            (op := getattr(self, name)).symbol: op
+            for name in self._abstract_class_.__operators__
+            }
+
+    def __contains__(self, other, /):
+        if isinstance(other, Expression):
+            return other in self.operators[other.header]
+
+
+
+# class Axiom(Algebra, metaclass=_System):
+
+#     @_abc.abstractmethod
+#     def get_operator(self, symbol, /):
+#         raise NotImplementedError
+
+#     def __call__(self, symbol, /, *args, **kwargs):
+#         return self.get_operator(symbol)(*args, source=self, **kwargs)
 
 
 ###############################################################################
 ###############################################################################
+
+
+# class Axiom(metaclass=_Demiurge):
+
+
+#     class _DemiBase_(Realm):
+
+#         @prop
+#         @_abc.abstractmethod
+#         def operator(self, /) -> Operator:
+#             raise NotImplementedError
+
+#         def __call__(self, /, *args, **kwargs):
+#             return self.operator(*args, **kwargs)
+
+
+#     class Unary(demiclass):
+
+#         topic: POS[Realm]
+
+#         @classmethod
+#         def _parameterise_(cls, /, *args, **kwargs):
+#             params = super()._parameterise_(*args, **kwargs)
+#             if not isinstance(params.topic, Operator.Unary):
+#                 raise ValueError(params.topic)
+#             return params
+
+#         @_abc.abstractmethod
+#         def _canonise_(self, exp: Expression, /):
+#             raise NotImplementedError
+
+#         def canonise(self, exp: Expression, /):
+#             exp = super().canonise(exp)
+#             topic = self.topic
+#             return topic.canonise(self._canonise_(topic.canonise(exp)))
+
+#         def operator(self, /):
+#             topic = self.topic
+#             if isinstance(topic, Axiom):
+#                 return topic.operator
+#             return topic
+
+#         _contains_ = prop('self.topic._contains_')
+
+
+# class Idempotent(Axiom.Unary):
+
+#     def _canonise_(self, exp: Expression, /):
+#         argument = exp.contents[0]
+#         if argument.operator is self.operator:
+#             return argument
+#         return exp

@@ -32,15 +32,6 @@ def _fallback_deleter(obj, name, instance, val, /):
         )
 
 
-class ContentType(metaclass=_Enumm):
-
-    UNKNOWN: None
-    CLASSLIKE: None
-    STATICLIKE: None
-    CLASSMETHOD: None
-    INSTANCEMETHOD: None
-
-
 class SmartAttrHolder(_Kwargs):
 
     ...
@@ -76,6 +67,8 @@ class SmartAttr(metaclass=_Sprite):
             raise TypeError(hint)
         if isinstance(hint, str):
             return _PathGet(hint)
+        if isinstance(hint, _ptolemaic.Ptolemaic):
+            return hint
         if isinstance(hint, tuple):
             return tuple(map(cls._process_hint, hint))
         if hint is Ellipsis:
@@ -87,10 +80,20 @@ class SmartAttr(metaclass=_Sprite):
         raise ValueError(hint)
 
     @classmethod
+    def _get_singlename(cls, /):
+        try:
+            return cls._single_name_
+        except AttributeError:
+            return cls.__name__.lower()
+
+    @property
+    def smartattrname(self, /):
+        return self._abstract_class_._single_name_
+
+    @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
-        singlename = cls.__single_name__ = cls.__name__.lower()
-        cls.__merge_name__ = f"__{singlename}s__"
+        cls.__merge_name__ = f"__{cls._get_singlename()}s__"
 
     @classmethod
     def _parameterise_(cls, /, *args, content=None, **kwargs):
@@ -101,7 +104,7 @@ class SmartAttr(metaclass=_Sprite):
         return params
 
     @classmethod
-    def adjust_params_for_content_signature(cls, params, sig, contenttype):
+    def adjust_params_for_content_signature(cls, params, sig):
         if params.hint is object:
             if (retanno := sig.return_annotation) is not sig.empty:
                 params.hint = retanno
@@ -112,22 +115,14 @@ class SmartAttr(metaclass=_Sprite):
             return
         if isinstance(content, _PathGet):
             return
-        if isinstance(content, (staticmethod, _types.MethodType)):
-            contenttype = ContentType.STATICLIKE
+        if isinstance(content, (staticmethod, classmethod, _types.MethodType)):
             content = content.__func__
-        elif isinstance(content, classmethod):
-            contenttype = ContentType.CLASSMETHOD
-            content = content.__func__
-        elif isinstance(content, _types.FunctionType):
-            contenttype = ContentType.INSTANCEMETHOD
-        elif isinstance(content, type):
-            contenttype = ContentType.CLASSLIKE
         try:
             sig = _inspect.signature(content)
         except TypeError:
             pass
         else:
-            cls.adjust_params_for_content_signature(params, sig, contenttype)
+            cls.adjust_params_for_content_signature(params, sig)
         if params.note == '':
             try:
                 params.note = content.__doc__
@@ -147,7 +142,7 @@ class SmartAttr(metaclass=_Sprite):
             body.enroll_shade(name)
         else:
             mergedct[name] = \
-                self.__ptolemaic_class__._merge_smartattrs(prev, self)
+                self._abstract_class_._merge_smartattrs(prev, self)
         return name, content
 
     @classmethod
@@ -160,7 +155,7 @@ class SmartAttr(metaclass=_Sprite):
 
     def _get_getter_(self, obj, name, /):
         try:
-            meth = getattr(obj, f"__{self.__single_name__}_get__")
+            meth = getattr(obj, f"__{self.smartattrname}_get__")
         except AttributeError:
             return _partial(_fallback_getter, name, obj)
         else:
@@ -168,7 +163,7 @@ class SmartAttr(metaclass=_Sprite):
 
     def _get_setter_(self, obj, name, /):
         try:
-            meth = getattr(obj, f"__{self.__single_name__}_set__")
+            meth = getattr(obj, f"__{self.smartattrname}_set__")
         except AttributeError:
             return _partial(_fallback_setter, name, obj)
         else:
@@ -176,7 +171,7 @@ class SmartAttr(metaclass=_Sprite):
 
     def _get_deleter_(self, obj, name, /):
         try:
-            meth = getattr(obj, f"__{self.__single_name__}_delete__"),
+            meth = getattr(obj, f"__{self.smartattrname}_delete__"),
         except AttributeError:
             return _partial(_fallback_deleter, name, obj)
         else:
@@ -185,3 +180,12 @@ class SmartAttr(metaclass=_Sprite):
 
 ###############################################################################
 ###############################################################################
+
+
+# class ContentType(metaclass=_Enumm):
+
+#     UNKNOWN: None
+#     CLASSLIKE: None
+#     STATICLIKE: None
+#     CLASSMETHOD: None
+#     INSTANCEMETHOD: None

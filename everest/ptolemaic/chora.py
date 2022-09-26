@@ -206,7 +206,7 @@ class ChoraComposition(ChoraEnnaryOp, _mapp.MappComposition):
 
     def _incise_slyce_(self, incisor, /):
         chora, *others = self.args
-        return self.__ptolemaic_class__(chora._incise_slyce_(incisor), *others)
+        return self._abstract_class_(chora._incise_slyce_(incisor), *others)
 
     def _incise_trivial_(self, incisor, /):
         return self
@@ -315,7 +315,7 @@ class Dimension(Chorelle, metaclass=_System):
         return False
 
     def _includes_(self, other, /):
-        if isinstance(other, self.__ptolemaic_class__):
+        if isinstance(other, self._abstract_class_):
             return self.chora._includes_(other)
         return False
 
@@ -451,7 +451,7 @@ class MultiChora(Choret, ChoraEnnaryOp):
         return incisor
 
     def _incise_slyce_tuple_(self, incisor: tuple, /):
-        return self.__ptolemaic_class__(*incisor, labels=self.labels)
+        return self._abstract_class_(*incisor, labels=self.labels)
 
     def _contains_(self, arg, /):
         choras = self.args

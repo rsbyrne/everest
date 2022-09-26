@@ -20,7 +20,7 @@ class Eidos(_Essence):
         yield from super()._yield_bodymeths(body)
         for typ in meta._smartattrtypes:
             yield (
-                typ.__single_name__,
+                typ._get_singlename(),
                 _partial(getattr(typ, '__body_call__'), body),
                 )
 
@@ -88,7 +88,7 @@ class _EidosBase_(metaclass=Eidos):
                     val = val(self)
                 else:
                     val = object.__getattribute__(
-                        self, '__ptolemaic_class__'
+                        self, '_abstract_class_'
                         ).convert(val)
             object.__setattr__(self, name, val)
             return val

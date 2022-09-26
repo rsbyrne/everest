@@ -42,8 +42,8 @@ class Wisp(_DClass):
 class _WispBase_(_DClass.BaseTyp):
 
     @property
-    def __ptolemaic_class__(self, /):
-        return self.__abstract_class__
+    def _abstract_class_(self, /):
+        return self._abstract_class_
 
 
 Wisp.BaseTyp = _WispBase_
@@ -89,19 +89,19 @@ class Property(metaclass=Wisp):
         if obj is None:
             return self
         if (fget := self.fget) is None:
-            name = self._namelookup[obj.__ptolemaic_class__]
+            name = self._namelookup[obj._abstract_class_]
             raise AttributeError(f'Unreadable attribute {name}.')
         return fget(obj)
 
     def __set__(self, obj, value):
         if (fset := self.fset) is None:
-            name = self._namelookup[obj.__ptolemaic_class__]
+            name = self._namelookup[obj._abstract_class_]
             raise AttributeError(f"Can't set attribute {name}.")
         fset(obj, value)
 
     def __delete__(self, obj):
         if (fdel := self.fdel) is None:
-            name = self._namelookup[obj.__ptolemaic_class__]
+            name = self._namelookup[obj._abstract_class_]
             raise AttributeError(f"Can't delete attribute {name}.")
         fdel(obj)
 
@@ -124,6 +124,13 @@ class Pentheros(metaclass=Wisp):
                 typ = cls.__content_type__
             if typ not in (dct := Wisp._convtyps):
                 dct[typ] = cls
+                try:
+                    dattyp = _ur.Dat.convert_type(typ)
+                except TypeError:
+                    pass
+                else:
+                    if dattyp not in dct:
+                        dct[dattyp] = cls
 
     @classmethod
     def __class_get_signature__(cls, /):
@@ -172,7 +179,7 @@ class Tuuple(Pentheros):
 
 
 @_collabc.Mapping.register
-class Binding(Pentheros):
+class Diict(Pentheros):
 
     @classmethod
     def _parameterise_(cls, /, *args, **kwargs):
@@ -198,11 +205,11 @@ class Binding(Pentheros):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self.__ptolemaic_class__
+            root = self._abstract_class_
         _pretty.pretty_dict(self._content, p, cycle, root=root)
 
 
-class Kwargs(Binding):
+class Kwargs(Diict):
 
     @classmethod
     def _parameterise_(cls, /, *args, **kwargs):
@@ -216,11 +223,11 @@ class Kwargs(Binding):
 
     def _repr_pretty_(self, p, cycle, root=None):
         if root is None:
-            root = self.__ptolemaic_class__
+            root = self._abstract_class_
         _pretty.pretty_kwargs(self._content, p, cycle, root=root)
 
     def __taphonomise__(self, taph, /):
-        return taph.callsig_epitaph(self.__ptolemaic_class__, **self)
+        return taph.callsig_epitaph(self._abstract_class_, **self)
 
 
 class Namespace(Kwargs):

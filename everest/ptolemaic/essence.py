@@ -163,7 +163,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return body.finalise()
 
     @property
-    def __ptolemaic_class__(cls, /):
+    def _abstract_class_(cls, /):
         return cls._get_ptolemaic_class()
 
     @property
@@ -290,7 +290,7 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
 
     @property
     def metacls(cls, /):
-        return type(cls.__ptolemaic_class__)
+        return type(cls._abstract_class_)
 
     @property
     def __taphonomise__(cls, /):
@@ -314,10 +314,10 @@ class Essence(_abc.ABCMeta, metaclass=_Pleroma):
         return cls.__name__
 
     def __repr__(cls, /):
-        return cls.__ptolemaic_class__.__class_repr__()
+        return cls._abstract_class_.__class_repr__()
 
     def __str__(cls, /):
-        return cls.__ptolemaic_class__.__class_str__()
+        return cls._abstract_class_.__class_str__()
 
     def _repr_pretty_(cls, p, cycle, root=None):
         if root is not None:
@@ -345,7 +345,7 @@ class _EssenceBase_(metaclass=Essence):
 
     @classmethod
     def __class_mro_entries__(cls, bases, /):
-        return (cls.__ptolemaic_class__,)
+        return (cls._abstract_class_,)
 
     @classmethod
     def __class_post_construct__(cls, /):
@@ -405,7 +405,7 @@ class _EssenceBase_(metaclass=Essence):
 
     @classmethod
     def __mro_getattr__(cls, name, /):
-        for base in cls.__ptolemaic_class__.__mro__:
+        for base in cls._abstract_class_.__mro__:
             try:
                 return base.__dict__[name]
             except KeyError:
@@ -489,7 +489,7 @@ class Null(metaclass=Essence):
 
 #     @property
 #     def __mroclass__(cls, /):
-#         return cls.__dict__.get('_mroclass', cls.__ptolemaic_class__)
+#         return cls.__dict__.get('_mroclass', cls._abstract_class_)
 
 #     def _make_mroclass(cls, name: str, /):
 #         bases = tuple(cls._gather_mrobases(name))
@@ -553,7 +553,7 @@ class Null(metaclass=Essence):
 
 #     @property
 #     def contexts(cls, _default=(), /):
-#         return cls.__ptolemaic_class__.__dict__.get(
+#         return cls._abstract_class_.__dict__.get(
 #             '_ptolemaic_contexts', _default
 #             )
 

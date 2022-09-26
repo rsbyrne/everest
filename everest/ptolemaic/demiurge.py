@@ -10,6 +10,7 @@ from .classbody import MROClassHelper as _MROClassHelper
 from .wisp import Partial as _Partial
 from .tekton import Tekton as _Tekton
 from .system import System as _System
+from . import ptolemaic as _ptolemaic
 
 
 class DemiclassHelper(_MROClassHelper):
@@ -19,6 +20,7 @@ class DemiclassHelper(_MROClassHelper):
         self.body.awaiting_mroclass_names.append('._DemiBase_')
 
 
+@_ptolemaic.Kind.register
 class Demiurge(_Tekton):
 
     @classmethod

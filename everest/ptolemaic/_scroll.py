@@ -174,7 +174,7 @@ class Scroll(metaclass=_System):
 
     def _process_subscrolls(self, /):
         for name, screed in self.__screed__.__chapters__.items():
-            scroll = self.__ptolemaic_class__.__class_alt_call__(
+            scroll = self._abstract_class_.__class_alt_call__(
                 screed, **dict(self._subscroll_yield_injectables(screed))
                 )
             self._register_innerobj(name, scroll)
