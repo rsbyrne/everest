@@ -32,6 +32,9 @@ def _fallback_deleter(obj, name, instance, val, /):
         )
 
 
+NOCONTENT = object()
+
+
 class SmartAttrHolder(_Kwargs):
 
     ...
@@ -104,12 +107,6 @@ class SmartAttr(metaclass=_Sprite):
         return params
 
     @classmethod
-    def adjust_params_for_content_signature(cls, params, sig):
-        if params.hint is object:
-            if (retanno := sig.return_annotation) is not sig.empty:
-                params.hint = retanno
-
-    @classmethod
     def adjust_params_for_content(cls, params, content, /):
         if isinstance(content, str):
             return
@@ -122,7 +119,9 @@ class SmartAttr(metaclass=_Sprite):
         except TypeError:
             pass
         else:
-            cls.adjust_params_for_content_signature(params, sig)
+            if params.hint is object:
+                if (retanno := sig.return_annotation) is not sig.empty:
+                    params.hint = retanno
         if params.note == '':
             try:
                 params.note = content.__doc__
@@ -146,8 +145,8 @@ class SmartAttr(metaclass=_Sprite):
         return name, content
 
     @classmethod
-    def __body_call__(cls, body, content=None, /, **kwargs):
-        if content is None:
+    def __body_call__(cls, body, content=NOCONTENT, /, **kwargs):
+        if content is NOCONTENT:
             return _partial(cls.__body_call__, body, **kwargs)
         if isinstance(content, _PathGet):
             content = content(body.namespace)

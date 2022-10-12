@@ -9,6 +9,7 @@ import types as _types
 import inspect as _inspect
 import itertools as _itertools
 import builtins as _builtins
+from fractions import Fraction as _Fraction
 
 import numpy as _np
 
@@ -65,6 +66,7 @@ class Ptolemaic(_ur.Dat, metaclass=PtolemaicMeta):
     TYPS = (
         _types.BuiltinFunctionType,
         _types.BuiltinMethodType,
+        _Fraction,
         _ur.PseudoType,
         )
 

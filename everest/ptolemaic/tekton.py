@@ -30,7 +30,7 @@ class Tekton(_Eidos, _Urgon):
 
     @classmethod
     def body_handle_anno(meta, body, name, hint, val, /):
-        body[name] = _Field.from_annotation(hint, val)
+        _Field.from_annotation(body, name, hint, val)
 
     @property
     def arity(cls, /):

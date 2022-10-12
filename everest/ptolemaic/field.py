@@ -24,8 +24,25 @@ _pempty = _inspect._empty
 class Signal(metaclass=_Enumm):
 
     MANDATORY: 'Signals a mandatory argument.'
-    ANCILLARY: 'Signals an ancillary argument.'
-    CALLBACK: 'Signals a callback argument.'
+
+    class SignalCall(metaclass=_Sprite):
+        signal: '..'
+        content: ...
+
+    @member
+    class ANCILLARY(mroclass('.SignalCall')):
+        'Signals an ancillary argument.'
+        def __call__(self, body, /):
+            return self.signal, body['prop'](self.content)
+
+    @member
+    class CALLBACK(mroclass('.SignalCall')):
+        'Signals a callback argument.'
+        def __call__(self, body, /):
+            return self.signal, self.content
+
+    def __call__(self, content, /):
+        return self.value(self, content)
 
 
 class FieldHint(metaclass=_Sprite):
@@ -121,14 +138,14 @@ class Field(_SmartAttr):
         return params
 
     @classmethod
+    def check_content(cls, params, content, /):
+        super().check_content(params, content)
+
+    @classmethod
     def adjust_params_for_content(cls, params, content, /):
-        super().adjust_params_for_content(params, content)
-        if params.default is not NotImplemented:
-            raise ValueError(
-                "It is forbidden to provide the 'default' argument " 
-                "when content is also provided."
-                )
-        params.default = Signal.CALLBACK
+        if params.default is NotImplemented:
+            params.default = Signal.CALLBACK
+            super().adjust_params_for_content(params, content)
 
     @classmethod
     def _merge_smartattrs(cls, prev, current, /):
@@ -199,7 +216,11 @@ class Field(_SmartAttr):
             )
 
     @classmethod
-    def from_annotation(cls, anno, value):
+    def from_annotation(cls, body, name, anno, value):
+        if isinstance(value, Signal.SignalCall):
+            value, content = value(body)
+        else:
+            content = None
         if isinstance(anno, Kind):
             kwargs = dict(kind=anno)
         elif isinstance(anno, FieldHint):
@@ -212,7 +233,7 @@ class Field(_SmartAttr):
             kwargs = dict(hint=anno)
         if value is not NotImplemented:
             kwargs['default'] = value
-        return cls(**kwargs)
+        body[name] = body['field'](content, **kwargs)
 
     def _get_getter_(self, obj, name, /):
         return lambda inst: getattr(inst.params, name)

@@ -38,6 +38,9 @@ class Wisp(_DClass):
         return _ur.Primitive.convert(arg)
 
 
+convert = Wisp.convert
+
+
 @_ptolemaic.Case.register
 class _WispBase_(_DClass.BaseTyp):
 

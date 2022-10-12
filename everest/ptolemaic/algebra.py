@@ -4,285 +4,373 @@
 
 
 import abc as _abc
-from functools import lru_cache as _lru_cache
+from collections import deque as _deque
+from collections.abc import Container as _Container
+from weakref import WeakSet as _WeakSet
+from fractions import Fraction as _Fraction
+import itertools as _itertools
 
-from everest.utilities import pretty as _pretty
-
+from .ousia import Ousia as _Ousia
 from .system import System as _System
-from .essence import Essence as _Essence
-from .pathget import PathGet as _PathGet
 from .demiurge import Demiurge as _Demiurge
-from .prop import Prop as _Prop
+from .enumm import Enumm as _Enumm
 
 
-class Expression(metaclass=_Essence):
+class TakeError(Exception):
 
     ...
 
 
-class Expressor(metaclass=_Demiurge):
+class SafeIterator:
 
+    __slots__ = (
+        'iterator', 'pre', 'post', 'contexts',
+        )
 
-    symbol: POS
-    sources: ARGS['Realm']
-    valence: KW[int, type(...)] = None
-    opkwargs: KWARGS
+    def __init__(self, iterator, /, pre=(), post=()):
+        self.iterator = iter(iterator)
+        self.pre, self.post = _deque(pre), _deque(post)
+        self.contexts = _deque()
+        self.add_context()
 
-    @classmethod
-    def _parameterise_(
-            cls, symbol, arg0=NotImplemented, /, *argn, **kwargs
-            ):
-        if isinstance(arg0, int) or arg0 is Ellipsis:
-            if argn:
-                raise ValueError
-            params = super()._parameterise_(symbol, valence=arg0, **kwargs)
-        elif arg0 is NotImplemented:
-            params = super()._parameterise_(symbol, **kwargs)
+    def add_context(self, /):
+        self.contexts.append(_deque())
+
+    def complete_context(self, /):
+        return tuple(self.contexts.pop())
+
+    def fail_context(self, /):
+        out = self.complete_context()
+        self.extendleft(reversed(out))
+        return out
+
+    @property
+    def taken(self, /):
+        return self.contexts[-1]
+
+    def __iter__(self, /):
+        return self
+
+    def __next__(self, /):
+        if (pre := self.pre):
+            out = pre.popleft()
         else:
-            params = super()._parameterise_(symbol, arg0, *argn, **kwargs)
-        valence = params.valence
-        if valence is None:
-            valence = len(params.sources)
-        elif not valence is Ellipsis:
-            valence = int(valence)
-        params.valence = valence
-        return params
+            try:
+                out = next(self.iterator)
+            except StopIteration as exc:
+                if (post := self.post):
+                    out = post.popleft()
+                else:
+                    raise exc
+        self.taken.append(out)
+        return out
 
-    @classmethod
-    def _dispatch_(cls, params, /):
-        valence = params.valence
-        if valence == 0:
-            kls = cls.Nullary
-        elif valence == 1:
-            kls = cls.Unary
-        elif valence is Ellipsis:
-            kls = cls.Ennary
-        else:
-            raise ValueError(valence)
-        return kls.partial(params.symbol, *params.sources, **params.opkwargs)
+    @property
+    def append(self, /):
+        return self.post.append
 
+    @property
+    def appendleft(self, /):
+        return self.pre.appendleft
 
-    class _DemiBase_(ptolemaic):
+    @property
+    def pop(self, /):
+        return self.post.pop
 
+    @property
+    def popleft(self, /):
+        return self.pre.popleft
 
-        symbol: POS
+    @property
+    def extend(self, /):
+        return self.post.extend
 
+    @property
+    def extendleft(self, /):
+        return self.pre.extendleft
 
-        class _Expression_(mroclass(Expression), metaclass=_System):
+    def take(self, num=0, /, limit=None):
+        with self:
+            out = _deque()
+            while len(out) < num:
+                try:
+                    out.append(next(self))
+                except StopIteration as exc:
+                    raise TakeError from exc
+            if limit is not None:
+                if limit is Ellipsis:
+                    out.extend(tuple(self))
+                else:
+                    while len(out) < limit:
+                        try:
+                            out.append(next(self))
+                        except StopIteration:
+                            pass
+        return tuple(out)
 
-            symbol: POS
-            contents = ()
+    def __bool__(self, /):
+        try:
+            val = next(self)
+        except StopIteration:
+            return False
+        self.appendleft(val)
+        return True
 
+    def __enter__(self, /):
+        self.add_context()
 
-        @_abc.abstractmethod
-        def check_arguments(self, caller, args, /):
-            raise NotImplementedError
-
-        def __call__(self, caller, /, *args, **kwargs) -> _Expression_:
-            if not self.check_arguments(caller, args):
-                raise ValueError(args)
-            return self._Expression_(self.symbol, *args, **kwargs)
-
-
-    class Nullary(demiclass):
-
-        def check_arguments(self, caller, args, /):
-            return not args
-
-
-    class Unary(demiclass):
-
-
-        source: POS['Realm'] = None
-
-
-        class _Expression_(mroclass):
-
-            content: POS
-            iterations: KW = 1
-            
-            contents = prop('(self.content,)')
-
-            @classmethod
-            def _parameterise_(cls, /, *args, **kwargs):
-                params = super()._parameterise_(*args, **kwargs)
-                iterations = int(params.iterations)
-                if iterations <= 0:
-                    raise ValueError(iterations)
-                content = params.content
-                if content.symbol is params.symbol:
-                    params.content = content.content
-                    iterations += content.iterations
-                params.iterations = iterations
-                return params
-
-        def check_arguments(self, caller, args, /):
-            if len(args) != 1:
-                return False
-            source = caller if (source := self.source) is None else source
-            return (arg := args[0]) in source
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is not None:
+            self.fail_context()
 
 
-    class Ennary(demiclass):
+class Phrase(metaclass=_System):
+
+    head: POS
+    body: ARGS['.']
 
 
-        source: POS['Realm'] = None
-        minargs: int = 0
+class ParserError(Exception):
 
-
-        class _Expression_(mroclass):
-
-            contents: ARGS
-            repetitions: KW = 1
-
-            @classmethod
-            def _parameterise_(cls, /, *args, **kwargs):
-                params = super()._parameterise_(*args, **kwargs)
-                repetitions = params.repetitions
-                contents = params.contents
-                if repetitions is not Ellipsis:
-                    repetitions = params.repetitions = int(repetitions)
-                    if repetitions <= 0:
-                        raise ValueError(repetitions)
-                return params
-
-
-        def check_arguments(self, caller, args, /):
-            source = caller if (source := self.source) is None else source
-            return all(arg in source for arg in args)
+    ...
 
 
 class Realm(metaclass=_System):
 
+    @prop
+    def _phrases(self, /):
+        return _WeakSet()
 
-    __slots__ = ('operators', 'symbols')
+    @_abc.abstractmethod
+    def _contains_(self, phrase: Phrase, /, *, caller: 'Realm') -> bool:
+        raise NotImplementedError
 
-    expressors: KWARGS[Expressor]
+    def __contains__(self, other, /) -> bool:
+        if not isinstance(other, Phrase):
+            return False
+        if other in (phrases := self._phrases):
+            return True
+        out = self._contains_(other, caller=self)
+        if out:
+            phrases.add(other)
+        return out
+
+    @_abc.abstractmethod
+    def _enphrase_(self, tokens, /, *, caller):
+        raise NotImplementedError
+
+    def enphrase(self, tokens: SafeIterator, /, *, caller) -> Phrase:
+        with tokens:
+            phrase = self._enphrase_(tokens, caller=caller)
+        self._phrases.add(phrase)
+        return phrase
+
+    def __call__(self, /, *tokens) -> Phrase:
+        tokens = SafeIterator(tokens)
+        phrase = self.enphrase(tokens, caller=self)
+        if tokens:
+            raise ParserError
+        return phrase
+
+
+class Fixity(metaclass=_Enumm):
+
+    PREFIX: 'Denotes an operator where the sign precedes the operands.'
+    INFIX: 'Denotes an operator where the sign is between the operands.'
+    POSTFIX: 'Denotes an operator where the sign postcedes the operands.'
+    JUX: 'Denotes an operator with no explicit sign.'
+
+
+class Operator(metaclass=_Demiurge):
+
+
+    marker: POS
+    signature: ARGS
 
     @classmethod
-    def _instantiate_(cls, params, /):
-        obj = super()._instantiate_(params)
-        operators = {}
-        symbols = {}
-        for name, exp in params.expressors.items():
-            op = cls.Operator.__class_alt_call__(exp)
-            obj._register_innerobj(name, op)
-            operators[name] = op
-            symbols[exp.symbol] = op
-        obj.operators = operators
-        obj.symbols = symbols
-        return obj
-    
-    def __getattr__(self, name, /):
-        try:
-            return object.__getattribute__(self, 'operators')[name]
-        except (AttributeError, KeyError):
-            return super().__getattr__(name)
+    def __class_init__(cls, /):
+        super().__class_init__()
+        cls.valencemap = cls.convert({
+            kls.valence: kls for kls in cls._demiclasses_
+            })
 
-    def __contains__(self, other: Expression, /):
-        symbols, symbol = self.symbols, other.symbol
-        try:
-            op = symbols[symbol]
-        except KeyError:
-            return False
-        exp = op.expressor
-        if not isinstance(other, exp._Expression_):
-            return False
-        return exp.check_arguments(self, other.contents)
+    @classmethod
+    def _demiconvert_(cls, arg, /):
+        if isinstance(arg, tuple):
+            return cls(*arg)
+        return NotImplemented
+
+    @classmethod
+    def _dispatch_(cls, params, /):
+        signature = params.signature
+        n = Ellipsis if Ellipsis in signature else len(signature)
+        return cls.valencemap[n].partial(params.marker, *signature)
 
 
-    class Operator(mroclass, metaclass=_System):
+    class _DemiBase_(Realm):
 
-        expressor: POS[Expressor]
+        valence = NotImplemented
 
-        def __call__(self, /, *args, **kwargs):
-            return self.expressor(self.__corpus__, *args, **kwargs)
+        marker: POS
+        symbol: ... = CALLBACK('marker')
+        fixity: Fixity = Fixity.JUX
+
+        @classmethod
+        def _parameterise_(cls, /, *args, **kwargs):
+            params = super()._parameterise_(*args, **kwargs)
+            if not isinstance(fixity := params.fixity, Fixity):
+                params.fixity = Fixity[fixity]
+            return params
+
+        @prop
+        def precedence(self, /):
+            valence = self.valence
+            if isinstance(valence, int):
+                return _Fraction(1, valence+1)
+            return 0.
+
+        def _contains_(self, phrase, /, *, caller):
+            if phrase.head is not self.marker:
+                return False
+            try:
+                self.parse_tokens(SafeIterator(phrase.body), caller=caller)
+            except ParserError:
+                return False
+            return True
+
+        @prop
+        def parse_tokens(self, /):
+            fixity = self.fixity
+            if fixity is Fixity.JUX:
+                return self._parse_tokens_
+            return getattr(self, f'_parse_tokens_{fixity.name.lower()}_')
+
+        @_abc.abstractmethod
+        def _parse_tokens_(self, tokens: SafeIterator, /, *, caller) -> tuple:
+            raise NotImplementedError
+
+        def _parse_tokens_prefix_(self, tokens, /, *, caller):
+            if next(tokens) != self.symbol:
+                raise ParserError
+            return self._parse_tokens_(tokens, caller=caller)
+
+        def _parse_tokens_postfix_(self, tokens, /, *, caller):
+            parsed = self._parse_tokens_(tokens, caller=caller)
+            if next(tokens) != self.symbol:
+                raise ParserError
+            return parsed
+
+        def _filter_infixes(self, tokens, /):
+            yield next(tokens)
+            for tok in tokens:
+                if tok != self.symbol:
+                    raise StopIteration
+                yield next(tokens)
+
+        def _parse_tokens_infix_(self, tokens, /, *, caller):
+            return self._parse_tokens_(
+                SafeIterator(self._filter_infixes(tokens)),
+                caller=caller,
+                )
+
+        def _enphrase_(self, tokens, /, *, caller):
+            return Phrase(self.marker, *self.parse_tokens(tokens, caller=caller))
 
 
-# class Operator(_Prop):
+    class Nullary(demiclass):
 
-#     asorgan: bool = True
+        valence = 0
+
+        def _parse_tokens_(self, tokens, /, *, caller):
+            return ()
+
+
+    class Unary(demiclass):
+
+        valence = 1
+
+        source: POS[_Container] = None
+
+        def _parse_tokens_(self, tokens, /, *, caller):
+            source = caller if (source := self.source) is None else source
+            if (token := next(tokens)) in source:
+                return (token,)
+            raise ParserError
+
+
+    class Binary(demiclass):
+
+        valence = 2
+
+        lsource: POS[_Container] = None
+        rsource: POS[_Container] = CALLBACK('lsource')
+
+        def _parse_tokens_(self, tokens, /, *, caller):
+            lsource = caller if (lsource := self.lsource) is None else lsource
+            rsource = caller if (rsource := self.rsource) is None else rsource
+            if (ltok := next(tokens)) in lsource:
+                if (rtok := next(tokens)) in rsource:
+                    return (ltok, rtok)
+            raise ParserError
+
+
+    class Ennary(demiclass):
+
+        valence = Ellipsis
+
+        source: POS[_Container] = None
+
+        def _parse_tokens_(self, tokens, /, *, caller):
+            source = caller if (source := self.source) is None else source
+            vals = tuple(tokens)
+            if all(val in source for val in vals):
+                return vals
+            raise ParserError
+
+
+class Grammar(Realm):
+
+    operators: ARGS[Operator]
 
 #     @classmethod
-#     def __body_call__(cls, body, /, *args, **kwargs):
-#         return super().__body_call__(
-#             body, Expressor, bindings=((NotImplemented, *args), kwargs)
-#             )
+#     def sort_operators(cls, operators, /):
+#         n = len(operators)
+#         for valence in (0, 1, 2):
+#             for op in operators:
+#                 if op.valence == 
+        
 
+    @classmethod
+    def _parameterise_(cls, /, *args, **kwargs):
+        params = super()._parameterise_(*args, **kwargs)
+        params.operators = tuple(_itertools.chain.from_iterable(
+            grp for key, grp in _itertools.groupby(
+                params.operators, key=lambda val: -val.precedence
+            )))
+        return params
 
-# class Algebra(_System):
+    def _contains_(self, phrase, /, *, caller):
+        return any(
+            op._contains_(phrase, caller=caller)
+            for op in self.operators
+            )
 
-#     @classmethod
-#     def _yield_smartattrtypes(meta, /):
-#         yield from super()._yield_smartattrtypes()
-#         yield Operator
-
-
-# class _AlgebraBase_(Realm, metaclass=Algebra):
-
-#     @prop
-#     def operators(self, /):
-#         return {
-#             (op := getattr(self, name)).symbol: op
-#             for name in self._abstract_class_.__operators__
-#             }
-
-#     def __contains__(self, other, /):
-#         if isinstance(other, Expression):
-#             return other in self.operators[other.symbol]
+    def _enphrase_(self, tokens, /, *, caller) -> Phrase:
+        for op in self.operators:
+            try:
+                phrase = op.enphrase(tokens, caller=caller)
+            except ParserError:
+                continue
+            break
+        else:
+            raise ParserError
+        if tokens:
+            return self.enphrase(
+                SafeIterator(tokens, pre=(phrase,)),
+                caller=caller,
+                )
+        return phrase
 
 
 ###############################################################################
 ###############################################################################
-
-
-# class Axiom(metaclass=_Demiurge):
-
-
-#     class _DemiBase_(Realm):
-
-#         @prop
-#         @_abc.abstractmethod
-#         def operator(self, /) -> Operator:
-#             raise NotImplementedError
-
-#         def __call__(self, /, *args, **kwargs):
-#             return self.operator(*args, **kwargs)
-
-
-#     class Unary(demiclass):
-
-#         topic: POS[Realm]
-
-#         @classmethod
-#         def _parameterise_(cls, /, *args, **kwargs):
-#             params = super()._parameterise_(*args, **kwargs)
-#             if not isinstance(params.topic, Operator.Unary):
-#                 raise ValueError(params.topic)
-#             return params
-
-#         @_abc.abstractmethod
-#         def _canonise_(self, exp: Expression, /):
-#             raise NotImplementedError
-
-#         def canonise(self, exp: Expression, /):
-#             exp = super().canonise(exp)
-#             topic = self.topic
-#             return topic.canonise(self._canonise_(topic.canonise(exp)))
-
-#         def operator(self, /):
-#             topic = self.topic
-#             if isinstance(topic, Axiom):
-#                 return topic.operator
-#             return topic
-
-#         _contains_ = prop('self.topic._contains_')
-
-
-# class Idempotent(Axiom.Unary):
-
-#     def _canonise_(self, exp: Expression, /):
-#         argument = exp.contents[0]
-#         if argument.operator is self.operator:
-#             return argument
-#         return exp

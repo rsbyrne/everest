@@ -7,9 +7,8 @@ import abc as _abc
 from types import SimpleNamespace as _Ns
 
 from .classbody import MROClassHelper as _MROClassHelper
-from .wisp import Partial as _Partial
+from .wisp import Partial as _Partial, convert as _conv
 from .tekton import Tekton as _Tekton
-from .system import System as _System
 from . import ptolemaic as _ptolemaic
 
 
@@ -27,6 +26,16 @@ class Demiurge(_Tekton):
     def _yield_bodymeths(meta, body, /):
         yield from super()._yield_bodymeths(body)
         yield 'demiclass', property(DemiclassHelper)
+
+    def __call__(cls, arg0=NotImplemented, /, *argn, **kwargs):
+        if arg0 is not NotImplemented:
+            if not argn:
+                if not kwargs:
+                    try:
+                        return cls.demiconvert(arg0)
+                    except ValueError:
+                        pass
+        return super().__call__(arg0, *argn, **kwargs)
 
 
 class _DemiurgeBase_(metaclass=Demiurge):
@@ -87,9 +96,10 @@ class _DemiurgeBase_(metaclass=Demiurge):
                     # of all of its base's bases' demiurges.
                     kls.demiurge.register(cls)
         Base.demiurge = cls
+        cls._demiclasses_ = cls.convert(tuple(cls._DemiBase_.__subclasses__()))
 
 
-    class _DemiBase_(mroclass, metaclass=_System):
+    class _DemiBase_(mroclass, metaclass=_Tekton):
 
         ...
 

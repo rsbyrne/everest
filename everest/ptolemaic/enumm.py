@@ -120,6 +120,9 @@ class _EnummBase_(metaclass=Enumm):
         cls._enumerators = tuple(enumerators)
         cls._enumeratorsdict = _Dat.convert(enumeratorsdict)
 
+    def __call__(self, /, *args, **kwargs):
+        return self.value(*args, **kwargs)
+
     ### Representations:
 
     def _content_repr(self, /):
