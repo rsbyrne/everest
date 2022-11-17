@@ -9,6 +9,7 @@ import itertools as _itertools
 
 from .system import System as _System
 from .demiurge import Demiurge as _Demiurge
+from .enumm import Enumm as _Enumm
 
 
 class Clause(metaclass=_Demiurge):
@@ -23,7 +24,7 @@ class Clause(metaclass=_Demiurge):
     class _DemiBase_(metaclass=_System):
 
         @_abc.abstractmethod
-        def yield_clauses(self, /):
+        def yield_subclauses(self, /):
             raise NotImplementedError
 
         def bind(self, grammar, index: int, /):
@@ -53,10 +54,15 @@ class Clause(metaclass=_Demiurge):
 #                 raise NotImplementedError
 
 
-    class Terminal(demiclass):
+    class Nullary(demiclass):
 
-        def yield_clauses(self, /):
-            yield self
+        def yield_subclauses(self, /):
+            yield from ()
+
+
+    class Terminal(demiclass('.Nullary')):
+
+        ...
 
 
     class _Nothing_(demiclass('.Terminal')):
@@ -77,17 +83,21 @@ class Clause(metaclass=_Demiurge):
                     return 1
 
 
+    class Nonterminal(demiclass('.Nullary')):
+
+        symbol: POS
+
+
     class Operation(demiclass):
 
         ...
 
 
-    class Unary(demiclass('.Operation')):
+    class Unary(demiclass):
 
         subclause: POS['..']
 
-        def yield_clauses(self, /):
-            yield self
+        def yield_subclauses(self, /):
             yield self.subclause
 
 
@@ -112,7 +122,7 @@ class Clause(metaclass=_Demiurge):
             return params
 
 
-    class Ennary(mroclass('.Operation')):
+    class Ennary(demiclass):
 
         subclauses: ARGS['..']
 
@@ -138,10 +148,10 @@ class Clause(metaclass=_Demiurge):
             if len(params.subclauses) < 2:
                 raise ValueError
 
-        def yield_clauses(self, /):
-            yield self
+        def yield_subclauses(self, /):
             for clause in self.subclauses:
-                yield from clause.yield_clauses()
+                yield clause
+                yield from clause.yield_subclauses()
 
 
     class Sequence(demiclass('.Ennary')):
@@ -175,7 +185,7 @@ class Clause(metaclass=_Demiurge):
             params = super()._parameterise_(*args, **kwargs)
             try:
                 nothind = params.subclauses.index(cls.__corpus__.NOTHING)
-            except IndexError:
+            except ValueError:
                 pass
             else:
                 params.subclauses = tuple(params.subclauses[:nothind])
@@ -183,30 +193,87 @@ class Clause(metaclass=_Demiurge):
             return params
 
 
+class Associativity(metaclass=_Enumm):
+
+    LEFT: 'Declares left associativity.'
+    RIGHT: 'Declares right associativity.'
+
+
 class Rule(metaclass=_System):
 
-    nonterminal: POS
+    symbol: POS
     clause: POS[Clause]
+    precedence: KW[int] = -1
+    associativity: KW[Associativity] = None
+
+    @prop
+    def nonterminal(self, /):
+        return Clause.Nonterminal(self.symbol)
 
 
 class Grammar(metaclass=_System):
 
     rules: ARGS[Rule]
 
-    def yield_clauses(self, /):
+    # def _find_cycle_head_clauses(
+    #         self,
+    #         clause: Clause,
+    #         discovered: set[Clause],
+    #         finished: set[Clause],
+    #         cycle_head_clauses_out: set[Clause],
+    #         ):
+    #     discovered.add(clause)
+    #     for subcl in clause.yield_subclauses():
+    #         if subcl in discovered:
+    #             cycle_head_clauses_out.add(subcl)
+    #         elif subcl not in finished:
+    #             self._find_cycle_head_clauses(
+    #                 subcl, discovered, finished, cycle_head_clauses_out
+    #                 )
+    #     discovered.remove(clause)
+    #     finished.add(clause)
+
+    @prop
+    def lower_clauses(self, /):
+        out = []
         for rule in self.rules:
-            yield from rule.clause.yield_clauses()
-
-    def sort_clauses(self, clauses, /):
-        return clauses
-
-    @prop
-    def clauses(self, /):
-        return tuple(self.sort_clauses(self.yield_clauses()))
+            for clause in rule.clause.yield_subclauses():
+                if clause not in out:
+                    out.append(clause)
+        return tuple(out)
 
     @prop
-    def bound_clauses(self, /):
-        return tuple(cl.bind(self, i) for i, cl in enumerate(self.clauses))
+    def top_clauses(self, /):
+        return tuple(
+            rule.clause for rule in self.rules
+            if rule.nonterminal not in self.lower_clauses
+            )
+        
+        
+
+    # @prop
+    # def clauses(self, /):
+    #     out = []
+    #     for rule in self.rules:
+    #         nonterminal, clause = rule.nonterminal, rule.clause
+            
+
+#     def yield_clauses(self, /):
+#         for rule in self.rules:
+#             yield from rule.clause.yield_clauses()
+
+#     def sort_clauses(self, clauses, /):
+#         return clauses
+
+#     @prop
+#     def clauses(self, /):
+#         return tuple(self.sort_clauses(self.yield_clauses()))
+
+#     @prop
+#     def clauses(self, /):
+#         return tuple(
+#             cl.bind(self, i) for i, cl in enumerate(self.clauses)
+#             )
 
 
 ###############################################################################

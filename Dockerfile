@@ -1,4 +1,5 @@
-FROM ubuntu:hirsute-20220113
+#FROM ubuntu:hirsute-20220113
+FROM ubuntu:kinetic-20221024
 MAINTAINER https://github.com/rsbyrne/
 
 ENV MASTERUSER morpheus
@@ -131,12 +132,12 @@ RUN pip3 install -U --no-cache-dir \
   Pillow
 
 # LavaVu
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-  libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
-  build-essential libgl1-mesa-dev libx11-dev zlib1g-dev \
-  && rm -rf /var/lib/apt/lists/*
-RUN pip3 install -U --no-cache-dir \
-  lavavu-osmesa
+#RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+#  libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
+#  build-essential libgl1-mesa-dev libx11-dev zlib1g-dev \
+#  && rm -rf /var/lib/apt/lists/*
+#RUN pip3 install -U --no-cache-dir \
+#  lavavu-osmesa
 
 # Data
 RUN pip3 install -U --no-cache-dir \
@@ -185,10 +186,20 @@ RUN pip3 install -U --no-cache-dir \
 
 # Extra stuff (reshuffle later)
 # RUN pip3 install -U --no-cache-dir \
-#   ipywidgets \
-#   networkx \
-#   ipycytoscape \
-#   networkit
+#   jupyterhub
+  # ipywidgets \
+  # networkx \
+  # ipycytoscape \
+  # networkit
+                                                                   
+# Upgrade Python
+#RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && \
+#  add-apt-repository ppa:deadsnakes/ppa -y && \
+#  apt update && \
+#  apt install -y python3.11
+
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  python3-dev
 
 # Finish
 RUN apt update -y && apt upgrade -y

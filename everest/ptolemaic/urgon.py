@@ -5,6 +5,7 @@
 
 import abc as _abc
 import weakref as _weakref
+import inspect as _inspect
 from types import SimpleNamespace as _SimpleNamespace
 
 from .wisp import Namespace as _Namespace, Partial as _Partial
@@ -52,9 +53,8 @@ class _UrgonBase_(metaclass=Urgon):
         return issubclass(arg, cls.__signature__.return_annotation)
 
     @classmethod
-    @_abc.abstractmethod
     def __class_get_signature__(cls, /):
-        raise NotImplementedError
+        return _inspect.Signature()
 
     @classmethod
     def __class_init__(cls, /):

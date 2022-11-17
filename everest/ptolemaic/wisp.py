@@ -73,9 +73,9 @@ class Classmethod(metaclass=Wisp):
 
 class Property(metaclass=Wisp):
 
-    fget: _FunctionType = None
-    fset: _FunctionType = None
-    fdel: _FunctionType = None
+    fget: _types.FunctionType = None
+    fset: _types.FunctionType = None
+    fdel: _types.FunctionType = None
     doc: str = None
 
     __slots__ = ('__doc__', '_namelookup')
@@ -116,24 +116,25 @@ class Pentheros(metaclass=Wisp):
 
     __content_type__ = object
     __content_meths__ = ()
-    __convert_type__ = None
+    __convert_types__ = None
 
     @classmethod
     def __class_init__(cls, /):
         super().__class_init__()
         if cls is not __class__:
-            typ = cls.__convert_type__
-            if typ is None:
-                typ = cls.__content_type__
-            if typ not in (dct := Wisp._convtyps):
-                dct[typ] = cls
-                try:
-                    dattyp = _ur.Dat.convert_type(typ)
-                except TypeError:
-                    pass
-                else:
-                    if dattyp not in dct:
-                        dct[dattyp] = cls
+            typs = cls.__convert_types__
+            if typs is None:
+                typs = (cls.__content_type__,)
+            for typ in typs:
+                if typ not in (dct := Wisp._convtyps):
+                    dct[typ] = cls
+                    try:
+                        dattyp = _ur.Dat.convert_type(typ)
+                    except TypeError:
+                        pass
+                    else:
+                        if dattyp not in dct:
+                            dct[dattyp] = cls
 
     @classmethod
     def __class_get_signature__(cls, /):
@@ -166,6 +167,7 @@ class Tuuple(Pentheros):
     def _make_content(self, /):
         return self.__params__
 
+    __convert_types__ = (tuple, _types.GeneratorType, list)
     __content_type__ = tuple
     __content_meths__ = (
         '__len__', '__contains__', '__iter__',
@@ -256,7 +258,7 @@ class Namespace(Kwargs):
 
 class Partial(Tuuple):
 
-    __convert_type__ = _partial
+    __convert_types__ = (_partial,)
 
     __slots__ = ('_partial', 'tocall', 'callargs', 'callkwargs')
 
