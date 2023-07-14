@@ -129,42 +129,42 @@ RUN apt update -y && apt upgrade -y
 ENV MASTERUSER morpheus
 ENV MASTERPASSWD Matrix-1999!
 
-## configure master user and workers group with arbitrary ids
+## Configure master user and workers group with arbitrary ids
 RUN useradd -p $(openssl passwd -1 $MASTERPASSWD) -u 15215 $MASTERUSER && \
   usermod -aG sudo $MASTERUSER && \
   groupadd -g 17932 workers && \
   usermod -g workers $MASTERUSER
 
-## configure user directories
+## Configure user directories
 ENV MASTERUSERHOME /home/$MASTERUSER
 RUN mkdir $MASTERUSERHOME
-ENV WORKSPACE $MASTERUSERHOME/workspace
-RUN mkdir $WORKSPACE
-ENV TOOLS $MASTERUSERHOME/tools
-RUN mkdir $TOOLS
-ENV MOUNTDIR $WORKSPACE/mount
-VOLUME $MOUNTDIR
 RUN chown -R $MASTERUSER $MASTERUSERHOME
 ENV PATH "${PATH}:$MASTERUSERHOME/.local/bin"
 
-## set up passwordless sudo for master user
+## Set up passwordless sudo for master user
 RUN echo $MASTERUSER 'ALL = (ALL) NOPASSWD: ALL' | EDITOR='tee -a' visudo
 
-## change to master user
+## Change to master user
 USER $MASTERUSER
 WORKDIR $MASTERUSERHOME
 
-## Python
-ENV PYTHONPATH "$BASEDIR:${PYTHONPATH}"
-ENV PYTHONPATH "$WORKSPACE:${PYTHONPATH}"
-ENV PYTHONPATH "$MOUNTDIR:${PYTHONPATH}"
-ENV PYTHONPATH "$EVERESTDIR:${PYTHONPATH}"
+## Configure tools directory
+ENV TOOLSDIR $MASTERUSERHOME/tools
+RUN mkdir $TOOLSDIR
+ENV PYTHONPATH "$TOOLSDIR:${PYTHONPATH}"
 
-## aliases
+## Configure workspace directory
+ENV WORKSPACE $MASTERUSERHOME/workspace
+RUN mkdir $WORKSPACE
+ENV PYTHONPATH "$WORKSPACE:${PYTHONPATH}"
+
+## Add Everest itself
+ADD ./everest $TOOLSDIR/everest
+
+## Add the init script
+ADD ./init.sh $MASTERUSERHOME/init.sh
+
+## Convenience
 RUN \
   echo "alias python=python3" >> ~/.bashrc && \
   echo "alias pip=pip3" >> ~/.bashrc
-
-# ENV EVERESTDIR $MASTERUSERHOME/everest
-# ADD . $EVERESTDIR
-# RUN chown -R $MASTERUSER $EVERESTDIR
