@@ -1,15 +1,14 @@
 #FROM ubuntu:hirsute-20220113
-FROM ubuntu:kinetic-20221024
+FROM ubuntu:mantic-20230624
 MAINTAINER https://github.com/rsbyrne/
 
-ENV MASTERUSER morpheus
-ENV MASTERPASSWD Matrix-1999!
+# Basic
 
-# for apt to be noninteractive
+## for apt to be noninteractive
 ENV DEBIAN_FRONTEND noninteractive
 ENV DEBCONF_NONINTERACTIVE_SEEN true
 
-# install with apt
+## install with apt
 RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   gpgv2 \
   software-properties-common \
@@ -18,13 +17,125 @@ RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
   vim \
   && rm -rf /var/lib/apt/lists/*
 
-# configure master user
-RUN useradd -p $(openssl passwd -1 $MASTERPASSWD) $MASTERUSER && \
+## install other softwares
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  apt-utils \
+  curl \
+  git \
+  man \
+  nano \
+  wget \
+  cloc \
+  && rm -rf /var/lib/apt/lists/*
+
+## install Python stuff
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  python3-venv \
+  python3-pip
+
+# # Virtual environment
+# RUN python3 -m venv ~/mainenv
+# RUN source ~/mainenv/bin/activate
+
+# Software
+
+## CLI
+RUN pip3 install -U --no-cache-dir --break-system-packages \
+  click \
+  rich
+
+## Convenience
+# https://whoosh.readthedocs.io/en/latest/
+RUN pip3 install -U --no-cache-dir --break-system-packages Whoosh
+
+## MPI
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  libopenmpi-dev
+RUN pip3 install -U --no-cache-dir --break-system-packages mpi4py
+ENV OMPI_MCA_btl_vader_single_copy_mechanism "none"
+
+## Visualisation
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  graphviz \
+  cm-super \
+  dvipng \
+  imagemagick \
+#  texlive-latex-extra \
+  ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
+RUN pip3 install -U --no-cache-dir --break-system-packages \
+  objgraph \
+  xdot \
+  matplotlib \
+  Pillow
+
+## LavaVu
+#RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+#  libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
+#  build-essential libgl1-mesa-dev libx11-dev zlib1g-dev \
+#  && rm -rf /var/lib/apt/lists/*
+#RUN pip3 install -U --no-cache-dir --break-system-packages \
+#  lavavu-osmesa
+
+## Data
+RUN pip3 install -U --no-cache-dir --break-system-packages \
+  numpy \
+  scipy \
+#  dask[complete] \
+#  diversipy \
+  h5py \
+  numba \
+  pandas
+#  xarray[complete]
+
+## Machine Learning
+RUN pip3 install -U --no-cache-dir --break-system-packages \
+  scikit-learn
+#  torch \
+#  torchvision \
+#  fastai
+
+## Networking
+RUN pip3 install -U --no-cache-dir --break-system-packages paramiko
+
+## Maths
+RUN pip3 install -U --no-cache-dir --break-system-packages \
+  mpmath \
+#  sympy \
+  more-itertools \
+  networkx
+
+## Productivity
+RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
+  nodejs \
+  npm \
+  && rm -rf /var/lib/apt/lists/*
+RUN pip3 install -U --no-cache-dir --break-system-packages \
+  jupyterlab \
+  ipywidgets
+
+## Cryptography
+RUN pip3 install -U --no-cache-dir --break-system-packages cryptography
+
+## Cython
+RUN pip3 install -U --no-cache-dir --break-system-packages cython
+
+## Finalise
+
+RUN apt update -y && apt upgrade -y
+
+# Configure
+
+ENV MASTERUSER morpheus
+ENV MASTERPASSWD Matrix-1999!
+
+## configure master user and workers group with arbitrary ids
+RUN useradd -p $(openssl passwd -1 $MASTERPASSWD) -u 15215 $MASTERUSER && \
   usermod -aG sudo $MASTERUSER && \
-  groupadd workers && \
+  groupadd -g 17932 workers && \
   usermod -g workers $MASTERUSER
 
-# configure user directories
+## configure user directories
 ENV MASTERUSERHOME /home/$MASTERUSER
 RUN mkdir $MASTERUSERHOME
 ENV WORKSPACE $MASTERUSERHOME/workspace
@@ -36,176 +147,24 @@ VOLUME $MOUNTDIR
 RUN chown -R $MASTERUSER $MASTERUSERHOME
 ENV PATH "${PATH}:$MASTERUSERHOME/.local/bin"
 
-# set up passwordless sudo for master user
+## set up passwordless sudo for master user
 RUN echo $MASTERUSER 'ALL = (ALL) NOPASSWD: ALL' | EDITOR='tee -a' visudo
 
-# install other softwares
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-  apt-utils \
-  curl \
-  git \
-  man \
-  nano \
-  wget \
-  && rm -rf /var/lib/apt/lists/*
-
-# Upgrade Python
-#RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && \
-#  add-apt-repository ppa:deadsnakes/ppa && \
-#  apt update && \
-#  apt install -y python3.10 && \
-#  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 && \
-#  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 2 && \
-#  apt remove -y python3.8 && \
-#  apt autoremove -y && \
-#  apt install -y python3.10-distutils && \
-#  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-#  python3.10 get-pip.py && \
-#  apt install -y python3.10-venv && \
-#  apt remove -y --purge python3-apt && \
-#  apt autoremove -y && \
-#  update-alternatives --config python3
-
-# COPY requirements.txt /tmp/
-# RUN pip install -y -r requirements.txt
-
-# install Python stuff
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-  python3-venv \
-  python3-pip
-ENV PYTHONPATH "$BASEDIR:${PYTHONPATH}"
-ENV PYTHONPATH "$WORKSPACE:${PYTHONPATH}"
-ENV PYTHONPATH "$MOUNTDIR:${PYTHONPATH}"
-
-# change to master user
+## change to master user
 USER $MASTERUSER
 WORKDIR $MASTERUSERHOME
 
-# aliases
-RUN echo "alias python=python3" >> ~/.bashrc && \
-  echo "alias pip=pip3" >> ~/.bashrc
-
-USER root
-
-# Python
+## Python
+ENV PYTHONPATH "$BASEDIR:${PYTHONPATH}"
+ENV PYTHONPATH "$WORKSPACE:${PYTHONPATH}"
+ENV PYTHONPATH "$MOUNTDIR:${PYTHONPATH}"
 ENV PYTHONPATH "$EVERESTDIR:${PYTHONPATH}"
 
-# Production
-# RUN pip3 install -U --no-cache-dir \
-#   mypy \
-#   pytest
-
-# CLI
-RUN pip3 install -U --no-cache-dir \
-  click \
-  rich
-
-# Convenience
-# https://whoosh.readthedocs.io/en/latest/
-RUN pip3 install --no-cache-dir -U Whoosh
-
-# MPI
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-  libopenmpi-dev
-RUN pip3 install --no-cache-dir mpi4py
-ENV OMPI_MCA_btl_vader_single_copy_mechanism "none"
-
-# Debugging
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-  cloc \
-  graphviz \
-  && rm -rf /var/lib/apt/lists/*
-RUN pip3 install -U --no-cache-dir \
-  objgraph \
-  xdot
-
-# Visualisation
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-  cm-super \
-  dvipng \
-  imagemagick \
-  texlive-latex-extra \
-  ffmpeg \
-  && rm -rf /var/lib/apt/lists/*
-RUN pip3 install -U --no-cache-dir \
-  matplotlib \
-  Pillow
-
-# LavaVu
-#RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-#  libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
-#  build-essential libgl1-mesa-dev libx11-dev zlib1g-dev \
-#  && rm -rf /var/lib/apt/lists/*
-#RUN pip3 install -U --no-cache-dir \
-#  lavavu-osmesa
-
-# Data
-RUN pip3 install -U --no-cache-dir \
-  numpy \
-  scipy \
-  dask[complete] \
-  diversipy \
-  h5py \
-  numba \
-  pandas \
-  xarray[complete]
-
-# Machine Learning
-RUN pip3 install -U --no-cache-dir \
-  scikit-learn
-#RUN pip3 install --no-cache-dir torch torchvision
-#RUN pip3 install --no-cache-dir fastai
-
-# Networking
-RUN pip3 install -U --no-cache-dir \
-  paramiko
-
-# Maths
-RUN pip3 install -U --no-cache-dir \
-  mpmath \
-  sympy \
-  more-itertools \
-  networkx
-
-# Productivity
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-  nodejs \
-  npm \
-  && rm -rf /var/lib/apt/lists/*
-RUN pip3 install -U --no-cache-dir \
-  jupyterlab \
-  ipywidgets
-
-# Cryptography
-RUN pip3 install -U --no-cache-dir \
-  cryptography
-
-# Cython
-RUN pip3 install -U --no-cache-dir \
-  cython
-
-# Extra stuff (reshuffle later)
-# RUN pip3 install -U --no-cache-dir \
-#   jupyterhub
-  # ipywidgets \
-  # networkx \
-  # ipycytoscape \
-  # networkit
-                                                                   
-# Upgrade Python
-#RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && \
-#  add-apt-repository ppa:deadsnakes/ppa -y && \
-#  apt update && \
-#  apt install -y python3.11
-
-RUN rm -rf /var/lib/apt/lists/* && apt clean && apt update && apt install -y \
-  python3-dev
-
-# Finish
-RUN apt update -y && apt upgrade -y
+## aliases
+RUN \
+  echo "alias python=python3" >> ~/.bashrc && \
+  echo "alias pip=pip3" >> ~/.bashrc
 
 # ENV EVERESTDIR $MASTERUSERHOME/everest
 # ADD . $EVERESTDIR
 # RUN chown -R $MASTERUSER $EVERESTDIR
-
-USER $MASTERUSER
